@@ -69,6 +69,7 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchUnifiedHistory } from '../../api/records';
+import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { UnifiedRecordItem } from '../../types/records';
 
@@ -101,8 +102,12 @@ async function loadHistory() {
   } catch (error) {
     console.warn('load unified history failed', error);
     items.value = [];
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      return;
+    }
     uni.showToast({
-      title: '历史读取失败',
+      title: getErrorMessage(error, '历史读取失败'),
       icon: 'none',
     });
   } finally {

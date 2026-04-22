@@ -1,38 +1,74 @@
 <template>
   <view class="page-shell">
     <view class="page">
-    <view class="panel hero-panel">
-      <text class="eyebrow">profile center</text>
-      <text class="title">{{ isLoggedIn ? (profile.nickname || '今天也要顺利一点') : loginEntryTitle }}</text>
-      <text class="summary">{{ heroSummary }}</text>
+      <view class="panel hero-panel">
+        <text class="eyebrow">profile center</text>
+        <text class="title">{{ loginEntryTitle }}</text>
+        <text class="summary">{{ heroSummary }}</text>
 
-      <view class="hero-actions">
-        <button
-          v-if="!isLoggedIn"
-          class="hero-button hero-button--primary"
-          :loading="submitting"
-          @tap="handleLogin"
-        >
-          {{ loginButtonLabel }}
-        </button>
-        <button
-          v-else
-          class="hero-button hero-button--secondary"
-          @tap="logout"
-        >
-          退出当前会话
-        </button>
+        <view class="status-strip">
+          <view class="status-chip">
+            <text class="status-chip__label">登录渠道</text>
+            <text class="status-chip__value">{{ sessionProviderLabel }}</text>
+          </view>
+          <view class="status-chip">
+            <text class="status-chip__label">资料状态</text>
+            <text class="status-chip__value">{{ profileCompleted ? '已完善' : '待完善' }}</text>
+          </view>
+        </view>
+
+        <view class="hero-actions" :class="{ 'hero-actions--double': isLoggedIn }">
+          <button
+            class="hero-button hero-button--primary"
+            :loading="submitting"
+            @tap="handleLogin"
+          >
+            {{ loginButtonLabel }}
+          </button>
+          <button
+            v-if="isLoggedIn"
+            class="hero-button hero-button--secondary"
+            @tap="logout"
+          >
+            退出当前会话
+          </button>
+        </view>
+
+        <text class="helper-text">{{ sessionHint }}</text>
+        <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
+          登录时会尝试同步头像和昵称；如果你暂时不授权，也不会阻塞登录。
+        </text>
       </view>
 
-      <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
-        当前会尝试走真实微信 `uni.login`，服务端已配置 `WECHAT_APP_ID / WECHAT_APP_SECRET` 时会直接换取真实 `openid`。
-      </text>
-      <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
-        登录时会尝试同步头像和昵称；如果你暂时不授权，也不会阻塞登录。
-      </text>
-    </view>
+      <view class="panel profile-panel">
+        <view class="section-head">
+          <text class="section-title">登录状态</text>
+          <text class="section-link">{{ isLoggedIn ? '已接通' : '待登录' }}</text>
+        </view>
 
-    <view v-if="isLoggedIn" class="panel profile-panel">
+        <view class="profile-row">
+          <text class="profile-label">当前账号</text>
+          <text class="profile-value">{{ isLoggedIn ? (profile.nickname || '未设置昵称') : '尚未登录' }}</text>
+        </view>
+        <view class="profile-row">
+          <text class="profile-label">会话模式</text>
+          <text class="profile-value">{{ sessionProviderLabel }}</text>
+        </view>
+        <view class="profile-row">
+          <text class="profile-label">登录时间</text>
+          <text class="profile-value">{{ formatDateTime(authMeta?.loggedInAt) }}</text>
+        </view>
+        <view class="profile-row">
+          <text class="profile-label">会话到期</text>
+          <text class="profile-value">{{ formatDateTime(authMeta?.expiresAt) }}</text>
+        </view>
+        <view v-if="loginErrorMessage" class="hint-card">
+          <text class="hint-card__title">最近一次登录提示</text>
+          <text class="hint-card__text">{{ loginErrorMessage }}</text>
+        </view>
+      </view>
+
+      <view v-if="isLoggedIn" class="panel profile-panel">
       <view class="profile-row">
         <text class="profile-label">OpenID</text>
         <text class="profile-value">{{ profile.openid }}</text>
@@ -153,7 +189,7 @@
           <text class="element-card__value">{{ item.value }}</text>
         </view>
       </view>
-    </view>
+      </view>
     </view>
     <AppTabBar current-tab="profile" />
   </view>
@@ -165,10 +201,13 @@ import { computed, reactive, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchMe, loginWithCode, updateMyProfile } from '../../api/auth';
 import { fetchUnifiedHistory } from '../../api/records';
+import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import {
   clearSession,
+  getAuthSessionMeta,
   getAuthToken,
   getCachedUser,
+  setAuthSessionMeta,
   setAuthToken,
   setCachedUser,
 } from '../../services/session';
@@ -208,6 +247,8 @@ const profileCompleted = ref(Boolean(profile.value.birthday && profile.value.zod
 const submitting = ref(false);
 const historyLoading = ref(false);
 const authToken = ref(getAuthToken());
+const authMeta = ref(getAuthSessionMeta());
+const loginErrorMessage = ref('');
 const recentHistory = ref<UnifiedRecordItem[]>([]);
 const form = reactive({
   nickname: profile.value.nickname || '',
@@ -223,17 +264,86 @@ const fiveElementEntries = computed(() =>
     value,
   })),
 );
-const loginButtonLabel = computed(() => (isMpWeixin ? '微信一键登录' : '开发环境快捷登录'));
-const loginEntryTitle = computed(() => (isMpWeixin ? '先用微信登录，再完善资料' : '先登录再完善资料'));
-const heroSummary = computed(() => {
+const sessionProviderLabel = computed(() => {
+  if (authMeta.value?.authProviderLabel) {
+    return authMeta.value.authProviderLabel;
+  }
+
+  return isMpWeixin ? '正式微信授权待发起' : '开发环境体验登录';
+});
+const loginButtonLabel = computed(() => {
   if (isLoggedIn.value) {
-    return `当前状态：${profileCompleted.value ? '资料已完善' : '资料待完善'}，完善后会自动计算星座与简易八字。`;
+    return isMpWeixin ? '重新获取微信登录态' : '刷新体验登录';
+  }
+
+  if (loginErrorMessage.value) {
+    return isMpWeixin ? '重新发起微信登录' : '重新体验登录';
+  }
+
+  return isMpWeixin ? '微信一键登录' : '开发环境快捷登录';
+});
+const loginEntryTitle = computed(() => {
+  if (isLoggedIn.value) {
+    return profile.value.nickname || '今天也要顺利一点';
+  }
+
+  if (loginErrorMessage.value) {
+    return '登录没完成，再试一次就好';
+  }
+
+  return isMpWeixin ? '先用微信登录，再完善资料' : '先登录再完善资料';
+});
+const heroSummary = computed(() => {
+  if (loginErrorMessage.value && !isLoggedIn.value) {
+    return `${loginErrorMessage.value}。你可以直接重新发起登录，或者先检查小程序登录配置。`;
+  }
+
+  if (isLoggedIn.value) {
+    return `当前状态：${profileCompleted.value ? '资料已完善' : '资料待完善'}，当前会话来源：${sessionProviderLabel.value}。`;
   }
 
   return isMpWeixin
-    ? '当前会优先走真实微信授权登录，登录成功后可继续完善生日信息与五行资料。'
+    ? '当前会优先走真实微信授权登录；如果服务端未配置 `WECHAT_APP_ID / WECHAT_APP_SECRET`，会明确提示，不再静默走 mock。'
     : '当前是 H5 / 开发环境体验登录，正式小程序里会走微信登录换取真实 openid。';
 });
+const sessionHint = computed(() => {
+  if (!isLoggedIn.value) {
+    return '登录后会把历史记录、幸运推荐和会员状态都绑定到当前账号。';
+  }
+
+  return profileCompleted.value
+    ? '资料已经就绪，首页、幸运物和结果页都会优先参考你的资料。'
+    : '生日和出生时间补齐后，会自动计算星座、简易八字和五行分布。';
+});
+
+function applyLoginResult(data: {
+  token: string;
+  expiresIn: number;
+  authMode: 'wechat' | 'mock';
+  authProviderLabel: string;
+  user: UserProfile;
+  isProfileCompleted: boolean;
+}) {
+  const loggedInAt = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + data.expiresIn * 1000).toISOString();
+
+  setAuthToken(data.token);
+  setCachedUser(data.user);
+  setAuthSessionMeta({
+    authMode: data.authMode,
+    authProviderLabel: data.authProviderLabel,
+    loggedInAt,
+    expiresIn: data.expiresIn,
+    expiresAt,
+  });
+
+  authToken.value = data.token;
+  authMeta.value = getAuthSessionMeta();
+  profile.value = data.user;
+  profileCompleted.value = data.isProfileCompleted;
+  loginErrorMessage.value = '';
+  syncForm();
+}
 
 async function hydrateProfile() {
   if (!isLoggedIn.value) {
@@ -248,6 +358,14 @@ async function hydrateProfile() {
     syncForm();
   } catch (error) {
     console.warn('load profile failed', error);
+    if (handleAuthExpired(error)) {
+      authToken.value = '';
+      authMeta.value = null;
+      profile.value = emptyProfile;
+      profileCompleted.value = false;
+      recentHistory.value = [];
+      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
+    }
   }
 }
 
@@ -264,6 +382,13 @@ async function loadHistoryPreview() {
   } catch (error) {
     console.warn('load history preview failed', error);
     recentHistory.value = [];
+    if (handleAuthExpired(error)) {
+      authToken.value = '';
+      authMeta.value = null;
+      profile.value = emptyProfile;
+      profileCompleted.value = false;
+      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
+    }
   } finally {
     historyLoading.value = false;
   }
@@ -278,12 +403,7 @@ function syncForm() {
 
 async function loginForExperience() {
   const response = await loginWithCode(`dev-${Date.now()}`);
-  setAuthToken(response.data.token);
-  setCachedUser(response.data.user);
-  authToken.value = response.data.token;
-  profile.value = response.data.user;
-  profileCompleted.value = response.data.isProfileCompleted;
-  syncForm();
+  applyLoginResult(response.data);
 }
 
 function requestWechatProfile() {
@@ -337,37 +457,7 @@ async function loginWithWechatOfficial() {
   const code = await requestWechatCode();
   const profileExtras = await requestWechatProfile();
   const response = await loginWithCode(code, profileExtras);
-  setAuthToken(response.data.token);
-  setCachedUser(response.data.user);
-  authToken.value = response.data.token;
-  profile.value = response.data.user;
-  profileCompleted.value = response.data.isProfileCompleted;
-  syncForm();
-}
-
-function extractErrorMessage(error: unknown) {
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (error && typeof error === 'object') {
-    const maybeMessage = (error as { message?: unknown; errmsg?: unknown; errMsg?: unknown }).message;
-    if (typeof maybeMessage === 'string' && maybeMessage.trim()) {
-      return maybeMessage;
-    }
-
-    const maybeErrmsg = (error as { errmsg?: unknown }).errmsg;
-    if (typeof maybeErrmsg === 'string' && maybeErrmsg.trim()) {
-      return maybeErrmsg;
-    }
-
-    const maybeErrMsg = (error as { errMsg?: unknown }).errMsg;
-    if (typeof maybeErrMsg === 'string' && maybeErrMsg.trim()) {
-      return maybeErrMsg;
-    }
-  }
-
-  return '';
+  applyLoginResult(response.data);
 }
 
 async function handleLogin() {
@@ -386,8 +476,9 @@ async function handleLogin() {
     });
   } catch (error) {
     console.warn('login failed', error);
+    loginErrorMessage.value = getErrorMessage(error, '登录失败，请稍后重试');
     uni.showToast({
-      title: extractErrorMessage(error) || '登录失败，请稍后重试',
+      title: loginErrorMessage.value,
       icon: 'none',
     });
   } finally {
@@ -421,8 +512,16 @@ async function saveProfile() {
     });
   } catch (error) {
     console.warn('save profile failed', error);
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      authMeta.value = null;
+      profile.value = emptyProfile;
+      profileCompleted.value = false;
+      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
+      return;
+    }
     uni.showToast({
-      title: extractErrorMessage(error) || '保存失败',
+      title: getErrorMessage(error, '保存失败'),
       icon: 'none',
     });
   } finally {
@@ -433,9 +532,11 @@ async function saveProfile() {
 function logout() {
   clearSession();
   authToken.value = '';
+  authMeta.value = null;
   profile.value = emptyProfile;
   profileCompleted.value = false;
   recentHistory.value = [];
+  loginErrorMessage.value = '';
   syncForm();
   uni.showToast({
     title: '已退出',
@@ -479,6 +580,23 @@ function openHistoryItem(route: string) {
   });
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return '暂未记录';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hour = `${date.getHours()}`.padStart(2, '0');
+  const minute = `${date.getMinutes()}`.padStart(2, '0');
+  return `${month}-${day} ${hour}:${minute}`;
+}
+
 onLoad(() => {
   void hydrateProfile();
   void loadHistoryPreview();
@@ -489,6 +607,7 @@ onShow(() => {
   if (latestToken !== authToken.value) {
     authToken.value = latestToken;
   }
+  authMeta.value = getAuthSessionMeta();
   void hydrateProfile();
   void loadHistoryPreview();
 });
@@ -546,10 +665,16 @@ onShow(() => {
 }
 
 .hero-actions,
+.status-strip,
 .shortcut-grid,
 .history-list {
   display: grid;
   gap: 16rpx;
+}
+
+.status-strip,
+.hero-actions--double {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hero-button {
@@ -595,9 +720,27 @@ onShow(() => {
 .field__input,
 .history-card__title,
 .history-card__score,
-.shortcut-card__title {
+.shortcut-card__title,
+.status-chip__value,
+.hint-card__title {
   font-size: 28rpx;
   color: var(--apple-text);
+}
+
+.status-chip,
+.hint-card {
+  display: grid;
+  gap: 10rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 24rpx;
+  background: rgba(246, 249, 252, 0.92);
+}
+
+.status-chip__label,
+.hint-card__text {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--apple-muted);
 }
 
 .profile-value {

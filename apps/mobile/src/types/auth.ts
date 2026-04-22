@@ -23,6 +23,8 @@ export interface UserProfile {
 export interface LoginResponseData {
   token: string;
   expiresIn: number;
+  authMode: 'wechat' | 'mock';
+  authProviderLabel: string;
   user: UserProfile;
   isProfileCompleted: boolean;
 }

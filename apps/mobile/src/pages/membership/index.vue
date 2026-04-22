@@ -91,6 +91,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchMembershipStatus } from '../../api/membership';
 import { createMembershipOrder, simulateMembershipPay } from '../../api/orders';
+import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { MembershipStatusData } from '../../types/membership';
 import type { MembershipOrder } from '../../types/order';
@@ -118,8 +119,12 @@ async function loadMembership() {
   } catch (error) {
     console.warn('load membership failed', error);
     membership.value = null;
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      return;
+    }
     uni.showToast({
-      title: '会员状态读取失败',
+      title: getErrorMessage(error, '会员状态读取失败'),
       icon: 'none',
     });
   } finally {
@@ -139,8 +144,12 @@ async function createOrder(productCode: string) {
     });
   } catch (error) {
     console.warn('create membership order failed', error);
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      return;
+    }
     uni.showToast({
-      title: '订单创建失败',
+      title: getErrorMessage(error, '订单创建失败'),
       icon: 'none',
     });
   } finally {
@@ -165,8 +174,12 @@ async function completeOrder() {
     });
   } catch (error) {
     console.warn('complete membership order failed', error);
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      return;
+    }
     uni.showToast({
-      title: '支付流转失败',
+      title: getErrorMessage(error, '支付流转失败'),
       icon: 'none',
     });
   } finally {

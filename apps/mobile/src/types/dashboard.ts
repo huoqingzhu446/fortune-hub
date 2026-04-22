@@ -30,6 +30,21 @@ export interface DashboardModule {
   badge: string;
 }
 
+export interface DashboardQuickEntry {
+  id: string;
+  title: string;
+  description: string;
+  route: string;
+  badge: string;
+}
+
+export interface DashboardJourneyEntry {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+}
+
 export interface DashboardBottomTab {
   id: string;
   label: string;
@@ -45,8 +60,15 @@ export interface DashboardIntegrations {
 }
 
 export interface DashboardUserSummary {
+  isLoggedIn: boolean;
+  nickname: string | null;
   profileCompleted: boolean;
   vipStatus: string;
+  primaryActionTitle: string;
+  primaryActionRoute: string;
+  secondaryActionTitle: string;
+  secondaryActionRoute: string;
+  welcomeNote: string;
 }
 
 export interface MobileDashboardPayload {
@@ -56,6 +78,8 @@ export interface MobileDashboardPayload {
   todayLuckySign: DashboardLuckySign;
   todayFortuneSummary: string;
   featureEntries: DashboardModule[];
+  quickEntries: DashboardQuickEntry[];
+  journeyEntries: DashboardJourneyEntry[];
   bottomTabs: DashboardBottomTab[];
   stats: DashboardStat[];
   modules: DashboardModule[];

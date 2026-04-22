@@ -163,6 +163,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchLuckyToday } from '../../api/lucky';
+import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { setLuckyWallpaperTheme } from '../../services/lucky-wallpaper';
 import { getAuthToken } from '../../services/session';
 import type { LuckyTodayData, LuckyWallpaperTheme } from '../../types/lucky';
@@ -217,8 +218,12 @@ async function loadLucky() {
   } catch (error) {
     console.warn('load lucky failed', error);
     luckyData.value = fallbackLucky;
+    if (handleAuthExpired(error, true)) {
+      authToken.value = '';
+      return;
+    }
     uni.showToast({
-      title: '已切换到离线推荐',
+      title: getErrorMessage(error, '已切换到离线推荐'),
       icon: 'none',
     });
   } finally {

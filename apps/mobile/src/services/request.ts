@@ -1,3 +1,5 @@
+import { clearSession } from './session';
+
 type RequestPayload = object | string | ArrayBuffer;
 
 export interface RequestOptions<TData extends RequestPayload = RequestPayload> {
@@ -22,9 +24,44 @@ export function request<TResponse, TData extends RequestPayload = RequestPayload
           return;
         }
 
-        reject(response.data);
+        const payload = response.data as
+          | {
+              code?: number | string;
+              message?: string | string[];
+              error?: string;
+              statusCode?: number;
+            }
+          | undefined;
+        const payloadMessages = payload?.message;
+        const message = Array.isArray(payloadMessages)
+          ? payloadMessages.find((item) => typeof item === 'string' && item.trim()) ||
+            payload?.error ||
+            '请求失败，请稍后再试'
+          : payload?.message || payload?.error || '请求失败，请稍后再试';
+        const authExpired =
+          response.statusCode === 401 ||
+          (typeof message === 'string' && message.includes('重新登录'));
+
+        if (authExpired) {
+          clearSession();
+        }
+
+        reject({
+          statusCode: response.statusCode,
+          code: payload?.code,
+          message,
+          authExpired,
+          raw: response.data,
+        });
       },
-      fail: reject,
+      fail: (error) => {
+        reject({
+          statusCode: 0,
+          message: (error as { errMsg?: string }).errMsg || '网络请求失败，请稍后重试',
+          authExpired: false,
+          raw: error,
+        });
+      },
     });
   });
 }

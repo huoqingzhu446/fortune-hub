@@ -67,6 +67,56 @@ const fallbackDashboard: MobileDashboardPayload = {
       badge: '内容化',
     },
   ],
+  quickEntries: [
+    {
+      id: 'profile',
+      title: '先去登录',
+      description: '从个人中心发起登录，后续历史和会员都会绑定到账号。',
+      route: '/pages/profile/index',
+      badge: '立即开始',
+    },
+    {
+      id: 'records',
+      title: '查看历史',
+      description: '把八字、性格和情绪结果集中回看，减少反复找入口。',
+      route: '/pages/records/index',
+      badge: '回看结果',
+    },
+    {
+      id: 'settings',
+      title: '设置中心',
+      description: '统一管理提醒偏好、隐私说明、反馈和关于我们。',
+      route: '/pages/settings/index',
+      badge: '基础配置',
+    },
+    {
+      id: 'membership',
+      title: '会员权益',
+      description: '查看 VIP 权益、套餐和当前订单状态。',
+      route: '/pages/membership/index',
+      badge: '权益说明',
+    },
+  ],
+  journeyEntries: [
+    {
+      id: 'login',
+      title: '登录账号',
+      description: '先从个人中心发起登录，避免结果只停留在当前设备。',
+      completed: false,
+    },
+    {
+      id: 'profile',
+      title: '完善资料',
+      description: '补齐生日、出生时间和性别后，首页和幸运体系会更完整。',
+      completed: false,
+    },
+    {
+      id: 'lucky',
+      title: '进入今日闭环',
+      description: '登录并补齐资料后，幸运签、幸运物和历史记录会更顺畅地串起来。',
+      completed: false,
+    },
+  ],
   bottomTabs: [
     {
       id: 'home',
@@ -126,8 +176,15 @@ const fallbackDashboard: MobileDashboardPayload = {
     redisStatus: '等待 API 返回',
   },
   userSummary: {
+    isLoggedIn: false,
+    nickname: null,
     profileCompleted: false,
     vipStatus: 'inactive',
+    primaryActionTitle: '去个人中心登录',
+    primaryActionRoute: '/pages/profile/index',
+    secondaryActionTitle: '看看设置与说明',
+    secondaryActionRoute: '/pages/settings/index',
+    welcomeNote: '登录后会把历史、幸运推荐和会员状态都绑定到当前账号。',
   },
 };
 

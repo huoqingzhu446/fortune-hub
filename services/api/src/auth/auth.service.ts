@@ -21,6 +21,12 @@ interface WechatSessionResponse {
   errmsg?: string;
 }
 
+interface ResolvedWechatSession {
+  openid: string;
+  unionid: string | null;
+  authMode: 'wechat' | 'mock';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -73,6 +79,9 @@ export class AuthService {
       data: {
         token,
         expiresIn: SESSION_TTL_SECONDS,
+        authMode: session.authMode,
+        authProviderLabel:
+          session.authMode === 'wechat' ? '正式微信授权登录' : '开发环境体验登录',
         user: this.serializeUser(savedUser),
         isProfileCompleted: Boolean(savedUser.birthday && savedUser.zodiac),
       },
@@ -170,9 +179,12 @@ export class AuthService {
     return token;
   }
 
-  private async resolveWechatSession(code: string) {
+  private async resolveWechatSession(code: string): Promise<ResolvedWechatSession> {
     const appId = this.configService.get<string>('WECHAT_APP_ID');
     const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
+    const allowMockLogin =
+      this.configService.get<string>('WECHAT_LOGIN_ALLOW_MOCK', 'false') === 'true';
+    const isDevCode = code.startsWith('dev-');
 
     if (appId && appSecret) {
       const url = new URL('https://api.weixin.qq.com/sns/jscode2session');
@@ -186,17 +198,27 @@ export class AuthService {
 
       if (!response.ok || !payload.openid) {
         throw new BadGatewayException(
-          payload.errmsg || '微信登录失败，请检查小程序配置',
+          payload.errmsg || '微信登录失败，请检查小程序配置与登录 code 是否有效',
         );
       }
 
-      return payload as Required<Pick<WechatSessionResponse, 'openid'>> &
-        WechatSessionResponse;
+      return {
+        openid: payload.openid,
+        unionid: payload.unionid ?? null,
+        authMode: 'wechat',
+      };
+    }
+
+    if (!isDevCode && !allowMockLogin) {
+      throw new BadGatewayException(
+        '当前环境未配置正式微信登录，请检查 WECHAT_APP_ID / WECHAT_APP_SECRET',
+      );
     }
 
     return {
       openid: `mock_${createHash('sha256').update(code).digest('hex').slice(0, 24)}`,
       unionid: null,
+      authMode: 'mock',
     };
   }
 }

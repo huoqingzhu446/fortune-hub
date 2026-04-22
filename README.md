@@ -9,6 +9,12 @@
 - API 已接入 MySQL、Redis，并提供用户、首页、星座、八字、测评等接口
 - GitHub Actions 已配置基础构建与检查流程
 
+当前部署默认约定：
+
+- 移动端 H5 部署到根路径 `/`
+- 管理端部署到 `/admin/`
+- API 继续走 `/api/v1`
+
 ## Monorepo Layout
 
 ```text
@@ -96,6 +102,12 @@ pnpm dev:mobile:h5
 - API health: `http://localhost:3001/api/v1/health`
 - API home: `http://localhost:3001/api/v1/home/index`
 
+服务器部署后的默认入口：
+
+- Mobile H5: `http://your-server/` 或 `https://your-domain/`
+- Admin: `http://your-server/admin/` 或 `https://your-domain/admin/`
+- API: `http://your-server/api/v1/*`
+
 微信小程序模式默认会输出到：
 
 - `apps/mobile/dist/dev/mp-weixin`
@@ -113,6 +125,7 @@ pnpm dev:mobile:h5
 pnpm build:api
 pnpm build:admin
 pnpm build:mobile
+pnpm build:mobile:h5
 pnpm build
 
 pnpm test:api
@@ -134,6 +147,12 @@ pnpm docker:up
 
 - `deploy/nginx/ssl/fullchain.pem`
 - `deploy/nginx/ssl/privkey.pem`
+
+当前容器转发规则：
+
+- `/` -> `mobile-h5`
+- `/admin/` -> `admin`
+- `/api/` -> `api`
 
 ## File Service
 

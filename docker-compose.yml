@@ -60,9 +60,22 @@ services:
       context: ./apps/admin
       dockerfile: Dockerfile
       args:
+        VITE_PUBLIC_BASE: /admin/
         VITE_API_BASE_URL: /api/v1
         VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
     container_name: fortune-hub-admin
+    restart: unless-stopped
+    expose:
+      - '80'
+
+  mobile-h5:
+    build:
+      context: ./apps/mobile
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
+    container_name: fortune-hub-mobile-h5
     restart: unless-stopped
     expose:
       - '80'
@@ -72,6 +85,7 @@ services:
     container_name: fortune-hub-nginx
     restart: unless-stopped
     depends_on:
+      - mobile-h5
       - admin
       - api
     ports:

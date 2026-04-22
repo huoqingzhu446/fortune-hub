@@ -1,5 +1,6 @@
 <template>
-  <view class="page">
+  <view class="page-shell">
+    <view class="page">
     <view class="page-orb page-orb--mint"></view>
     <view class="page-orb page-orb--peach"></view>
 
@@ -235,12 +236,15 @@
         </button>
       </view>
     </view>
+    </view>
+    <AppTabBar current-tab="personality" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import AppTabBar from '../../components/AppTabBar.vue';
 import {
   fetchPersonalityHistory,
   fetchPersonalityTestDetail,
@@ -497,14 +501,21 @@ onShow(() => {
 </script>
 
 <style lang="scss">
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: 138rpx;
+  overflow-x: hidden;
+}
+
 .page {
   position: relative;
   min-height: 100vh;
-  padding: 24rpx 24rpx 42rpx;
+  padding: 24rpx 24rpx 24rpx;
   background:
     radial-gradient(circle at top right, rgba(255, 190, 148, 0.24), transparent 26%),
     linear-gradient(180deg, #f8fbff 0%, #edf3f7 100%);
-  overflow: hidden;
+  overflow: visible;
+  overflow-x: hidden;
 }
 
 .page-orb {

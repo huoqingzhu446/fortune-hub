@@ -1,5 +1,6 @@
 <template>
-  <view class="page">
+  <view class="page-shell">
+    <view class="page">
     <view class="page-orb page-orb--mint"></view>
     <view class="page-orb page-orb--peach"></view>
 
@@ -152,12 +153,15 @@
     <view class="footer-actions">
       <button class="hero-button hero-button--secondary" @tap="backHome">返回首页</button>
     </view>
+    </view>
+    <AppTabBar current-tab="lucky" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchLuckyToday } from '../../api/lucky';
 import { setLuckyWallpaperTheme } from '../../services/lucky-wallpaper';
 import { getAuthToken } from '../../services/session';
@@ -273,13 +277,20 @@ onShow(() => {
 </script>
 
 <style lang="scss">
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: 138rpx;
+  overflow-x: hidden;
+}
+
 .page {
   min-height: 100vh;
-  padding: 24rpx;
+  padding: 24rpx 24rpx 24rpx;
   background:
     radial-gradient(circle at top left, rgba(134, 209, 182, 0.28), transparent 22%),
     radial-gradient(circle at top right, rgba(255, 214, 195, 0.28), transparent 18%),
     linear-gradient(180deg, #f8fbff 0%, #edf2f7 100%);
+  overflow-x: hidden;
 }
 
 .page-orb {

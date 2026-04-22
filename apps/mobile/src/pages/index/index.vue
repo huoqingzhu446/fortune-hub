@@ -1,183 +1,172 @@
 <template>
-  <view class="page">
-    <view class="page-orb page-orb--mint"></view>
-    <view class="page-orb page-orb--blue"></view>
+  <view class="page-shell">
+    <view class="page">
+      <view class="page-orb page-orb--mint"></view>
+      <view class="page-orb page-orb--blue"></view>
 
-    <view class="topbar">
-      <view class="topbar__brand">
-        <text class="topbar__eyebrow">fortune hub</text>
-        <text class="topbar__edition">Fresh mobile edition</text>
-      </view>
-      <view class="topbar__status">
-        <text class="topbar__status-dot"></text>
-        <text>{{ serviceStatusLabel }}</text>
-      </view>
-    </view>
-
-    <view class="hero-card">
-      <view class="hero-card__content">
-        <text class="hero-card__eyebrow">Daily flow</text>
-        <text class="hero-card__title">{{ dashboard.headline.title }}</text>
-        <text class="hero-card__subtitle">{{ dashboard.headline.subtitle }}</text>
-
-        <view class="hero-card__actions">
-          <button
-            class="hero-button hero-button--primary"
-            :loading="loading"
-            @tap="refreshDashboard"
-          >
-            刷新内容
-          </button>
-          <button class="hero-button hero-button--secondary" @tap="copyFileServiceUrl">
-            复制文件服务
-          </button>
+      <view class="topbar">
+        <view class="topbar__brand">
+          <text class="topbar__eyebrow">fortune hub</text>
+          <text class="topbar__edition">Fresh mobile edition</text>
+        </view>
+        <view class="topbar__status">
+          <text class="topbar__status-dot"></text>
+          <text>{{ serviceStatusLabel }}</text>
         </view>
       </view>
 
-      <view class="hero-card__spotlight">
-        <text class="spotlight__label">{{ todayLuckyScore.label }}</text>
-        <text class="spotlight__value">{{ todayLuckyScore.value }}</text>
-        <text class="spotlight__hint">{{ todayLuckyScore.hint }}</text>
+      <view class="hero-card">
+        <view class="hero-card__content">
+          <text class="hero-card__eyebrow">Daily flow</text>
+          <text class="hero-card__title">{{ dashboard.headline.title }}</text>
+          <text class="hero-card__subtitle">{{ dashboard.headline.subtitle }}</text>
 
-        <view class="spotlight__footer">
-          <view class="capsule capsule--blue">
-            <text class="capsule__key">{{ annualLuckyScore.label }}</text>
-            <text class="capsule__value">{{ annualLuckyScore.value }}</text>
+          <view class="hero-card__actions">
+            <button
+              class="hero-button hero-button--primary"
+              :loading="loading"
+              @tap="refreshDashboard"
+            >
+              刷新内容
+            </button>
+            <button class="hero-button hero-button--secondary" @tap="copyFileServiceUrl">
+              复制文件服务
+            </button>
           </view>
         </view>
-      </view>
-    </view>
 
-    <view class="ambient-strip" @tap="goToLuckySign">
-      <text class="ambient-strip__label">{{ luckySign.tag }}</text>
-      <text class="ambient-strip__title">{{ luckySign.title }}</text>
-      <text class="ambient-strip__text">{{ noticeText }}</text>
-    </view>
+        <view class="hero-card__spotlight">
+          <text class="spotlight__label">{{ todayLuckyScore.label }}</text>
+          <text class="spotlight__value">{{ todayLuckyScore.value }}</text>
+          <text class="spotlight__hint">{{ todayLuckyScore.hint }}</text>
 
-    <view class="stats-grid">
-      <view
-        v-for="(stat, index) in dashboard.stats"
-        :key="stat.label"
-        class="stat-card"
-        :class="`stat-card--tone-${(index % 3) + 1}`"
-      >
-        <text class="stat-card__label">{{ stat.label }}</text>
-        <text class="stat-card__value">{{ stat.value }}</text>
-        <text class="stat-card__hint">{{ stat.hint }}</text>
-      </view>
-    </view>
-
-    <view class="section-card">
-      <view class="section-header">
-        <view>
-          <text class="section-header__eyebrow">Assessment tracks</text>
-          <text class="section-header__title">评估模块</text>
-        </view>
-        <text class="section-header__side">精选 {{ moduleCards.length }}</text>
-      </view>
-
-      <view class="module-list">
-        <view
-          v-for="module in moduleCards"
-          :key="module.id"
-          class="module-card"
-          :class="module.toneClass"
-          @tap="handleModulePress(module.route)"
-        >
-          <view class="module-card__top">
-            <view class="module-card__copy">
-              <text class="module-card__badge">{{ module.badge }}</text>
-              <text class="module-card__title">{{ module.title }}</text>
+          <view class="spotlight__footer">
+            <view class="capsule capsule--blue">
+              <text class="capsule__key">{{ annualLuckyScore.label }}</text>
+              <text class="capsule__value">{{ annualLuckyScore.value }}</text>
             </view>
-            <text class="module-card__index">{{ module.indexLabel }}</text>
-          </view>
-
-          <text class="module-card__description">{{ module.description }}</text>
-
-          <view class="module-card__route">
-            <text class="module-card__route-label">Route</text>
-            <text class="module-card__route-value">{{ module.route }}</text>
           </view>
         </view>
       </view>
 
-    </view>
-
-    <view class="section-card section-card--soft">
-      <view class="section-header">
-        <view>
-          <text class="section-header__eyebrow">Upload relay</text>
-          <text class="section-header__title">文件服务联调</text>
-        </view>
-        <text class="section-header__side">{{ uploadStatusLabel }}</text>
+      <view class="ambient-strip" @tap="goToLuckySign">
+        <text class="ambient-strip__label">{{ luckySign.tag }}</text>
+        <text class="ambient-strip__title">{{ luckySign.title }}</text>
+        <text class="ambient-strip__text">{{ noticeText }}</text>
       </view>
 
-      <view class="upload-card">
-        <text class="upload-card__description">
-          这里直接调用独立文件服务，验证上传链路是否接通。
-        </text>
-
-        <view class="upload-card__actions">
-          <button class="hero-button hero-button--primary" :loading="uploading" @tap="uploadCover">
-            上传测试图片
-          </button>
-        </view>
-
-        <view v-if="lastUploadUrl" class="upload-result">
-          <text class="upload-result__label">最近上传</text>
-          <text class="upload-result__link">{{ lastUploadUrl }}</text>
-          <image class="upload-result__preview" :src="lastUploadUrl" mode="aspectFill" />
-        </view>
-      </view>
-
-    </view>
-
-    <view class="section-card">
-      <view class="section-header">
-        <view>
-          <text class="section-header__eyebrow">Connections</text>
-          <text class="section-header__title">环境联通</text>
-        </view>
-        <text class="section-header__side">实时读取</text>
-      </view>
-
-      <view class="integration-list">
+      <view class="stats-grid">
         <view
-          v-for="item in integrationCards"
-          :key="item.label"
-          class="integration-row"
+          v-for="(stat, index) in dashboard.stats"
+          :key="stat.label"
+          class="stat-card"
+          :class="`stat-card--tone-${(index % 3) + 1}`"
         >
-          <view class="integration-row__head">
-            <text class="integration-row__label">{{ item.label }}</text>
-            <text class="integration-row__status" :class="item.stateClass">
-              {{ item.stateText }}
-            </text>
+          <text class="stat-card__label">{{ stat.label }}</text>
+          <text class="stat-card__value">{{ stat.value }}</text>
+          <text class="stat-card__hint">{{ stat.hint }}</text>
+        </view>
+      </view>
+
+      <view class="section-card">
+        <view class="section-header">
+          <view>
+            <text class="section-header__eyebrow">Assessment tracks</text>
+            <text class="section-header__title">评估模块</text>
           </view>
-          <text class="integration-row__value">{{ item.value }}</text>
+          <text class="section-header__side">精选 {{ moduleCards.length }}</text>
+        </view>
+
+        <view class="module-list">
+          <view
+            v-for="module in moduleCards"
+            :key="module.id"
+            class="module-card"
+            :class="module.toneClass"
+            @tap="handleModulePress(module.route)"
+          >
+            <view class="module-card__top">
+              <view class="module-card__copy">
+                <text class="module-card__badge">{{ module.badge }}</text>
+                <text class="module-card__title">{{ module.title }}</text>
+              </view>
+              <text class="module-card__index">{{ module.indexLabel }}</text>
+            </view>
+
+            <text class="module-card__description">{{ module.description }}</text>
+
+            <view class="module-card__route">
+              <text class="module-card__route-label">Route</text>
+              <text class="module-card__route-value">{{ module.route }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="section-card section-card--soft">
+        <view class="section-header">
+          <view>
+            <text class="section-header__eyebrow">Upload relay</text>
+            <text class="section-header__title">文件服务联调</text>
+          </view>
+          <text class="section-header__side">{{ uploadStatusLabel }}</text>
+        </view>
+
+        <view class="upload-card">
+          <text class="upload-card__description">
+            这里直接调用独立文件服务，验证上传链路是否接通。
+          </text>
+
+          <view class="upload-card__actions">
+            <button class="hero-button hero-button--primary" :loading="uploading" @tap="uploadCover">
+              上传测试图片
+            </button>
+          </view>
+
+          <view v-if="lastUploadUrl" class="upload-result">
+            <text class="upload-result__label">最近上传</text>
+            <text class="upload-result__link">{{ lastUploadUrl }}</text>
+            <image class="upload-result__preview" :src="lastUploadUrl" mode="aspectFill" />
+          </view>
+        </view>
+      </view>
+
+      <view class="section-card">
+        <view class="section-header">
+          <view>
+            <text class="section-header__eyebrow">Connections</text>
+            <text class="section-header__title">环境联通</text>
+          </view>
+          <text class="section-header__side">实时读取</text>
+        </view>
+
+        <view class="integration-list">
+          <view
+            v-for="item in integrationCards"
+            :key="item.label"
+            class="integration-row"
+          >
+            <view class="integration-row__head">
+              <text class="integration-row__label">{{ item.label }}</text>
+              <text class="integration-row__status" :class="item.stateClass">
+                {{ item.stateText }}
+              </text>
+            </view>
+            <text class="integration-row__value">{{ item.value }}</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <view class="bottom-tabs">
-      <view
-        v-for="tab in bottomTabs"
-        :key="tab.id"
-        class="bottom-tabs__item"
-        :class="{ 'bottom-tabs__item--active': tab.active }"
-        @tap="handleTabPress(tab)"
-      >
-        <view class="bottom-tabs__icon">{{ tab.iconText }}</view>
-        <text class="bottom-tabs__label">{{ tab.label }}</text>
-      </view>
-    </view>
+    <AppTabBar current-tab="home" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import AppTabBar from '../../components/AppTabBar.vue';
 import { useDashboardStore } from '../../stores/dashboard';
-import type { DashboardBottomTab } from '../../types/dashboard';
 
 const dashboardStore = useDashboardStore();
 const lastUploadUrl = ref('');
@@ -201,7 +190,6 @@ const moduleCards = computed(() =>
     toneClass: `module-card--tone-${(index % 3) + 1}`,
   })),
 );
-const bottomTabs = computed(() => dashboard.value.bottomTabs);
 const serviceStatusLabel = computed(() =>
   isHealthyStatus(dashboard.value.integrations.redisStatus) ? 'Services ready' : 'Services syncing',
 );
@@ -241,20 +229,6 @@ function isHealthyStatus(status: string | undefined) {
 
 async function refreshDashboard() {
   await dashboardStore.loadDashboard();
-}
-
-function handleTabPress(tab: DashboardBottomTab) {
-  if (tab.route === '/pages/index/index') {
-    uni.pageScrollTo({
-      scrollTop: 0,
-      duration: 220,
-    });
-    return;
-  }
-
-  uni.reLaunch({
-    url: tab.route,
-  });
 }
 
 function handleModulePress(route: string) {
@@ -347,11 +321,18 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss">
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: 138rpx;
+  overflow-x: hidden;
+}
+
 .page {
   position: relative;
   min-height: 100vh;
-  padding: 28rpx 24rpx 48rpx;
-  overflow: hidden;
+  padding: 28rpx 24rpx 0;
+  overflow-x: hidden;
 }
 
 .page-orb {
@@ -830,60 +811,6 @@ onPullDownRefresh(async () => {
 .integration-row__status--soft {
   background: rgba(91, 141, 239, 0.12);
   color: #4a6ea8;
-}
-
-.bottom-tabs {
-  position: sticky;
-  bottom: 18rpx;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12rpx;
-  z-index: 2;
-  margin-top: 10rpx;
-  padding: 12rpx;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1rpx solid rgba(255, 255, 255, 0.78);
-  box-shadow: var(--apple-shadow);
-}
-
-.bottom-tabs__item {
-  display: grid;
-  justify-items: center;
-  gap: 8rpx;
-  padding: 12rpx 10rpx;
-  border-radius: 22rpx;
-}
-
-.bottom-tabs__item--active {
-  background: linear-gradient(180deg, rgba(225, 237, 255, 0.92) 0%, rgba(255, 255, 255, 0.86) 100%);
-}
-
-.bottom-tabs__icon {
-  display: grid;
-  place-items: center;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: rgba(91, 141, 239, 0.14);
-  color: var(--apple-blue);
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.bottom-tabs__item--active .bottom-tabs__icon {
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
-  color: #ffffff;
-}
-
-.bottom-tabs__label {
-  font-size: 22rpx;
-  color: var(--apple-muted);
-}
-
-.bottom-tabs__item--active .bottom-tabs__label {
-  color: var(--apple-text);
-  font-weight: 600;
 }
 
 @keyframes rise-in {

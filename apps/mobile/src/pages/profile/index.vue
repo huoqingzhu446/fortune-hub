@@ -1,5 +1,6 @@
 <template>
-  <view class="page">
+  <view class="page-shell">
+    <view class="page">
     <view class="panel hero-panel">
       <text class="eyebrow">profile center</text>
       <text class="title">{{ isLoggedIn ? (profile.nickname || '今天也要顺利一点') : loginEntryTitle }}</text>
@@ -149,12 +150,15 @@
         </view>
       </view>
     </view>
+    </view>
+    <AppTabBar current-tab="profile" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
+import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchMe, loginWithCode, updateMyProfile } from '../../api/auth';
 import { fetchUnifiedHistory } from '../../api/records';
 import {
@@ -481,12 +485,19 @@ onShow(() => {
 </script>
 
 <style lang="scss">
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: 138rpx;
+  overflow-x: hidden;
+}
+
 .page {
   min-height: 100vh;
-  padding: 24rpx;
+  padding: 24rpx 24rpx 24rpx;
   background:
     radial-gradient(circle at top left, rgba(134, 209, 182, 0.28), transparent 24%),
     linear-gradient(180deg, #f8fbff 0%, #ecf3f7 100%);
+  overflow-x: hidden;
 }
 
 .panel {

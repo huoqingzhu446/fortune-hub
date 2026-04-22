@@ -26,6 +26,9 @@
       <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
         当前会尝试走真实微信 `uni.login`，服务端已配置 `WECHAT_APP_ID / WECHAT_APP_SECRET` 时会直接换取真实 `openid`。
       </text>
+      <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
+        登录时会尝试同步头像和昵称；如果你暂时不授权，也不会阻塞登录。
+      </text>
     </view>
 
     <view v-if="isLoggedIn" class="panel profile-panel">
@@ -57,6 +60,14 @@
         <view class="shortcut-card" @tap="goLucky">
           <text class="shortcut-card__title">幸运物推荐</text>
           <text class="shortcut-card__text">看看今天更适合你的幸运物</text>
+        </view>
+        <view class="shortcut-card" @tap="goSettings">
+          <text class="shortcut-card__title">设置中心</text>
+          <text class="shortcut-card__text">提醒、隐私、反馈和关于我们</text>
+        </view>
+        <view class="shortcut-card" @tap="goFeedback">
+          <text class="shortcut-card__title">意见反馈</text>
+          <text class="shortcut-card__text">把 bug 和想法直接记下来</text>
         </view>
       </view>
     </view>
@@ -267,6 +278,36 @@ async function loginForExperience() {
   syncForm();
 }
 
+function requestWechatProfile() {
+  return new Promise<{ nickname?: string; avatarUrl?: string }>((resolve) => {
+    const uniWithProfile = uni as typeof uni & {
+      getUserProfile?: (options: {
+        desc: string;
+        success?: (result: { userInfo?: { nickName?: string; avatarUrl?: string } }) => void;
+        fail?: () => void;
+      }) => void;
+    };
+
+    if (!uniWithProfile.getUserProfile) {
+      resolve({});
+      return;
+    }
+
+    uniWithProfile.getUserProfile({
+      desc: '用于补充头像和昵称，优化资料页展示',
+      success: (result) => {
+        resolve({
+          nickname: result.userInfo?.nickName,
+          avatarUrl: result.userInfo?.avatarUrl,
+        });
+      },
+      fail: () => {
+        resolve({});
+      },
+    });
+  });
+}
+
 function requestWechatCode() {
   return new Promise<string>((resolve, reject) => {
     uni.login({
@@ -286,13 +327,39 @@ function requestWechatCode() {
 
 async function loginWithWechatOfficial() {
   const code = await requestWechatCode();
-  const response = await loginWithCode(code);
+  const profileExtras = await requestWechatProfile();
+  const response = await loginWithCode(code, profileExtras);
   setAuthToken(response.data.token);
   setCachedUser(response.data.user);
   authToken.value = response.data.token;
   profile.value = response.data.user;
   profileCompleted.value = response.data.isProfileCompleted;
   syncForm();
+}
+
+function extractErrorMessage(error: unknown) {
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybeMessage = (error as { message?: unknown; errmsg?: unknown; errMsg?: unknown }).message;
+    if (typeof maybeMessage === 'string' && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+
+    const maybeErrmsg = (error as { errmsg?: unknown }).errmsg;
+    if (typeof maybeErrmsg === 'string' && maybeErrmsg.trim()) {
+      return maybeErrmsg;
+    }
+
+    const maybeErrMsg = (error as { errMsg?: unknown }).errMsg;
+    if (typeof maybeErrMsg === 'string' && maybeErrMsg.trim()) {
+      return maybeErrMsg;
+    }
+  }
+
+  return '';
 }
 
 async function handleLogin() {
@@ -312,7 +379,7 @@ async function handleLogin() {
   } catch (error) {
     console.warn('login failed', error);
     uni.showToast({
-      title: '登录失败',
+      title: extractErrorMessage(error) || '登录失败，请稍后重试',
       icon: 'none',
     });
   } finally {
@@ -347,7 +414,7 @@ async function saveProfile() {
   } catch (error) {
     console.warn('save profile failed', error);
     uni.showToast({
-      title: '保存失败',
+      title: extractErrorMessage(error) || '保存失败',
       icon: 'none',
     });
   } finally {
@@ -377,6 +444,18 @@ function goHistory() {
 function goLucky() {
   uni.navigateTo({
     url: '/pages/lucky/index',
+  });
+}
+
+function goSettings() {
+  uni.navigateTo({
+    url: '/pages/settings/index',
+  });
+}
+
+function goFeedback() {
+  uni.navigateTo({
+    url: '/pages/settings/feedback/index',
   });
 }
 

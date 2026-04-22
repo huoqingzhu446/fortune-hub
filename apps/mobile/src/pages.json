@@ -44,6 +44,12 @@
       }
     },
     {
+      "path": "pages/lucky/wallpaper/index",
+      "style": {
+        "navigationBarTitleText": "幸运壁纸"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "个人中心"
@@ -53,6 +59,30 @@
       "path": "pages/records/index",
       "style": {
         "navigationBarTitleText": "历史记录"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationBarTitleText": "设置中心"
+      }
+    },
+    {
+      "path": "pages/settings/privacy/index",
+      "style": {
+        "navigationBarTitleText": "隐私说明"
+      }
+    },
+    {
+      "path": "pages/settings/feedback/index",
+      "style": {
+        "navigationBarTitleText": "意见反馈"
+      }
+    },
+    {
+      "path": "pages/settings/about/index",
+      "style": {
+        "navigationBarTitleText": "关于我们"
       }
     }
   ],

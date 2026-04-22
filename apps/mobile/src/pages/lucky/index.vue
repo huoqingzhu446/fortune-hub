@@ -87,10 +87,15 @@
 
           <text class="recommendation-card__summary">{{ item.summary }}</text>
           <text class="recommendation-card__highlight">{{ item.highlight }}</text>
+          <text class="recommendation-card__support">{{ item.supportiveFocus }}</text>
 
           <view class="recommendation-meta">
             <text class="recommendation-meta__item">适合时段：{{ item.useMoment }}</text>
             <text class="recommendation-meta__item">搭配建议：{{ item.styleHint }}</text>
+          </view>
+
+          <view class="tag-row">
+            <text v-for="tag in item.fitTags" :key="tag" class="tag-chip">{{ tag }}</text>
           </view>
 
           <view class="palette-row">
@@ -129,9 +134,17 @@
             ></view>
           </view>
 
-          <button class="hero-button hero-button--secondary" @tap="copyWallpaperPrompt(theme.prompt)">
-            复制壁纸生成提示词
-          </button>
+          <view class="wallpaper-card__actions">
+            <button class="hero-button hero-button--primary" @tap="openWallpaperGenerator(theme)">
+              生成壁纸
+            </button>
+            <button class="hero-button hero-button--secondary" @tap="copyWallpaperPrompt(theme.prompt)">
+              复制提示词
+            </button>
+          </view>
+          <text class="wallpaper-card__helper">
+            现在会生成一张可预览的 SVG 壁纸，H5 环境下可直接下载。
+          </text>
         </view>
       </view>
     </view>
@@ -146,8 +159,9 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchLuckyToday } from '../../api/lucky';
+import { setLuckyWallpaperTheme } from '../../services/lucky-wallpaper';
 import { getAuthToken } from '../../services/session';
-import type { LuckyTodayData } from '../../types/lucky';
+import type { LuckyTodayData, LuckyWallpaperTheme } from '../../types/lucky';
 
 const fallbackLucky: LuckyTodayData = {
   profile: {
@@ -223,6 +237,13 @@ function copyWallpaperPrompt(prompt: string) {
         icon: 'success',
       });
     },
+  });
+}
+
+function openWallpaperGenerator(theme: LuckyWallpaperTheme) {
+  setLuckyWallpaperTheme(theme);
+  uni.navigateTo({
+    url: '/pages/lucky/wallpaper/index',
   });
 }
 
@@ -407,10 +428,15 @@ onShow(() => {
 }
 
 .sign-summary,
-.recommendation-card__highlight {
+.recommendation-card__highlight,
+.recommendation-card__support {
   font-size: 28rpx;
   line-height: 1.7;
   color: var(--apple-text);
+}
+
+.recommendation-card__support {
+  color: #516776;
 }
 
 .tip-list,
@@ -418,6 +444,13 @@ onShow(() => {
 .wallpaper-list {
   display: grid;
   gap: 16rpx;
+}
+
+.tag-row,
+.wallpaper-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
 .tip-item,
@@ -459,6 +492,14 @@ onShow(() => {
   gap: 8rpx;
 }
 
+.tag-chip {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(221, 243, 234, 0.84);
+  font-size: 22rpx;
+  color: #457d6a;
+}
+
 .palette-row {
   display: flex;
   gap: 10rpx;
@@ -469,5 +510,15 @@ onShow(() => {
   height: 28rpx;
   border-radius: 999rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.8);
+}
+
+.wallpaper-card__actions .hero-button {
+  flex: 1;
+}
+
+.wallpaper-card__helper {
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--apple-subtle);
 }
 </style>

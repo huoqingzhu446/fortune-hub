@@ -21,7 +21,9 @@ export interface LuckyRecommendationItem {
   summary: string;
   category: string;
   fitScore: number;
+  fitTags: string[];
   highlight: string;
+  supportiveFocus: string;
   useMoment: string;
   styleHint: string;
   palette: string[];
@@ -30,6 +32,7 @@ export interface LuckyRecommendationItem {
 
 export interface LuckyWallpaperTheme {
   id: string;
+  sourceBizCode: string;
   title: string;
   prompt: string;
   palette: string[];
@@ -74,5 +77,34 @@ export interface LuckySignDetailData {
   };
 }
 
+export interface GenerateLuckyWallpaperPayload {
+  sourceBizCode?: string;
+  title?: string;
+  prompt?: string;
+  mood?: string;
+  palette?: string[];
+  aspectRatio?: '9:16' | '16:9' | '1:1';
+}
+
+export interface LuckyWallpaperData {
+  wallpaper: {
+    title: string;
+    subtitle: string;
+    guidance: string;
+    prompt: string;
+    palette: string[];
+    mood: string;
+    aspectRatio: '9:16' | '16:9' | '1:1';
+    width: number;
+    height: number;
+    format: 'svg';
+    generatedAt: string;
+    downloadFileName: string;
+    svgMarkup: string;
+    imageDataUrl: string;
+  };
+}
+
 export type LuckyTodayResponse = ApiEnvelope<LuckyTodayData>;
 export type LuckySignDetailResponse = ApiEnvelope<LuckySignDetailData>;
+export type LuckyWallpaperResponse = ApiEnvelope<LuckyWallpaperData>;

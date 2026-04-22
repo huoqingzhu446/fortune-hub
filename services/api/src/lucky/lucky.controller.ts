@@ -1,5 +1,6 @@
-import { Controller, Get, Headers, Param } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { GenerateLuckyWallpaperDto } from './dto/generate-lucky-wallpaper.dto';
 import { LuckyService } from './lucky.service';
 
 @Controller('lucky')
@@ -22,5 +23,14 @@ export class LuckyController {
   ) {
     const user = await this.authService.resolveUserFromAuthorization(authorization);
     return this.luckyService.getSignDetail(bizCode, user);
+  }
+
+  @Post('wallpaper/generate')
+  async generateWallpaper(
+    @Body() dto: GenerateLuckyWallpaperDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.luckyService.generateWallpaper(dto, user);
   }
 }

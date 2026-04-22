@@ -41,6 +41,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${API_PORT:-3001}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-fortune_hub}
@@ -50,6 +51,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost:8443}
+      WECHAT_APP_ID: ${WECHAT_APP_ID:-}
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
     expose:
       - '${API_PORT:-3001}'
     extra_hosts:

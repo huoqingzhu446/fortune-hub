@@ -227,6 +227,13 @@ export class BaziService {
         supportiveColor: ELEMENT_TO_COLOR[supportElement.name],
         dailyFocus: `今天适合围绕“${keywords.join(' / ')}”来安排主要任务。`,
       },
+      sharePoster: {
+        themeName: dominantElement.name === '火' ? 'warm-amber' : 'oriental-gold',
+        title: `${dominantElement.name}势偏旺型`,
+        subtitle: `${dayMaster}日主更突出，当前更适合顺势安排节奏。`,
+        accentText: `${dominantElement.name}主轴 · ${supportElement.name}补位`,
+        footerText: '简化排盘仅用于内容体验与自我观察。',
+      },
       complianceNotice: COMPLIANCE_NOTICE,
       generatedAt: new Date().toISOString(),
     };

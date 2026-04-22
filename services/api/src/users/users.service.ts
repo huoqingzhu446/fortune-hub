@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { MembershipService } from '../membership/membership.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 const WESTERN_ZODIAC_BOUNDARIES = [
@@ -32,6 +33,7 @@ export class UsersService {
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
     private readonly authService: AuthService,
+    private readonly membershipService: MembershipService,
   ) {}
 
   getCurrentProfile(user: UserEntity) {
@@ -73,6 +75,7 @@ export class UsersService {
 
   async getUnifiedHistory(user: UserEntity, limit?: number) {
     const take = Math.min(30, Math.max(1, Number(limit) || 20));
+    const hasVipAccess = this.membershipService.isVipActive(user);
     const records = await this.userRecordRepository.find({
       where: {
         userId: user.id,
@@ -87,7 +90,9 @@ export class UsersService {
       code: 0,
       message: 'ok',
       data: {
-        items: records.map((record) => this.serializeUnifiedHistoryItem(record)),
+        items: records.map((record) =>
+          this.serializeUnifiedHistoryItem(record, hasVipAccess),
+        ),
       },
       timestamp: new Date().toISOString(),
     };
@@ -128,7 +133,7 @@ export class UsersService {
     }, {});
   }
 
-  private serializeUnifiedHistoryItem(record: UserRecordEntity) {
+  private serializeUnifiedHistoryItem(record: UserRecordEntity, hasVipAccess: boolean) {
     const resultData = record.resultData as {
       summary?: string;
       subtitle?: string;
@@ -155,8 +160,8 @@ export class UsersService {
         resultData.supportSignal ??
         '',
       completedAt: resultData.completedAt ?? record.createdAt.toISOString(),
-      route: typeMeta.route,
-      isFullReportUnlocked: record.isFullReportUnlocked,
+      route: `/pages/report/index?recordId=${record.id}`,
+      isFullReportUnlocked: record.isFullReportUnlocked || hasVipAccess,
     };
   }
 

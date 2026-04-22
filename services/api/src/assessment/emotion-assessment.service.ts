@@ -438,6 +438,16 @@ export class EmotionAssessmentService {
   }
 
   private async seedQuestionBank() {
+    const existingCount = await this.assessmentQuestionRepository.count({
+      where: {
+        category: 'emotion',
+      },
+    });
+
+    if (existingCount > 0) {
+      return;
+    }
+
     await this.assessmentQuestionRepository.upsert(
       EMOTION_TESTS.flatMap((test) =>
         test.questions.map((question, index) => ({
@@ -455,6 +465,16 @@ export class EmotionAssessmentService {
   }
 
   private async seedTestConfigs() {
+    const existingCount = await this.assessmentTestConfigRepository.count({
+      where: {
+        category: 'emotion',
+      },
+    });
+
+    if (existingCount > 0) {
+      return;
+    }
+
     await this.assessmentTestConfigRepository.upsert(
       EMOTION_TESTS.map((test) => ({
         category: 'emotion',

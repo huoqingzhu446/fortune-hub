@@ -525,20 +525,6 @@ export class QuestionBankService {
       });
 
       if (existing) {
-        if (
-          existing.label !== item.label ||
-          existing.description !== item.description ||
-          existing.sortOrder !== item.sortOrder ||
-          existing.status !== 'published'
-        ) {
-          await this.assessmentTestGroupRepository.save({
-            ...existing,
-            label: item.label,
-            description: item.description,
-            sortOrder: item.sortOrder,
-            status: 'published',
-          });
-        }
         continue;
       }
 
@@ -556,75 +542,117 @@ export class QuestionBankService {
   }
 
   private async seedDefaultConfigs() {
+    const [personalityCount, emotionCount] = await Promise.all([
+      this.assessmentTestConfigRepository.count({
+        where: {
+          category: 'personality',
+        },
+      }),
+      this.assessmentTestConfigRepository.count({
+        where: {
+          category: 'emotion',
+        },
+      }),
+    ]);
+
+    if (personalityCount > 0 && emotionCount > 0) {
+      return;
+    }
+
     await this.assessmentTestConfigRepository.upsert(
       [
-        ...PERSONALITY_TESTS.map((test) => ({
-          category: 'personality',
-          code: test.code,
-          groupCode: 'default',
-          title: test.title,
-          subtitle: test.subtitle,
-          description: test.description,
-          intro: test.intro,
-          durationMinutes: test.durationMinutes,
-          optionSchema: 'personality',
-          tagsJson: test.tags,
-          configJson: {
-            dimensionLabels: test.dimensionLabels,
-            profiles: test.profiles,
-            sharePoster: createDefaultSharePosterConfig('personality'),
-          },
-          status: 'published',
-        })),
-        ...EMOTION_TESTS.map((test) => ({
-          category: 'emotion',
-          code: test.code,
-          groupCode: 'default',
-          title: test.title,
-          subtitle: test.subtitle,
-          description: test.description,
-          intro: test.intro,
-          durationMinutes: test.durationMinutes,
-          optionSchema: 'emotion',
-          tagsJson: test.tags,
-          configJson: {
-            disclaimer: test.disclaimer,
-            relaxSteps: test.relaxSteps,
-            thresholds: test.thresholds,
-            sharePoster: createDefaultSharePosterConfig('emotion'),
-          },
-          status: 'published',
-        })),
+        ...(personalityCount === 0
+          ? PERSONALITY_TESTS.map((test) => ({
+              category: 'personality',
+              code: test.code,
+              groupCode: 'default',
+              title: test.title,
+              subtitle: test.subtitle,
+              description: test.description,
+              intro: test.intro,
+              durationMinutes: test.durationMinutes,
+              optionSchema: 'personality',
+              tagsJson: test.tags,
+              configJson: {
+                dimensionLabels: test.dimensionLabels,
+                profiles: test.profiles,
+                sharePoster: createDefaultSharePosterConfig('personality'),
+              },
+              status: 'published',
+            }))
+          : []),
+        ...(emotionCount === 0
+          ? EMOTION_TESTS.map((test) => ({
+              category: 'emotion',
+              code: test.code,
+              groupCode: 'default',
+              title: test.title,
+              subtitle: test.subtitle,
+              description: test.description,
+              intro: test.intro,
+              durationMinutes: test.durationMinutes,
+              optionSchema: 'emotion',
+              tagsJson: test.tags,
+              configJson: {
+                disclaimer: test.disclaimer,
+                relaxSteps: test.relaxSteps,
+                thresholds: test.thresholds,
+                sharePoster: createDefaultSharePosterConfig('emotion'),
+              },
+              status: 'published',
+            }))
+          : []),
       ],
       ['category', 'code'],
     );
   }
 
   private async seedDefaultQuestions() {
+    const [personalityCount, emotionCount] = await Promise.all([
+      this.assessmentQuestionRepository.count({
+        where: {
+          category: 'personality',
+        },
+      }),
+      this.assessmentQuestionRepository.count({
+        where: {
+          category: 'emotion',
+        },
+      }),
+    ]);
+
+    if (personalityCount > 0 && emotionCount > 0) {
+      return;
+    }
+
     await this.assessmentQuestionRepository.upsert(
       [
-        ...PERSONALITY_TESTS.flatMap((test) =>
-          test.questions.map((question, index) => ({
-            category: 'personality',
-            testCode: test.code,
-            questionId: question.id,
-            prompt: question.prompt,
-            optionsJson: question.options.map((option) => ({ ...option })),
-            sortOrder: index + 1,
-            status: 'published',
-          })),
-        ),
-        ...EMOTION_TESTS.flatMap((test) =>
-          test.questions.map((question, index) => ({
-            category: 'emotion',
-            testCode: test.code,
-            questionId: question.id,
-            prompt: question.prompt,
-            optionsJson: question.options.map((option) => ({ ...option })),
-            sortOrder: index + 1,
-            status: 'published',
-          })),
-        ),
+        ...(personalityCount === 0
+          ? PERSONALITY_TESTS.flatMap((test) =>
+              test.questions.map((question, index) => ({
+                category: 'personality',
+                testCode: test.code,
+                questionId: question.id,
+                prompt: question.prompt,
+                optionsJson: question.options.map((option) => ({ ...option })),
+                sortOrder: index + 1,
+                status: 'published',
+              })),
+            )
+          : []),
+        ...(emotionCount === 0
+          ? EMOTION_TESTS.flatMap((test) =>
+              test.questions.map((question, index) => ({
+                category: 'emotion',
+                testCode: test.code,
+                questionId: question.id,
+                prompt: question.prompt,
+                optionsJson: question.options.map((option) => ({ ...option })),
+                sortOrder: index + 1,
+                status: 'published',
+              })),
+            )
+          : []),
       ],
       ['category', 'testCode', 'questionId'],
     );

@@ -74,6 +74,13 @@ export interface LuckySignDetailData {
     goodFor: string;
     avoid: string;
     suggestions: string[];
+    sharePoster: {
+      themeName: string;
+      title: string;
+      subtitle: string;
+      accentText: string;
+      footerText: string;
+    };
   };
 }
 

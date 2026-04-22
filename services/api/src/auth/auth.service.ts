@@ -112,6 +112,11 @@ export class AuthService {
   }
 
   serializeUser(user: UserEntity) {
+    const isVipActive =
+      user.vipStatus === 'active' &&
+      user.vipExpiredAt instanceof Date &&
+      user.vipExpiredAt.getTime() > Date.now();
+
     return {
       id: user.id,
       openid: user.openid,
@@ -123,8 +128,8 @@ export class AuthService {
       zodiac: user.zodiac,
       baziSummary: user.baziSummary,
       fiveElements: user.fiveElements,
-      vipStatus: user.vipStatus,
-      vipExpiredAt: user.vipExpiredAt,
+      vipStatus: isVipActive ? 'active' : 'inactive',
+      vipExpiredAt: isVipActive ? user.vipExpiredAt : null,
     };
   }
 

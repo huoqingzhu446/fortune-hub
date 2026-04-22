@@ -7,13 +7,16 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { CreateQuestionBankGroupDto } from './dto/create-question-bank-group.dto';
 import { CreateQuestionBankTestDto } from './dto/create-question-bank-test.dto';
 import { UpdateQuestionBankDto } from './dto/update-question-bank.dto';
 import { QuestionBankService } from './question-bank.service';
 
 @Controller('admin/question-bank')
+@UseGuards(AdminSessionGuard)
 export class QuestionBankController {
   constructor(private readonly questionBankService: QuestionBankService) {}
 

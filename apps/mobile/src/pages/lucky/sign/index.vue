@@ -41,6 +41,37 @@
       </view>
     </view>
 
+    <view class="panel">
+      <view class="section-head">
+        <text class="section-title">分享海报</text>
+        <text class="section-meta">{{ detail.sign.sharePoster.themeName }}</text>
+      </view>
+
+      <view class="poster-shell">
+        <text class="poster-shell__title">{{ detail.sign.sharePoster.title }}</text>
+        <text class="poster-shell__subtitle">{{ detail.sign.sharePoster.subtitle }}</text>
+        <text class="poster-shell__accent">{{ detail.sign.sharePoster.accentText }}</text>
+        <text class="poster-shell__footer">{{ detail.sign.sharePoster.footerText }}</text>
+      </view>
+
+      <view class="action-row">
+        <button class="hero-button hero-button--primary" :loading="posterLoading" @tap="generatePoster">
+          生成分享海报
+        </button>
+        <button class="hero-button hero-button--secondary" @tap="copySharePoster">
+          复制海报文案
+        </button>
+      </view>
+
+      <view v-if="poster" class="poster-result">
+        <image class="poster-image" :src="poster.imageDataUrl" mode="widthFix" />
+        <view class="action-row">
+          <button class="hero-button hero-button--secondary" @tap="previewPoster">全屏预览</button>
+          <button class="hero-button hero-button--primary" @tap="downloadPoster">{{ downloadLabel }}</button>
+        </view>
+      </view>
+    </view>
+
     <view class="action-row">
       <button class="hero-button hero-button--secondary" @tap="goLucky">返回幸运物</button>
       <button class="hero-button hero-button--primary" @tap="backHome">回到首页</button>
@@ -51,7 +82,9 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
+import { generateLuckySignPoster } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
+import type { GeneratedPoster } from '../../../types/poster';
 import type { LuckySignDetailData } from '../../../types/lucky';
 
 const fallbackDetail: LuckySignDetailData = {
@@ -74,10 +107,20 @@ const fallbackDetail: LuckySignDetailData = {
       '先完成一件最小但明确的任务，让节奏重新流动。',
       '给重要沟通留一点缓冲和回看空间。',
     ],
+    sharePoster: {
+      themeName: 'fresh-mint',
+      title: '今日幸运签',
+      subtitle: '先把心绪放松一点，再做决定。',
+      accentText: '先松一口气，再向前一步。',
+      footerText: 'Fortune Hub · 今日幸运签',
+    },
   },
 };
 
 const detail = ref<LuckySignDetailData>(fallbackDetail);
+const poster = ref<GeneratedPoster | null>(null);
+const posterLoading = ref(false);
+const downloadLabel = ref('下载 SVG 海报');
 
 async function loadDetail(bizCode: string) {
   try {
@@ -96,6 +139,87 @@ async function loadDetail(bizCode: string) {
 function goLucky() {
   uni.navigateTo({
     url: '/pages/lucky/index',
+  });
+}
+
+function copySharePoster() {
+  const lines = [
+    detail.value.sign.sharePoster.title,
+    detail.value.sign.sharePoster.subtitle,
+    detail.value.sign.sharePoster.accentText,
+    detail.value.sign.sharePoster.footerText,
+  ].filter(Boolean);
+
+  uni.setClipboardData({
+    data: lines.join('\n'),
+    success: () => {
+      uni.showToast({
+        title: '海报文案已复制',
+        icon: 'success',
+      });
+    },
+  });
+}
+
+async function generatePoster() {
+  try {
+    posterLoading.value = true;
+    const response = await generateLuckySignPoster(detail.value.sign.bizCode);
+    poster.value = response.data.poster;
+    uni.showToast({
+      title: '海报已生成',
+      icon: 'success',
+    });
+  } catch (error) {
+    console.warn('generate lucky sign poster failed', error);
+    uni.showToast({
+      title: '海报生成失败',
+      icon: 'none',
+    });
+  } finally {
+    posterLoading.value = false;
+  }
+}
+
+function previewPoster() {
+  if (!poster.value) {
+    return;
+  }
+
+  uni.previewImage({
+    urls: [poster.value.imageDataUrl],
+    current: poster.value.imageDataUrl,
+  });
+}
+
+function downloadPoster() {
+  if (!poster.value) {
+    return;
+  }
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const anchor = document.createElement('a');
+    anchor.href = poster.value.imageDataUrl;
+    anchor.download = poster.value.downloadFileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    uni.showToast({
+      title: '已开始下载',
+      icon: 'success',
+    });
+    return;
+  }
+
+  uni.setClipboardData({
+    data: poster.value.svgMarkup,
+    success: () => {
+      downloadLabel.value = '已复制 SVG 源码';
+      uni.showToast({
+        title: '当前平台先支持复制 SVG',
+        icon: 'none',
+      });
+    },
   });
 }
 
@@ -151,7 +275,8 @@ onLoad((options) => {
 }
 
 .eyebrow,
-.info-card__label {
+.info-card__label,
+.section-meta {
   font-size: 20rpx;
   text-transform: uppercase;
   letter-spacing: 0.28em;
@@ -159,7 +284,8 @@ onLoad((options) => {
 }
 
 .title,
-.section-title {
+.section-title,
+.poster-shell__title {
   font-size: 40rpx;
   font-weight: 700;
   color: var(--apple-text);
@@ -167,7 +293,8 @@ onLoad((options) => {
 
 .tag-row,
 .info-grid,
-.action-row {
+.action-row,
+.poster-result {
   display: grid;
   gap: 16rpx;
 }
@@ -211,6 +338,38 @@ onLoad((options) => {
 .tip-list {
   display: grid;
   gap: 14rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.poster-shell {
+  display: grid;
+  gap: 14rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, rgba(221, 243, 234, 0.92) 0%, rgba(239, 244, 248, 0.96) 100%);
+}
+
+.poster-shell__subtitle,
+.poster-shell__footer {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: var(--apple-muted);
+}
+
+.poster-shell__accent {
+  font-size: 24rpx;
+  color: #457d6a;
+}
+
+.poster-image {
+  width: 100%;
+  border-radius: 24rpx;
 }
 
 .tip-item {

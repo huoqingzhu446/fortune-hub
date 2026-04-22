@@ -80,9 +80,9 @@ export class FortuneService {
   getAdminDashboard() {
     return {
       headline: {
-        title: '后台模块已经铺开，可以开始接题库和内容配置',
+        title: '后台基础能力已成型，题库、内容和商业化都可继续运营化',
         subtitle:
-          '后台优先做题库、结果文案和幸运物内容库，后面再接用户报告、埋点和运营报表。',
+          '当前已接入管理员登录、题库管理、内容中心、会员商品和广告配置，可继续细化发布流与审计能力。',
       },
       stats: [
         {
@@ -96,9 +96,9 @@ export class FortuneService {
           hint: 'MySQL + Redis',
         },
         {
-          label: '文件服务',
-          value: '独立接入',
-          hint: '复用外部上传中心',
+          label: '商业化',
+          value: '已接入',
+          hint: '会员商品 / 订单 / 激励广告',
         },
         {
           label: '部署方式',
@@ -111,22 +111,29 @@ export class FortuneService {
           id: 'question-bank',
           title: '题库管理',
           owner: '运营后台',
-          status: '待接入',
-          summary: '星座、性格、情绪筛查都从这里配置题目和结果维度。',
+          status: '已接入',
+          summary: '性格测评与情绪自检已经可以通过后台配置题目、结果画像和分享海报文案。',
         },
         {
           id: 'fortune-content',
           title: '运势内容中心',
           owner: '内容编辑',
-          status: '待接入',
-          summary: '今日幸运指数、年度幸运物、星座日签都在这里维护。',
+          status: '已接入',
+          summary: '幸运签、幸运物和部分星座内容已经支持通过内容中心统一维护。',
         },
         {
           id: 'user-report',
           title: '报告中心',
           owner: '数据服务',
-          status: '待接入',
-          summary: '结果页模板、会员报告和分享海报统一在这里出图和追踪。',
+          status: '已接入',
+          summary: '完整版报告、广告解锁、会员权益和分享海报已经形成最小闭环。',
+        },
+        {
+          id: 'commerce-center',
+          title: '商业化配置',
+          owner: '增长运营',
+          status: '已接入',
+          summary: '会员商品、广告位开关和奖励策略已经支持后台查看与编辑。',
         },
       ],
       integrations: {

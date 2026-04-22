@@ -62,6 +62,10 @@
           <text class="shortcut-card__title">幸运物推荐</text>
           <text class="shortcut-card__text">看看今天更适合你的幸运物</text>
         </view>
+        <view class="shortcut-card" @tap="goMembership">
+          <text class="shortcut-card__title">会员中心</text>
+          <text class="shortcut-card__text">查看权益、到期时间和会员订单</text>
+        </view>
         <view class="shortcut-card" @tap="goSettings">
           <text class="shortcut-card__title">设置中心</text>
           <text class="shortcut-card__text">提醒、隐私、反馈和关于我们</text>
@@ -448,6 +452,12 @@ function goHistory() {
 function goLucky() {
   uni.navigateTo({
     url: '/pages/lucky/index',
+  });
+}
+
+function goMembership() {
+  uni.navigateTo({
+    url: '/pages/membership/index',
   });
 }
 

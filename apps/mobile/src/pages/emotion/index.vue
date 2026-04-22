@@ -235,6 +235,10 @@
         </text>
       </view>
 
+      <button class="hero-button hero-button--primary" @tap="openFullReport">
+        {{ latestRecordId ? '查看完整版 / 生成海报' : '登录后查看完整版' }}
+      </button>
+
       <view class="action-row">
         <button class="hero-button hero-button--secondary" @tap="restartLatestTest">
           再测一次
@@ -274,6 +278,7 @@ const answers = ref<Record<string, string>>({});
 const latestResult = ref<EmotionResult | null>(null);
 const latestTest = ref<EmotionTestSummary | null>(null);
 const latestSubmitSaved = ref(false);
+const latestRecordId = ref<string | null>(null);
 const historyItems = ref<EmotionHistoryItem[]>([]);
 const loadingTests = ref(false);
 const loadingHistory = ref(false);
@@ -349,6 +354,7 @@ async function startEmotionCheck(code: string) {
     latestResult.value = null;
     latestTest.value = response.data.test;
     latestSubmitSaved.value = false;
+    latestRecordId.value = null;
     screen.value = 'quiz';
   } catch (error) {
     console.warn('load emotion detail failed', error);
@@ -418,6 +424,7 @@ async function submitEmotionCheck() {
     latestResult.value = response.data.result;
     latestTest.value = response.data.test;
     latestSubmitSaved.value = response.data.isSaved;
+    latestRecordId.value = response.data.recordId;
     screen.value = 'result';
 
     if (response.data.isSaved) {
@@ -450,6 +457,24 @@ function restartLatestTest() {
   }
 
   void startEmotionCheck(latestTest.value.code);
+}
+
+function openFullReport() {
+  if (!latestRecordId.value) {
+    uni.showToast({
+      title: '请先登录并保存结果',
+      icon: 'none',
+    });
+
+    if (!isLoggedIn.value) {
+      goProfile();
+    }
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/report/index?recordId=${latestRecordId.value}`,
+  });
 }
 
 function goProfile() {

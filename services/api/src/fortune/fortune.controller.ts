@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { FortuneService } from './fortune.service';
 
 @Controller('dashboard')
@@ -11,6 +12,7 @@ export class FortuneController {
   }
 
   @Get('admin')
+  @UseGuards(AdminSessionGuard)
   getAdminDashboard() {
     return this.fortuneService.getAdminDashboard();
   }

@@ -492,6 +492,16 @@ export class AssessmentService {
   }
 
   private async seedQuestionBank() {
+    const existingCount = await this.assessmentQuestionRepository.count({
+      where: {
+        category: 'personality',
+      },
+    });
+
+    if (existingCount > 0) {
+      return;
+    }
+
     await this.assessmentQuestionRepository.upsert(
       PERSONALITY_TESTS.flatMap((test) =>
         test.questions.map((question, index) => ({
@@ -509,6 +519,16 @@ export class AssessmentService {
   }
 
   private async seedTestConfigs() {
+    const existingCount = await this.assessmentTestConfigRepository.count({
+      where: {
+        category: 'personality',
+      },
+    });
+
+    if (existingCount > 0) {
+      return;
+    }
+
     await this.assessmentTestConfigRepository.upsert(
       PERSONALITY_TESTS.map((test) => ({
         category: 'personality',

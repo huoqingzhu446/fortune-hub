@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 import { AuthModule } from '../auth/auth.module';
 import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
@@ -20,6 +21,7 @@ import { EmotionAssessmentService } from './emotion-assessment.service';
       AssessmentTestConfigEntity,
       AssessmentTestGroupEntity,
     ]),
+    AdminAuthModule,
     AuthModule,
   ],
   controllers: [

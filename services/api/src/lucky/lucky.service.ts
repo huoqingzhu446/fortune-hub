@@ -199,6 +199,7 @@ export class LuckyService {
     }
 
     const content = this.readSignContent(sign);
+    const sharePoster = this.readSharePoster(sign, content);
 
     return this.buildEnvelope({
       profile: {
@@ -218,6 +219,7 @@ export class LuckyService {
         goodFor: content.goodFor ?? '适合做轻量而清晰的推进。',
         avoid: content.avoid ?? '避免在疲惫或情绪化时做重大决定。',
         suggestions: content.suggestions ?? [],
+        sharePoster,
       },
     });
   }
@@ -807,8 +809,35 @@ export class LuckyService {
     return (content.contentJson ?? {}) as LuckySignContent;
   }
 
+  private readSharePoster(content: FortuneContentEntity, signContent: LuckySignContent) {
+    const sharePoster = this.asRecord(this.asRecord(content.contentJson).sharePoster);
+
+    return {
+      themeName: this.pickString(String(sharePoster.themeName ?? ''), 'fresh-mint'),
+      title: this.pickString(String(sharePoster.title ?? ''), content.title),
+      subtitle: this.pickString(
+        String(sharePoster.subtitle ?? ''),
+        content.summary ?? '今天适合先稳住节奏，再顺势推进。',
+      ),
+      accentText: this.pickString(
+        String(sharePoster.accentText ?? ''),
+        signContent.mantra ?? '先松一口气，再向前一步。',
+      ),
+      footerText: this.pickString(
+        String(sharePoster.footerText ?? ''),
+        'Fortune Hub · 今日幸运签',
+      ),
+    };
+  }
+
   private readItemContent(content: FortuneContentEntity) {
     return (content.contentJson ?? {}) as LuckyItemContent;
+  }
+
+  private asRecord(value: unknown) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   }
 
   private buildEnvelope<TData>(data: TData) {

@@ -173,6 +173,10 @@
           }}
         </text>
       </view>
+
+      <button class="primary-button" @tap="openFullReport">
+        {{ latestRecordId ? '查看完整版 / 生成海报' : '登录后查看完整版' }}
+      </button>
     </view>
 
     <view class="history-sheet">
@@ -242,6 +246,7 @@ const form = reactive<{
 
 const latestResult = ref<BaziResult | null>(null);
 const latestSubmitSaved = ref(false);
+const latestRecordId = ref<string | null>(null);
 const historyItems = ref<BaziHistoryItem[]>([]);
 const loadingHistory = ref(false);
 const submitting = ref(false);
@@ -311,6 +316,7 @@ async function submitAnalyze() {
     });
     latestResult.value = response.data.result;
     latestSubmitSaved.value = response.data.isSaved;
+    latestRecordId.value = response.data.recordId;
 
     if (response.data.isSaved) {
       await loadHistory();
@@ -334,6 +340,20 @@ async function submitAnalyze() {
   } finally {
     submitting.value = false;
   }
+}
+
+function openFullReport() {
+  if (!latestRecordId.value) {
+    uni.showToast({
+      title: '请先登录并保存结果',
+      icon: 'none',
+    });
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/report/index?recordId=${latestRecordId.value}`,
+  });
 }
 
 function formatDateTime(value: string) {

@@ -1,13 +1,21 @@
 import { Module } from '@nestjs/common';
+import { AdminAuthModule } from './admin-auth/admin-auth.module';
+import { AdminCommerceModule } from './admin-commerce/admin-commerce.module';
+import { AdminContentModule } from './admin-content/admin-content.module';
+import { AdsModule } from './ads/ads.module';
 import { AssessmentModule } from './assessment/assessment.module';
 import { BaziModule } from './bazi/bazi.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AdConfigEntity } from './database/entities/ad-config.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssessmentQuestionEntity } from './database/entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
+import { MembershipProductEntity } from './database/entities/membership-product.entity';
+import { OrderEntity } from './database/entities/order.entity';
+import { ShareRecordEntity } from './database/entities/share-record.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
@@ -15,7 +23,11 @@ import { FortuneModule } from './fortune/fortune.module';
 import { HomeModule } from './home/home.module';
 import { HealthController } from './health/health.controller';
 import { LuckyModule } from './lucky/lucky.module';
+import { MembershipModule } from './membership/membership.module';
+import { OrdersModule } from './orders/orders.module';
+import { PostersModule } from './posters/posters.module';
 import { RedisModule } from './redis/redis.module';
+import { ReportsModule } from './reports/reports.module';
 import { UsersModule } from './users/users.module';
 import { ZodiacModule } from './zodiac/zodiac.module';
 
@@ -42,6 +54,10 @@ import { ZodiacModule } from './zodiac/zodiac.module';
           UserEntity,
           UserRecordEntity,
           FortuneContentEntity,
+          MembershipProductEntity,
+          OrderEntity,
+          AdConfigEntity,
+          ShareRecordEntity,
         ],
         autoLoadEntities: true,
         synchronize: configService.get<string>('DB_SYNCHRONIZE')
@@ -51,6 +67,14 @@ import { ZodiacModule } from './zodiac/zodiac.module';
       }),
     }),
     RedisModule,
+    AdminAuthModule,
+    AdminContentModule,
+    AdminCommerceModule,
+    MembershipModule,
+    OrdersModule,
+    AdsModule,
+    ReportsModule,
+    PostersModule,
     AssessmentModule,
     BaziModule,
     AuthModule,

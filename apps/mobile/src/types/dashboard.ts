@@ -10,6 +10,7 @@ export interface DashboardLuckyMetric {
 }
 
 export interface DashboardLuckySign {
+  bizCode?: string;
   title: string;
   summary: string;
   tag: string;

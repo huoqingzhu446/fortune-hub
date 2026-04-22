@@ -27,6 +27,13 @@ export interface LoginResponseData {
   isProfileCompleted: boolean;
 }
 
+export interface LoginPayload {
+  code: string;
+  platform: 'mp-weixin';
+  nickname?: string;
+  avatarUrl?: string;
+}
+
 export interface MeResponseData {
   user: UserProfile;
   isProfileCompleted: boolean;

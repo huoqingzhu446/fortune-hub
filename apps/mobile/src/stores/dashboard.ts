@@ -23,6 +23,7 @@ const fallbackDashboard: MobileDashboardPayload = {
     hint: '适合持续建设长期表达与作品。',
   },
   todayLuckySign: {
+    bizCode: 'sign-breeze-open',
     title: '今日幸运签',
     summary: '慢下来一点，答案会在下一次呼吸里浮现。',
     tag: '静观有得',

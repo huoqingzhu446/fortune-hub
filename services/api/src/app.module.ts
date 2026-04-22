@@ -3,7 +3,10 @@ import { AssessmentModule } from './assessment/assessment.module';
 import { BaziModule } from './bazi/bazi.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AssessmentQuestionEntity } from './database/entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
+import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
+import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
@@ -11,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { FortuneModule } from './fortune/fortune.module';
 import { HomeModule } from './home/home.module';
 import { HealthController } from './health/health.controller';
+import { LuckyModule } from './lucky/lucky.module';
 import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
 import { ZodiacModule } from './zodiac/zodiac.module';
@@ -32,6 +36,9 @@ import { ZodiacModule } from './zodiac/zodiac.module';
         database: configService.get<string>('MYSQL_DATABASE', 'fortune_hub'),
         entities: [
           AssessmentSessionEntity,
+          AssessmentQuestionEntity,
+          AssessmentTestConfigEntity,
+          AssessmentTestGroupEntity,
           UserEntity,
           UserRecordEntity,
           FortuneContentEntity,
@@ -51,6 +58,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     HomeModule,
     ZodiacModule,
     FortuneModule,
+    LuckyModule,
   ],
   controllers: [HealthController],
 })

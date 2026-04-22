@@ -47,6 +47,13 @@ export interface PersonalityResult {
   dimensionScores: PersonalityDimensionScore[];
   strengths: string[];
   suggestions: string[];
+  sharePoster: {
+    themeName: string;
+    title: string;
+    subtitle: string;
+    accentText: string;
+    footerText: string;
+  };
   completedAt: string;
 }
 

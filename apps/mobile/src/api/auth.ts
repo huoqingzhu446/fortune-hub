@@ -1,15 +1,20 @@
 import { http } from '../services/request';
 import type {
   ApiEnvelope,
+  LoginPayload,
   LoginResponseData,
   MeResponseData,
   UpdateProfilePayload,
 } from '../types/auth';
 
-export function loginWithCode(code: string) {
-  return http.post<ApiEnvelope<LoginResponseData>>('/auth/wechat-login', {
+export function loginWithCode(
+  code: string,
+  extras?: Omit<LoginPayload, 'code' | 'platform'>,
+) {
+  return http.post<ApiEnvelope<LoginResponseData>, LoginPayload>('/auth/wechat-login', {
     code,
     platform: 'mp-weixin',
+    ...extras,
   });
 }
 

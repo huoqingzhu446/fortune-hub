@@ -42,12 +42,16 @@ export class AuthService {
       user = this.userRepository.create({
         openid: session.openid,
         unionid: session.unionid ?? null,
+        nickname: dto.nickname ?? null,
+        avatarUrl: dto.avatarUrl ?? null,
         gender: 'unknown',
         vipStatus: 'inactive',
         lastLoginAt: now,
       });
     } else {
       user.unionid = session.unionid ?? user.unionid;
+      user.nickname = dto.nickname ?? user.nickname;
+      user.avatarUrl = dto.avatarUrl ?? user.avatarUrl;
       user.lastLoginAt = now;
     }
 

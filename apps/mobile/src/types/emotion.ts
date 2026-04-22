@@ -38,6 +38,13 @@ export interface EmotionResult {
   supportSignal: string;
   relaxSteps: string[];
   disclaimer: string;
+  sharePoster: {
+    themeName: string;
+    title: string;
+    subtitle: string;
+    accentText: string;
+    footerText: string;
+  };
   completedAt: string;
 }
 

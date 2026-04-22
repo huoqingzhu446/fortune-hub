@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Put } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Put, Query } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
@@ -23,5 +23,17 @@ export class UsersController {
   ) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.usersService.updateProfile(user, dto);
+  }
+
+  @Get('records')
+  async getRecords(
+    @Headers('authorization') authorization?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getUnifiedHistory(
+      user,
+      typeof limit === 'string' ? Number(limit) : undefined,
+    );
   }
 }

@@ -5,9 +5,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
+import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { SubmitAssessmentDto } from './dto/submit-assessment.dto';
+import {
+  createDefaultSharePosterConfig,
+  type SharePosterConfigDefinition,
+} from './question-bank.defaults';
 
 interface EmotionOptionDefinition {
   key: string;
@@ -41,6 +47,7 @@ interface EmotionTestDefinition {
   tags: string[];
   disclaimer: string;
   relaxSteps: string[];
+  sharePoster?: SharePosterConfigDefinition;
   questions: EmotionQuestionDefinition[];
   thresholds: EmotionThresholdDefinition[];
 }
@@ -222,21 +229,27 @@ export class EmotionAssessmentService {
   constructor(
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(AssessmentQuestionEntity)
+    private readonly assessmentQuestionRepository: Repository<AssessmentQuestionEntity>,
+    @InjectRepository(AssessmentTestConfigEntity)
+    private readonly assessmentTestConfigRepository: Repository<AssessmentTestConfigEntity>,
   ) {}
 
-  getEmotionTests() {
+  async getEmotionTests() {
+    const tests = await this.loadTests();
+
     return {
       code: 0,
       message: 'ok',
       data: {
-        tests: EMOTION_TESTS.map((test) => this.serializeTestSummary(test)),
+        tests: tests.map((test) => this.serializeTestSummary(test)),
       },
       timestamp: new Date().toISOString(),
     };
   }
 
-  getEmotionTestDetail(code: string) {
-    const test = this.findTestOrThrow(code);
+  async getEmotionTestDetail(code: string) {
+    const test = await this.findTestOrThrow(code);
 
     return {
       code: 0,
@@ -265,7 +278,7 @@ export class EmotionAssessmentService {
     dto: SubmitAssessmentDto,
     user: UserEntity | null,
   ) {
-    const test = this.findTestOrThrow(code);
+    const test = await this.findTestOrThrow(code);
     const answerMap = new Map(dto.answers.map((answer) => [answer.questionId, answer.optionKey]));
 
     if (answerMap.size !== test.questions.length) {
@@ -351,6 +364,120 @@ export class EmotionAssessmentService {
     };
   }
 
+  private async loadTests() {
+    await Promise.all([this.seedQuestionBank(), this.seedTestConfigs()]);
+
+    const [questions, configs] = await Promise.all([
+      this.assessmentQuestionRepository.find({
+        where: {
+          category: 'emotion',
+          status: 'published',
+        },
+        order: {
+          testCode: 'ASC',
+          sortOrder: 'ASC',
+        },
+      }),
+      this.assessmentTestConfigRepository.find({
+        where: {
+          category: 'emotion',
+          status: 'published',
+        },
+        order: {
+          code: 'ASC',
+        },
+      }),
+    ]);
+    const groupedQuestions = questions.reduce<Record<string, EmotionQuestionDefinition[]>>(
+      (result, question) => {
+        result[question.testCode] = result[question.testCode] ?? [];
+        result[question.testCode].push({
+          id: question.questionId,
+          prompt: question.prompt,
+          options: ((question.optionsJson as unknown) as EmotionOptionDefinition[]).map((option) => ({
+            key: String(option.key),
+            label: String(option.label),
+            score: Number(option.score),
+          })),
+        });
+        return result;
+      },
+      {},
+    );
+
+    const seedMap = EMOTION_TESTS.reduce<Record<string, EmotionTestDefinition>>(
+      (result, test) => {
+        result[test.code] = test;
+        return result;
+      },
+      {},
+    );
+
+    return configs.map((config) => {
+      const seed = seedMap[config.code];
+      const normalizedConfig = this.normalizeEmotionConfig(config.configJson, seed);
+
+      return {
+        code: config.code,
+        title: config.title,
+        subtitle: config.subtitle,
+        description: config.description,
+        intro: config.intro,
+        durationMinutes: config.durationMinutes,
+        tags: this.normalizeStringArray(config.tagsJson, seed?.tags ?? []),
+        disclaimer: normalizedConfig.disclaimer,
+        relaxSteps: normalizedConfig.relaxSteps,
+        thresholds: normalizedConfig.thresholds,
+        sharePoster: normalizedConfig.sharePoster,
+        questions:
+          groupedQuestions[config.code]?.length
+            ? groupedQuestions[config.code]
+            : seed?.questions ?? this.createFallbackEmotionQuestions(config.code),
+      };
+    });
+  }
+
+  private async seedQuestionBank() {
+    await this.assessmentQuestionRepository.upsert(
+      EMOTION_TESTS.flatMap((test) =>
+        test.questions.map((question, index) => ({
+          category: 'emotion',
+          testCode: test.code,
+          questionId: question.id,
+          prompt: question.prompt,
+          optionsJson: question.options.map((option) => ({ ...option })),
+          sortOrder: index + 1,
+          status: 'published',
+        })),
+      ),
+      ['category', 'testCode', 'questionId'],
+    );
+  }
+
+  private async seedTestConfigs() {
+    await this.assessmentTestConfigRepository.upsert(
+      EMOTION_TESTS.map((test) => ({
+        category: 'emotion',
+        code: test.code,
+        title: test.title,
+        subtitle: test.subtitle,
+        description: test.description,
+        intro: test.intro,
+        durationMinutes: test.durationMinutes,
+        optionSchema: 'emotion',
+        tagsJson: test.tags,
+        configJson: {
+          disclaimer: test.disclaimer,
+          relaxSteps: test.relaxSteps,
+          thresholds: test.thresholds,
+          sharePoster: test.sharePoster ?? createDefaultSharePosterConfig('emotion'),
+        },
+        status: 'published',
+      })),
+      ['category', 'code'],
+    );
+  }
+
   private buildResultPayload(test: EmotionTestDefinition, totalScore: number) {
     const threshold =
       test.thresholds.find((item) => totalScore <= item.maxScore) ??
@@ -368,18 +495,191 @@ export class EmotionAssessmentService {
       supportSignal: threshold.supportSignal,
       relaxSteps: test.relaxSteps,
       disclaimer: test.disclaimer,
+      sharePoster: this.renderSharePoster(test, {
+        resultTitle: threshold.title,
+        subtitle: threshold.subtitle,
+        score: `${totalScore}/${maxScore}`,
+        summary: threshold.summary,
+        riskLevel: threshold.level,
+      }),
       completedAt: new Date().toISOString(),
     };
   }
 
-  private findTestOrThrow(code: string) {
-    const test = EMOTION_TESTS.find((item) => item.code === code);
+  private async findTestOrThrow(code: string) {
+    const tests = await this.loadTests();
+    const test = tests.find((item) => item.code === code);
 
     if (!test) {
       throw new NotFoundException('自检不存在或暂未开放');
     }
 
     return test;
+  }
+
+  private normalizeEmotionConfig(configJson: unknown, seed?: EmotionTestDefinition) {
+    const configRecord = this.asRecord(configJson);
+    const thresholds = Array.isArray(configRecord.thresholds)
+      ? configRecord.thresholds
+          .map((item) => this.normalizeThresholdItem(item))
+          .filter((item): item is EmotionThresholdDefinition => Boolean(item))
+      : [];
+
+    return {
+      disclaimer: this.pickString(
+        configRecord.disclaimer,
+        seed?.disclaimer ??
+          '本结果仅用于日常自我观察，不构成医学诊断或治疗建议；如持续不适，请及时联系专业机构。',
+      ),
+      relaxSteps: this.pickStringArray(configRecord.relaxSteps, seed?.relaxSteps ?? [
+        '先做 1 分钟缓慢呼气，让身体稍微降下来。',
+        '把当前最担心的一件事写成一句话，再写下一个最小动作。',
+        '如果已经明显影响生活，请优先联系现实中的支持资源。',
+      ]),
+      thresholds:
+        thresholds.length > 0
+          ? thresholds
+          : seed?.thresholds ?? [
+              {
+                maxScore: 3,
+                level: 'steady',
+                title: '平稳观察区',
+                subtitle: '近期整体波动不大，适合继续保持自己的节奏。',
+                summary: '当前更像日常压力起伏，先维持作息与能量恢复即可。',
+                primarySuggestion: '先把今天最重要的一件事做完，减少额外分心。',
+                supportSignal: '如果接下来连续几天明显下滑，可以再做一次复测观察变化。',
+              },
+              {
+                maxScore: 7,
+                level: 'watch',
+                title: '轻度波动区',
+                subtitle: '最近有一些起伏，值得留意消耗来源。',
+                summary: '你已经出现一定程度的紧绷或低落，建议先降低节奏，优先恢复。',
+                primarySuggestion: '先减少一到两个非必要任务，给自己留出喘息空间。',
+                supportSignal: '如果这种状态连续两周没有回落，可以考虑和信任的人聊聊。',
+              },
+              {
+                maxScore: 11,
+                level: 'support',
+                title: '需要多留意',
+                subtitle: '最近的消耗已经比较明显，建议主动增加支持。',
+                summary: '现在更需要照顾自己的状态，而不是继续硬撑。',
+                primarySuggestion: '优先联系现实中的支持资源，让自己不再单独承受。',
+                supportSignal: '如果学习、工作、睡眠或进食已经受影响，建议尽快寻求专业支持。',
+              },
+              {
+                maxScore: 99,
+                level: 'urgent',
+                title: '建议尽快寻求支持',
+                subtitle: '当前波动已经偏高，先把安全与支持放在第一位。',
+                summary: '这份结果提示近期压力偏高，不建议继续一个人硬扛。',
+                primarySuggestion: '优先联系家人、朋友、学校、医院或其他现实支持渠道。',
+                supportSignal: '如果你已经出现明显失控感、持续失眠或伤害自己的想法，请立即联系急救或当地心理危机干预资源。',
+              },
+            ],
+      sharePoster: this.normalizeSharePoster(configRecord.sharePoster),
+    };
+  }
+
+  private normalizeThresholdItem(value: unknown): EmotionThresholdDefinition | null {
+    const record = this.asRecord(value);
+    const level = this.pickString(record.level, 'watch');
+
+    if (!['steady', 'watch', 'support', 'urgent'].includes(level)) {
+      return null;
+    }
+
+    return {
+      maxScore: Number(record.maxScore ?? 0),
+      level: level as EmotionThresholdDefinition['level'],
+      title: this.pickString(record.title, '待补充标题'),
+      subtitle: this.pickString(record.subtitle, '待补充副标题'),
+      summary: this.pickString(record.summary, '待补充结果总结'),
+      primarySuggestion: this.pickString(record.primarySuggestion, '待补充主要建议'),
+      supportSignal: this.pickString(record.supportSignal, '待补充支持提醒'),
+    };
+  }
+
+  private createFallbackEmotionQuestions(code: string) {
+    return [1, 2, 3].map((index) => ({
+      id: `${code}-${index}`,
+      prompt: `请补充第 ${index} 题的正式题干`,
+      options: [
+        { key: 'A', label: '几乎没有', score: 0 },
+        { key: 'B', label: '偶尔会有', score: 1 },
+        { key: 'C', label: '经常会有', score: 2 },
+        { key: 'D', label: '几乎每天', score: 3 },
+      ],
+    }));
+  }
+
+  private pickStringArray(value: unknown, fallback: string[]) {
+    return this.normalizeStringArray(value, fallback);
+  }
+
+  private normalizeStringArray(value: unknown, fallback: string[]) {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const items = value.map((item) => String(item).trim()).filter(Boolean);
+    return items.length > 0 ? items : fallback;
+  }
+
+  private pickString(value: unknown, fallback: string) {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  private normalizeSharePoster(value: unknown) {
+    const record = this.asRecord(value);
+    const fallback = createDefaultSharePosterConfig('emotion');
+
+    return {
+      headlineTemplate: this.pickString(record.headlineTemplate, fallback.headlineTemplate),
+      subtitleTemplate: this.pickString(record.subtitleTemplate, fallback.subtitleTemplate),
+      accentText: this.pickString(record.accentText, fallback.accentText),
+      footerText: this.pickString(record.footerText, fallback.footerText),
+      themeName: this.pickString(record.themeName, fallback.themeName),
+    };
+  }
+
+  private renderSharePoster(
+    test: EmotionTestDefinition,
+    payload: {
+      resultTitle: string;
+      subtitle: string;
+      score: string;
+      summary: string;
+      riskLevel: string;
+    },
+  ) {
+    const config = test.sharePoster ?? createDefaultSharePosterConfig('emotion');
+    const variables: Record<string, string> = {
+      resultTitle: payload.resultTitle,
+      testTitle: test.title,
+      subtitle: payload.subtitle,
+      score: payload.score,
+      summary: payload.summary,
+      riskLevel: payload.riskLevel,
+    };
+
+    return {
+      themeName: config.themeName,
+      title: this.fillTemplate(config.headlineTemplate, variables),
+      subtitle: this.fillTemplate(config.subtitleTemplate, variables),
+      accentText: this.fillTemplate(config.accentText, variables),
+      footerText: this.fillTemplate(config.footerText, variables),
+    };
+  }
+
+  private fillTemplate(template: string, variables: Record<string, string>) {
+    return template.replace(/\{(\w+)\}/g, (_, key: string) => variables[key] ?? '');
+  }
+
+  private asRecord(value: unknown) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   }
 
   private serializeTestSummary(test: EmotionTestDefinition) {

@@ -1,27 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
-import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { LuckyService } from '../lucky/lucky.service';
 import { RedisService } from '../redis/redis.service';
-
-type LuckySignSnapshot = {
-  title: string;
-  summary: string;
-  tag: string;
-};
 
 @Injectable()
 export class HomeService {
   constructor(
-    @InjectRepository(FortuneContentEntity)
-    private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly luckyService: LuckyService,
   ) {}
 
   async getHomeIndex() {
-    const luckySign = await this.getLuckySign();
+    const luckySign = await this.luckyService.getTodaySignSnapshot();
     const integrations = this.buildIntegrations();
     const featureEntries = [
       {
@@ -144,45 +135,6 @@ export class HomeService {
         },
       },
       timestamp: new Date().toISOString(),
-    };
-  }
-
-  private async getLuckySign(): Promise<LuckySignSnapshot> {
-    const today = new Date().toISOString().slice(0, 10);
-    const content = await this.fortuneContentRepository.findOne({
-      where: [
-        {
-          contentType: 'lucky_sign',
-          status: 'published',
-          publishDate: today,
-        },
-        {
-          contentType: 'lucky_sign',
-          status: 'published',
-          publishDate: IsNull(),
-        },
-      ],
-      order: {
-        publishDate: 'DESC',
-        id: 'DESC',
-      },
-    });
-
-    if (!content) {
-      return {
-        title: '今日幸运签',
-        summary: '慢下来一点，答案会在下一次呼吸里浮现。',
-        tag: '静观有得',
-      };
-    }
-
-    return {
-      title: content.title,
-      summary: content.summary || '保持平衡，今天适合做柔和而坚定的决定。',
-      tag:
-        typeof content.contentJson.tag === 'string'
-          ? content.contentJson.tag
-          : '今日吉签',
     };
   }
 

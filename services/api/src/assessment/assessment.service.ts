@@ -5,9 +5,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
+import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { SubmitAssessmentDto } from './dto/submit-assessment.dto';
+import {
+  createDefaultSharePosterConfig,
+  type SharePosterConfigDefinition,
+} from './question-bank.defaults';
 
 interface PersonalityOptionDefinition {
   key: string;
@@ -39,6 +45,7 @@ interface PersonalityTestDefinition {
   tags: string[];
   dimensionLabels: Record<string, string>;
   profiles: Record<string, PersonalityProfileDefinition>;
+  sharePoster?: SharePosterConfigDefinition;
   questions: PersonalityQuestionDefinition[];
 }
 
@@ -261,21 +268,27 @@ export class AssessmentService {
   constructor(
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(AssessmentQuestionEntity)
+    private readonly assessmentQuestionRepository: Repository<AssessmentQuestionEntity>,
+    @InjectRepository(AssessmentTestConfigEntity)
+    private readonly assessmentTestConfigRepository: Repository<AssessmentTestConfigEntity>,
   ) {}
 
-  getPersonalityTests() {
+  async getPersonalityTests() {
+    const tests = await this.loadTests();
+
     return {
       code: 0,
       message: 'ok',
       data: {
-        tests: PERSONALITY_TESTS.map((test) => this.serializeTestSummary(test)),
+        tests: tests.map((test) => this.serializeTestSummary(test)),
       },
       timestamp: new Date().toISOString(),
     };
   }
 
-  getPersonalityTestDetail(code: string) {
-    const test = this.findTestOrThrow(code);
+  async getPersonalityTestDetail(code: string) {
+    const test = await this.findTestOrThrow(code);
 
     return {
       code: 0,
@@ -303,7 +316,7 @@ export class AssessmentService {
     dto: SubmitAssessmentDto,
     user: UserEntity | null,
   ) {
-    const test = this.findTestOrThrow(code);
+    const test = await this.findTestOrThrow(code);
     const answerMap = new Map(
       dto.answers.map((answer) => [answer.questionId, answer.optionKey]),
     );
@@ -401,6 +414,123 @@ export class AssessmentService {
     };
   }
 
+  private async loadTests() {
+    await Promise.all([this.seedQuestionBank(), this.seedTestConfigs()]);
+
+    const [questions, configs] = await Promise.all([
+      this.assessmentQuestionRepository.find({
+        where: {
+          category: 'personality',
+          status: 'published',
+        },
+        order: {
+          testCode: 'ASC',
+          sortOrder: 'ASC',
+        },
+      }),
+      this.assessmentTestConfigRepository.find({
+        where: {
+          category: 'personality',
+          status: 'published',
+        },
+        order: {
+          code: 'ASC',
+        },
+      }),
+    ]);
+    const groupedQuestions = questions.reduce<Record<string, PersonalityQuestionDefinition[]>>(
+      (result, question) => {
+        result[question.testCode] = result[question.testCode] ?? [];
+        result[question.testCode].push({
+          id: question.questionId,
+          prompt: question.prompt,
+          options: ((question.optionsJson as unknown) as PersonalityOptionDefinition[]).map((option) => ({
+            key: String(option.key),
+            label: String(option.label),
+            dimension: String(option.dimension),
+            score: Number(option.score),
+          })),
+        });
+        return result;
+      },
+      {},
+    );
+
+    const seedMap = PERSONALITY_TESTS.reduce<Record<string, PersonalityTestDefinition>>(
+      (result, test) => {
+        result[test.code] = test;
+        return result;
+      },
+      {},
+    );
+
+    return configs.map((config) => {
+      const seed = seedMap[config.code];
+      const normalizedConfig = this.normalizePersonalityConfig(config.configJson, seed);
+
+      return {
+        code: config.code,
+        title: config.title,
+        subtitle: config.subtitle,
+        description: config.description,
+        intro: config.intro,
+        durationMinutes: config.durationMinutes,
+        tags: this.normalizeStringArray(config.tagsJson, seed?.tags ?? []),
+        dimensionLabels: normalizedConfig.dimensionLabels,
+        profiles: normalizedConfig.profiles,
+        sharePoster: normalizedConfig.sharePoster,
+        questions:
+          groupedQuestions[config.code]?.length
+            ? groupedQuestions[config.code]
+            : seed?.questions ??
+              this.createFallbackPersonalityQuestions(
+                config.code,
+                normalizedConfig.dimensionLabels,
+              ),
+      };
+    });
+  }
+
+  private async seedQuestionBank() {
+    await this.assessmentQuestionRepository.upsert(
+      PERSONALITY_TESTS.flatMap((test) =>
+        test.questions.map((question, index) => ({
+          category: 'personality',
+          testCode: test.code,
+          questionId: question.id,
+          prompt: question.prompt,
+          optionsJson: question.options.map((option) => ({ ...option })),
+          sortOrder: index + 1,
+          status: 'published',
+        })),
+      ),
+      ['category', 'testCode', 'questionId'],
+    );
+  }
+
+  private async seedTestConfigs() {
+    await this.assessmentTestConfigRepository.upsert(
+      PERSONALITY_TESTS.map((test) => ({
+        category: 'personality',
+        code: test.code,
+        title: test.title,
+        subtitle: test.subtitle,
+        description: test.description,
+        intro: test.intro,
+        durationMinutes: test.durationMinutes,
+        optionSchema: 'personality',
+        tagsJson: test.tags,
+        configJson: {
+          dimensionLabels: test.dimensionLabels,
+          profiles: test.profiles,
+          sharePoster: test.sharePoster ?? createDefaultSharePosterConfig('personality'),
+        },
+        status: 'published',
+      })),
+      ['category', 'code'],
+    );
+  }
+
   private buildResultPayload(
     test: PersonalityTestDefinition,
     dimensionScores: Record<string, number>,
@@ -444,18 +574,180 @@ export class AssessmentService {
       dimensionScores: sortedDimensionScores,
       strengths: dominantProfile.strengths,
       suggestions: dominantProfile.suggestions,
+      sharePoster: this.renderSharePoster(test, {
+        resultTitle: dominantProfile.title,
+        subtitle: `${test.dimensionLabels[dominantDimensionKey]}更突出，说明你在这类场景下最有自然优势。`,
+        score: String(score),
+        summary: `${dominantProfile.summary}${levelSummary}`,
+        level,
+        dominantDimensionLabel: test.dimensionLabels[dominantDimensionKey],
+      }),
       completedAt: new Date().toISOString(),
     };
   }
 
-  private findTestOrThrow(code: string) {
-    const test = PERSONALITY_TESTS.find((item) => item.code === code);
+  private async findTestOrThrow(code: string) {
+    const tests = await this.loadTests();
+    const test = tests.find((item) => item.code === code);
 
     if (!test) {
       throw new NotFoundException('测评不存在或暂未开放');
     }
 
     return test;
+  }
+
+  private normalizePersonalityConfig(
+    configJson: unknown,
+    seed?: PersonalityTestDefinition,
+  ) {
+    const configRecord = this.asRecord(configJson);
+    const dimensionSource = this.asRecord(configRecord.dimensionLabels);
+    const dimensionEntries = Object.entries(dimensionSource).filter(
+      ([key, value]) => key.trim() && typeof value === 'string' && value.trim(),
+    );
+    const dimensionLabels =
+      dimensionEntries.length > 0
+        ? Object.fromEntries(
+            dimensionEntries.map(([key, value]) => [key.trim(), String(value).trim()]),
+          )
+        : seed?.dimensionLabels ?? {
+            focus: '专注感',
+            balance: '稳定感',
+            spark: '灵感感',
+          };
+    const profileSource = this.asRecord(configRecord.profiles);
+    const profiles = Object.keys(dimensionLabels).reduce<
+      Record<string, PersonalityProfileDefinition>
+    >((result, key) => {
+      const rawProfile = this.asRecord(profileSource[key]);
+      const seedProfile = seed?.profiles[key];
+      const label = dimensionLabels[key];
+      result[key] = {
+        title: this.pickString(rawProfile.title, seedProfile?.title ?? `${label}优势型`),
+        summary: this.pickString(
+          rawProfile.summary,
+          seedProfile?.summary ?? `你的${label}更突出，适合继续观察这种自然优势。`,
+        ),
+        strengths: this.pickStringArray(rawProfile.strengths, seedProfile?.strengths ?? [
+          `在${label}相关场景里更容易表现自然`,
+          '适合补充更具体的优势描述',
+        ]),
+        suggestions: this.pickStringArray(rawProfile.suggestions, seedProfile?.suggestions ?? [
+          '建议补一条更具体的行动建议',
+          '建议把文案写得更贴近用户日常语言',
+        ]),
+      };
+      return result;
+    }, {});
+
+    return {
+      dimensionLabels,
+      profiles,
+      sharePoster: this.normalizeSharePoster(configRecord.sharePoster),
+    };
+  }
+
+  private createFallbackPersonalityQuestions(
+    code: string,
+    dimensionLabels: Record<string, string>,
+  ) {
+    const [firstKey, secondKey, thirdKey] = Object.keys(dimensionLabels);
+    return [1, 2, 3].map((index) => ({
+      id: `${code}-${index}`,
+      prompt: `请补充第 ${index} 题的正式题干`,
+      options: [
+        {
+          key: 'A',
+          label: `偏向${dimensionLabels[firstKey] ?? '第一维度'}`,
+          dimension: firstKey,
+          score: 4,
+        },
+        {
+          key: 'B',
+          label: `偏向${dimensionLabels[secondKey] ?? '第二维度'}`,
+          dimension: secondKey,
+          score: 3,
+        },
+        {
+          key: 'C',
+          label: `偏向${dimensionLabels[thirdKey] ?? '第三维度'}`,
+          dimension: thirdKey,
+          score: 3,
+        },
+      ],
+    }));
+  }
+
+  private normalizeStringArray(value: unknown, fallback: string[]) {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const items = value.map((item) => String(item).trim()).filter(Boolean);
+    return items.length > 0 ? items : fallback;
+  }
+
+  private pickStringArray(value: unknown, fallback: string[]) {
+    return this.normalizeStringArray(value, fallback);
+  }
+
+  private pickString(value: unknown, fallback: string) {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  private normalizeSharePoster(value: unknown) {
+    const record = this.asRecord(value);
+    const fallback = createDefaultSharePosterConfig('personality');
+
+    return {
+      headlineTemplate: this.pickString(record.headlineTemplate, fallback.headlineTemplate),
+      subtitleTemplate: this.pickString(record.subtitleTemplate, fallback.subtitleTemplate),
+      accentText: this.pickString(record.accentText, fallback.accentText),
+      footerText: this.pickString(record.footerText, fallback.footerText),
+      themeName: this.pickString(record.themeName, fallback.themeName),
+    };
+  }
+
+  private renderSharePoster(
+    test: PersonalityTestDefinition,
+    payload: {
+      resultTitle: string;
+      subtitle: string;
+      summary: string;
+      score: string;
+      level: string;
+      dominantDimensionLabel: string;
+    },
+  ) {
+    const config = test.sharePoster ?? createDefaultSharePosterConfig('personality');
+    const variables: Record<string, string> = {
+      resultTitle: payload.resultTitle,
+      testTitle: test.title,
+      subtitle: payload.subtitle,
+      summary: payload.summary,
+      score: payload.score,
+      level: payload.level,
+      dominantDimensionLabel: payload.dominantDimensionLabel,
+    };
+
+    return {
+      themeName: config.themeName,
+      title: this.fillTemplate(config.headlineTemplate, variables),
+      subtitle: this.fillTemplate(config.subtitleTemplate, variables),
+      accentText: this.fillTemplate(config.accentText, variables),
+      footerText: this.fillTemplate(config.footerText, variables),
+    };
+  }
+
+  private fillTemplate(template: string, variables: Record<string, string>) {
+    return template.replace(/\{(\w+)\}/g, (_, key: string) => variables[key] ?? '');
+  }
+
+  private asRecord(value: unknown) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   }
 
   private serializeTestSummary(test: PersonalityTestDefinition) {

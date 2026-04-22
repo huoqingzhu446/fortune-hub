@@ -209,6 +209,22 @@
         <text>{{ latestResult.disclaimer }}</text>
       </view>
 
+      <view class="poster-card">
+        <view class="poster-card__head">
+          <text class="tips-card__title">分享海报</text>
+          <text class="poster-card__theme">{{ latestResult.sharePoster.themeName }}</text>
+        </view>
+        <view class="poster-card__shell">
+          <text class="poster-card__title">{{ latestResult.sharePoster.title }}</text>
+          <text class="poster-card__subtitle">{{ latestResult.sharePoster.subtitle }}</text>
+          <text class="poster-card__accent">{{ latestResult.sharePoster.accentText }}</text>
+          <text class="poster-card__footer">{{ latestResult.sharePoster.footerText }}</text>
+        </view>
+        <button class="hero-button hero-button--secondary" @tap="copySharePoster">
+          复制海报文案
+        </button>
+      </view>
+
       <view class="save-note">
         <text>
           {{
@@ -439,6 +455,29 @@ function restartLatestTest() {
 function goProfile() {
   uni.navigateTo({
     url: '/pages/profile/index',
+  });
+}
+
+function copySharePoster() {
+  if (!latestResult.value) {
+    return;
+  }
+
+  const lines = [
+    latestResult.value.sharePoster.title,
+    latestResult.value.sharePoster.subtitle,
+    latestResult.value.sharePoster.accentText,
+    latestResult.value.sharePoster.footerText,
+  ].filter(Boolean);
+
+  uni.setClipboardData({
+    data: lines.join('\n'),
+    success: () => {
+      uni.showToast({
+        title: '海报文案已复制',
+        icon: 'success',
+      });
+    },
   });
 }
 
@@ -732,6 +771,60 @@ onShow(() => {
 .signal-card,
 .tips-card {
   margin-bottom: 16rpx;
+}
+
+.poster-card {
+  display: grid;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 22rpx;
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at top left, rgba(118, 205, 181, 0.18), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(240, 193, 126, 0.22), transparent 36%),
+    rgba(246, 249, 255, 0.88);
+}
+
+.poster-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.poster-card__theme {
+  font-size: 22rpx;
+  color: var(--apple-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.poster-card__shell {
+  display: grid;
+  gap: 10rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.poster-card__title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--apple-text);
+  line-height: 1.25;
+}
+
+.poster-card__subtitle,
+.poster-card__footer {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--apple-muted);
+}
+
+.poster-card__accent {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #279477;
 }
 
 .tips-card__item {

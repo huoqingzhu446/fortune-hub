@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity } from '../database/entities/user.entity';
 import { AuthService } from '../auth/auth.service';
+import { UserRecordEntity } from '../database/entities/user-record.entity';
+import { UserEntity } from '../database/entities/user.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 const WESTERN_ZODIAC_BOUNDARIES = [
@@ -28,6 +29,8 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(UserRecordEntity)
+    private readonly userRecordRepository: Repository<UserRecordEntity>,
     private readonly authService: AuthService,
   ) {}
 
@@ -68,6 +71,28 @@ export class UsersService {
     };
   }
 
+  async getUnifiedHistory(user: UserEntity, limit?: number) {
+    const take = Math.min(30, Math.max(1, Number(limit) || 20));
+    const records = await this.userRecordRepository.find({
+      where: {
+        userId: user.id,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+      take,
+    });
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        items: records.map((record) => this.serializeUnifiedHistoryItem(record)),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   private buildProfile(dto: UpdateProfileDto) {
     const zodiac = this.computeWesternZodiac(dto.birthday);
     const fiveElements = this.computeFiveElements(dto.birthday, dto.birthTime);
@@ -101,5 +126,61 @@ export class UsersService {
       result[element] = ((seed + index * 11) % 9) + 1;
       return result;
     }, {});
+  }
+
+  private serializeUnifiedHistoryItem(record: UserRecordEntity) {
+    const resultData = record.resultData as {
+      summary?: string;
+      subtitle?: string;
+      scoreRangeLabel?: string;
+      dominantDimension?: { label?: string };
+      supportSignal?: string;
+      completedAt?: string;
+    };
+    const typeMeta = this.resolveRecordTypeMeta(record.recordType);
+
+    return {
+      id: record.id,
+      recordType: record.recordType,
+      recordTypeLabel: typeMeta.label,
+      sourceCode: record.sourceCode,
+      title: record.resultTitle,
+      score: record.score ? Number(record.score) : null,
+      level: record.resultLevel,
+      summary: resultData.summary ?? '',
+      subtitle: resultData.subtitle ?? '',
+      detailHint:
+        resultData.dominantDimension?.label ??
+        resultData.scoreRangeLabel ??
+        resultData.supportSignal ??
+        '',
+      completedAt: resultData.completedAt ?? record.createdAt.toISOString(),
+      route: typeMeta.route,
+      isFullReportUnlocked: record.isFullReportUnlocked,
+    };
+  }
+
+  private resolveRecordTypeMeta(recordType: string) {
+    const mapping: Record<string, { label: string; route: string }> = {
+      personality: {
+        label: '性格测评',
+        route: '/pages/personality/index',
+      },
+      emotion: {
+        label: '情绪自检',
+        route: '/pages/emotion/index',
+      },
+      bazi: {
+        label: '八字解读',
+        route: '/pages/bazi/index',
+      },
+    };
+
+    return (
+      mapping[recordType] ?? {
+        label: '历史记录',
+        route: '/pages/profile/index',
+      }
+    );
   }
 }

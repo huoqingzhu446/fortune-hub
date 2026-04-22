@@ -48,7 +48,7 @@
       </view>
     </view>
 
-    <view class="ambient-strip">
+    <view class="ambient-strip" @tap="goToLuckySign">
       <text class="ambient-strip__label">{{ luckySign.tag }}</text>
       <text class="ambient-strip__title">{{ luckySign.title }}</text>
       <text class="ambient-strip__text">{{ noticeText }}</text>
@@ -264,6 +264,13 @@ function handleModulePress(route: string) {
 
   uni.navigateTo({
     url: route,
+  });
+}
+
+function goToLuckySign() {
+  const bizCode = dashboard.value.todayLuckySign.bizCode || 'sign-breeze-open';
+  uni.navigateTo({
+    url: `/pages/lucky/sign/index?bizCode=${encodeURIComponent(bizCode)}`,
   });
 }
 

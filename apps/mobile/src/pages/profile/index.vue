@@ -2,23 +2,30 @@
   <view class="page">
     <view class="panel hero-panel">
       <text class="eyebrow">profile center</text>
-      <text class="title">{{ isLoggedIn ? (profile.nickname || '今天也要顺利一点') : '先登录再完善资料' }}</text>
-      <text class="summary">
-        {{
-          isLoggedIn
-            ? `当前状态：${profileCompleted ? '资料已完善' : '资料待完善'}，完善后会自动计算星座与简易八字。`
-            : '当前是开发环境体验登录，正式接微信授权后会自动获取 openid。'
-        }}
-      </text>
+      <text class="title">{{ isLoggedIn ? (profile.nickname || '今天也要顺利一点') : loginEntryTitle }}</text>
+      <text class="summary">{{ heroSummary }}</text>
 
       <view class="hero-actions">
-        <button v-if="!isLoggedIn" class="hero-button hero-button--primary" :loading="submitting" @tap="loginForExperience">
-          开发环境快捷登录
+        <button
+          v-if="!isLoggedIn"
+          class="hero-button hero-button--primary"
+          :loading="submitting"
+          @tap="handleLogin"
+        >
+          {{ loginButtonLabel }}
         </button>
-        <button v-else class="hero-button hero-button--secondary" @tap="logout">
+        <button
+          v-else
+          class="hero-button hero-button--secondary"
+          @tap="logout"
+        >
           退出当前会话
         </button>
       </view>
+
+      <text v-if="isMpWeixin && !isLoggedIn" class="helper-text">
+        当前会尝试走真实微信 `uni.login`，服务端已配置 `WECHAT_APP_ID / WECHAT_APP_SECRET` 时会直接换取真实 `openid`。
+      </text>
     </view>
 
     <view v-if="isLoggedIn" class="panel profile-panel">
@@ -37,6 +44,50 @@
       <view class="profile-row">
         <text class="profile-label">简易八字摘要</text>
         <text class="profile-value">{{ profile.baziSummary || '填写生日信息后自动生成' }}</text>
+      </view>
+    </view>
+
+    <view v-if="isLoggedIn" class="panel">
+      <text class="section-title">快捷入口</text>
+      <view class="shortcut-grid">
+        <view class="shortcut-card" @tap="goHistory">
+          <text class="shortcut-card__title">统一历史记录</text>
+          <text class="shortcut-card__text">汇总八字、性格与情绪结果</text>
+        </view>
+        <view class="shortcut-card" @tap="goLucky">
+          <text class="shortcut-card__title">幸运物推荐</text>
+          <text class="shortcut-card__text">看看今天更适合你的幸运物</text>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="isLoggedIn" class="panel">
+      <view class="section-head">
+        <text class="section-title">最近历史</text>
+        <text class="section-link" @tap="goHistory">查看全部</text>
+      </view>
+
+      <view v-if="historyLoading" class="empty-card">
+        <text class="empty-card__title">正在同步最近记录...</text>
+        <text class="empty-card__text">马上就好。</text>
+      </view>
+
+      <view v-else-if="recentHistory.length" class="history-list">
+        <view v-for="item in recentHistory" :key="item.id" class="history-card" @tap="openHistoryItem(item.route)">
+          <view class="history-card__top">
+            <view>
+              <text class="history-card__tag">{{ item.recordTypeLabel }}</text>
+              <text class="history-card__title">{{ item.title }}</text>
+            </view>
+            <text class="history-card__score">{{ item.score !== null ? item.score : '--' }}</text>
+          </view>
+          <text class="history-card__summary">{{ item.summary || item.detailHint || '点击查看详情' }}</text>
+        </view>
+      </view>
+
+      <view v-else class="empty-card">
+        <text class="empty-card__title">还没有历史记录</text>
+        <text class="empty-card__text">做一次八字、性格或情绪结果后，这里就会出现。</text>
       </view>
     </view>
 
@@ -81,11 +132,7 @@
     <view v-if="isLoggedIn && profile.fiveElements" class="panel profile-panel">
       <text class="section-title">五行分布</text>
       <view class="elements-grid">
-        <view
-          v-for="item in fiveElementEntries"
-          :key="item.name"
-          class="element-card"
-        >
+        <view v-for="item in fiveElementEntries" :key="item.name" class="element-card">
           <text class="element-card__name">{{ item.name }}</text>
           <text class="element-card__value">{{ item.value }}</text>
         </view>
@@ -95,9 +142,10 @@
 </template>
 
 <script setup lang="ts">
-import { onLoad } from '@dcloudio/uni-app';
+import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
 import { fetchMe, loginWithCode, updateMyProfile } from '../../api/auth';
+import { fetchUnifiedHistory } from '../../api/records';
 import {
   clearSession,
   getAuthToken,
@@ -106,6 +154,7 @@ import {
   setCachedUser,
 } from '../../services/session';
 import type { UserProfile } from '../../types/auth';
+import type { UnifiedRecordItem } from '../../types/records';
 
 type GenderValue = 'male' | 'female' | 'unknown';
 
@@ -114,6 +163,11 @@ const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '女', value: 'female' },
   { label: '保密', value: 'unknown' },
 ];
+
+const currentPlatform = String(
+  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
+).toLowerCase();
+const isMpWeixin = currentPlatform === 'mp-weixin';
 
 const emptyProfile: UserProfile = {
   id: '',
@@ -133,7 +187,9 @@ const emptyProfile: UserProfile = {
 const profile = ref<UserProfile>(getCachedUser() || emptyProfile);
 const profileCompleted = ref(Boolean(profile.value.birthday && profile.value.zodiac));
 const submitting = ref(false);
+const historyLoading = ref(false);
 const authToken = ref(getAuthToken());
+const recentHistory = ref<UnifiedRecordItem[]>([]);
 const form = reactive({
   nickname: profile.value.nickname || '',
   birthday: profile.value.birthday || '',
@@ -148,6 +204,17 @@ const fiveElementEntries = computed(() =>
     value,
   })),
 );
+const loginButtonLabel = computed(() => (isMpWeixin ? '微信一键登录' : '开发环境快捷登录'));
+const loginEntryTitle = computed(() => (isMpWeixin ? '先用微信登录，再完善资料' : '先登录再完善资料'));
+const heroSummary = computed(() => {
+  if (isLoggedIn.value) {
+    return `当前状态：${profileCompleted.value ? '资料已完善' : '资料待完善'}，完善后会自动计算星座与简易八字。`;
+  }
+
+  return isMpWeixin
+    ? '当前会优先走真实微信授权登录，登录成功后可继续完善生日信息与五行资料。'
+    : '当前是 H5 / 开发环境体验登录，正式小程序里会走微信登录换取真实 openid。';
+});
 
 async function hydrateProfile() {
   if (!isLoggedIn.value) {
@@ -165,6 +232,24 @@ async function hydrateProfile() {
   }
 }
 
+async function loadHistoryPreview() {
+  if (!isLoggedIn.value) {
+    recentHistory.value = [];
+    return;
+  }
+
+  try {
+    historyLoading.value = true;
+    const response = await fetchUnifiedHistory(3);
+    recentHistory.value = response.data.items;
+  } catch (error) {
+    console.warn('load history preview failed', error);
+    recentHistory.value = [];
+  } finally {
+    historyLoading.value = false;
+  }
+}
+
 function syncForm() {
   form.nickname = profile.value.nickname || '';
   form.birthday = profile.value.birthday || '';
@@ -173,15 +258,53 @@ function syncForm() {
 }
 
 async function loginForExperience() {
+  const response = await loginWithCode(`dev-${Date.now()}`);
+  setAuthToken(response.data.token);
+  setCachedUser(response.data.user);
+  authToken.value = response.data.token;
+  profile.value = response.data.user;
+  profileCompleted.value = response.data.isProfileCompleted;
+  syncForm();
+}
+
+function requestWechatCode() {
+  return new Promise<string>((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      success: (result: { code?: string }) => {
+        if (result.code) {
+          resolve(result.code);
+          return;
+        }
+
+        reject(new Error('未获取到微信登录 code'));
+      },
+      fail: reject,
+    } as never);
+  });
+}
+
+async function loginWithWechatOfficial() {
+  const code = await requestWechatCode();
+  const response = await loginWithCode(code);
+  setAuthToken(response.data.token);
+  setCachedUser(response.data.user);
+  authToken.value = response.data.token;
+  profile.value = response.data.user;
+  profileCompleted.value = response.data.isProfileCompleted;
+  syncForm();
+}
+
+async function handleLogin() {
   try {
     submitting.value = true;
-    const response = await loginWithCode(`dev-${Date.now()}`);
-    setAuthToken(response.data.token);
-    setCachedUser(response.data.user);
-    authToken.value = response.data.token;
-    profile.value = response.data.user;
-    profileCompleted.value = response.data.isProfileCompleted;
-    syncForm();
+    if (isMpWeixin) {
+      await loginWithWechatOfficial();
+    } else {
+      await loginForExperience();
+    }
+
+    await loadHistoryPreview();
     uni.showToast({
       title: '登录成功',
       icon: 'success',
@@ -237,6 +360,7 @@ function logout() {
   authToken.value = '';
   profile.value = emptyProfile;
   profileCompleted.value = false;
+  recentHistory.value = [];
   syncForm();
   uni.showToast({
     title: '已退出',
@@ -244,8 +368,36 @@ function logout() {
   });
 }
 
+function goHistory() {
+  uni.navigateTo({
+    url: '/pages/records/index',
+  });
+}
+
+function goLucky() {
+  uni.navigateTo({
+    url: '/pages/lucky/index',
+  });
+}
+
+function openHistoryItem(route: string) {
+  uni.navigateTo({
+    url: route,
+  });
+}
+
 onLoad(() => {
   void hydrateProfile();
+  void loadHistoryPreview();
+});
+
+onShow(() => {
+  const latestToken = getAuthToken();
+  if (latestToken !== authToken.value) {
+    authToken.value = latestToken;
+  }
+  void hydrateProfile();
+  void loadHistoryPreview();
 });
 </script>
 
@@ -269,7 +421,8 @@ onLoad(() => {
   box-shadow: var(--apple-shadow);
 }
 
-.eyebrow {
+.eyebrow,
+.history-card__tag {
   font-size: 20rpx;
   text-transform: uppercase;
   letter-spacing: 0.28em;
@@ -278,30 +431,32 @@ onLoad(() => {
 
 .title,
 .section-title {
-  font-size: 38rpx;
+  font-size: 40rpx;
   font-weight: 700;
   color: var(--apple-text);
 }
 
 .summary,
-.profile-value,
-.field__label {
-  font-size: 25rpx;
-  line-height: 1.6;
+.helper-text,
+.history-card__summary,
+.empty-card__text {
+  font-size: 26rpx;
+  line-height: 1.7;
   color: var(--apple-muted);
 }
 
-.hero-actions {
-  display: flex;
+.hero-actions,
+.shortcut-grid,
+.history-list {
+  display: grid;
+  gap: 16rpx;
 }
 
 .hero-button {
-  width: 100%;
-  min-height: 78rpx;
+  min-height: 82rpx;
   border-radius: 999rpx;
-  line-height: 78rpx;
-  font-size: 26rpx;
-  font-weight: 600;
+  line-height: 82rpx;
+  font-size: 28rpx;
 }
 
 .hero-button::after {
@@ -309,33 +464,78 @@ onLoad(() => {
 }
 
 .hero-button--primary {
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
   color: #ffffff;
+  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
 }
 
 .hero-button--secondary {
-  background: rgba(255, 255, 255, 0.72);
   color: var(--apple-text);
-  border: 1rpx solid rgba(255, 255, 255, 0.78);
+  background: rgba(244, 247, 250, 0.92);
 }
 
-.profile-row {
-  display: grid;
-  gap: 8rpx;
+.profile-row,
+.section-head,
+.history-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
 }
 
-.profile-label {
-  font-size: 22rpx;
+.profile-label,
+.section-link,
+.field__label,
+.empty-card__title {
+  font-size: 24rpx;
   color: var(--apple-subtle);
 }
 
+.profile-value,
+.profile-badge,
+.field__input,
+.history-card__title,
+.history-card__score,
+.shortcut-card__title {
+  font-size: 28rpx;
+  color: var(--apple-text);
+}
+
+.profile-value {
+  flex: 1;
+  text-align: right;
+}
+
 .profile-badge {
-  width: fit-content;
-  padding: 10rpx 16rpx;
+  padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(91, 141, 239, 0.14);
-  color: var(--apple-blue);
-  font-size: 22rpx;
+  background: rgba(221, 243, 234, 0.9);
+}
+
+.shortcut-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shortcut-card,
+.history-card,
+.empty-card,
+.element-card {
+  padding: 22rpx;
+  border-radius: 24rpx;
+  background: rgba(246, 249, 252, 0.92);
+}
+
+.shortcut-card__title,
+.history-card__title {
+  display: block;
+  font-weight: 700;
+}
+
+.shortcut-card__text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--apple-muted);
 }
 
 .field {
@@ -344,18 +544,16 @@ onLoad(() => {
 }
 
 .field__input {
-  min-height: 80rpx;
+  min-height: 84rpx;
   padding: 0 22rpx;
-  border-radius: 24rpx;
-  background: rgba(244, 248, 255, 0.92);
-  color: var(--apple-text);
-  font-size: 26rpx;
+  border-radius: 22rpx;
+  background: rgba(246, 249, 252, 0.92);
 }
 
 .gender-grid,
 .elements-grid {
   display: grid;
-  gap: 12rpx;
+  gap: 14rpx;
 }
 
 .gender-grid {
@@ -363,40 +561,38 @@ onLoad(() => {
 }
 
 .gender-chip {
-  display: grid;
-  place-items: center;
-  min-height: 72rpx;
-  border-radius: 999rpx;
-  background: rgba(244, 248, 255, 0.92);
+  min-height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  background: rgba(246, 249, 252, 0.92);
   color: var(--apple-muted);
-  font-size: 24rpx;
+  font-size: 26rpx;
 }
 
 .gender-chip--active {
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
-  color: #ffffff;
-  font-weight: 600;
+  background: linear-gradient(135deg, rgba(116, 152, 255, 0.16), rgba(113, 209, 171, 0.16));
+  color: var(--apple-text);
 }
 
 .elements-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .element-card {
   display: grid;
   gap: 8rpx;
-  padding: 18rpx;
-  border-radius: 24rpx;
-  background: rgba(244, 248, 255, 0.92);
+  text-align: center;
 }
 
 .element-card__name {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: var(--apple-subtle);
 }
 
 .element-card__value {
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: var(--apple-text);
 }

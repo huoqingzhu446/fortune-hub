@@ -38,9 +38,21 @@
       }
     },
     {
+      "path": "pages/lucky/sign/index",
+      "style": {
+        "navigationBarTitleText": "幸运签详情"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "pages/records/index",
+      "style": {
+        "navigationBarTitleText": "历史记录"
       }
     }
   ],

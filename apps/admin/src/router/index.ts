@@ -5,8 +5,19 @@ export const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
+      component: () => import('../layouts/AdminLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: () => import('../views/DashboardView.vue'),
+        },
+        {
+          path: 'question-bank',
+          name: 'question-bank',
+          component: () => import('../views/QuestionBankView.vue'),
+        },
+      ],
     },
   ],
 });

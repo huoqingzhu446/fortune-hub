@@ -4,6 +4,7 @@ dist
 .DS_Store
 .idea
 .env
+.env.aliyun
 .env.local
 *.local
 coverage

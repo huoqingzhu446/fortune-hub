@@ -1,0 +1,53 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "运势中枢",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/zodiac/index",
+      "style": {
+        "navigationBarTitleText": "星座运势"
+      }
+    },
+    {
+      "path": "pages/bazi/index",
+      "style": {
+        "navigationBarTitleText": "八字解读"
+      }
+    },
+    {
+      "path": "pages/personality/index",
+      "style": {
+        "navigationBarTitleText": "性格测评"
+      }
+    },
+    {
+      "path": "pages/emotion/index",
+      "style": {
+        "navigationBarTitleText": "情绪自检"
+      }
+    },
+    {
+      "path": "pages/lucky/index",
+      "style": {
+        "navigationBarTitleText": "幸运物"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "运势中枢",
+    "navigationBarBackgroundColor": "#f5f7fb",
+    "backgroundColor": "#f5f7fb"
+  }
+}

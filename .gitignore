@@ -1,0 +1,14 @@
+node_modules
+.pnpm-store
+dist
+.DS_Store
+.idea
+.env
+.env.local
+*.local
+coverage
+apps/admin/dist
+services/api/dist
+apps/mobile/dist
+deploy/nginx/ssl/*.pem
+deploy/nginx/ssl/*.key

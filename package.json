@@ -7,7 +7,7 @@
     "dev:mobile": "pnpm --filter @fortune-hub/mobile dev:mp-weixin",
     "dev:mobile:h5": "pnpm --filter @fortune-hub/mobile dev:h5",
     "dev:admin": "pnpm --filter @fortune-hub/admin dev",
-    "dev:api": "pnpm --filter @fortune-hub/api start:dev",
+    "dev:api": "node scripts/dev-api.mjs",
     "build:mobile": "pnpm --filter @fortune-hub/mobile build:mp-weixin",
     "build:mobile:h5": "pnpm --filter @fortune-hub/mobile build:h5",
     "build:admin": "pnpm --filter @fortune-hub/admin build",

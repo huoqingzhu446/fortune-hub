@@ -9,7 +9,9 @@
       <text class="hero-card__title">性格测评</text>
       <text class="hero-card__subtitle">
         {{
-          screen === 'list'
+          screen === 'hub'
+            ? '这里统一汇总星座、八字、性格、情绪与幸运物五个模块，先选你现在最想进入的一项。'
+            : screen === 'list'
             ? '先选一套轻量测评，几分钟内就能拿到第一版结果。'
             : screen === 'quiz'
               ? '按直觉选择更贴近你的答案，不需要想成标准答案。'
@@ -27,6 +29,63 @@
           <text class="status-pill__value">{{ latestResultLabel }}</text>
         </view>
       </view>
+    </view>
+
+    <view v-if="screen === 'hub'" class="section-card">
+      <view class="section-header">
+        <view>
+          <text class="section-header__eyebrow">assessment hub</text>
+          <text class="section-header__title">五个模块</text>
+        </view>
+        <text class="section-header__side">统一入口</text>
+      </view>
+
+      <view class="module-grid">
+        <view v-for="module in assessmentModules" :key="module.id" class="module-card">
+          <view class="module-card__top">
+            <view>
+              <text class="module-card__badge">{{ module.badge }}</text>
+              <text class="module-card__title">{{ module.title }}</text>
+            </view>
+            <text class="module-card__meta">{{ module.meta }}</text>
+          </view>
+
+          <text class="module-card__description">{{ module.description }}</text>
+
+          <button
+            class="hero-button hero-button--primary"
+            :loading="module.id === 'personality' ? loadingTests : false"
+            @tap="openModule(module.id)"
+          >
+            {{ module.actionLabel }}
+          </button>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="screen === 'hub'" class="section-card section-card--soft">
+      <view class="section-header">
+        <view>
+          <text class="section-header__eyebrow">recent signal</text>
+          <text class="section-header__title">最近状态</text>
+        </view>
+        <text class="section-header__side">{{ latestResult ? '有结果' : '未开始' }}</text>
+      </view>
+
+      <view class="status-overview">
+        <view class="status-pill">
+          <text class="status-pill__label">登录状态</text>
+          <text class="status-pill__value">{{ loginStatusValue }}</text>
+        </view>
+        <view class="status-pill">
+          <text class="status-pill__label">最近结果</text>
+          <text class="status-pill__value">{{ latestResultLabel }}</text>
+        </view>
+      </view>
+
+      <button class="hero-button hero-button--secondary" @tap="openModule('personality')">
+        进入性格测评
+      </button>
     </view>
 
     <view v-if="screen === 'list'" class="section-card">
@@ -64,6 +123,10 @@
           </button>
         </view>
       </view>
+
+      <button class="hero-button hero-button--secondary" @tap="backToHub">
+        返回测评中心
+      </button>
     </view>
 
     <view v-if="screen === 'list'" class="section-card section-card--soft">
@@ -255,6 +318,7 @@ import {
   fetchPersonalityTests,
   submitPersonalityAssessment,
 } from '../../api/assessment';
+import { fetchEmotionTests } from '../../api/emotion';
 import { getAuthToken } from '../../services/session';
 import type {
   PersonalityHistoryItem,
@@ -263,10 +327,12 @@ import type {
   PersonalityTestSummary,
 } from '../../types/assessment';
 
-type ScreenMode = 'list' | 'quiz' | 'result';
+type ScreenMode = 'hub' | 'list' | 'quiz' | 'result';
+type AssessmentModuleId = 'zodiac' | 'bazi' | 'personality' | 'emotion' | 'lucky';
 
-const screen = ref<ScreenMode>('list');
+const screen = ref<ScreenMode>('hub');
 const tests = ref<PersonalityTestSummary[]>([]);
+const emotionTestCount = ref(0);
 const activeTest = ref<PersonalityTestDetail | null>(null);
 const currentQuestionIndex = ref(0);
 const answers = ref<Record<string, string>>({});
@@ -298,11 +364,52 @@ const progressPercent = computed(() => {
 const loginStatusLabel = computed(() => (isLoggedIn.value ? '当前状态' : '保存历史'));
 const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需登录'));
 const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
+const assessmentModules = computed(() => [
+  {
+    id: 'zodiac' as AssessmentModuleId,
+    badge: '主入口',
+    title: '星座运势',
+    description: '查看今日、本周、年度运势与幸运提示。',
+    meta: '实时查看',
+    actionLabel: '进入星座运势',
+  },
+  {
+    id: 'bazi' as AssessmentModuleId,
+    badge: '待完善',
+    title: '八字解读',
+    description: '录入生日与时辰，生成简易排盘与五行解读。',
+    meta: '深入分析',
+    actionLabel: '进入八字解读',
+  },
+  {
+    id: 'personality' as AssessmentModuleId,
+    badge: '长期留存',
+    title: '性格测评',
+    description: '完成答题后生成精简报告与分享卡片。',
+    meta: `${tests.value.length} 套题库`,
+    actionLabel: '进入性格测评',
+  },
+  {
+    id: 'emotion' as AssessmentModuleId,
+    badge: '合规重点',
+    title: '情绪自检',
+    description: '简化量表 + 风险提示 + 放松建议。',
+    meta: `${emotionTestCount.value} 套题库`,
+    actionLabel: '进入情绪自检',
+  },
+  {
+    id: 'lucky' as AssessmentModuleId,
+    badge: '内容化',
+    title: '幸运物',
+    description: '结合幸运指数推荐每日幸运物与壁纸主题。',
+    meta: '每日更新',
+    actionLabel: '进入幸运物',
+  },
+]);
 
 async function bootstrap() {
   authToken.value = getAuthToken();
-  await loadTests();
-  await loadHistory();
+  await Promise.all([loadTests(), loadEmotionModuleCount(), loadHistory()]);
 }
 
 async function loadTests() {
@@ -336,6 +443,16 @@ async function loadHistory() {
     historyItems.value = [];
   } finally {
     loadingHistory.value = false;
+  }
+}
+
+async function loadEmotionModuleCount() {
+  try {
+    const response = await fetchEmotionTests();
+    emotionTestCount.value = response.data.tests.length;
+  } catch (error) {
+    console.warn('load emotion tests failed', error);
+    emotionTestCount.value = 0;
   }
 }
 
@@ -391,6 +508,10 @@ function previousQuestion() {
 
 function backToList() {
   screen.value = 'list';
+}
+
+function backToHub() {
+  screen.value = 'hub';
 }
 
 async function submitAssessment() {
@@ -475,6 +596,24 @@ function openFullReport() {
 function goProfile() {
   uni.navigateTo({
     url: '/pages/profile/index',
+  });
+}
+
+function openModule(moduleId: AssessmentModuleId) {
+  if (moduleId === 'personality') {
+    screen.value = 'list';
+    return;
+  }
+
+  const routeMap: Record<Exclude<AssessmentModuleId, 'personality'>, string> = {
+    zodiac: '/pages/zodiac/index',
+    bazi: '/pages/bazi/index',
+    emotion: '/pages/emotion/index',
+    lucky: '/pages/lucky/index',
+  };
+
+  uni.navigateTo({
+    url: routeMap[moduleId],
   });
 }
 
@@ -622,13 +761,16 @@ onShow(() => {
 .test-list,
 .history-list,
 .dimension-grid,
-.option-list {
+.option-list,
+.module-grid,
+.status-overview {
   display: grid;
   gap: 14rpx;
 }
 
 .hero-card__status,
-.dimension-grid {
+.dimension-grid,
+.status-overview {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -638,7 +780,8 @@ onShow(() => {
 .test-card,
 .question-card,
 .tips-card,
-.empty-card {
+.empty-card,
+.module-card {
   display: grid;
   gap: 10rpx;
   padding: 22rpx;
@@ -653,7 +796,9 @@ onShow(() => {
 .question-card__intro,
 .dimension-card__hint,
 .empty-card__title,
-.result-hero__subtitle {
+.result-hero__subtitle,
+.module-card__badge,
+.module-card__meta {
   font-size: 22rpx;
   color: var(--apple-subtle);
 }
@@ -662,7 +807,8 @@ onShow(() => {
 .history-card__score,
 .dimension-card__value,
 .question-card__prompt,
-.option-card__label {
+.option-card__label,
+.module-card__title {
   font-size: 28rpx;
   font-weight: 600;
   color: var(--apple-text);
@@ -686,6 +832,29 @@ onShow(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12rpx;
+}
+
+.module-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.module-card {
+  align-content: space-between;
+  min-height: 232rpx;
+  background: rgba(247, 250, 255, 0.92);
+}
+
+.module-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.module-card__description {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--apple-muted);
 }
 
 .tag-chip {
@@ -851,5 +1020,12 @@ onShow(() => {
 .history-card__time {
   font-size: 23rpx;
   color: var(--apple-subtle);
+}
+
+@media (max-width: 720px) {
+  .module-grid,
+  .status-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

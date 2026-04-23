@@ -19,7 +19,7 @@
         <view class="hero-copy">
           <text class="hero-copy__eyebrow">今日总览</text>
           <text class="hero-copy__title">{{ dashboard.headline.title }}</text>
-          <text class="hero-copy__summary">{{ dashboard.todayFortuneSummary }}</text>
+          <text class="hero-copy__summary">{{ heroSummary }}</text>
 
           <view class="hero-actions">
             <button class="hero-button hero-button--primary" @tap="goToLuckySign">
@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useDashboardStore } from '../../stores/dashboard';
 
@@ -107,6 +107,10 @@ const loading = computed(() => dashboardStore.loading);
 const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
+const heroSummary = computed(() => {
+  const summary = dashboard.value.todayFortuneSummary?.trim() || '';
+  return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
+});
 
 const moduleCards = computed(() =>
   dashboard.value.featureEntries.map((module, index) => ({
@@ -121,6 +125,17 @@ let skipFirstShowRefresh = true;
 
 async function refreshDashboard() {
   await dashboardStore.loadDashboard();
+}
+
+function resetScrollTop() {
+  nextTick(() => {
+    setTimeout(() => {
+      uni.pageScrollTo({
+        scrollTop: 0,
+        duration: 0,
+      });
+    }, 0);
+  });
 }
 
 function handleRoute(route: string) {
@@ -146,6 +161,7 @@ function goToLuckyCenter() {
 }
 
 onLoad(() => {
+  resetScrollTop();
   void refreshDashboard();
 });
 
@@ -155,6 +171,7 @@ onShow(() => {
     return;
   }
 
+  resetScrollTop();
   void refreshDashboard();
 });
 
@@ -273,17 +290,17 @@ onPullDownRefresh(async () => {
 .hero-card {
   grid-template-columns: 1.08fr 0.92fr;
   align-items: stretch;
-  margin-bottom: 20rpx;
-  padding: 30rpx;
-  border-radius: 36rpx;
+  margin-bottom: 16rpx;
+  padding: 24rpx;
+  border-radius: 32rpx;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 249, 255, 0.98) 100%);
   border: 1rpx solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 24rpx 70rpx rgba(93, 118, 153, 0.12);
 }
 
 .hero-copy__title {
-  font-size: 54rpx;
-  line-height: 1.16;
+  font-size: 46rpx;
+  line-height: 1.18;
   font-weight: 700;
   color: var(--apple-text);
 }
@@ -293,21 +310,22 @@ onPullDownRefresh(async () => {
 .module-card__description,
 .refresh-bar__text,
 .score-panel__hint {
-  font-size: 26rpx;
-  line-height: 1.68;
+  font-size: 24rpx;
+  line-height: 1.6;
   color: var(--apple-muted);
 }
 
 .hero-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
 }
 
 .hero-button {
-  min-height: 84rpx;
-  padding: 0 28rpx;
+  min-height: 76rpx;
+  padding: 0 24rpx;
   border-radius: 999rpx;
-  line-height: 84rpx;
-  font-size: 28rpx;
+  line-height: 76rpx;
+  font-size: 26rpx;
   font-weight: 600;
 }
 
@@ -329,10 +347,10 @@ onPullDownRefresh(async () => {
 
 .score-panel {
   display: grid;
-  gap: 14rpx;
+  gap: 10rpx;
   align-content: start;
-  padding: 24rpx;
-  border-radius: 30rpx;
+  padding: 20rpx;
+  border-radius: 26rpx;
   background:
     radial-gradient(circle at top right, rgba(170, 207, 255, 0.32), transparent 32%),
     linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(248, 251, 255, 0.98) 100%);
@@ -340,7 +358,7 @@ onPullDownRefresh(async () => {
 
 .score-panel__value,
 .insight-card__metric {
-  font-size: 72rpx;
+  font-size: 60rpx;
   line-height: 1;
   font-weight: 700;
   color: var(--apple-text);
@@ -350,9 +368,9 @@ onPullDownRefresh(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 10rpx;
-  padding: 18rpx 20rpx;
-  border-radius: 24rpx;
+  margin-top: 6rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 20rpx;
   background: rgba(255, 255, 255, 0.78);
 }
 
@@ -366,7 +384,7 @@ onPullDownRefresh(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
-  margin-bottom: 32rpx;
+  margin-bottom: 24rpx;
 }
 
 .insight-card,
@@ -407,7 +425,7 @@ onPullDownRefresh(async () => {
 .section-block {
   position: relative;
   z-index: 1;
-  margin-bottom: 28rpx;
+  margin-bottom: 22rpx;
 }
 
 .section-head {
@@ -432,7 +450,7 @@ onPullDownRefresh(async () => {
 .module-card {
   display: grid;
   gap: 12rpx;
-  min-height: 196rpx;
+  min-height: 210rpx;
   padding: 24rpx;
   background: rgba(255, 255, 255, 0.92);
 }
@@ -473,7 +491,7 @@ onPullDownRefresh(async () => {
   }
 
   .hero-copy__title {
-    font-size: 48rpx;
+    font-size: 42rpx;
   }
 }
 </style>

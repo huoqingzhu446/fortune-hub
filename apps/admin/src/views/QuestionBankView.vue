@@ -974,6 +974,7 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus';
+import JSON5 from 'json5';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import {
   createQuestionBankGroup,
@@ -1371,7 +1372,7 @@ async function submitImportJson() {
 
   try {
     importing.value = true;
-    const parsed = JSON.parse(importJsonText.value) as unknown;
+    const parsed = parseImportedJson(importJsonText.value);
     const payload = normalizeImportedQuestionBank(parsed);
     const resolvedGroup = resolveImportGroupCode(payload.category, payload.groupCode);
     const detail = await upsertQuestionBankByImport({
@@ -1908,6 +1909,95 @@ function normalizeImportedQuestionBank(value: unknown): QuestionBankImportPayloa
     disclaimer: pickString(record.disclaimer, '本结果仅用于自我观察，不构成医疗建议。'),
     relaxSteps,
     thresholds,
+  };
+}
+
+function parseImportedJson(raw: string): unknown {
+  const normalized = normalizeImportedJsonSource(raw);
+
+  try {
+    return JSON.parse(normalized);
+  } catch (jsonError) {
+    try {
+      return JSON5.parse(normalized);
+    } catch (json5Error) {
+      throw buildImportParseError(normalized, jsonError, json5Error);
+    }
+  }
+}
+
+function normalizeImportedJsonSource(raw: string) {
+  let text = raw.trim();
+  const fenceMatch = text.match(/```(?:json|json5)?\s*([\s\S]*?)\s*```/i);
+
+  if (fenceMatch) {
+    return fenceMatch[1].trim();
+  }
+
+  const objectStart = text.search(/[\[{]/);
+  if (objectStart > 0) {
+    const rootChar = text[objectStart];
+    const endChar = rootChar === '{' ? '}' : ']';
+    const objectEnd = text.lastIndexOf(endChar);
+
+    if (objectEnd > objectStart) {
+      text = text.slice(objectStart, objectEnd + 1).trim();
+    }
+  }
+
+  return text;
+}
+
+function buildImportParseError(
+  source: string,
+  jsonError: unknown,
+  json5Error: unknown,
+) {
+  const error = json5Error instanceof Error ? json5Error : jsonError;
+  const location = extractParseLocation(source, error);
+  const locationText = location
+    ? `第 ${location.line} 行第 ${location.column} 列附近`
+    : '导入内容中';
+
+  return new Error(
+    `JSON 解析失败，${locationText} 有语法问题。请检查是否存在未闭合引号、尾随逗号、非法注释，或把 AI 返回的说明文字一并粘贴进来了。`,
+  );
+}
+
+function extractParseLocation(source: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+
+  const lineColumnMatch =
+    message.match(/at\s+(\d+):(\d+)/i) ||
+    message.match(/line\s+(\d+)\s+column\s+(\d+)/i);
+
+  if (lineColumnMatch) {
+    return {
+      line: Number(lineColumnMatch[1]),
+      column: Number(lineColumnMatch[2]),
+    };
+  }
+
+  const positionMatch = message.match(/position\s+(\d+)/i);
+  if (!positionMatch) {
+    return null;
+  }
+
+  return locateOffset(source, Number(positionMatch[1]));
+}
+
+function locateOffset(source: string, offset: number) {
+  if (!Number.isFinite(offset) || offset < 0) {
+    return null;
+  }
+
+  const safeOffset = Math.min(offset, source.length);
+  const prefix = source.slice(0, safeOffset);
+  const lines = prefix.split('\n');
+
+  return {
+    line: lines.length,
+    column: lines[lines.length - 1].length + 1,
   };
 }
 

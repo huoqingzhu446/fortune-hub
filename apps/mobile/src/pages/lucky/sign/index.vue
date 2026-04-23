@@ -84,6 +84,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { generateLuckySignPoster } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
+import { getErrorMessage } from '../../../services/errors';
 import type { GeneratedPoster } from '../../../types/poster';
 import type { LuckySignDetailData } from '../../../types/lucky';
 
@@ -173,7 +174,7 @@ async function generatePoster() {
   } catch (error) {
     console.warn('generate lucky sign poster failed', error);
     uni.showToast({
-      title: '海报生成失败',
+      title: getErrorMessage(error, '海报生成失败'),
       icon: 'none',
     });
   } finally {

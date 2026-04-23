@@ -40,6 +40,13 @@ type ZhipuImageResponse = {
   };
 };
 
+type PosterBackgroundAsset = {
+  provider: string;
+  status: string;
+  providerImageUrl: string | null;
+  backgroundImageDataUrl: string | null;
+};
+
 @Injectable()
 export class PostersService {
   constructor(
@@ -56,16 +63,17 @@ export class PostersService {
   async generatePoster(dto: GeneratePosterDto, user: UserEntity | null) {
     const source = await this.resolvePosterSource(dto, user);
     const zhipuKey = this.configService.get<string>('ZHIPU_API_KEY');
-
-    if (!zhipuKey) {
-      throw new BadRequestException('未配置 ZHIPU_API_KEY，暂时无法生成真实分享海报');
-    }
-
     const size = dto.size ?? '1280x1280';
     const providerPrompt = this.buildProviderPrompt(source);
-    const providerImage = await this.generateBackgroundWithZhipu(zhipuKey, providerPrompt, size);
-    const providerImageDataUrl = await this.resolveProviderImageDataUrl(providerImage);
-    const svgMarkup = this.buildPosterSvg(source, providerImageDataUrl);
+    const backgroundAsset = await this.resolvePosterBackground(
+      zhipuKey,
+      providerPrompt,
+      size,
+    );
+    const svgMarkup = this.buildPosterSvg(
+      source,
+      backgroundAsset.backgroundImageDataUrl,
+    );
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
     const payload = {
       posterId,
@@ -74,7 +82,7 @@ export class PostersService {
       accentText: source.accentText,
       footerText: source.footerText,
       themeName: source.themeName,
-      providerImageUrl: providerImage.url ?? null,
+      providerImageUrl: backgroundAsset.providerImageUrl,
       providerPrompt,
       downloadFileName: `fortune-hub-${this.slugify(source.title)}-poster.svg`,
       generatedAt: new Date().toISOString(),
@@ -91,8 +99,8 @@ export class PostersService {
         sourceType: source.sourceType,
         sourceCode: source.sourceCode,
         posterTitle: source.title,
-        provider: 'zhipu',
-        status: 'generated',
+        provider: backgroundAsset.provider,
+        status: backgroundAsset.status,
         prompt: providerPrompt,
         payloadJson: payload,
       }),
@@ -291,6 +299,48 @@ export class PostersService {
     return payload.data[0];
   }
 
+  private async resolvePosterBackground(
+    apiKey: string | undefined,
+    prompt: string,
+    size: string,
+  ): Promise<PosterBackgroundAsset> {
+    if (!apiKey) {
+      return {
+        provider: 'builtin',
+        status: 'fallback',
+        providerImageUrl: null,
+        backgroundImageDataUrl: null,
+      };
+    }
+
+    try {
+      const providerImage = await this.generateBackgroundWithZhipu(
+        apiKey,
+        prompt,
+        size,
+      );
+      const backgroundImageDataUrl = await this.resolveProviderImageDataUrl(
+        providerImage,
+      );
+
+      return {
+        provider: 'zhipu',
+        status: 'generated',
+        providerImageUrl: providerImage.url ?? null,
+        backgroundImageDataUrl,
+      };
+    } catch (error) {
+      console.warn('poster background fallback to builtin', error);
+
+      return {
+        provider: 'builtin',
+        status: 'fallback',
+        providerImageUrl: null,
+        backgroundImageDataUrl: null,
+      };
+    }
+  }
+
   private async resolveProviderImageDataUrl(image: {
     url?: string;
     b64_json?: string;
@@ -318,13 +368,21 @@ export class PostersService {
     }
   }
 
-  private buildPosterSvg(source: PosterSource, backgroundDataUrl: string) {
+  private buildPosterSvg(source: PosterSource, backgroundDataUrl: string | null) {
     const palette = this.resolveThemePalette(source.themeName);
     const [colorA, colorB, colorC] = palette;
     const titleLines = this.renderTextTspans(source.title, 12, 0, 74, 640);
     const subtitleLines = this.renderTextTspans(source.subtitle, 22, 0, 44, 520);
     const accentLines = this.renderTextTspans(source.accentText, 26, 0, 38, 460);
     const footerLines = this.renderTextTspans(source.footerText, 32, 0, 34, 540);
+    const backgroundLayer = backgroundDataUrl
+      ? `<image href="${backgroundDataUrl}" x="0" y="0" width="1280" height="1280" preserveAspectRatio="xMidYMid slice" />`
+      : `
+  <rect x="0" y="0" width="1280" height="1280" fill="${colorB}" />
+  <circle cx="192" cy="220" r="220" fill="${colorA}" fill-opacity="0.34" />
+  <circle cx="1100" cy="250" r="280" fill="${colorC}" fill-opacity="0.18" />
+  <circle cx="980" cy="1020" r="300" fill="${colorA}" fill-opacity="0.18" />
+  <circle cx="360" cy="980" r="240" fill="#ffffff" fill-opacity="0.12" />`.trim();
 
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1280" viewBox="0 0 1280 1280">
@@ -334,26 +392,22 @@ export class PostersService {
       <stop offset="55%" stop-color="${colorB}" stop-opacity="0.48" />
       <stop offset="100%" stop-color="${colorC}" stop-opacity="0.72" />
     </linearGradient>
-    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.82)" />
-      <stop offset="100%" stop-color="rgba(255,255,255,0.24)" />
-    </linearGradient>
   </defs>
-  <image href="${backgroundDataUrl}" x="0" y="0" width="1280" height="1280" preserveAspectRatio="xMidYMid slice" />
+  ${backgroundLayer}
   <rect x="0" y="0" width="1280" height="1280" fill="url(#overlay)" />
-  <circle cx="190" cy="170" r="190" fill="rgba(255,255,255,0.24)" />
-  <circle cx="1060" cy="220" r="230" fill="rgba(255,255,255,0.14)" />
-  <circle cx="980" cy="1060" r="260" fill="rgba(255,255,255,0.16)" />
-  <rect x="84" y="84" width="1112" height="1112" rx="54" ry="54" fill="rgba(13,27,39,0.16)" stroke="rgba(255,255,255,0.38)" />
-  <rect x="116" y="116" width="1048" height="1048" rx="44" ry="44" fill="rgba(255,255,255,0.18)" />
+  <circle cx="190" cy="170" r="190" fill="#ffffff" fill-opacity="0.24" />
+  <circle cx="1060" cy="220" r="230" fill="#ffffff" fill-opacity="0.14" />
+  <circle cx="980" cy="1060" r="260" fill="#ffffff" fill-opacity="0.16" />
+  <rect x="84" y="84" width="1112" height="1112" rx="54" ry="54" fill="#0d1b27" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.38" />
+  <rect x="116" y="116" width="1048" height="1048" rx="44" ry="44" fill="#ffffff" fill-opacity="0.18" />
   <text x="152" y="200" font-size="30" letter-spacing="7" fill="#eff5fb" font-family="SF Pro Display, PingFang SC, sans-serif">FORTUNE HUB SHARE POSTER</text>
   <text x="152" y="360" font-size="84" font-weight="700" fill="#ffffff" font-family="SF Pro Display, PingFang SC, sans-serif">${titleLines}</text>
-  <text x="152" y="560" font-size="34" fill="rgba(255,255,255,0.94)" font-family="SF Pro Text, PingFang SC, sans-serif">${subtitleLines}</text>
-  <rect x="152" y="658" width="976" height="186" rx="34" ry="34" fill="rgba(255,255,255,0.24)" stroke="rgba(255,255,255,0.22)" />
+  <text x="152" y="560" font-size="34" fill="#ffffff" fill-opacity="0.94" font-family="SF Pro Text, PingFang SC, sans-serif">${subtitleLines}</text>
+  <rect x="152" y="658" width="976" height="186" rx="34" ry="34" fill="#ffffff" fill-opacity="0.24" stroke="#ffffff" stroke-opacity="0.22" />
   <text x="188" y="724" font-size="30" fill="#fefefe" font-family="SF Pro Text, PingFang SC, sans-serif">${accentLines}</text>
-  <rect x="152" y="928" width="976" height="148" rx="30" ry="30" fill="rgba(10,16,25,0.18)" />
+  <rect x="152" y="928" width="976" height="148" rx="30" ry="30" fill="#0a1019" fill-opacity="0.18" />
   <text x="188" y="992" font-size="24" fill="#f7fbff" font-family="SF Pro Text, PingFang SC, sans-serif">${footerLines}</text>
-  <text x="152" y="1136" font-size="24" fill="rgba(255,255,255,0.88)" font-family="SF Pro Display, PingFang SC, sans-serif">Generated with Zhipu GLM Image</text>
+  <text x="152" y="1136" font-size="24" fill="#ffffff" fill-opacity="0.88" font-family="SF Pro Display, PingFang SC, sans-serif">Generated by Fortune Hub</text>
 </svg>`.trim();
   }
 

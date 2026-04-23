@@ -157,6 +157,7 @@ import { computed, ref } from 'vue';
 import { verifyRewardUnlock } from '../../api/ads';
 import { generateReportPoster } from '../../api/posters';
 import { fetchReport } from '../../api/reports';
+import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { GeneratedPoster } from '../../types/poster';
 import type { UnifiedReport } from '../../types/report';
@@ -243,7 +244,7 @@ async function generatePoster() {
   } catch (error) {
     console.warn('generate report poster failed', error);
     uni.showToast({
-      title: '海报生成失败',
+      title: getErrorMessage(error, '海报生成失败'),
       icon: 'none',
     });
   } finally {

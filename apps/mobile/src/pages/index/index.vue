@@ -1,109 +1,73 @@
 <template>
   <view class="page-shell">
-    <view class="page">
-      <view class="page-orb page-orb--mint"></view>
-      <view class="page-orb page-orb--blue"></view>
+    <view class="home-page">
+      <view class="ambient ambient--blue"></view>
+      <view class="ambient ambient--mint"></view>
 
       <view class="topbar">
-        <view class="topbar__brand">
-          <text class="topbar__eyebrow">fortune hub</text>
-          <text class="topbar__edition">P0 closed-loop edition</text>
+        <view class="brand-block">
+          <text class="brand-block__eyebrow">FORTUNE HUB</text>
+          <text class="brand-block__title">运势中枢</text>
         </view>
-        <view class="topbar__status">
-          <text class="topbar__status-dot"></text>
+        <view class="sync-chip">
+          <view class="sync-chip__dot" :class="{ 'sync-chip__dot--loading': loading }"></view>
           <text>{{ topbarStatus }}</text>
         </view>
       </view>
 
       <view class="hero-card">
-        <view class="hero-card__content">
-          <text class="hero-card__eyebrow">Daily flow</text>
-          <text class="hero-card__title">{{ dashboard.headline.title }}</text>
-          <text class="hero-card__subtitle">{{ dashboard.headline.subtitle }}</text>
-          <text class="hero-card__note">{{ dashboard.userSummary.welcomeNote }}</text>
+        <view class="hero-copy">
+          <text class="hero-copy__eyebrow">今日总览</text>
+          <text class="hero-copy__title">{{ dashboard.headline.title }}</text>
+          <text class="hero-copy__summary">{{ dashboard.todayFortuneSummary }}</text>
 
-          <view class="hero-card__actions">
-            <button
-              class="hero-button hero-button--primary"
-              :loading="loading"
-              @tap="goPrimaryAction"
-            >
-              {{ dashboard.userSummary.primaryActionTitle }}
+          <view class="hero-actions">
+            <button class="hero-button hero-button--primary" @tap="goToLuckySign">
+              查看幸运签
             </button>
-            <button class="hero-button hero-button--secondary" @tap="goSecondaryAction">
-              {{ dashboard.userSummary.secondaryActionTitle }}
+            <button class="hero-button hero-button--secondary" @tap="goToLuckyCenter">
+              幸运物推荐
             </button>
           </view>
         </view>
 
-        <view class="hero-card__spotlight">
-          <text class="spotlight__label">{{ todayLuckyScore.label }}</text>
-          <text class="spotlight__value">{{ todayLuckyScore.value }}</text>
-          <text class="spotlight__hint">{{ todayLuckyScore.hint }}</text>
+        <view class="score-panel">
+          <text class="score-panel__label">{{ todayLuckyScore.label }}</text>
+          <text class="score-panel__value">{{ todayLuckyScore.value }}</text>
+          <text class="score-panel__hint">{{ todayLuckyScore.hint }}</text>
 
-          <view class="spotlight__footer">
-            <view class="capsule capsule--blue">
-              <text class="capsule__key">{{ annualLuckyScore.label }}</text>
-              <text class="capsule__value">{{ annualLuckyScore.value }}</text>
-            </view>
+          <view class="score-panel__annual">
+            <text class="score-panel__annual-label">{{ annualLuckyScore.label }}</text>
+            <text class="score-panel__annual-value">{{ annualLuckyScore.value }}</text>
           </view>
         </view>
       </view>
 
-      <view class="ambient-strip" @tap="goToLuckySign">
-        <text class="ambient-strip__label">{{ luckySign.tag }}</text>
-        <text class="ambient-strip__title">{{ luckySign.title }}</text>
-        <text class="ambient-strip__text">{{ noticeText }}</text>
-      </view>
+      <view class="insight-grid">
+        <view class="insight-card" @tap="goToLuckySign">
+          <text class="insight-card__eyebrow">今日幸运签</text>
+          <text class="insight-card__title">{{ luckySign.tag }}</text>
+          <text class="insight-card__text">{{ luckySign.summary }}</text>
+          <text class="insight-card__link">查看详情</text>
+        </view>
 
-      <view class="stats-grid">
-        <view
-          v-for="(stat, index) in dashboard.stats"
-          :key="stat.label"
-          class="stat-card"
-          :class="`stat-card--tone-${(index % 3) + 1}`"
-        >
-          <text class="stat-card__label">{{ stat.label }}</text>
-          <text class="stat-card__value">{{ stat.value }}</text>
-          <text class="stat-card__hint">{{ stat.hint }}</text>
+        <view class="insight-card insight-card--soft">
+          <text class="insight-card__eyebrow">年度提醒</text>
+          <text class="insight-card__metric">{{ annualLuckyScore.value }}</text>
+          <text class="insight-card__text">{{ annualLuckyScore.hint }}</text>
         </view>
       </view>
 
-      <view class="section-card">
-        <view class="section-header">
+      <view class="section-block">
+        <view class="section-head">
           <view>
-            <text class="section-header__eyebrow">Journey</text>
-            <text class="section-header__title">今日闭环</text>
+            <text class="section-head__eyebrow">常用功能</text>
+            <text class="section-head__title">首页入口</text>
           </view>
-          <text class="section-header__side">{{ completedJourneyCount }}/{{ dashboard.journeyEntries.length }}</text>
+          <text class="section-head__side">{{ moduleCards.length }} 个</text>
         </view>
 
-        <view class="journey-list">
-          <view
-            v-for="item in dashboard.journeyEntries"
-            :key="item.id"
-            class="journey-card"
-            :class="{ 'journey-card--done': item.completed }"
-          >
-            <view class="journey-card__top">
-              <text class="journey-card__title">{{ item.title }}</text>
-              <text class="journey-card__status">{{ item.completed ? '已完成' : '待处理' }}</text>
-            </view>
-            <text class="journey-card__text">{{ item.description }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section-card">
-        <view class="section-header">
-          <view>
-            <text class="section-header__eyebrow">Core modules</text>
-            <text class="section-header__title">核心功能入口</text>
-          </view>
-          <text class="section-header__side">全部可达</text>
-        </view>
-
-        <view class="module-list">
+        <view class="module-grid">
           <view
             v-for="module in moduleCards"
             :key="module.id"
@@ -111,57 +75,17 @@
             :class="module.toneClass"
             @tap="handleRoute(module.route)"
           >
-            <view class="module-card__top">
-              <view class="module-card__copy">
-                <text class="module-card__badge">{{ module.badge }}</text>
-                <text class="module-card__title">{{ module.title }}</text>
-              </view>
-              <text class="module-card__index">{{ module.indexLabel }}</text>
-            </view>
-
+            <text class="module-card__badge">{{ module.badge }}</text>
+            <text class="module-card__title">{{ module.title }}</text>
             <text class="module-card__description">{{ module.description }}</text>
           </view>
         </view>
       </view>
 
-      <view class="section-card section-card--soft">
-        <view class="section-header">
-          <view>
-            <text class="section-header__eyebrow">Quick access</text>
-            <text class="section-header__title">个人中心入口</text>
-          </view>
-          <text class="section-header__side">
-            {{ dashboard.userSummary.isLoggedIn ? '已登录' : '待登录' }}
-          </text>
-        </view>
-
-        <view class="quick-grid">
-          <view
-            v-for="item in dashboard.quickEntries"
-            :key="item.id"
-            class="quick-card"
-            @tap="handleRoute(item.route)"
-          >
-            <text class="quick-card__badge">{{ item.badge }}</text>
-            <text class="quick-card__title">{{ item.title }}</text>
-            <text class="quick-card__text">{{ item.description }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section-card section-card--plain">
-        <view class="section-header">
-          <view>
-            <text class="section-header__eyebrow">Refresh</text>
-            <text class="section-header__title">首页同步</text>
-          </view>
-          <text class="section-header__side">{{ syncStatus }}</text>
-        </view>
-        <text class="footer-note">
-          当前首页会跟随登录态动态刷新；如果刚完成登录或资料更新，回到首页后会自动重新加载。
-        </text>
-        <button class="hero-button hero-button--secondary" :loading="loading" @tap="refreshDashboard">
-          手动刷新首页
+      <view class="refresh-bar">
+        <text class="refresh-bar__text">内容会在资料更新后自动同步，也可以手动刷新一次。</text>
+        <button class="hero-button hero-button--ghost" :loading="loading" @tap="refreshDashboard">
+          刷新首页
         </button>
       </view>
     </view>
@@ -183,23 +107,17 @@ const loading = computed(() => dashboardStore.loading);
 const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
-const noticeText = computed(
-  () => `${luckySign.value.summary} ${dashboard.value.todayFortuneSummary}`,
-);
+
 const moduleCards = computed(() =>
   dashboard.value.featureEntries.map((module, index) => ({
     ...module,
-    indexLabel: `${index + 1}`.padStart(2, '0'),
-    toneClass: `module-card--tone-${(index % 3) + 1}`,
+    toneClass: `module-card--tone-${(index % 5) + 1}`,
   })),
 );
-const completedJourneyCount = computed(
-  () => dashboard.value.journeyEntries.filter((item) => item.completed).length,
-);
-const topbarStatus = computed(() =>
-  dashboard.value.userSummary.isLoggedIn ? 'Profile linked' : 'Waiting for login',
-);
-const syncStatus = computed(() => (loading.value ? '同步中' : '已就绪'));
+
+const topbarStatus = computed(() => (loading.value ? '同步中' : '今日已就绪'));
+
+let skipFirstShowRefresh = true;
 
 async function refreshDashboard() {
   await dashboardStore.loadDashboard();
@@ -215,19 +133,16 @@ function handleRoute(route: string) {
   });
 }
 
-function goPrimaryAction() {
-  handleRoute(dashboard.value.userSummary.primaryActionRoute);
-}
-
-function goSecondaryAction() {
-  handleRoute(dashboard.value.userSummary.secondaryActionRoute);
-}
-
 function goToLuckySign() {
   const bizCode = dashboard.value.todayLuckySign.bizCode || 'sign-breeze-open';
+
   uni.navigateTo({
     url: `/pages/lucky/sign/index?bizCode=${encodeURIComponent(bizCode)}`,
   });
+}
+
+function goToLuckyCenter() {
+  handleRoute('/pages/lucky/index');
 }
 
 onLoad(() => {
@@ -235,6 +150,11 @@ onLoad(() => {
 });
 
 onShow(() => {
+  if (skipFirstShowRefresh) {
+    skipFirstShowRefresh = false;
+    return;
+  }
+
   void refreshDashboard();
 });
 
@@ -248,51 +168,49 @@ onPullDownRefresh(async () => {
 .page-shell {
   position: relative;
   min-height: 100vh;
-  padding-bottom: 138rpx;
-  overflow-x: hidden;
+  padding-bottom: 144rpx;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
 }
 
-.page {
+.home-page {
   position: relative;
   min-height: 100vh;
   padding: 28rpx 24rpx 0;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
-.page-orb {
+.ambient {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(18rpx);
+  border-radius: 999rpx;
+  pointer-events: none;
+  filter: blur(24rpx);
 }
 
-.page-orb--mint {
+.ambient--blue {
   top: 40rpx;
+  right: -64rpx;
+  width: 260rpx;
+  height: 260rpx;
+  background: rgba(129, 178, 255, 0.2);
+}
+
+.ambient--mint {
+  top: 360rpx;
   left: -60rpx;
   width: 220rpx;
   height: 220rpx;
-  background: rgba(119, 214, 177, 0.22);
-}
-
-.page-orb--blue {
-  top: 220rpx;
-  right: -90rpx;
-  width: 300rpx;
-  height: 300rpx;
-  background: rgba(111, 156, 255, 0.18);
+  background: rgba(133, 214, 189, 0.16);
 }
 
 .topbar,
-.section-header,
-.module-card__top,
-.journey-card__top,
+.brand-block,
 .hero-card,
-.hero-card__actions,
-.stats-grid,
-.module-list,
-.quick-grid,
-.journey-list {
+.hero-copy,
+.hero-actions,
+.section-block {
   display: grid;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 
 .topbar {
@@ -300,109 +218,97 @@ onPullDownRefresh(async () => {
   z-index: 1;
   grid-template-columns: 1fr auto;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
-.topbar__eyebrow,
-.section-header__eyebrow,
-.ambient-strip__label,
-.stat-card__label,
+.brand-block__eyebrow,
+.hero-copy__eyebrow,
+.insight-card__eyebrow,
+.section-head__eyebrow,
 .module-card__badge,
-.quick-card__badge {
+.score-panel__label,
+.score-panel__annual-label {
   font-size: 20rpx;
-  text-transform: uppercase;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.12em;
   color: var(--apple-subtle);
 }
 
-.topbar__edition,
-.topbar__status,
-.section-header__side,
-.journey-card__status,
-.footer-note {
-  font-size: 24rpx;
-  color: var(--apple-muted);
-}
-
-.topbar__status {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 12rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.74);
-  backdrop-filter: blur(12rpx);
-}
-
-.topbar__status-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 999rpx;
-  background: #58c990;
-}
-
-.hero-card,
-.section-card,
-.ambient-strip {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 20rpx;
-  padding: 28rpx;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: var(--apple-shadow);
-}
-
-.hero-card {
-  grid-template-columns: 1.4fr 0.9fr;
-  align-items: stretch;
-}
-
-.hero-card__content,
-.hero-card__spotlight {
-  display: grid;
-  gap: 18rpx;
-}
-
-.hero-card__eyebrow,
-.spotlight__label {
-  font-size: 20rpx;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--apple-subtle);
-}
-
-.hero-card__title,
-.section-header__title,
-.module-card__title,
-.quick-card__title,
-.journey-card__title {
+.brand-block__title {
   font-size: 40rpx;
   font-weight: 700;
   color: var(--apple-text);
 }
 
-.hero-card__subtitle,
-.hero-card__note,
-.ambient-strip__text,
-.stat-card__hint,
-.module-card__description,
-.quick-card__text,
-.journey-card__text {
-  font-size: 26rpx;
-  line-height: 1.7;
+.sync-chip {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 12rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 10rpx 24rpx rgba(96, 124, 164, 0.08);
+  font-size: 22rpx;
   color: var(--apple-muted);
 }
 
-.hero-card__actions {
+.sync-chip__dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #7ccfb0;
+}
+
+.sync-chip__dot--loading {
+  background: var(--apple-blue);
+}
+
+.hero-card,
+.insight-grid,
+.module-grid {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-card {
+  grid-template-columns: 1.08fr 0.92fr;
+  align-items: stretch;
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+  border-radius: 36rpx;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 249, 255, 0.98) 100%);
+  border: 1rpx solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24rpx 70rpx rgba(93, 118, 153, 0.12);
+}
+
+.hero-copy__title {
+  font-size: 54rpx;
+  line-height: 1.16;
+  font-weight: 700;
+  color: var(--apple-text);
+}
+
+.hero-copy__summary,
+.insight-card__text,
+.module-card__description,
+.refresh-bar__text,
+.score-panel__hint {
+  font-size: 26rpx;
+  line-height: 1.68;
+  color: var(--apple-muted);
+}
+
+.hero-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hero-button {
-  min-height: 82rpx;
+  min-height: 84rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
-  line-height: 82rpx;
+  line-height: 84rpx;
   font-size: 28rpx;
+  font-weight: 600;
 }
 
 .hero-button::after {
@@ -411,135 +317,163 @@ onPullDownRefresh(async () => {
 
 .hero-button--primary {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
+  background: linear-gradient(135deg, #72a7ff 0%, #5b8def 100%);
+  box-shadow: 0 16rpx 34rpx rgba(91, 141, 239, 0.22);
 }
 
-.hero-button--secondary {
+.hero-button--secondary,
+.hero-button--ghost {
   color: var(--apple-text);
-  background: rgba(244, 247, 250, 0.92);
+  background: rgba(240, 245, 251, 0.96);
 }
 
-.hero-card__spotlight {
+.score-panel {
+  display: grid;
+  gap: 14rpx;
+  align-content: start;
   padding: 24rpx;
-  border-radius: 28rpx;
+  border-radius: 30rpx;
   background:
-    linear-gradient(160deg, rgba(111, 156, 255, 0.18) 0%, rgba(119, 214, 177, 0.16) 100%),
-    rgba(245, 249, 253, 0.92);
+    radial-gradient(circle at top right, rgba(170, 207, 255, 0.32), transparent 32%),
+    linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(248, 251, 255, 0.98) 100%);
 }
 
-.spotlight__value,
-.stat-card__value {
-  font-size: 56rpx;
+.score-panel__value,
+.insight-card__metric {
+  font-size: 72rpx;
+  line-height: 1;
   font-weight: 700;
   color: var(--apple-text);
 }
 
-.capsule {
-  display: grid;
-  gap: 8rpx;
-  padding: 16rpx 18rpx;
+.score-panel__annual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10rpx;
+  padding: 18rpx 20rpx;
   border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.78);
 }
 
-.capsule__key,
-.capsule__value {
-  color: var(--apple-text);
-}
-
-.capsule__key {
-  font-size: 22rpx;
-}
-
-.capsule__value {
+.score-panel__annual-value {
   font-size: 32rpx;
   font-weight: 700;
+  color: var(--apple-blue);
 }
 
-.ambient-strip {
+.insight-grid {
   display: grid;
-  gap: 10rpx;
-  background:
-    linear-gradient(145deg, rgba(111, 156, 255, 0.12) 0%, rgba(119, 214, 177, 0.18) 100%),
-    rgba(255, 255, 255, 0.92);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
+  margin-bottom: 32rpx;
 }
 
-.ambient-strip__title {
-  font-size: 36rpx;
+.insight-card,
+.module-card,
+.refresh-bar {
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
+}
+
+.insight-card {
+  display: grid;
+  gap: 14rpx;
+  min-height: 220rpx;
+  padding: 26rpx;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.insight-card--soft {
+  background: linear-gradient(180deg, rgba(239, 247, 255, 0.94) 0%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+.insight-card__title,
+.section-head__title,
+.module-card__title {
+  font-size: 34rpx;
+  line-height: 1.24;
   font-weight: 700;
   color: var(--apple-text);
 }
 
-.stats-grid,
-.quick-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.insight-card__link {
+  align-self: end;
+  font-size: 24rpx;
+  color: var(--apple-blue);
 }
 
-.stat-card,
-.module-card,
-.quick-card,
-.journey-card {
-  padding: 22rpx;
-  border-radius: 24rpx;
-  background: rgba(246, 249, 252, 0.92);
+.section-block {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 28rpx;
 }
 
-.stat-card--tone-1,
-.module-card--tone-1 {
-  background: rgba(239, 245, 255, 0.94);
-}
-
-.stat-card--tone-2,
-.module-card--tone-2 {
-  background: rgba(241, 250, 246, 0.94);
-}
-
-.stat-card--tone-3,
-.module-card--tone-3 {
-  background: rgba(250, 245, 238, 0.94);
-}
-
-.journey-list,
-.module-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.module-card__top,
-.journey-card__top {
-  grid-template-columns: 1fr auto;
-  align-items: start;
-}
-
-.module-card__copy {
+.section-head {
   display: grid;
-  gap: 10rpx;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 18rpx;
+  margin-bottom: 18rpx;
 }
 
-.module-card__index {
-  font-size: 30rpx;
-  color: rgba(82, 104, 130, 0.58);
+.section-head__side {
+  font-size: 24rpx;
+  color: var(--apple-muted);
 }
 
-.journey-card--done {
-  background: rgba(229, 246, 237, 0.94);
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
 }
 
-.section-card--soft {
-  background: rgba(248, 251, 255, 0.9);
+.module-card {
+  display: grid;
+  gap: 12rpx;
+  min-height: 196rpx;
+  padding: 24rpx;
+  background: rgba(255, 255, 255, 0.92);
 }
 
-.section-card--plain {
-  background: rgba(255, 255, 255, 0.74);
+.module-card--tone-1 {
+  background: linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.module-card--tone-2 {
+  background: linear-gradient(180deg, rgba(237, 248, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.module-card--tone-3 {
+  background: linear-gradient(180deg, rgba(255, 246, 233, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.module-card--tone-4 {
+  background: linear-gradient(180deg, rgba(242, 245, 252, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.module-card--tone-5 {
+  background: linear-gradient(180deg, rgba(239, 248, 250, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.refresh-bar {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 @media (max-width: 720px) {
-  .hero-card,
-  .hero-card__actions,
-  .stats-grid,
-  .journey-list,
-  .module-list,
-  .quick-grid {
+  .hero-card {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-copy__title {
+    font-size: 48rpx;
   }
 }
 </style>

@@ -28,10 +28,10 @@ const props = defineProps<{
 }>();
 
 const items: TabItem[] = [
-  { id: 'home', label: '首页', route: '/pages/index/index', iconText: 'H' },
-  { id: 'personality', label: '测评', route: '/pages/personality/index', iconText: 'T' },
-  { id: 'lucky', label: '幸运物', route: '/pages/lucky/index', iconText: 'L' },
-  { id: 'profile', label: '我的', route: '/pages/profile/index', iconText: 'M' },
+  { id: 'home', label: '首页', route: '/pages/index/index', iconText: '运' },
+  { id: 'personality', label: '测评', route: '/pages/personality/index', iconText: '测' },
+  { id: 'lucky', label: '幸运物', route: '/pages/lucky/index', iconText: '幸' },
+  { id: 'profile', label: '我的', route: '/pages/profile/index', iconText: '我' },
 ];
 
 function handlePress(item: TabItem) {
@@ -64,9 +64,9 @@ function handlePress(item: TabItem) {
   box-sizing: border-box;
   padding: 10rpx 18rpx calc(8rpx + constant(safe-area-inset-bottom));
   padding: 10rpx 18rpx calc(8rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1rpx solid rgba(196, 210, 229, 0.45);
-  box-shadow: 0 -12rpx 36rpx rgba(73, 106, 142, 0.08);
+  background: rgba(250, 252, 255, 0.9);
+  border-top: 1rpx solid rgba(196, 210, 229, 0.38);
+  box-shadow: 0 -16rpx 44rpx rgba(34, 54, 88, 0.08);
   backdrop-filter: blur(24rpx);
 }
 
@@ -79,7 +79,7 @@ function handlePress(item: TabItem) {
 }
 
 .app-tabbar__item--active {
-  background: linear-gradient(180deg, rgba(229, 238, 255, 0.9) 0%, rgba(255, 255, 255, 0.82) 100%);
+  background: linear-gradient(180deg, rgba(231, 239, 255, 0.9) 0%, rgba(255, 255, 255, 0.84) 100%);
 }
 
 .app-tabbar__icon {
@@ -90,7 +90,7 @@ function handlePress(item: TabItem) {
   border-radius: 50%;
   background: rgba(91, 141, 239, 0.12);
   color: var(--apple-blue);
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
 }
 

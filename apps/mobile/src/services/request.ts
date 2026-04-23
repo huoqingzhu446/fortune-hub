@@ -7,6 +7,7 @@ export interface RequestOptions<TData extends RequestPayload = RequestPayload> {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   data?: TData;
   header?: Record<string, string>;
+  timeout?: number;
 }
 
 export function request<TResponse, TData extends RequestPayload = RequestPayload>(
@@ -18,6 +19,7 @@ export function request<TResponse, TData extends RequestPayload = RequestPayload
       method: options.method ?? 'GET',
       data: options.data,
       header: options.header,
+      timeout: options.timeout,
       success: (response) => {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           resolve(response.data as TResponse);
@@ -78,24 +80,28 @@ export const http = {
     url: string,
     data?: TData,
     header?: Record<string, string>,
+    timeout?: number,
   ) {
     return request<TResponse, TData>({
       url,
       method: 'POST',
       data,
       header,
+      timeout,
     });
   },
   put<TResponse, TData extends RequestPayload = RequestPayload>(
     url: string,
     data?: TData,
     header?: Record<string, string>,
+    timeout?: number,
   ) {
     return request<TResponse, TData>({
       url,
       method: 'PUT',
       data,
       header,
+      timeout,
     });
   },
 };

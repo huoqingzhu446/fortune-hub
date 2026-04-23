@@ -67,6 +67,9 @@ type PosterLayout = {
   kind: 'square' | 'portrait';
 };
 
+const ZHIPU_GENERATION_TIMEOUT_MS = 8000;
+const PROVIDER_IMAGE_FETCH_TIMEOUT_MS = 3000;
+
 @Injectable()
 export class PostersService {
   constructor(
@@ -438,7 +441,9 @@ export class PostersService {
   }
 
   private async generateBackgroundWithZhipu(apiKey: string, prompt: string, size: string) {
-    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/images/generations', {
+    const response = await this.fetchWithTimeout(
+      'https://open.bigmodel.cn/api/paas/v4/images/generations',
+      {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -449,7 +454,10 @@ export class PostersService {
         prompt,
         size,
       }),
-    });
+      },
+      ZHIPU_GENERATION_TIMEOUT_MS,
+      '智普生图响应超时，已切换内建海报背景',
+    );
 
     const payload = (await response.json()) as ZhipuImageResponse;
 
@@ -522,12 +530,46 @@ export class PostersService {
     }
 
     try {
-      const response = await fetch(image.url);
+      const response = await this.fetchWithTimeout(
+        image.url,
+        undefined,
+        PROVIDER_IMAGE_FETCH_TIMEOUT_MS,
+        '智普背景图下载超时，已切换内建海报背景',
+      );
       const mimeType = response.headers.get('content-type') || 'image/png';
       const buffer = Buffer.from(await response.arrayBuffer());
       return `data:${mimeType};base64,${buffer.toString('base64')}`;
-    } catch {
+    } catch (error) {
+      if (error instanceof BadGatewayException) {
+        throw error;
+      }
+
       return image.url;
+    }
+  }
+
+  private async fetchWithTimeout(
+    input: string,
+    init: RequestInit | undefined,
+    timeoutMs: number,
+    timeoutMessage: string,
+  ) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, {
+        ...(init ?? {}),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new BadGatewayException(timeoutMessage);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

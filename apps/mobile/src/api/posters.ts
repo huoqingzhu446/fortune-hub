@@ -1,10 +1,12 @@
 import { http } from '../services/request';
 import type { PosterGenerateResponse } from '../types/poster';
 
+const POSTER_GENERATION_TIMEOUT = 60000;
+
 export function generateReportPoster(recordId: string) {
   return http.post<PosterGenerateResponse, { recordId: string }>('/posters/generate', {
     recordId,
-  });
+  }, undefined, POSTER_GENERATION_TIMEOUT);
 }
 
 export function generateLuckySignPoster(bizCode: string) {
@@ -14,7 +16,7 @@ export function generateLuckySignPoster(bizCode: string) {
   >('/posters/generate', {
     sourceType: 'lucky_sign',
     bizCode,
-  });
+  }, undefined, POSTER_GENERATION_TIMEOUT);
 }
 
 export function generateTodayIndexPoster() {
@@ -24,5 +26,5 @@ export function generateTodayIndexPoster() {
   >('/posters/generate', {
     sourceType: 'today_index',
     size: '1088x1472',
-  });
+  }, undefined, POSTER_GENERATION_TIMEOUT);
 }

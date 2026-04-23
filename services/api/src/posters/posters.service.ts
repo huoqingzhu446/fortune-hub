@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { ReportsService } from '../reports/reports.service';
@@ -25,6 +26,7 @@ type PosterSource = {
   summary: string;
   promptKeywords: string[];
   themeName: string;
+  promptHint: string;
 };
 
 type ZhipuImageResponse = {
@@ -45,6 +47,8 @@ export class PostersService {
     private readonly shareRecordRepository: Repository<ShareRecordEntity>,
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
+    @InjectRepository(ReportTemplateEntity)
+    private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     private readonly reportsService: ReportsService,
     private readonly configService: ConfigService,
   ) {}
@@ -154,6 +158,7 @@ export class PostersService {
           report.sharePoster.accentText,
         ],
         themeName: report.sharePoster.themeName,
+        promptHint: '',
       };
     }
 
@@ -175,27 +180,47 @@ export class PostersService {
 
       const content = this.asRecord(sign.contentJson);
       const signTag = this.pickString(content.tag, '今日幸运签');
+      const template = await this.resolveTemplatePayload('share_poster', 'lucky_sign');
+      const fallbackSubtitle = this.pickString(
+        template.subtitle,
+        `${signTag} · ${sign.summary ?? '今天适合顺势推进。'}`,
+      );
+      const fallbackAccentText = this.pickString(
+        template.accentText,
+        this.pickString(content.mantra, '先稳住节奏，再把今天推顺。'),
+      );
+      const fallbackFooterText = this.pickString(
+        template.footerText,
+        'Fortune Hub · 今日幸运签',
+      );
 
       return {
         sourceType: 'lucky_sign',
         sourceCode: sign.bizCode,
         recordId: null,
-        title: this.pickString(this.asRecord(content.sharePoster).title, sign.title),
+        title: this.pickString(
+          this.asRecord(content.sharePoster).title,
+          this.pickString(template.title, sign.title),
+        ),
         subtitle: this.pickString(
           this.asRecord(content.sharePoster).subtitle,
-          `${signTag} · ${sign.summary ?? '今天适合顺势推进。'}`,
+          fallbackSubtitle,
         ),
         accentText: this.pickString(
           this.asRecord(content.sharePoster).accentText,
-          this.pickString(content.mantra, '先稳住节奏，再把今天推顺。'),
+          fallbackAccentText,
         ),
         footerText: this.pickString(
           this.asRecord(content.sharePoster).footerText,
-          'Fortune Hub · 今日幸运签',
+          fallbackFooterText,
         ),
         summary: sign.summary ?? '今天适合顺势推进。',
         promptKeywords: [sign.title, signTag, sign.summary ?? '幸运签'],
-        themeName: this.pickString(this.asRecord(content.sharePoster).themeName, 'fresh-mint'),
+        themeName: this.pickString(
+          this.asRecord(content.sharePoster).themeName,
+          this.pickString(template.themeName, 'fresh-mint'),
+        ),
+        promptHint: this.pickString(template.backgroundHint, ''),
       };
     }
 
@@ -203,14 +228,42 @@ export class PostersService {
   }
 
   private buildProviderPrompt(source: PosterSource) {
+    const templateHint = this.resolvePosterPromptHint(source.sourceType);
+
     return [
       '微信分享海报背景插画，现代东方气质，清透高级，适合内容类产品分享。',
       `主题：${source.themeName}。`,
       `关键词：${source.promptKeywords.join('、')}。`,
+      this.pickString(source.promptHint, templateHint)
+        ? `额外风格要求：${this.pickString(source.promptHint, templateHint)}。`
+        : '',
       '画面需要有大面积留白，适合后续叠加中文标题和说明文案。',
       '不要出现任何文字、logo、水印、人物脸部特写。',
       '整体要有层次感、柔和渐变、半透明玻璃质感和轻微光晕。',
-    ].join(' ');
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private resolvePosterPromptHint(sourceType: string) {
+    // Keep it sync and lightweight: fall back safely when no template is configured.
+    return '';
+  }
+
+  private async resolveTemplatePayload(templateType: string, bizCode: string) {
+    const template = await this.reportTemplateRepository.findOne({
+      where: {
+        templateType,
+        bizCode,
+        status: 'published',
+      },
+      order: {
+        sortOrder: 'ASC',
+        updatedAt: 'DESC',
+      },
+    });
+
+    return this.asRecord(template?.payloadJson);
   }
 
   private async generateBackgroundWithZhipu(apiKey: string, prompt: string, size: string) {

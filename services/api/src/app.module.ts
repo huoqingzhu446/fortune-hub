@@ -7,14 +7,17 @@ import { AssessmentModule } from './assessment/assessment.module';
 import { BaziModule } from './bazi/bazi.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdConfigEntity } from './database/entities/ad-config.entity';
+import { AppConfigEntity } from './database/entities/app-config.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssessmentQuestionEntity } from './database/entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
+import { LuckyItemEntity } from './database/entities/lucky-item.entity';
 import { MembershipProductEntity } from './database/entities/membership-product.entity';
 import { OrderEntity } from './database/entities/order.entity';
+import { ReportTemplateEntity } from './database/entities/report-template.entity';
 import { ShareRecordEntity } from './database/entities/share-record.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
@@ -54,12 +57,17 @@ import { ZodiacModule } from './zodiac/zodiac.module';
           UserEntity,
           UserRecordEntity,
           FortuneContentEntity,
+          LuckyItemEntity,
+          AppConfigEntity,
+          ReportTemplateEntity,
           MembershipProductEntity,
           OrderEntity,
           AdConfigEntity,
           ShareRecordEntity,
         ],
         autoLoadEntities: true,
+        migrations: ['dist/database/migrations/*.js'],
+        migrationsRun: configService.get<string>('DB_RUN_MIGRATIONS', 'false') === 'true',
         synchronize: configService.get<string>('DB_SYNCHRONIZE')
           ? configService.get<string>('DB_SYNCHRONIZE') === 'true'
           : configService.get<string>('NODE_ENV') !== 'production',

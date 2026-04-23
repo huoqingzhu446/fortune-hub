@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { GenerateLuckyWallpaperDto } from './dto/generate-lucky-wallpaper.dto';
@@ -61,7 +63,16 @@ type LuckyRecommendationRule = {
   focusTags: string[];
 };
 
+type LuckyRecommendationPolicy = {
+  maxItems: number;
+  wallpaperThemeCount: number;
+};
+
 const DEFAULT_PALETTE = ['#d7f0e6', '#edf8f6', '#9ccdb7'];
+const DEFAULT_RECOMMENDATION_POLICY: LuckyRecommendationPolicy = {
+  maxItems: 3,
+  wallpaperThemeCount: 2,
+};
 
 const RECOMMENDATION_RULES: Record<string, LuckyRecommendationRule> = {
   'item-mint-notebook': {
@@ -107,17 +118,27 @@ export class LuckyService {
   constructor(
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
+    @InjectRepository(LuckyItemEntity)
+    private readonly luckyItemRepository: Repository<LuckyItemEntity>,
+    @InjectRepository(AppConfigEntity)
+    private readonly appConfigRepository: Repository<AppConfigEntity>,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
   ) {}
 
   async getToday(user: UserEntity | null) {
     await this.ensureSeedData();
+    const recommendationPolicy = await this.resolveRecommendationPolicy();
 
     const sign = await this.resolveTodaySign();
     const signals = await this.resolveRecentSignals(user);
     const dominantElement = this.resolveDominantElement(user, signals.bazi?.dominantElement ?? null);
-    const recommendations = await this.resolveRecommendations(user, signals, dominantElement);
+    const recommendations = await this.resolveRecommendations(
+      user,
+      signals,
+      dominantElement,
+      recommendationPolicy.maxItems,
+    );
     const todayLuckyScore = this.buildTodayLuckyScore(user, dominantElement);
     const annualLuckyScore = this.buildAnnualLuckyScore(user, dominantElement);
     const signContent = this.readSignContent(sign);
@@ -155,7 +176,7 @@ export class LuckyService {
         '给自己留一点回看空间，会更容易做出清晰判断。',
       ],
       recommendations,
-      wallpaperThemes: recommendations.slice(0, 2).map((item, index) => ({
+      wallpaperThemes: recommendations.slice(0, recommendationPolicy.wallpaperThemeCount).map((item, index) => ({
         id: `${item.bizCode}-wallpaper`,
         sourceBizCode: item.bizCode,
         title: `${item.title} 壁纸主题`,
@@ -229,13 +250,13 @@ export class LuckyService {
 
     const sourceItem =
       typeof input.sourceBizCode === 'string' && input.sourceBizCode
-        ? await this.fortuneContentRepository.findOne({
+        ? await this.luckyItemRepository.findOne({
             where: {
-              contentType: 'lucky_item',
               bizCode: input.sourceBizCode,
               status: 'published',
             },
             order: {
+              sortOrder: 'ASC',
               id: 'DESC',
             },
           })
@@ -289,7 +310,8 @@ export class LuckyService {
 
   private async ensureSeedData() {
     await this.ensureContentSeeds(LUCKY_SIGN_SEEDS);
-    await this.ensureContentSeeds(LUCKY_ITEM_SEEDS);
+    await this.ensureLuckyItemSeeds();
+    await this.ensureLuckyConfigSeeds();
   }
 
   private async ensureContentSeeds(
@@ -324,6 +346,57 @@ export class LuckyService {
           ...seed,
         }),
       ),
+    );
+  }
+
+  private async ensureLuckyItemSeeds() {
+    const existing = await this.luckyItemRepository.find({
+      where: LUCKY_ITEM_SEEDS.map((seed) => ({
+        bizCode: seed.bizCode,
+      })),
+    });
+    const existingCodes = new Set(existing.map((item) => item.bizCode));
+    const missing = LUCKY_ITEM_SEEDS.filter((seed) => !existingCodes.has(seed.bizCode));
+
+    if (!missing.length) {
+      return;
+    }
+
+    await this.luckyItemRepository.save(
+      missing.map((seed) =>
+        this.luckyItemRepository.create({
+          ...seed,
+          publishedAt: seed.status === 'published' ? new Date() : null,
+          archivedAt: null,
+        }),
+      ),
+    );
+  }
+
+  private async ensureLuckyConfigSeeds() {
+    const existing = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'lucky',
+        configKey: 'recommendation_policy',
+      },
+    });
+
+    if (existing) {
+      return;
+    }
+
+    await this.appConfigRepository.save(
+      this.appConfigRepository.create({
+        namespace: 'lucky',
+        configKey: 'recommendation_policy',
+        title: '幸运推荐策略',
+        description: '控制幸运物推荐条数与壁纸主题输出数量。',
+        valueType: 'json',
+        valueJson: { ...DEFAULT_RECOMMENDATION_POLICY },
+        status: 'published',
+        publishedAt: new Date(),
+        archivedAt: null,
+      }),
     );
   }
 
@@ -367,13 +440,14 @@ export class LuckyService {
     user: UserEntity | null,
     signals: LuckyRecentSignals,
     dominantElement: string,
+    maxItems: number,
   ) {
-    const items = await this.fortuneContentRepository.find({
+    const items = await this.luckyItemRepository.find({
       where: {
-        contentType: 'lucky_item',
         status: 'published',
       },
       order: {
+        sortOrder: 'ASC',
         id: 'ASC',
       },
     });
@@ -423,7 +497,7 @@ export class LuckyService {
           bizCode: item.bizCode,
           title: item.title,
           summary: item.summary ?? '今天适合把它放在你容易看见的位置。',
-          category: content.category ?? '幸运物',
+          category: item.category || content.category || '幸运物',
           fitScore,
           fitTags: [...fitTags, ...(rule?.focusTags ?? [])].slice(0, 4),
           highlight: content.recommendationReason ?? '今天它会帮你把节奏稳下来。',
@@ -438,7 +512,33 @@ export class LuckyService {
         };
       })
       .sort((left, right) => right.fitScore - left.fitScore)
-      .slice(0, 3);
+      .slice(0, maxItems);
+  }
+
+  private async resolveRecommendationPolicy(): Promise<LuckyRecommendationPolicy> {
+    const config = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'lucky',
+        configKey: 'recommendation_policy',
+        status: 'published',
+      },
+      order: {
+        publishedAt: 'DESC',
+        updatedAt: 'DESC',
+      },
+    });
+
+    const payload = this.asRecord(config?.valueJson);
+
+    return {
+      maxItems: this.clampNumber(payload.maxItems, DEFAULT_RECOMMENDATION_POLICY.maxItems, 1, 6),
+      wallpaperThemeCount: this.clampNumber(
+        payload.wallpaperThemeCount,
+        DEFAULT_RECOMMENDATION_POLICY.wallpaperThemeCount,
+        1,
+        4,
+      ),
+    };
   }
 
   private async resolveRecentSignals(user: UserEntity | null): Promise<LuckyRecentSignals> {
@@ -830,8 +930,18 @@ export class LuckyService {
     };
   }
 
-  private readItemContent(content: FortuneContentEntity) {
+  private readItemContent(content: { contentJson: Record<string, unknown> | null }) {
     return (content.contentJson ?? {}) as LuckyItemContent;
+  }
+
+  private clampNumber(value: unknown, fallback: number, min: number, max: number) {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+
+    return Math.min(max, Math.max(min, Math.round(parsed)));
   }
 
   private asRecord(value: unknown) {

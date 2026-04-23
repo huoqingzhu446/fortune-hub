@@ -13,6 +13,7 @@ import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { CreateQuestionBankGroupDto } from './dto/create-question-bank-group.dto';
 import { CreateQuestionBankTestDto } from './dto/create-question-bank-test.dto';
 import { UpdateQuestionBankDto } from './dto/update-question-bank.dto';
+import { UpdateQuestionBankStatusDto } from './dto/update-question-bank-status.dto';
 import { QuestionBankService } from './question-bank.service';
 
 @Controller('admin/question-bank')
@@ -43,6 +44,15 @@ export class QuestionBankController {
     return this.questionBankService.deleteGroup(category, code);
   }
 
+  @Post('groups/:category/:code/status')
+  updateGroupStatus(
+    @Param('category') category: string,
+    @Param('code') code: string,
+    @Body() dto: UpdateQuestionBankStatusDto,
+  ) {
+    return this.questionBankService.updateGroupStatus(category, code, dto.status);
+  }
+
   @Get('tests/:category/:code')
   getTestDetail(
     @Param('category') category: string,
@@ -63,5 +73,14 @@ export class QuestionBankController {
     @Body() dto: UpdateQuestionBankDto,
   ) {
     return this.questionBankService.updateTest(category, code, dto);
+  }
+
+  @Post('tests/:category/:code/status')
+  updateTestStatus(
+    @Param('category') category: string,
+    @Param('code') code: string,
+    @Body() dto: UpdateQuestionBankStatusDto,
+  ) {
+    return this.questionBankService.updateTestStatus(category, code, dto.status);
   }
 }

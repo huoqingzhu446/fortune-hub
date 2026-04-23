@@ -138,11 +138,8 @@ export class QuestionBankService {
         where: selectedCategory
           ? {
               category: selectedCategory,
-              status: 'published',
             }
-          : {
-              status: 'published',
-            },
+          : {},
         order: {
           category: 'ASC',
           code: 'ASC',
@@ -152,11 +149,8 @@ export class QuestionBankService {
         where: selectedCategory
           ? {
               category: selectedCategory,
-              status: 'published',
             }
-          : {
-              status: 'published',
-            },
+          : {},
         order: {
           category: 'ASC',
           testCode: 'ASC',
@@ -167,11 +161,8 @@ export class QuestionBankService {
         where: selectedCategory
           ? {
               category: selectedCategory,
-              status: 'published',
             }
-          : {
-              status: 'published',
-            },
+          : {},
         order: {
           category: 'ASC',
           sortOrder: 'ASC',
@@ -228,11 +219,8 @@ export class QuestionBankService {
       where: selectedCategory
         ? {
             category: selectedCategory,
-            status: 'published',
           }
-        : {
-            status: 'published',
-          },
+        : {},
       order: {
         category: 'ASC',
         sortOrder: 'ASC',
@@ -245,11 +233,15 @@ export class QuestionBankService {
       message: 'ok',
       data: {
         groups: groups.map((group) => ({
+          id: group.id,
           category: group.category,
           code: group.code,
           label: group.label,
           description: group.description,
           sortOrder: group.sortOrder,
+          status: group.status,
+          publishedAt: group.publishedAt?.toISOString() ?? null,
+          archivedAt: group.archivedAt?.toISOString() ?? null,
           isDefault: group.code === 'default',
         })),
       },
@@ -279,7 +271,6 @@ export class QuestionBankService {
     const latest = await this.assessmentTestGroupRepository.findOne({
       where: {
         category,
-        status: 'published',
       },
       order: {
         sortOrder: 'DESC',
@@ -294,11 +285,55 @@ export class QuestionBankService {
         label: dto.label.trim(),
         description: dto.description?.trim() || '',
         sortOrder: (latest?.sortOrder ?? 90) + 10,
-        status: 'published',
+        status: 'draft',
+        publishedAt: null,
+        archivedAt: null,
       }),
     );
 
     return this.getGroups(category);
+  }
+
+  async updateGroupStatus(category: string, code: string, status: string) {
+    await this.ensureDefaults();
+
+    const normalizedCategory = this.normalizeCategory(category);
+    if (!normalizedCategory) {
+      throw new NotFoundException('分类不存在');
+    }
+
+    const group = await this.assessmentTestGroupRepository.findOne({
+      where: {
+        category: normalizedCategory,
+        code,
+      },
+    });
+
+    if (!group) {
+      throw new NotFoundException('分类不存在');
+    }
+
+    if (group.code === 'default' && status !== 'published') {
+      throw new BadRequestException('默认分类必须保持为已发布状态');
+    }
+
+    if (status !== 'published') {
+      const publishedTests = await this.assessmentTestConfigRepository.count({
+        where: {
+          category: normalizedCategory,
+          groupCode: code,
+          status: 'published',
+        },
+      });
+
+      if (publishedTests > 0) {
+        throw new BadRequestException('该分类下仍有已发布测试集，请先下线或调整测试集归属');
+      }
+    }
+
+    this.applyLifecycleStatus(group, status);
+    await this.assessmentTestGroupRepository.save(group);
+    return this.getGroups(normalizedCategory);
   }
 
   async deleteGroup(category: string, code: string) {
@@ -317,7 +352,6 @@ export class QuestionBankService {
       where: {
         category: normalizedCategory,
         code,
-        status: 'published',
       },
     });
 
@@ -329,7 +363,6 @@ export class QuestionBankService {
       where: {
         category: normalizedCategory,
         groupCode: code,
-        status: 'published',
       },
     });
 
@@ -348,13 +381,12 @@ export class QuestionBankService {
   async getTestDetail(category: string, code: string) {
     await this.ensureDefaults();
 
-    const config = await this.getConfigOrThrow(category, code);
+    const config = await this.getConfigOrThrow(category, code, false);
     const [questions, groups] = await Promise.all([
       this.assessmentQuestionRepository.find({
         where: {
           category: config.category,
           testCode: config.code,
-          status: 'published',
         },
         order: {
           sortOrder: 'ASC',
@@ -363,7 +395,6 @@ export class QuestionBankService {
       this.assessmentTestGroupRepository.find({
         where: {
           category: config.category,
-          status: 'published',
         },
         order: {
           sortOrder: 'ASC',
@@ -422,7 +453,9 @@ export class QuestionBankService {
         optionSchema: draft.optionSchema,
         tagsJson: draft.tags,
         configJson: draft.configJson,
-        status: 'published',
+        status: 'draft',
+        publishedAt: null,
+        archivedAt: null,
       }),
     );
 
@@ -435,7 +468,9 @@ export class QuestionBankService {
           prompt: question.prompt,
           optionsJson: question.options.map((option) => ({ ...option })),
           sortOrder: index + 1,
-          status: 'published',
+          status: 'draft',
+          publishedAt: null,
+          archivedAt: null,
         }),
       ),
     );
@@ -446,7 +481,7 @@ export class QuestionBankService {
   async updateTest(category: string, code: string, dto: UpdateQuestionBankDto) {
     await this.ensureDefaults();
 
-    const config = await this.getConfigOrThrow(category, code);
+    const config = await this.getConfigOrThrow(category, code, false);
     const optionSchema = this.normalizeOptionSchema(config.optionSchema, config.category);
     const groupCode = await this.ensureGroupExists(config.category as QuestionBankCategory, dto.groupCode);
 
@@ -470,7 +505,9 @@ export class QuestionBankService {
       durationMinutes: dto.durationMinutes,
       tagsJson: dto.tags.map((tag) => tag.trim()).filter(Boolean),
       configJson: normalizedConfig,
-      status: 'published',
+      status: config.status,
+      publishedAt: config.publishedAt,
+      archivedAt: config.archivedAt,
     });
 
     await this.assessmentQuestionRepository.delete({
@@ -501,10 +538,52 @@ export class QuestionBankService {
               : {}),
           })),
           sortOrder: index + 1,
-          status: 'published',
+          status: config.status,
+          publishedAt:
+            config.status === 'published' ? config.publishedAt ?? new Date() : null,
+          archivedAt: config.status === 'archived' ? config.archivedAt ?? new Date() : null,
         }),
       ),
     );
+
+    return this.getTestDetail(category, code);
+  }
+
+  async updateTestStatus(category: string, code: string, status: string) {
+    await this.ensureDefaults();
+
+    const config = await this.getConfigOrThrow(category, code, false);
+    if (status === 'published') {
+      const group = await this.assessmentTestGroupRepository.findOne({
+        where: {
+          category: config.category,
+          code: config.groupCode,
+        },
+      });
+
+      if (!group || group.status !== 'published') {
+        throw new BadRequestException('测试集所在分类尚未发布，请先发布分类');
+      }
+    }
+
+    this.applyLifecycleStatus(config, status);
+    await this.assessmentTestConfigRepository.save(config);
+
+    const questions = await this.assessmentQuestionRepository.find({
+      where: {
+        category: config.category,
+        testCode: config.code,
+      },
+    });
+
+    if (questions.length) {
+      await this.assessmentQuestionRepository.save(
+        questions.map((question) => {
+          this.applyLifecycleStatus(question, status);
+          return question;
+        }),
+      );
+    }
 
     return this.getTestDetail(category, code);
   }
@@ -536,6 +615,8 @@ export class QuestionBankService {
           description: item.description,
           sortOrder: item.sortOrder,
           status: 'published',
+          publishedAt: new Date(),
+          archivedAt: null,
         }),
       );
     }
@@ -579,6 +660,8 @@ export class QuestionBankService {
                 sharePoster: createDefaultSharePosterConfig('personality'),
               },
               status: 'published',
+              publishedAt: new Date(),
+              archivedAt: null,
             }))
           : []),
         ...(emotionCount === 0
@@ -600,6 +683,8 @@ export class QuestionBankService {
                 sharePoster: createDefaultSharePosterConfig('emotion'),
               },
               status: 'published',
+              publishedAt: new Date(),
+              archivedAt: null,
             }))
           : []),
       ],
@@ -637,6 +722,8 @@ export class QuestionBankService {
                 optionsJson: question.options.map((option) => ({ ...option })),
                 sortOrder: index + 1,
                 status: 'published',
+                publishedAt: new Date(),
+                archivedAt: null,
               })),
             )
           : []),
@@ -650,6 +737,8 @@ export class QuestionBankService {
                 optionsJson: question.options.map((option) => ({ ...option })),
                 sortOrder: index + 1,
                 status: 'published',
+                publishedAt: new Date(),
+                archivedAt: null,
               })),
             )
           : []),
@@ -658,7 +747,7 @@ export class QuestionBankService {
     );
   }
 
-  private async getConfigOrThrow(category: string, code: string) {
+  private async getConfigOrThrow(category: string, code: string, onlyPublished = true) {
     const normalizedCategory = this.normalizeCategory(category);
 
     if (!normalizedCategory) {
@@ -669,7 +758,7 @@ export class QuestionBankService {
       where: {
         category: normalizedCategory,
         code,
-        status: 'published',
+        ...(onlyPublished ? { status: 'published' } : {}),
       },
     });
 
@@ -713,6 +802,9 @@ export class QuestionBankService {
       questionCount,
       optionSchema,
       dimensionLabels: detail?.dimensionLabels,
+      status: config.status,
+      publishedAt: config.publishedAt?.toISOString() ?? null,
+      archivedAt: config.archivedAt?.toISOString() ?? null,
       updatedAt: updatedAt.toISOString(),
     };
   }
@@ -746,7 +838,6 @@ export class QuestionBankService {
       intro: config.intro,
       durationMinutes: config.durationMinutes,
       tags: this.normalizeTags(config.tagsJson),
-      status: config.status,
       questions: questions.map((question) => ({
         id: question.id,
         questionId: question.questionId,
@@ -834,12 +925,11 @@ export class QuestionBankService {
     dto: CreateQuestionBankTestDto,
     groupCode: string,
   ) {
-    const source = await this.getConfigOrThrow(category, dto.cloneFromCode ?? '');
+    const source = await this.getConfigOrThrow(category, dto.cloneFromCode ?? '', false);
     const questions = await this.assessmentQuestionRepository.find({
       where: {
         category,
         testCode: source.code,
-        status: 'published',
       },
       order: {
         sortOrder: 'ASC',
@@ -944,6 +1034,34 @@ export class QuestionBankService {
     }
 
     return value.map((item) => String(item)).filter(Boolean);
+  }
+
+  private applyLifecycleStatus<
+    T extends {
+      status: string;
+      publishedAt?: Date | null;
+      archivedAt?: Date | null;
+    },
+  >(entity: T, status: string) {
+    if (!['draft', 'published', 'archived'].includes(status)) {
+      throw new BadRequestException('暂不支持该状态');
+    }
+
+    entity.status = status;
+
+    if (status === 'published') {
+      entity.publishedAt = entity.publishedAt ?? new Date();
+      entity.archivedAt = null;
+      return entity;
+    }
+
+    if (status === 'archived') {
+      entity.archivedAt = new Date();
+      return entity;
+    }
+
+    entity.archivedAt = null;
+    return entity;
   }
 
   private normalizePersonalityConfig(
@@ -1088,7 +1206,6 @@ export class QuestionBankService {
       where: {
         category,
         code,
-        status: 'published',
       },
     });
 

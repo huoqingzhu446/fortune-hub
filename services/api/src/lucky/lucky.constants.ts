@@ -1,11 +1,22 @@
 import type { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 
-type SeedContent = Pick<
+export type LuckySignSeed = Pick<
   FortuneContentEntity,
   'contentType' | 'bizCode' | 'title' | 'summary' | 'contentJson' | 'status' | 'publishDate'
 >;
 
-export const LUCKY_SIGN_SEEDS: SeedContent[] = [
+export type LuckyItemSeed = {
+  bizCode: string;
+  title: string;
+  summary: string | null;
+  category: string;
+  publishDate: string | null;
+  sortOrder: number;
+  status: string;
+  contentJson: Record<string, unknown>;
+};
+
+export const LUCKY_SIGN_SEEDS: LuckySignSeed[] = [
   {
     contentType: 'lucky_sign',
     bizCode: 'sign-breeze-open',
@@ -74,16 +85,16 @@ export const LUCKY_SIGN_SEEDS: SeedContent[] = [
   },
 ];
 
-export const LUCKY_ITEM_SEEDS: SeedContent[] = [
+export const LUCKY_ITEM_SEEDS: LuckyItemSeed[] = [
   {
-    contentType: 'lucky_item',
     bizCode: 'item-mint-notebook',
     title: '薄荷色随记本',
     summary: '适合把今天的灵感、待办和小决定收拢起来。',
+    category: '随身物',
     publishDate: null,
+    sortOrder: 10,
     status: 'published',
     contentJson: {
-      category: '随身物',
       elements: ['木', '水'],
       zodiacs: ['双子座', '天秤座', '双鱼座', '巨蟹座'],
       useMoment: '上午启动和下午整理时',
@@ -94,14 +105,14 @@ export const LUCKY_ITEM_SEEDS: SeedContent[] = [
     },
   },
   {
-    contentType: 'lucky_item',
     bizCode: 'item-metal-pen',
     title: '银白金属笔',
     summary: '适合需要做决定、签字、整理重点的日子。',
+    category: '办公物',
     publishDate: null,
+    sortOrder: 20,
     status: 'published',
     contentJson: {
-      category: '办公物',
       elements: ['金', '水'],
       zodiacs: ['处女座', '摩羯座', '水瓶座'],
       useMoment: '会议前、整理方案时',
@@ -112,14 +123,14 @@ export const LUCKY_ITEM_SEEDS: SeedContent[] = [
     },
   },
   {
-    contentType: 'lucky_item',
     bizCode: 'item-amber-cup',
     title: '暖杏色水杯',
     summary: '适合提醒自己放慢节奏、补充能量与耐心。',
+    category: '日常物',
     publishDate: null,
+    sortOrder: 30,
     status: 'published',
     contentJson: {
-      category: '日常物',
       elements: ['土', '火'],
       zodiacs: ['金牛座', '狮子座', '射手座'],
       useMoment: '午后疲惫或需要安定情绪时',
@@ -130,14 +141,14 @@ export const LUCKY_ITEM_SEEDS: SeedContent[] = [
     },
   },
   {
-    contentType: 'lucky_item',
     bizCode: 'item-crystal-tray',
     title: '透光小托盘',
     summary: '适合整理桌面、放钥匙首饰，也适合当成今天的视觉锚点。',
+    category: '空间物',
     publishDate: null,
+    sortOrder: 40,
     status: 'published',
     contentJson: {
-      category: '空间物',
       elements: ['金', '土'],
       zodiacs: ['处女座', '天秤座', '摩羯座'],
       useMoment: '收纳小物、整理环境时',
@@ -148,14 +159,14 @@ export const LUCKY_ITEM_SEEDS: SeedContent[] = [
     },
   },
   {
-    contentType: 'lucky_item',
     bizCode: 'item-ocean-scarf',
     title: '海盐蓝丝巾',
     summary: '适合今天增加一点流动感和表达感。',
+    category: '穿搭物',
     publishDate: null,
+    sortOrder: 50,
     status: 'published',
     contentJson: {
-      category: '穿搭物',
       elements: ['水', '木'],
       zodiacs: ['双鱼座', '巨蟹座', '天秤座'],
       useMoment: '社交、约会、轻松表达时',
@@ -166,14 +177,14 @@ export const LUCKY_ITEM_SEEDS: SeedContent[] = [
     },
   },
   {
-    contentType: 'lucky_item',
     bizCode: 'item-forest-perfume',
     title: '清林木质香',
     summary: '适合需要重新找回专注力和边界感的时候。',
+    category: '气味物',
     publishDate: null,
+    sortOrder: 60,
     status: 'published',
     contentJson: {
-      category: '气味物',
       elements: ['木', '土'],
       zodiacs: ['白羊座', '处女座', '摩羯座'],
       useMoment: '进入工作流或独处整理时',

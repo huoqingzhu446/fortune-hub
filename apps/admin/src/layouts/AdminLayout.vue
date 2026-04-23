@@ -75,14 +75,14 @@ const currentPage = computed(() => {
   if (route.path === '/question-bank') {
     return {
       title: '题库管理',
-      subtitle: '第一版支持浏览、编辑并保存性格测评与情绪自检题目。',
+      subtitle: '支持草稿、发布、归档流转，并可维护性格测评与情绪自检题库。',
     };
   }
 
   if (route.path === '/content-center') {
     return {
       title: '内容中心',
-      subtitle: '幸运签、幸运物和部分星座内容已经可以通过后台 JSON 配置维护。',
+      subtitle: '统一维护运势内容、幸运物、报告模板与系统配置，并支持发布流转。',
     };
   }
 

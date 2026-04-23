@@ -6,19 +6,14 @@ import {
   MaxLength,
 } from 'class-validator';
 
-export class SaveFortuneContentDto {
-  @IsString()
-  @MaxLength(32)
-  contentType!: string;
-
+export class SaveConfigEntryDto {
   @IsString()
   @MaxLength(64)
-  bizCode!: string;
+  namespace!: string;
 
-  @IsOptional()
   @IsString()
-  @MaxLength(10)
-  publishDate?: string | null;
+  @MaxLength(128)
+  configKey!: string;
 
   @IsString()
   @MaxLength(128)
@@ -27,12 +22,17 @@ export class SaveFortuneContentDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  summary?: string;
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['string', 'number', 'boolean', 'json'])
+  valueType?: 'string' | 'number' | 'boolean' | 'json';
 
   @IsString()
   @IsIn(['draft', 'published', 'archived'])
   status!: 'draft' | 'published' | 'archived';
 
   @IsObject()
-  contentJson!: Record<string, unknown>;
+  valueJson!: Record<string, unknown>;
 }

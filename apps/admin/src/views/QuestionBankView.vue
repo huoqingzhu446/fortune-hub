@@ -42,6 +42,9 @@
           <div class="question-bank__test-item-title">{{ item.title }}</div>
           <div class="question-bank__test-item-subtitle">{{ item.subtitle }}</div>
           <div class="question-bank__test-item-meta">
+            <span class="question-bank__status-chip" :data-status="item.status">
+              {{ statusLabel(item.status) }}
+            </span>
             <span>{{ item.questionCount }} 题</span>
             <span>{{ item.updatedAt ? formatDate(item.updatedAt) : '未更新' }}</span>
           </div>
@@ -63,6 +66,32 @@
           </div>
 
           <div class="question-bank__hero-actions">
+            <el-tag :type="statusTagType(activeTest.status)">
+              {{ statusLabel(activeTest.status) }}
+            </el-tag>
+            <el-button
+              v-if="activeTest.status !== 'draft'"
+              plain
+              @click="changeTestStatus('draft')"
+            >
+              转草稿
+            </el-button>
+            <el-button
+              v-if="activeTest.status !== 'published'"
+              type="success"
+              plain
+              @click="changeTestStatus('published')"
+            >
+              发布
+            </el-button>
+            <el-button
+              v-if="activeTest.status !== 'archived'"
+              type="warning"
+              plain
+              @click="changeTestStatus('archived')"
+            >
+              归档
+            </el-button>
             <el-button plain @click="addQuestion">新增题目</el-button>
             <el-button type="primary" :loading="saving" @click="saveTest">
               保存配置
@@ -74,6 +103,9 @@
           <span>{{ editableQuestions.length }} 题</span>
           <span>{{ activeTest.optionSchema === 'personality' ? '带维度评分' : '量表阈值判定' }}</span>
           <span>{{ activeTest.groupLabel }}</span>
+          <span>状态：{{ statusLabel(activeTest.status) }}</span>
+          <span v-if="activeTest.publishedAt">发布于：{{ formatDate(activeTest.publishedAt) }}</span>
+          <span v-if="activeTest.archivedAt">归档于：{{ formatDate(activeTest.archivedAt) }}</span>
           <span v-if="activeTest.updatedAt">最近更新：{{ formatDate(activeTest.updatedAt) }}</span>
         </div>
 
@@ -526,7 +558,35 @@
         <div v-for="group in currentGroups" :key="group.code" class="question-bank__group-row">
           <div>
             <div class="question-bank__group-title">{{ group.label }}</div>
-            <div class="question-bank__group-meta">{{ group.code }} · {{ group.description || '暂无描述' }}</div>
+            <div class="question-bank__group-meta">
+              {{ group.code }} · {{ group.description || '暂无描述' }}
+            </div>
+            <div class="question-bank__group-actions">
+              <span class="question-bank__status-chip" :data-status="group.status">
+                {{ statusLabel(group.status) }}
+              </span>
+              <button
+                v-if="group.status !== 'draft'"
+                class="question-bank__link-button"
+                @click="changeGroupStatus(group.code, 'draft')"
+              >
+                转草稿
+              </button>
+              <button
+                v-if="group.status !== 'published'"
+                class="question-bank__link-button"
+                @click="changeGroupStatus(group.code, 'published')"
+              >
+                发布
+              </button>
+              <button
+                v-if="group.status !== 'archived'"
+                class="question-bank__link-button"
+                @click="changeGroupStatus(group.code, 'archived')"
+              >
+                归档
+              </button>
+            </div>
           </div>
           <el-button
             text
@@ -578,9 +638,12 @@ import {
   fetchQuestionBankGroups,
   fetchQuestionBankTests,
   updateQuestionBankDetail,
+  updateQuestionBankGroupStatus,
+  updateQuestionBankTestStatus,
   type CreateQuestionBankTestPayload,
   type EmotionQuestionBankDetail,
   type EmotionThresholdConfig,
+  type LifecycleStatus,
   type PersonalityProfileConfig,
   type PersonalityQuestionBankDetail,
   type QuestionBankCategory,
@@ -852,7 +915,7 @@ async function submitCreateTest() {
     createDialogVisible.value = false;
     applyDetail(detail);
     await loadTests(true);
-    ElMessage.success('测试集已创建');
+    ElMessage.success('测试集已创建，当前为草稿状态');
   } catch (error) {
     console.warn('create question bank test failed', error);
     ElMessage.error('新增测试集失败');
@@ -886,7 +949,7 @@ async function submitCreateGroup() {
     groupForm.code = '';
     groupForm.label = '';
     groupForm.description = '';
-    ElMessage.success('分类已新增');
+    ElMessage.success('分类已新增，当前为草稿状态');
   } catch (error) {
     console.warn('create question bank group failed', error);
     ElMessage.error('新增分类失败');
@@ -903,6 +966,18 @@ async function removeGroup(code: string) {
   } catch (error) {
     console.warn('delete question bank group failed', error);
     ElMessage.error('分类删除失败');
+  }
+}
+
+async function changeGroupStatus(code: string, status: LifecycleStatus) {
+  try {
+    const groups = await updateQuestionBankGroupStatus(selectedCategory.value, code, status);
+    groupMap[selectedCategory.value] = groups;
+    await loadTests(true);
+    ElMessage.success(`分类已切换为${statusLabel(status)}`);
+  } catch (error) {
+    console.warn('change question bank group status failed', error);
+    ElMessage.error('分类状态切换失败');
   }
 }
 
@@ -1051,6 +1126,26 @@ async function saveTest() {
   }
 }
 
+async function changeTestStatus(status: LifecycleStatus) {
+  if (!activeTest.value) {
+    return;
+  }
+
+  try {
+    const detail = await updateQuestionBankTestStatus(
+      activeTest.value.category,
+      activeTest.value.code,
+      status,
+    );
+    applyDetail(detail);
+    await loadTests(true);
+    ElMessage.success(`测试集已切换为${statusLabel(status)}`);
+  } catch (error) {
+    console.warn('change question bank test status failed', error);
+    ElMessage.error('测试集状态切换失败');
+  }
+}
+
 function buildSavePayload() {
   const questions = editableQuestions.value.map((question, index) => ({
     questionId: question.questionId || `${activeTest.value?.code}-${index + 1}`,
@@ -1165,6 +1260,30 @@ function formatDate(value: string) {
   const hour = `${date.getHours()}`.padStart(2, '0');
   const minute = `${date.getMinutes()}`.padStart(2, '0');
   return `${month}-${day} ${hour}:${minute}`;
+}
+
+function statusLabel(status: LifecycleStatus | string) {
+  if (status === 'published') {
+    return '已发布';
+  }
+
+  if (status === 'archived') {
+    return '已归档';
+  }
+
+  return '草稿';
+}
+
+function statusTagType(status: LifecycleStatus | string) {
+  if (status === 'published') {
+    return 'success';
+  }
+
+  if (status === 'archived') {
+    return 'warning';
+  }
+
+  return 'info';
 }
 
 onMounted(() => {

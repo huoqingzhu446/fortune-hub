@@ -37,6 +37,12 @@ export class AssessmentQuestionEntity {
   @Column({ length: 16, default: 'published' })
   status!: string;
 
+  @Column({ type: 'datetime', nullable: true })
+  publishedAt!: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  archivedAt!: Date | null;
+
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 

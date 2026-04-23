@@ -1,8 +1,10 @@
 import { http } from './http';
 
 export type QuestionBankCategory = 'personality' | 'emotion';
+export type LifecycleStatus = 'draft' | 'published' | 'archived';
 
 export interface QuestionBankTestSummary {
+  id?: string;
   category: QuestionBankCategory;
   categoryLabel: string;
   code: string;
@@ -14,6 +16,9 @@ export interface QuestionBankTestSummary {
   questionCount: number;
   optionSchema: 'personality' | 'emotion';
   dimensionLabels?: Record<string, string>;
+  status: LifecycleStatus;
+  publishedAt: string | null;
+  archivedAt: string | null;
   updatedAt: string | null;
 }
 
@@ -58,11 +63,15 @@ export interface SharePosterConfig {
 }
 
 export interface QuestionBankGroup {
+  id: string;
   category: QuestionBankCategory;
   code: string;
   label: string;
   description: string;
   sortOrder: number;
+  status: LifecycleStatus;
+  publishedAt: string | null;
+  archivedAt: string | null;
   isDefault: boolean;
 }
 
@@ -70,7 +79,6 @@ export interface QuestionBankBaseDetail extends QuestionBankTestSummary {
   intro: string;
   durationMinutes: number;
   tags: string[];
-  status: string;
   questions: QuestionBankQuestion[];
 }
 
@@ -214,6 +222,23 @@ export async function deleteQuestionBankGroup(category: string, code: string) {
   return data.data.groups;
 }
 
+export async function updateQuestionBankGroupStatus(
+  category: string,
+  code: string,
+  status: LifecycleStatus,
+) {
+  const { data } = await http.post<{
+    code: number;
+    message: string;
+    data: {
+      groups: QuestionBankGroup[];
+    };
+    timestamp: string;
+  }>(`/admin/question-bank/groups/${category}/${code}/status`, { status });
+
+  return data.data.groups;
+}
+
 export async function updateQuestionBankDetail(
   category: string,
   code: string,
@@ -227,6 +252,23 @@ export async function updateQuestionBankDetail(
     };
     timestamp: string;
   }>(`/admin/question-bank/tests/${category}/${code}`, payload);
+
+  return data.data.test;
+}
+
+export async function updateQuestionBankTestStatus(
+  category: string,
+  code: string,
+  status: LifecycleStatus,
+) {
+  const { data } = await http.post<{
+    code: number;
+    message: string;
+    data: {
+      test: QuestionBankDetail;
+    };
+    timestamp: string;
+  }>(`/admin/question-bank/tests/${category}/${code}/status`, { status });
 
   return data.data.test;
 }

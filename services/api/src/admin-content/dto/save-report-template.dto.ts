@@ -1,24 +1,21 @@
 import {
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 
-export class SaveFortuneContentDto {
+export class SaveReportTemplateDto {
   @IsString()
-  @MaxLength(32)
-  contentType!: string;
+  @MaxLength(64)
+  templateType!: string;
 
   @IsString()
   @MaxLength(64)
   bizCode!: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(10)
-  publishDate?: string | null;
 
   @IsString()
   @MaxLength(128)
@@ -27,12 +24,21 @@ export class SaveFortuneContentDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  summary?: string;
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  engine?: string;
+
+  @IsInt()
+  @Min(1)
+  sortOrder!: number;
 
   @IsString()
   @IsIn(['draft', 'published', 'archived'])
   status!: 'draft' | 'published' | 'archived';
 
   @IsObject()
-  contentJson!: Record<string, unknown>;
+  payloadJson!: Record<string, unknown>;
 }

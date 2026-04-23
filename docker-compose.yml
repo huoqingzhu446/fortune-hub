@@ -42,6 +42,7 @@ services:
       NODE_ENV: production
       PORT: ${API_PORT:-3001}
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_RUN_MIGRATIONS: ${DB_RUN_MIGRATIONS:-false}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-fortune_hub}

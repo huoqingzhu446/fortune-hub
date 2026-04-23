@@ -14,6 +14,8 @@ export class HomeService {
 
   async getHomeIndex(user: UserEntity | null) {
     const luckySign = await this.luckyService.getTodaySignSnapshot();
+    const luckyToday = await this.luckyService.getToday(user);
+    const luckyData = luckyToday.data;
     const integrations = this.buildIntegrations();
     const featureEntries = [
       {
@@ -47,7 +49,7 @@ export class HomeService {
       {
         id: 'lucky-item',
         title: '幸运物',
-        description: '结合幸运指数推荐每日幸运物与壁纸主题。',
+        description: '结合幸运指数推荐每日幸运物、壁纸和今日分享图。',
         route: '/pages/lucky/index',
         badge: '内容化',
       },
@@ -126,19 +128,10 @@ export class HomeService {
       message: 'ok',
       data: {
         headline,
-        todayLuckyScore: {
-          label: '今日幸运指数',
-          value: '86',
-          hint: '适合整理节奏、做出清晰的小决定。',
-        },
-        annualLuckyScore: {
-          label: '年度幸运指数',
-          value: '92',
-          hint: '今年适合打磨长期计划与个人表达。',
-        },
+        todayLuckyScore: luckyData.scores.today,
+        annualLuckyScore: luckyData.scores.annual,
         todayLuckySign: luckySign,
-        todayFortuneSummary:
-          '运势整体平稳，适合先完成手头事务，再安排一次轻量社交或自我奖励。',
+        todayFortuneSummary: luckyData.profile.guidance,
         featureEntries,
         quickEntries,
         journeyEntries,
@@ -174,14 +167,14 @@ export class HomeService {
         ],
         stats: [
           {
-            label: '今日幸运指数',
-            value: '86',
-            hint: '推荐先完成一件最重要的小目标。',
+            label: luckyData.scores.today.label,
+            value: luckyData.scores.today.value,
+            hint: luckyData.scores.today.hint,
           },
           {
-            label: '年度幸运指数',
-            value: '92',
-            hint: '适合持续建设个人作品与表达。',
+            label: luckyData.scores.annual.label,
+            value: luckyData.scores.annual.value,
+            hint: luckyData.scores.annual.hint,
           },
           {
             label: '今日幸运签',

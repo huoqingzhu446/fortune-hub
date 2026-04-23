@@ -67,7 +67,12 @@
         <image class="poster-image" :src="poster.imageDataUrl" mode="widthFix" />
         <view class="action-row">
           <button class="hero-button hero-button--secondary" @tap="previewPoster">全屏预览</button>
-          <button class="hero-button hero-button--primary" @tap="downloadPoster">{{ downloadLabel }}</button>
+          <button class="hero-button hero-button--primary" @tap="downloadPoster">保存到手机</button>
+        </view>
+        <view v-if="isMpWeixin" class="action-row">
+          <button class="hero-button hero-button--ghost" @tap="sharePosterToWechat">
+            微信发好友
+          </button>
         </view>
       </view>
     </view>
@@ -85,6 +90,12 @@ import { ref } from 'vue';
 import { generateLuckySignPoster } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
 import { getErrorMessage } from '../../../services/errors';
+import {
+  handlePosterImageError,
+  previewPosterImage,
+  savePosterImage,
+  sharePosterImageToWechat,
+} from '../../../services/poster-image';
 import type { GeneratedPoster } from '../../../types/poster';
 import type { LuckySignDetailData } from '../../../types/lucky';
 
@@ -121,7 +132,9 @@ const fallbackDetail: LuckySignDetailData = {
 const detail = ref<LuckySignDetailData>(fallbackDetail);
 const poster = ref<GeneratedPoster | null>(null);
 const posterLoading = ref(false);
-const downloadLabel = ref('下载 SVG 海报');
+const isMpWeixin = String(
+  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
+).toLowerCase() === 'mp-weixin';
 
 async function loadDetail(bizCode: string) {
   try {
@@ -182,46 +195,56 @@ async function generatePoster() {
   }
 }
 
-function previewPoster() {
+async function previewPoster() {
   if (!poster.value) {
     return;
   }
 
-  uni.previewImage({
-    urls: [poster.value.imageDataUrl],
-    current: poster.value.imageDataUrl,
-  });
+  try {
+    await previewPosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '预览失败，请稍后再试'),
+      icon: 'none',
+    });
+  }
 }
 
-function downloadPoster() {
+async function downloadPoster() {
   if (!poster.value) {
     return;
   }
 
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    const anchor = document.createElement('a');
-    anchor.href = poster.value.imageDataUrl;
-    anchor.download = poster.value.downloadFileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
+  try {
+    await savePosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
     uni.showToast({
-      title: '已开始下载',
+      title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
       icon: 'success',
     });
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '保存失败，请稍后再试'),
+      icon: 'none',
+    });
+  }
+}
+
+async function sharePosterToWechat() {
+  if (!poster.value) {
     return;
   }
 
-  uni.setClipboardData({
-    data: poster.value.svgMarkup,
-    success: () => {
-      downloadLabel.value = '已复制 SVG 源码';
-      uni.showToast({
-        title: '当前平台先支持复制 SVG',
-        icon: 'none',
-      });
-    },
-  });
+  try {
+    await sharePosterImageToWechat(
+      poster.value.imageDataUrl,
+      poster.value.downloadFileName,
+    );
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
+      icon: 'none',
+    });
+  }
 }
 
 function backHome() {

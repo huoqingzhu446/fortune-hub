@@ -51,10 +51,11 @@
           <text class="insight-card__link">查看详情</text>
         </view>
 
-        <view class="insight-card insight-card--soft">
-          <text class="insight-card__eyebrow">年度提醒</text>
-          <text class="insight-card__metric">{{ annualLuckyScore.value }}</text>
-          <text class="insight-card__text">{{ annualLuckyScore.hint }}</text>
+        <view class="insight-card insight-card--soft" @tap="goToTodayPoster">
+          <text class="insight-card__eyebrow">今日分享图</text>
+          <text class="insight-card__metric">{{ todayLuckyScore.value }}</text>
+          <text class="insight-card__text">{{ posterCardSummary }}</text>
+          <text class="insight-card__link">生成高清图</text>
         </view>
       </view>
 
@@ -111,6 +112,10 @@ const heroSummary = computed(() => {
   const summary = dashboard.value.todayFortuneSummary?.trim() || '';
   return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
 });
+const posterCardSummary = computed(() => {
+  const summary = `综合星座、气运和生日资料，生成适合微信分享的高清图片`;
+  return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
+});
 
 const moduleCards = computed(() =>
   dashboard.value.featureEntries.map((module, index) => ({
@@ -158,6 +163,12 @@ function goToLuckySign() {
 
 function goToLuckyCenter() {
   handleRoute('/pages/lucky/index');
+}
+
+function goToTodayPoster() {
+  uni.navigateTo({
+    url: '/pages/poster/today/index?auto=1',
+  });
 }
 
 onLoad(() => {

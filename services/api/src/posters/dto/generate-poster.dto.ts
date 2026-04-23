@@ -8,8 +8,8 @@ export class GeneratePosterDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['lucky_sign'])
-  sourceType?: 'lucky_sign';
+  @IsIn(['lucky_sign', 'today_index'])
+  sourceType?: 'lucky_sign' | 'today_index';
 
   @IsOptional()
   @IsString()
@@ -18,6 +18,6 @@ export class GeneratePosterDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['1280x1280'])
-  size?: '1280x1280';
+  @IsIn(['1280x1280', '1088x1472'])
+  size?: '1280x1280' | '1088x1472';
 }

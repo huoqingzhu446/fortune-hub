@@ -62,7 +62,7 @@ const fallbackDashboard: MobileDashboardPayload = {
     {
       id: 'lucky-item',
       title: '幸运物',
-      description: '结合幸运指数推荐每日幸运物与壁纸主题。',
+      description: '结合幸运指数推荐每日幸运物、壁纸和分享图主题。',
       route: '/pages/lucky/index',
       badge: '内容化',
     },

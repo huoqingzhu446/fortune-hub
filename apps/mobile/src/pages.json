@@ -68,6 +68,12 @@
       }
     },
     {
+      "path": "pages/poster/today/index",
+      "style": {
+        "navigationBarTitleText": "今日分享图"
+      }
+    },
+    {
       "path": "pages/membership/index",
       "style": {
         "navigationBarTitleText": "会员中心"

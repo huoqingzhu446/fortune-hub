@@ -16,3 +16,13 @@ export function generateLuckySignPoster(bizCode: string) {
     bizCode,
   });
 }
+
+export function generateTodayIndexPoster() {
+  return http.post<
+    PosterGenerateResponse,
+    { sourceType: 'today_index'; size: '1088x1472' }
+  >('/posters/generate', {
+    sourceType: 'today_index',
+    size: '1088x1472',
+  });
+}

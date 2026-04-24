@@ -154,15 +154,15 @@
             class="record-row"
             @tap="openRecord(item)"
           >
-            <view class="record-row__icon">{{ recordIcon(item.recordType) }}</view>
+            <view class="record-row__icon">{{ item.icon }}</view>
             <view class="record-row__body">
               <view class="record-row__head">
                 <text class="record-row__title">{{ item.title }}</text>
-                <text v-if="item.level" class="record-row__tag">{{ item.level }}</text>
+                <text v-if="item.tag" class="record-row__tag">{{ item.tag }}</text>
               </view>
-              <text class="record-row__summary">{{ item.summary || item.subtitle || item.detailHint }}</text>
+              <text class="record-row__summary">{{ item.summary }}</text>
             </view>
-            <text class="record-row__time">{{ formatTime(item.completedAt) }}</text>
+            <text class="record-row__time">{{ item.time }}</text>
           </view>
         </view>
 
@@ -229,9 +229,23 @@ import { fetchRecordOverview } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { clearSession, getAuthToken } from '../../services/session';
-import type { RecordOverviewData, UnifiedRecordItem } from '../../types/records';
+import type {
+  MeditationLogItem,
+  MoodJournalItem,
+  RecordOverviewData,
+  UnifiedRecordItem,
+} from '../../types/records';
 
 type RecordTab = 'emotion' | 'test' | 'meditation';
+type RecentDisplayItem = {
+  id: string;
+  icon: string;
+  title: string;
+  tag: string;
+  summary: string;
+  time: string;
+  route: string;
+};
 const fallbackOverviewData: RecordOverviewData = {
   isLoggedIn: false,
   overview: {
@@ -266,7 +280,9 @@ const fallbackOverviewData: RecordOverviewData = {
       { day: '周日', value: null },
     ],
   },
-  recentRecords: [],
+  moodRecords: [],
+  testRecords: [],
+  meditationRecords: [],
   growth: {
     continuousDays: 0,
     monthKeywords: '放松 · 接纳 · 修复',
@@ -311,30 +327,44 @@ const growth = computed(() => recordOverview.value.growth);
 const overview = computed(() => recordOverview.value.overview);
 const currentMonthLabel = computed(() => recordOverview.value.calendar.monthLabel);
 
-const emotionRecords = computed(() =>
-  recordOverview.value.recentRecords.filter((item) => item.recordType === 'emotion'),
-);
+const moodRecords = computed(() => recordOverview.value.moodRecords);
+const testRecords = computed(() => recordOverview.value.testRecords);
+const meditationRecords = computed(() => recordOverview.value.meditationRecords);
 
-const testRecords = computed(() =>
-  recordOverview.value.recentRecords.filter((item) =>
-    ['personality', 'bazi', 'zodiac'].includes(item.recordType),
-  ),
-);
-
-const meditationRecords = computed(() =>
-  recordOverview.value.recentRecords.filter((item) => item.recordType === 'meditation'),
-);
-
-const visibleRecentRecords = computed(() => {
+const visibleRecentRecords = computed<RecentDisplayItem[]>(() => {
   if (activeTab.value === 'emotion') {
-    return emotionRecords.value.slice(0, 4);
+    return moodRecords.value.slice(0, 4).map((item) => ({
+      id: item.id,
+      icon: '情',
+      title: `${item.recordDate} · 情绪日记`,
+      tag: moodLabel(item.moodType),
+      summary: item.content || '记录了今天的心情。',
+      time: formatTime(item.updatedAt),
+      route: item.route,
+    }));
   }
 
   if (activeTab.value === 'test') {
-    return testRecords.value.slice(0, 4);
+    return testRecords.value.slice(0, 4).map((item) => ({
+      id: item.id,
+      icon: recordIcon(item.recordType),
+      title: item.title,
+      tag: item.level || item.recordTypeLabel,
+      summary: item.summary || item.subtitle || item.detailHint,
+      time: formatTime(item.completedAt),
+      route: item.route,
+    }));
   }
 
-  return meditationRecords.value.slice(0, 4);
+  return meditationRecords.value.slice(0, 4).map((item) => ({
+    id: item.id,
+    icon: '静',
+    title: item.title,
+    tag: `${item.durationMinutes} 分钟`,
+    summary: item.summary || `${item.category} 练习`,
+    time: formatTime(item.updatedAt),
+    route: item.route,
+  }));
 });
 
 const overviewStats = computed(() => [
@@ -438,7 +468,7 @@ function open(route: string) {
   });
 }
 
-function openRecord(item: UnifiedRecordItem) {
+function openRecord(item: RecentDisplayItem | UnifiedRecordItem | MoodJournalItem | MeditationLogItem) {
   open(item.route);
 }
 
@@ -454,11 +484,11 @@ function continueRecord() {
   }
 
   if (activeTab.value === 'meditation') {
-    open('/pages/emotion/index');
+    open('/pages/meditation/index');
     return;
   }
 
-  open('/pages/emotion/index');
+  open('/pages/journal/index');
 }
 
 function goProfile() {
@@ -466,7 +496,7 @@ function goProfile() {
 }
 
 function recordIcon(recordType: string) {
-  if (recordType === 'emotion') {
+  if (recordType === 'mood_journal') {
     return '情';
   }
 
@@ -479,6 +509,18 @@ function recordIcon(recordType: string) {
   }
 
   return '测';
+}
+
+function moodLabel(moodType: string) {
+  const mapping: Record<string, string> = {
+    calm: '平静',
+    low: '低落',
+    anxious: '焦虑',
+    happy: '愉悦',
+    tired: '疲惫',
+  };
+
+  return mapping[moodType] || '今日状态';
 }
 
 function formatTime(value: string) {

@@ -16,7 +16,9 @@ import { AssessmentTestGroupEntity } from './database/entities/assessment-test-g
 import { FavoriteEntity } from './database/entities/favorite.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
 import { LuckyItemEntity } from './database/entities/lucky-item.entity';
+import { MeditationRecordEntity } from './database/entities/meditation-record.entity';
 import { MembershipProductEntity } from './database/entities/membership-product.entity';
+import { MoodRecordEntity } from './database/entities/mood-record.entity';
 import { OrderEntity } from './database/entities/order.entity';
 import { ReportTemplateEntity } from './database/entities/report-template.entity';
 import { ShareRecordEntity } from './database/entities/share-record.entity';
@@ -59,8 +61,10 @@ import { ZodiacModule } from './zodiac/zodiac.module';
         AssessmentTestGroupEntity,
         FavoriteEntity,
         UserEntity,
-          UserRecordEntity,
-          FortuneContentEntity,
+        UserRecordEntity,
+        MoodRecordEntity,
+        MeditationRecordEntity,
+        FortuneContentEntity,
           LuckyItemEntity,
           AppConfigEntity,
           ReportTemplateEntity,

@@ -68,6 +68,18 @@
       }
     },
     {
+      "path": "pages/journal/index",
+      "style": {
+        "navigationBarTitleText": "情绪日记"
+      }
+    },
+    {
+      "path": "pages/meditation/index",
+      "style": {
+        "navigationBarTitleText": "冥想记录"
+      }
+    },
+    {
       "path": "pages/report/index",
       "style": {
         "navigationBarTitleText": "完整报告"

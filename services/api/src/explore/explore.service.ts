@@ -74,7 +74,7 @@ const FALLBACK_FEATURES: ExploreFeatureItem[] = [
     icon: '静',
     type: 'meditation',
     goals: ['relax', 'sleep', 'stress'],
-    route: '/pages/emotion/index',
+    route: '/pages/meditation/index',
   },
   {
     id: 'journal',
@@ -83,7 +83,7 @@ const FALLBACK_FEATURES: ExploreFeatureItem[] = [
     icon: '记',
     type: 'journal',
     goals: ['self', 'stress'],
-    route: '/pages/records/index',
+    route: '/pages/journal/index',
   },
   {
     id: 'compatibility',

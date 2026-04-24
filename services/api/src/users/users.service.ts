@@ -2,11 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
+import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
+import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { FavoritesService } from '../favorites/favorites.service';
 import { MembershipService } from '../membership/membership.service';
+import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
+import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 const WESTERN_ZODIAC_BOUNDARIES = [
@@ -42,6 +46,10 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(MoodRecordEntity)
+    private readonly moodRecordRepository: Repository<MoodRecordEntity>,
+    @InjectRepository(MeditationRecordEntity)
+    private readonly meditationRecordRepository: Repository<MeditationRecordEntity>,
     @InjectRepository(OrderEntity)
     private readonly orderRepository: Repository<OrderEntity>,
     private readonly authService: AuthService,
@@ -63,14 +71,13 @@ export class UsersService {
     const isVipActive = this.membershipService.isVipActive(user);
     const recentHistory = user ? await this.loadUnifiedHistoryItems(user, 3) : [];
     const latestScore = recentHistory.find((item) => item.score !== null)?.score ?? null;
-    const [totalRecords, emotionCount, orderCount, paidOrderCount, favoriteCount] = user
+
+    const [totalRecords, moodDayCount, orderCount, paidOrderCount, favoriteCount] = user
       ? await Promise.all([
           this.userRecordRepository.count({
             where: { userId: user.id },
           }),
-          this.userRecordRepository.count({
-            where: { userId: user.id, recordType: 'emotion' },
-          }),
+          this.countDistinctMoodDays(user.id),
           this.orderRepository.count({
             where: { userId: user.id },
           }),
@@ -80,6 +87,7 @@ export class UsersService {
           this.favoritesService.countFavorites(user.id),
         ])
       : [0, 0, 0, 0, 0];
+
     const vipExpireText = isVipActive ? this.formatDate(serializedUser?.vipExpiredAt) : null;
 
     return this.buildEnvelope({
@@ -119,7 +127,7 @@ export class UsersService {
         },
         {
           title: '心情记录天数',
-          value: isLoggedIn ? `${Math.max(0, emotionCount * 7) || 0}` : '--',
+          value: isLoggedIn ? `${moodDayCount}` : '--',
           meta: isLoggedIn ? '天' : '登录后同步',
           tone: 'blush',
         },
@@ -183,53 +191,152 @@ export class UsersService {
     });
   }
 
+  async getMoodRecords(user: UserEntity) {
+    const records = await this.moodRecordRepository.find({
+      where: {
+        userId: user.id,
+      },
+      order: {
+        recordDate: 'DESC',
+        updatedAt: 'DESC',
+      },
+      take: 30,
+    });
+
+    return this.buildEnvelope({
+      items: records.map((record) => this.serializeMoodRecord(record)),
+    });
+  }
+
+  async saveMoodRecord(user: UserEntity, dto: SaveMoodRecordDto) {
+    const existing = await this.moodRecordRepository.findOne({
+      where: {
+        userId: user.id,
+        recordDate: dto.recordDate,
+      },
+    });
+
+    const record =
+      existing ??
+      this.moodRecordRepository.create({
+        userId: user.id,
+        recordDate: dto.recordDate,
+      });
+
+    record.moodType = dto.moodType;
+    record.moodScore = dto.moodScore;
+    record.emotionTags = dto.emotionTags?.slice(0, 8) ?? [];
+    record.content = dto.content?.trim() || null;
+
+    const saved = await this.moodRecordRepository.save(record);
+
+    return this.buildEnvelope({
+      item: this.serializeMoodRecord(saved),
+    });
+  }
+
+  async getMeditationRecords(user: UserEntity) {
+    const records = await this.meditationRecordRepository.find({
+      where: {
+        userId: user.id,
+      },
+      order: {
+        recordDate: 'DESC',
+        updatedAt: 'DESC',
+      },
+      take: 30,
+    });
+
+    return this.buildEnvelope({
+      items: records.map((record) => this.serializeMeditationRecord(record)),
+    });
+  }
+
+  async saveMeditationRecord(user: UserEntity, dto: SaveMeditationRecordDto) {
+    const record = await this.meditationRecordRepository.save(
+      this.meditationRecordRepository.create({
+        userId: user.id,
+        recordDate: dto.recordDate,
+        title: dto.title.trim(),
+        category: dto.category?.trim() || 'meditation',
+        durationMinutes: dto.durationMinutes,
+        completed: dto.completed ?? true,
+        summary: dto.summary?.trim() || null,
+      }),
+    );
+
+    return this.buildEnvelope({
+      item: this.serializeMeditationRecord(record),
+    });
+  }
+
   async getRecordOverview(user: UserEntity | null) {
     const isLoggedIn = Boolean(user);
-    const records = user
-      ? await this.userRecordRepository.find({
-          where: {
-            userId: user.id,
-          },
-          order: {
-            createdAt: 'DESC',
-          },
-          take: 24,
-        })
-      : [];
-    const recentRecords =
-      user && records.length
-        ? records.map((record) =>
-            this.serializeUnifiedHistoryItem(
-              record,
-              this.membershipService.isVipActive(user),
-            ),
-          )
-        : [];
-    const emotionRecords = records.filter((record) => record.recordType === 'emotion');
-    const latestEmotionScore = this.resolveLatestEmotionScore(emotionRecords);
-    const trendPoints = this.buildTrendPoints(emotionRecords);
+    const [testRecords, moodRecords, meditationRecords] = user
+      ? await Promise.all([
+          this.userRecordRepository.find({
+            where: {
+              userId: user.id,
+            },
+            order: {
+              createdAt: 'DESC',
+            },
+            take: 24,
+          }),
+          this.moodRecordRepository.find({
+            where: {
+              userId: user.id,
+            },
+            order: {
+              recordDate: 'DESC',
+              updatedAt: 'DESC',
+            },
+            take: 31,
+          }),
+          this.meditationRecordRepository.find({
+            where: {
+              userId: user.id,
+            },
+            order: {
+              recordDate: 'DESC',
+              updatedAt: 'DESC',
+            },
+            take: 20,
+          }),
+        ])
+      : [[], [], []];
+
+    const latestMoodScore =
+      moodRecords[0]?.moodScore ??
+      this.resolveLatestEmotionScore(testRecords.filter((record) => record.recordType === 'emotion'));
+    const trendPoints = this.buildTrendPoints(moodRecords);
     const hasEnoughTrendData =
       trendPoints.filter((point) => point.value !== null).length >= 3;
     const recordedDays = new Set(
-      records
-        .map((record) => this.resolveRecordDate(record))
-        .filter((value): value is string => Boolean(value)),
+      [
+        ...testRecords.map((record) => this.resolveResultRecordDate(record)),
+        ...moodRecords.map((record) => record.recordDate),
+        ...meditationRecords.map((record) => record.recordDate),
+      ].filter((value): value is string => Boolean(value)),
     ).size;
+
     const overview = {
       recordedDays: isLoggedIn ? recordedDays : 0,
-      emotionalStability: latestEmotionScore,
-      healingProgress: isLoggedIn && latestEmotionScore > 0
-        ? Math.max(62, Math.min(96, latestEmotionScore + 8))
-        : 0,
+      emotionalStability: latestMoodScore,
+      healingProgress:
+        isLoggedIn && latestMoodScore > 0
+          ? Math.max(62, Math.min(96, latestMoodScore + 8))
+          : 0,
       encouragement: isLoggedIn
         ? '你正在慢慢靠近更平和的自己'
         : '先建立第一条记录，变化会开始被看见',
       actionText: isLoggedIn ? '继续记录' : '去登录',
     };
+
     const monthKeywords = isLoggedIn
-      ? latestEmotionScore >= 75
+      ? latestMoodScore >= 75
         ? '放松 · 接纳 · 修复'
-        : latestEmotionScore >= 60
+        : latestMoodScore >= 60
           ? '稳定 · 呼吸 · 调整'
           : '减压 · 休息 · 支持'
       : '放松 · 接纳 · 修复';
@@ -240,7 +347,7 @@ export class UsersService {
       calendar: {
         monthLabel: this.getCurrentMonthLabel(),
         weekdays: ['一', '二', '三', '四', '五', '六', '日'],
-        days: this.buildCalendarDays(emotionRecords),
+        days: this.buildCalendarDays(moodRecords),
         legend: RECORD_LEGEND,
       },
       trend: {
@@ -252,9 +359,26 @@ export class UsersService {
         hasEnoughData: hasEnoughTrendData,
         points: trendPoints,
       },
-      recentRecords,
+      moodRecords: moodRecords.slice(0, 12).map((record) => this.serializeMoodRecord(record)),
+      testRecords: user
+        ? testRecords.map((record) =>
+            this.serializeUnifiedHistoryItem(
+              record,
+              this.membershipService.isVipActive(user),
+            ),
+          )
+        : [],
+      meditationRecords: meditationRecords
+        .slice(0, 12)
+        .map((record) => this.serializeMeditationRecord(record)),
       growth: {
-        continuousDays: this.calculateContinuousDays(records),
+        continuousDays: this.calculateContinuousDays(
+          [
+            ...testRecords.map((record) => this.resolveResultRecordDate(record)),
+            ...moodRecords.map((record) => record.recordDate),
+            ...meditationRecords.map((record) => record.recordDate),
+          ].filter((value): value is string => Boolean(value)),
+        ),
         monthKeywords,
       },
       favorites: user
@@ -330,6 +454,33 @@ export class UsersService {
     };
   }
 
+  private serializeMoodRecord(record: MoodRecordEntity) {
+    return {
+      id: record.id,
+      recordDate: record.recordDate,
+      moodType: record.moodType,
+      moodScore: record.moodScore,
+      emotionTags: record.emotionTags ?? [],
+      content: record.content ?? '',
+      updatedAt: record.updatedAt.toISOString(),
+      route: `/pages/journal/index?recordDate=${encodeURIComponent(record.recordDate)}`,
+    };
+  }
+
+  private serializeMeditationRecord(record: MeditationRecordEntity) {
+    return {
+      id: record.id,
+      recordDate: record.recordDate,
+      title: record.title,
+      category: record.category,
+      durationMinutes: record.durationMinutes,
+      completed: record.completed,
+      summary: record.summary ?? '',
+      updatedAt: record.updatedAt.toISOString(),
+      route: `/pages/meditation/index?recordDate=${encodeURIComponent(record.recordDate)}`,
+    };
+  }
+
   private resolveRecordTypeMeta(recordType: string) {
     const mapping: Record<string, { label: string; route: string }> = {
       personality: {
@@ -347,10 +498,6 @@ export class UsersService {
       zodiac: {
         label: '星座运势',
         route: '/pages/zodiac/index',
-      },
-      meditation: {
-        label: '冥想足迹',
-        route: '/pages/emotion/index',
       },
     };
 
@@ -379,25 +526,26 @@ export class UsersService {
     );
   }
 
-  private resolveLatestEmotionScore(records: UserRecordEntity[]) {
+  private resolveLatestEmotionScore(records: Array<{ score: string | number | null }>) {
     const latest = records.find((record) => record.score !== null);
-    const parsed = latest?.score ? Number(latest.score) : NaN;
+    const parsed = latest && latest.score !== null ? Number(latest.score) : NaN;
 
     return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   }
 
-  private buildCalendarDays(records: UserRecordEntity[]) {
+  private buildCalendarDays(records: MoodRecordEntity[]) {
     const scoreByDate = new Map<string, number>();
+    const moodTypeByDate = new Map<string, string>();
 
     for (const record of records) {
-      const dateKey = this.resolveRecordDate(record);
+      const dateKey = record.recordDate;
 
       if (!dateKey || scoreByDate.has(dateKey)) {
         continue;
       }
 
-      const parsed = record.score ? Number(record.score) : NaN;
-      scoreByDate.set(dateKey, Number.isFinite(parsed) ? Math.round(parsed) : 68);
+      scoreByDate.set(dateKey, record.moodScore);
+      moodTypeByDate.set(dateKey, record.moodType);
     }
 
     const today = new Date();
@@ -411,24 +559,28 @@ export class UsersService {
       return {
         date: dateKey,
         day: date.getDate(),
-        moodType: this.resolveMoodType(score),
+        moodType: (moodTypeByDate.get(dateKey) ?? this.resolveMoodType(score)) as
+          | 'calm'
+          | 'low'
+          | 'anxious'
+          | 'happy'
+          | 'tired',
         hasRecord: scoreByDate.has(dateKey),
       };
     });
   }
 
-  private buildTrendPoints(records: UserRecordEntity[]) {
+  private buildTrendPoints(records: MoodRecordEntity[]) {
     const scoreByDate = new Map<string, number>();
 
     for (const record of records) {
-      const dateKey = this.resolveRecordDate(record);
+      const dateKey = record.recordDate;
 
       if (!dateKey || scoreByDate.has(dateKey)) {
         continue;
       }
 
-      const parsed = record.score ? Number(record.score) : NaN;
-      scoreByDate.set(dateKey, Number.isFinite(parsed) ? Math.round(parsed) : 68);
+      scoreByDate.set(dateKey, record.moodScore);
     }
 
     const today = new Date();
@@ -445,12 +597,8 @@ export class UsersService {
     });
   }
 
-  private calculateContinuousDays(records: UserRecordEntity[]) {
-    const dateSet = new Set(
-      records
-        .map((record) => this.resolveRecordDate(record))
-        .filter((value): value is string => Boolean(value)),
-    );
+  private calculateContinuousDays(recordDates: string[]) {
+    const dateSet = new Set(recordDates);
 
     let count = 0;
     const current = new Date();
@@ -465,7 +613,19 @@ export class UsersService {
       current.setDate(current.getDate() - 1);
     }
 
-    return Math.max(count, records.length ? 1 : 0);
+    return Math.max(count, recordDates.length ? 1 : 0);
+  }
+
+  private async countDistinctMoodDays(userId: string) {
+    const records = await this.moodRecordRepository.find({
+      where: { userId },
+      select: {
+        recordDate: true,
+      },
+      take: 365,
+    });
+
+    return new Set(records.map((item) => item.recordDate)).size;
   }
 
   private buildProfileTools() {
@@ -474,25 +634,25 @@ export class UsersService {
         title: '心情日记',
         description: '记录心情',
         icon: '记',
-        route: '/pages/records/index',
+        route: '/pages/journal/index',
       },
       {
         title: '冥想放松',
         description: '舒缓身心',
         icon: '静',
-        route: '/pages/emotion/index',
+        route: '/pages/meditation/index',
       },
       {
         title: '睡眠助手',
         description: '晚间疗愈',
         icon: '眠',
-        route: '/pages/emotion/index',
+        route: '/pages/meditation/index',
       },
       {
         title: '专注计时',
         description: '回到当下',
         icon: '时',
-        route: '/pages/emotion/index',
+        route: '/pages/meditation/index',
       },
       {
         title: '能量音乐',
@@ -555,7 +715,7 @@ export class UsersService {
         description: '温柔呼吸，安心入眠',
         icon: '眠',
         action: '播放',
-        route: '/pages/emotion/index',
+        route: '/pages/meditation/index',
       },
       {
         id: 'reset',
@@ -592,7 +752,7 @@ export class UsersService {
     return 'anxious';
   }
 
-  private resolveRecordDate(record: UserRecordEntity) {
+  private resolveResultRecordDate(record: UserRecordEntity) {
     const resultData = record.resultData as { completedAt?: string };
     const raw = resultData.completedAt ?? record.createdAt.toISOString();
     const date = new Date(raw);

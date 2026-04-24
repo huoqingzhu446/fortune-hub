@@ -9,7 +9,9 @@ import { AssessmentTestGroupEntity } from './entities/assessment-test-group.enti
 import { FavoriteEntity } from './entities/favorite.entity';
 import { FortuneContentEntity } from './entities/fortune-content.entity';
 import { LuckyItemEntity } from './entities/lucky-item.entity';
+import { MeditationRecordEntity } from './entities/meditation-record.entity';
 import { MembershipProductEntity } from './entities/membership-product.entity';
+import { MoodRecordEntity } from './entities/mood-record.entity';
 import { OrderEntity } from './entities/order.entity';
 import { ReportTemplateEntity } from './entities/report-template.entity';
 import { ShareRecordEntity } from './entities/share-record.entity';
@@ -33,6 +35,8 @@ export default new DataSource({
     FavoriteEntity,
     UserEntity,
     UserRecordEntity,
+    MoodRecordEntity,
+    MeditationRecordEntity,
     FortuneContentEntity,
     LuckyItemEntity,
     AppConfigEntity,

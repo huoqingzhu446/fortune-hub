@@ -101,10 +101,10 @@
       <view class="section">
         <view class="section__head">
           <text class="section__title">情绪趋势</text>
-          <text class="section__meta">最近一周整体趋于平稳</text>
+          <text class="section__meta">{{ recordOverview.trend.summary }}</text>
         </view>
 
-        <view class="trend-card">
+        <view v-if="recordOverview.trend.hasEnoughData" class="trend-card">
           <view class="trend-card__axis">
             <text>愉悦</text>
             <text>平静</text>
@@ -117,7 +117,7 @@
             <view class="trend-card__grid trend-card__grid--mid"></view>
             <view class="trend-card__area"></view>
             <view
-              v-for="point in trendPoints"
+              v-for="point in actualTrendPoints"
               :key="point.day"
               class="trend-card__point"
               :style="{ left: `${point.x}%`, top: `${point.y}%` }"
@@ -127,6 +127,12 @@
           <view class="trend-card__labels">
             <text v-for="point in trendPoints" :key="point.day">{{ point.day }}</text>
           </view>
+        </view>
+
+        <view v-else class="empty-state">
+          <text class="empty-state__title">记录 3 天以上后，就能看到你的情绪趋势。</text>
+          <text class="empty-state__text">先从一次轻量打卡开始，趋势会随着记录慢慢形成。</text>
+          <button class="empty-state__button" @tap="continueRecord">去记录</button>
         </view>
       </view>
 
@@ -249,14 +255,15 @@ const fallbackOverviewData: RecordOverviewData = {
   },
   trend: {
     summary: '登录后可以看到你的趋势变化',
+    hasEnoughData: false,
     points: [
-      { day: '周一', value: 54 },
-      { day: '周二', value: 68 },
-      { day: '周三', value: 58 },
-      { day: '周四', value: 76 },
-      { day: '周五', value: 70 },
-      { day: '周六', value: 82 },
-      { day: '周日', value: 78 },
+      { day: '周一', value: null },
+      { day: '周二', value: null },
+      { day: '周三', value: null },
+      { day: '周四', value: null },
+      { day: '周五', value: null },
+      { day: '周六', value: null },
+      { day: '周日', value: null },
     ],
   },
   recentRecords: [],
@@ -354,14 +361,23 @@ const calendarDays = computed(() =>
 
 const trendPoints = computed(() => {
   const list = recordOverview.value.trend.points;
-  const maxValue = Math.max(...list.map((item) => item.value), 100);
+  const actualValues = list
+    .map((item) => item.value)
+    .filter((value): value is number => value !== null);
+  const maxValue = Math.max(...actualValues, 100);
 
   return list.map((point, index) => ({
     ...point,
     x: list.length === 1 ? 50 : (index / (list.length - 1)) * 100,
-    y: 16 + ((maxValue - point.value) / maxValue) * 58,
+    y:
+      point.value === null
+        ? 74
+        : 16 + ((maxValue - point.value) / maxValue) * 58,
   }));
 });
+const actualTrendPoints = computed(() =>
+  trendPoints.value.filter((point) => point.value !== null),
+);
 
 const emptyRecordTitle = computed(() => {
   if (activeTab.value === 'emotion') {

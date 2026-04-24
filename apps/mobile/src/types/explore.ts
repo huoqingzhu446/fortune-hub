@@ -63,3 +63,12 @@ export interface ExploreIndexData {
 }
 
 export type ExploreIndexResponse = ApiEnvelope<ExploreIndexData>;
+
+export interface ExploreSearchData {
+  keyword: string;
+  features: ExploreFeatureItem[];
+  topics: ExploreTopicItem[];
+  contents: ExploreContentItem[];
+}
+
+export type ExploreSearchResponse = ApiEnvelope<ExploreSearchData>;

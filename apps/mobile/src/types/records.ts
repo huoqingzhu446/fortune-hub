@@ -49,9 +49,10 @@ export interface RecordOverviewData {
   };
   trend: {
     summary: string;
+    hasEnoughData: boolean;
     points: Array<{
       day: string;
-      value: number;
+      value: number | null;
     }>;
   };
   recentRecords: UnifiedRecordItem[];

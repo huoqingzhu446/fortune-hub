@@ -182,7 +182,7 @@
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
-import { fetchExploreIndex } from '../../api/explore';
+import { fetchExploreIndex, fetchExploreSearch } from '../../api/explore';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
@@ -202,6 +202,7 @@ const keyword = ref('');
 const showFilter = ref(false);
 const selectedType = ref<FilterType>('all');
 const selectedGoals = ref<string[]>([]);
+const searchedKeyword = ref('');
 
 function normalizeFilterType(value: string): FilterType {
   if (
@@ -256,6 +257,9 @@ const fallbackExploreData: ExploreIndexData = {
   contents: [],
 };
 const exploreData = ref<ExploreIndexData>(fallbackExploreData);
+const searchedFeatures = ref<ExploreFeatureItem[] | null>(null);
+const searchedTopics = ref<ExploreTopicItem[] | null>(null);
+const searchedContents = ref<ExploreContentItem[] | null>(null);
 
 const normalizedKeyword = computed(() => keyword.value.trim().toLowerCase());
 const typeFilters = computed<Array<ExploreFilterOption & { value: FilterType }>>(() =>
@@ -265,9 +269,21 @@ const typeFilters = computed<Array<ExploreFilterOption & { value: FilterType }>>
   })),
 );
 const goalFilters = computed<ExploreFilterOption[]>(() => exploreData.value.filters.goals);
-const features = computed<ExploreFeatureItem[]>(() => exploreData.value.features);
-const topics = computed<ExploreTopicItem[]>(() => exploreData.value.topics);
-const contents = computed<ExploreContentItem[]>(() => exploreData.value.contents);
+const features = computed<ExploreFeatureItem[]>(() =>
+  searchedFeatures.value && searchedKeyword.value === normalizedKeyword.value
+    ? searchedFeatures.value
+    : exploreData.value.features,
+);
+const topics = computed<ExploreTopicItem[]>(() =>
+  searchedTopics.value && searchedKeyword.value === normalizedKeyword.value
+    ? searchedTopics.value
+    : exploreData.value.topics,
+);
+const contents = computed<ExploreContentItem[]>(() =>
+  searchedContents.value && searchedKeyword.value === normalizedKeyword.value
+    ? searchedContents.value
+    : exploreData.value.contents,
+);
 
 const filteredFeatures = computed(() =>
   features.value.filter((item) => {
@@ -318,18 +334,25 @@ function open(route: string) {
 }
 
 function submitSearch() {
-  if (!keyword.value.trim()) {
+  const nextKeyword = keyword.value.trim();
+
+  if (!nextKeyword) {
+    searchedKeyword.value = '';
+    searchedFeatures.value = null;
+    searchedTopics.value = null;
+    searchedContents.value = null;
     return;
   }
 
-  uni.showToast({
-    title: `已搜索：${keyword.value.trim()}`,
-    icon: 'none',
-  });
+  void loadExploreSearch(nextKeyword);
 }
 
 function clearKeyword() {
   keyword.value = '';
+  searchedKeyword.value = '';
+  searchedFeatures.value = null;
+  searchedTopics.value = null;
+  searchedContents.value = null;
 }
 
 function toggleGoal(value: string) {
@@ -341,6 +364,26 @@ function toggleGoal(value: string) {
 function resetFilters() {
   selectedType.value = 'all';
   selectedGoals.value = [];
+}
+
+async function loadExploreSearch(nextKeyword: string) {
+  try {
+    const response = await fetchExploreSearch({
+      keyword: nextKeyword,
+      type: selectedType.value === 'all' ? undefined : selectedType.value,
+      goal: selectedGoals.value,
+    });
+    searchedKeyword.value = nextKeyword.toLowerCase();
+    searchedFeatures.value = response.data.features;
+    searchedTopics.value = response.data.topics;
+    searchedContents.value = response.data.contents;
+  } catch (error) {
+    console.warn('search explore failed', error);
+    uni.showToast({
+      title: getErrorMessage(error, '搜索失败'),
+      icon: 'none',
+    });
+  }
 }
 
 onLoad(() => {

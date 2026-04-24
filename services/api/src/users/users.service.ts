@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
+import { OrderEntity } from '../database/entities/order.entity';
+import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { MembershipService } from '../membership/membership.service';
@@ -40,6 +42,10 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(OrderEntity)
+    private readonly orderRepository: Repository<OrderEntity>,
+    @InjectRepository(ShareRecordEntity)
+    private readonly shareRecordRepository: Repository<ShareRecordEntity>,
     private readonly authService: AuthService,
     private readonly membershipService: MembershipService,
   ) {}
@@ -58,16 +64,26 @@ export class UsersService {
     const isVipActive = this.membershipService.isVipActive(user);
     const recentHistory = user ? await this.loadUnifiedHistoryItems(user, 3) : [];
     const latestScore = recentHistory.find((item) => item.score !== null)?.score ?? null;
-    const totalRecords = user
-      ? await this.userRecordRepository.count({
-          where: { userId: user.id },
-        })
-      : 0;
-    const emotionCount = user
-      ? await this.userRecordRepository.count({
-          where: { userId: user.id, recordType: 'emotion' },
-        })
-      : 0;
+    const [totalRecords, emotionCount, orderCount, paidOrderCount, savedPosterCount] = user
+      ? await Promise.all([
+          this.userRecordRepository.count({
+            where: { userId: user.id },
+          }),
+          this.userRecordRepository.count({
+            where: { userId: user.id, recordType: 'emotion' },
+          }),
+          this.orderRepository.count({
+            where: { userId: user.id },
+          }),
+          this.orderRepository.count({
+            where: { userId: user.id, status: 'paid' },
+          }),
+          this.shareRecordRepository.count({
+            where: { userId: user.id },
+          }),
+        ])
+      : [0, 0, 0, 0, 0];
+    const vipExpireText = isVipActive ? this.formatDate(serializedUser?.vipExpiredAt) : null;
 
     return this.buildEnvelope({
       isLoggedIn,
@@ -90,8 +106,10 @@ export class UsersService {
       membershipCard: {
         title: '开通会员 · 解锁全部权益',
         summary: isVipActive
-          ? '当前会员已生效，可以直接查看更多完整报告与内容。'
-          : '享受专属报告、好运加持等 12 项特权。',
+          ? `当前会员已生效${vipExpireText ? `，有效期至 ${vipExpireText}` : ''}。`
+          : orderCount
+            ? `你已有 ${orderCount} 笔订单记录，开通后可自动解锁更多完整内容。`
+            : '享受专属报告、好运加持等 12 项特权。',
         buttonText: isVipActive ? '查看权益' : '立即开通',
         route: '/pages/membership/index',
       },
@@ -117,14 +135,19 @@ export class UsersService {
         {
           title: '好运能量值',
           value: isLoggedIn
-            ? `${Math.max(120, totalRecords * 20 + (isProfileCompleted ? 80 : 20))}`
+            ? `${Math.max(120, totalRecords * 20 + savedPosterCount * 10 + (isProfileCompleted ? 80 : 20))}`
             : '--',
           meta: isLoggedIn ? '分' : '登录后同步',
           tone: 'gold',
         },
       ],
       tools: this.buildProfileTools(),
-      services: this.buildProfileServices(),
+      services: this.buildProfileServices({
+        orderCount,
+        paidOrderCount,
+        reportCount: totalRecords,
+        savedPosterCount,
+      }),
       recentHistory,
     });
   }
@@ -187,10 +210,18 @@ export class UsersService {
         : [];
     const emotionRecords = records.filter((record) => record.recordType === 'emotion');
     const latestEmotionScore = this.resolveLatestEmotionScore(emotionRecords);
+    const trendPoints = this.buildTrendPoints(emotionRecords);
+    const hasEnoughTrendData =
+      trendPoints.filter((point) => point.value !== null).length >= 3;
+    const recordedDays = new Set(
+      records
+        .map((record) => this.resolveRecordDate(record))
+        .filter((value): value is string => Boolean(value)),
+    ).size;
     const overview = {
-      recordedDays: isLoggedIn ? Math.max(7, Math.min(28, records.length || 7)) : 0,
+      recordedDays: isLoggedIn ? recordedDays : 0,
       emotionalStability: latestEmotionScore,
-      healingProgress: isLoggedIn
+      healingProgress: isLoggedIn && latestEmotionScore > 0
         ? Math.max(62, Math.min(96, latestEmotionScore + 8))
         : 0,
       encouragement: isLoggedIn
@@ -216,8 +247,13 @@ export class UsersService {
         legend: RECORD_LEGEND,
       },
       trend: {
-        summary: isLoggedIn ? '最近一周整体趋于平稳' : '登录后可以看到你的趋势变化',
-        points: this.buildTrendPoints(emotionRecords),
+        summary: !isLoggedIn
+          ? '登录后可以看到你的趋势变化'
+          : hasEnoughTrendData
+            ? '最近一周整体趋于平稳'
+            : '继续记录几天后，就能看到更清晰的变化曲线',
+        hasEnoughData: hasEnoughTrendData,
+        points: trendPoints,
       },
       recentRecords,
       growth: {
@@ -348,7 +384,7 @@ export class UsersService {
     const latest = records.find((record) => record.score !== null);
     const parsed = latest?.score ? Number(latest.score) : NaN;
 
-    return Number.isFinite(parsed) ? Math.round(parsed) : 78;
+    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
   }
 
   private buildCalendarDays(records: UserRecordEntity[]) {
@@ -396,7 +432,6 @@ export class UsersService {
       scoreByDate.set(dateKey, Number.isFinite(parsed) ? Math.round(parsed) : 68);
     }
 
-    const defaultValues = [54, 68, 58, 76, 70, 82, 78];
     const today = new Date();
 
     return Array.from({ length: 7 }, (_, index) => {
@@ -406,7 +441,7 @@ export class UsersService {
 
       return {
         day: RECORD_WEEKDAYS[date.getDay()],
-        value: scoreByDate.get(dateKey) ?? defaultValues[index],
+        value: scoreByDate.get(dateKey) ?? null,
       };
     });
   }
@@ -469,23 +504,32 @@ export class UsersService {
     ];
   }
 
-  private buildProfileServices() {
+  private buildProfileServices(input: {
+    orderCount: number;
+    paidOrderCount: number;
+    reportCount: number;
+    savedPosterCount: number;
+  }) {
     return [
       {
         title: '我的订单',
-        description: '',
+        description: input.orderCount
+          ? `共 ${input.orderCount} 笔订单${input.paidOrderCount ? `，已支付 ${input.paidOrderCount} 笔` : ''}`
+          : '暂无订单记录',
         icon: '单',
         route: '/pages/membership/index',
       },
       {
         title: '我的报告',
-        description: '',
+        description: input.reportCount ? `已生成 ${input.reportCount} 份报告` : '暂无报告记录',
         icon: '报',
         route: '/pages/records/index',
       },
       {
         title: '我的收藏',
-        description: '',
+        description: input.savedPosterCount
+          ? `已保存 ${input.savedPosterCount} 张海报`
+          : '暂无保存内容',
         icon: '藏',
         route: '/pages/lucky/index',
       },
@@ -576,5 +620,22 @@ export class UsersService {
       data,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private formatDate(value: string | Date | null | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

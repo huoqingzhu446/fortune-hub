@@ -1,4 +1,4 @@
-import { Controller, Get, Headers } from '@nestjs/common';
+import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { ExploreService } from './explore.service';
 
@@ -13,5 +13,20 @@ export class ExploreController {
   async getExploreIndex(@Headers('authorization') authorization?: string) {
     const user = await this.authService.resolveUserFromAuthorization(authorization);
     return this.exploreService.getExploreIndex(user);
+  }
+
+  @Get('search')
+  async searchExplore(
+    @Headers('authorization') authorization?: string,
+    @Query('keyword') keyword?: string,
+    @Query('type') type?: string,
+    @Query('goal') goal?: string,
+  ) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.exploreService.searchExplore(user, {
+      keyword,
+      type,
+      goal,
+    });
   }
 }

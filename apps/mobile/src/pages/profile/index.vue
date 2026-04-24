@@ -55,12 +55,10 @@
 
       <view class="vip-card" @tap="goMembership">
         <view class="vip-card__copy">
-          <text class="vip-card__title">开通会员 · 解锁全部权益</text>
-          <text class="vip-card__summary">
-            享受专属报告、好运加持等 12 项特权。
-          </text>
+          <text class="vip-card__title">{{ profilePage.membershipCard.title }}</text>
+          <text class="vip-card__summary">{{ profilePage.membershipCard.summary }}</text>
         </view>
-        <button class="vip-card__button">立即开通</button>
+        <button class="vip-card__button">{{ profilePage.membershipCard.buttonText }}</button>
       </view>
 
       <view class="section">
@@ -243,8 +241,8 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
-import { fetchMe, loginWithCode, updateMyProfile } from '../../api/auth';
-import { fetchUnifiedHistory } from '../../api/records';
+import { loginWithCode, updateMyProfile } from '../../api/auth';
+import { fetchProfilePage } from '../../api/profile';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import {
@@ -257,6 +255,7 @@ import {
   setCachedUser,
 } from '../../services/session';
 import type { UserProfile } from '../../types/auth';
+import type { ProfilePageData } from '../../types/profile';
 import type { UnifiedRecordItem } from '../../types/records';
 
 type GenderValue = 'male' | 'female' | 'unknown';
@@ -309,6 +308,33 @@ const loginErrorMessage = ref('');
 const recentHistory = ref<UnifiedRecordItem[]>([]);
 const showProfileEditor = ref(false);
 const { themeVars } = useThemePreference();
+const fallbackProfilePage: ProfilePageData = {
+  isLoggedIn: false,
+  user: null,
+  isProfileCompleted: false,
+  hero: {
+    displayName: '清浅',
+    vipLabel: '普通用户',
+    signature: '愿你成为自己的光，温柔而有力量。',
+    sessionHint: '登录后会把记录、会员状态和主题偏好绑定到当前账号。',
+  },
+  membershipCard: {
+    title: '开通会员 · 解锁全部权益',
+    summary: '享受专属报告、好运加持等 12 项特权。',
+    buttonText: '立即开通',
+    route: '/pages/membership/index',
+  },
+  dataCards: [
+    { title: '综合气运指数', value: '--', meta: '登录后同步', tone: 'mist' },
+    { title: '心情记录天数', value: '--', meta: '登录后同步', tone: 'blush' },
+    { title: '探索报告', value: '--', meta: '登录后同步', tone: 'mint' },
+    { title: '好运能量值', value: '--', meta: '登录后同步', tone: 'gold' },
+  ],
+  tools: [],
+  services: [],
+  recentHistory: [],
+};
+const profilePage = ref<ProfilePageData>(fallbackProfilePage);
 
 const form = reactive({
   nickname: profile.value.nickname || '',
@@ -318,30 +344,16 @@ const form = reactive({
 });
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
+const pageIsLoggedIn = computed(() => profilePage.value.isLoggedIn);
 
 const profileName = computed(() => {
-  if (isLoggedIn.value) {
-    return profile.value.nickname || '清浅';
-  }
-
-  return '清浅';
+  return profilePage.value.hero.displayName || profile.value.nickname || '清浅';
 });
 
 const avatarInitial = computed(() => profileName.value.slice(0, 1));
 
-const vipLabel = computed(() => (profile.value.vipStatus === 'inactive' ? '普通用户' : 'VIP'));
-
-const signatureText = computed(() => {
-  if (!isLoggedIn.value) {
-    return '愿你成为自己的光，温柔而有力量。';
-  }
-
-  if (!profileCompleted.value) {
-    return '补齐资料后，你的主题、报告与状态判断会更贴近自己。';
-  }
-
-  return '愿你成为自己的光，温柔而有力量。';
-});
+const vipLabel = computed(() => profilePage.value.hero.vipLabel);
+const signatureText = computed(() => profilePage.value.hero.signature);
 
 const loginButtonLabel = computed(() => {
   if (isLoggedIn.value) {
@@ -351,117 +363,10 @@ const loginButtonLabel = computed(() => {
   return isMpWeixin ? '微信一键登录' : '开发环境快捷登录';
 });
 
-const sessionHint = computed(() => {
-  if (!isLoggedIn.value) {
-    return '登录后会把记录、会员状态和主题偏好绑定到当前账号。';
-  }
-
-  return profileCompleted.value
-    ? '资料已完善，首页与探索页会优先参考你的资料。'
-    : '生日和出生时间补齐后，会自动生成星座与五行信息。';
-});
-
-const dataCards = computed<
-  Array<{ title: string; value: string; meta: string; tone: DataTone }>
->(() => {
-  const latestScore = recentHistory.value.find((item) => item.score !== null)?.score ?? 87;
-  const moodDays = Math.max(0, recentHistory.value.filter((item) => item.recordType === 'emotion').length * 7);
-  const reportCount = recentHistory.value.length;
-  const energy = Math.max(120, reportCount * 20 + (profileCompleted.value ? 80 : 20));
-
-  return [
-    {
-      title: '综合气运指数',
-      value: `${latestScore}`,
-      meta: latestScore >= 80 ? '优秀' : '平稳',
-      tone: 'mist',
-    },
-    {
-      title: '心情记录天数',
-      value: `${moodDays || 28}`,
-      meta: '天',
-      tone: 'blush',
-    },
-    {
-      title: '探索报告',
-      value: `${reportCount || 16}`,
-      meta: '份',
-      tone: 'mint',
-    },
-    {
-      title: '好运能量值',
-      value: `${energy}`,
-      meta: '分',
-      tone: 'gold',
-    },
-  ];
-});
-
-const tools = [
-  {
-    title: '心情日记',
-    description: '记录心情',
-    icon: '记',
-    route: '/pages/records/index',
-  },
-  {
-    title: '冥想放松',
-    description: '舒缓身心',
-    icon: '静',
-    route: '/pages/emotion/index',
-  },
-  {
-    title: '睡眠助手',
-    description: '晚间疗愈',
-    icon: '眠',
-    route: '/pages/emotion/index',
-  },
-  {
-    title: '专注计时',
-    description: '回到当下',
-    icon: '时',
-    route: '/pages/emotion/index',
-  },
-  {
-    title: '能量音乐',
-    description: '稳定节奏',
-    icon: '乐',
-    route: '/pages/lucky/index',
-  },
-];
-
-const services = [
-  {
-    title: '我的订单',
-    description: '',
-    icon: '单',
-    route: '/pages/membership/index',
-  },
-  {
-    title: '我的报告',
-    description: '',
-    icon: '报',
-    route: '/pages/records/index',
-  },
-  {
-    title: '我的收藏',
-    description: '',
-    icon: '藏',
-    route: '/pages/lucky/index',
-  },
-  {
-    title: '我的咨询',
-    description: '',
-    icon: '询',
-    route: '/pages/settings/feedback/index',
-  },
-  {
-    title: '邀请好友',
-    description: '得 7 天会员',
-    icon: '邀',
-    route: '/pages/membership/index',
-  },
-];
+const sessionHint = computed(() => profilePage.value.hero.sessionHint);
+const dataCards = computed(() => profilePage.value.dataCards);
+const tools = computed(() => profilePage.value.tools);
+const services = computed(() => profilePage.value.services);
 
 function applyLoginResult(data: {
   token: string;
@@ -493,44 +398,30 @@ function applyLoginResult(data: {
 }
 
 async function hydrateProfile() {
-  if (!isLoggedIn.value) {
-    return;
-  }
-
   try {
-    const response = await fetchMe();
-    profile.value = response.data.user;
-    profileCompleted.value = response.data.isProfileCompleted;
-    setCachedUser(response.data.user);
-    syncForm();
+    const response = await fetchProfilePage();
+    profilePage.value = response.data;
+    recentHistory.value = response.data.recentHistory;
+    historyLoading.value = false;
+
+    if (response.data.user) {
+      profile.value = response.data.user;
+      profileCompleted.value = response.data.isProfileCompleted;
+      setCachedUser(response.data.user);
+      syncForm();
+    }
+
+    if (!response.data.isLoggedIn && authToken.value) {
+      clearSession();
+      authToken.value = '';
+      authMeta.value = null;
+    }
   } catch (error) {
     console.warn('load profile failed', error);
     if (handleAuthExpired(error)) {
       resetSessionState();
       loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
     }
-  }
-}
-
-async function loadHistoryPreview() {
-  if (!isLoggedIn.value) {
-    recentHistory.value = [];
-    return;
-  }
-
-  try {
-    historyLoading.value = true;
-    const response = await fetchUnifiedHistory(3);
-    recentHistory.value = response.data.items;
-  } catch (error) {
-    console.warn('load history preview failed', error);
-    recentHistory.value = [];
-    if (handleAuthExpired(error)) {
-      resetSessionState();
-      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
-    }
-  } finally {
-    historyLoading.value = false;
   }
 }
 
@@ -547,6 +438,7 @@ function resetSessionState() {
   profile.value = emptyProfile;
   profileCompleted.value = false;
   recentHistory.value = [];
+  profilePage.value = fallbackProfilePage;
   showProfileEditor.value = false;
   syncForm();
 }
@@ -631,7 +523,7 @@ async function handleLogin() {
       await loginForExperience();
     }
 
-    await loadHistoryPreview();
+    await hydrateProfile();
     uni.showToast({
       title: '登录成功',
       icon: 'success',
@@ -669,6 +561,7 @@ async function saveProfile() {
     profileCompleted.value = response.data.isProfileCompleted;
     setCachedUser(response.data.user);
     showProfileEditor.value = false;
+    await hydrateProfile();
     uni.showToast({
       title: '资料已更新',
       icon: 'success',
@@ -714,7 +607,7 @@ function goHistory() {
 }
 
 function goMembership() {
-  open('/pages/membership/index');
+  open(profilePage.value.membershipCard.route || '/pages/membership/index');
 }
 
 function goSettings() {
@@ -739,8 +632,8 @@ function historyIcon(recordType: string) {
 }
 
 onLoad(() => {
+  historyLoading.value = true;
   void hydrateProfile();
-  void loadHistoryPreview();
 });
 
 onShow(() => {
@@ -749,8 +642,8 @@ onShow(() => {
     authToken.value = latestToken;
   }
   authMeta.value = getAuthSessionMeta();
+  historyLoading.value = true;
   void hydrateProfile();
-  void loadHistoryPreview();
 });
 </script>
 

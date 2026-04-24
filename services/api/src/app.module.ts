@@ -23,6 +23,7 @@ import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
 import { FortuneModule } from './fortune/fortune.module';
+import { ExploreModule } from './explore/explore.module';
 import { HomeModule } from './home/home.module';
 import { HealthController } from './health/health.controller';
 import { LuckyModule } from './lucky/lucky.module';
@@ -87,6 +88,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     BaziModule,
     AuthModule,
     UsersModule,
+    ExploreModule,
     HomeModule,
     ZodiacModule,
     FortuneModule,

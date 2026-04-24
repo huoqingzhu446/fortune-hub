@@ -16,6 +16,12 @@ export class UsersController {
     return this.usersService.getCurrentProfile(user);
   }
 
+  @Get('user/profile')
+  async getProfilePage(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.usersService.getProfilePage(user);
+  }
+
   @Put('me/profile')
   async updateProfile(
     @Headers('authorization') authorization: string | undefined,
@@ -35,5 +41,11 @@ export class UsersController {
       user,
       typeof limit === 'string' ? Number(limit) : undefined,
     );
+  }
+
+  @Get('record/overview')
+  async getRecordOverview(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.usersService.getRecordOverview(user);
   }
 }

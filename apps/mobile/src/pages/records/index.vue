@@ -219,93 +219,103 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
-import { fetchUnifiedHistory } from '../../api/records';
+import { fetchRecordOverview } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
-import { getAuthToken } from '../../services/session';
-import type { UnifiedRecordItem } from '../../types/records';
+import { clearSession, getAuthToken } from '../../services/session';
+import type { RecordOverviewData, UnifiedRecordItem } from '../../types/records';
 
 type RecordTab = 'emotion' | 'test' | 'meditation';
-type MoodType = 'calm' | 'low' | 'anxious' | 'happy' | 'tired';
+const fallbackOverviewData: RecordOverviewData = {
+  isLoggedIn: false,
+  overview: {
+    recordedDays: 0,
+    emotionalStability: 0,
+    healingProgress: 0,
+    encouragement: '先建立第一条记录，变化会开始被看见',
+    actionText: '去登录',
+  },
+  calendar: {
+    monthLabel: `${new Date().getFullYear()}年${new Date().getMonth() + 1}月`,
+    weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+    days: [],
+    legend: [
+      { type: 'calm', label: '平静' },
+      { type: 'low', label: '低落' },
+      { type: 'anxious', label: '焦虑' },
+      { type: 'happy', label: '愉悦' },
+      { type: 'tired', label: '疲惫' },
+    ],
+  },
+  trend: {
+    summary: '登录后可以看到你的趋势变化',
+    points: [
+      { day: '周一', value: 54 },
+      { day: '周二', value: 68 },
+      { day: '周三', value: 58 },
+      { day: '周四', value: 76 },
+      { day: '周五', value: 70 },
+      { day: '周六', value: 82 },
+      { day: '周日', value: 78 },
+    ],
+  },
+  recentRecords: [],
+  growth: {
+    continuousDays: 0,
+    monthKeywords: '放松 · 接纳 · 修复',
+  },
+  favorites: [
+    {
+      id: 'sleep',
+      title: '睡前呼吸音频',
+      description: '温柔呼吸，安心入眠',
+      icon: '眠',
+      action: '播放',
+      route: '/pages/emotion/index',
+    },
+    {
+      id: 'reset',
+      title: '情绪复位练习',
+      description: '平复情绪，找回平衡',
+      icon: '莲',
+      action: '练习',
+      route: '/pages/emotion/index',
+    },
+  ],
+};
 
-interface CalendarDay {
-  date: string;
-  day: number;
-  moodType: MoodType;
-  hasRecord: boolean;
-  isSelected: boolean;
-}
-
-const items = ref<UnifiedRecordItem[]>([]);
 const loading = ref(false);
 const authToken = ref(getAuthToken());
 const activeTab = ref<RecordTab>('emotion');
 const selectedDate = ref(buildLocalDateString(new Date()));
 const { themePalette, themeVars } = useThemePreference();
+const recordOverview = ref<RecordOverviewData>(fallbackOverviewData);
 
 const recordTabs: Array<{ label: string; value: RecordTab }> = [
   { label: '情绪日记', value: 'emotion' },
   { label: '测试记录', value: 'test' },
   { label: '冥想足迹', value: 'meditation' },
 ];
-
-const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
-const moodLegends: Array<{ type: MoodType; label: string }> = [
-  { type: 'calm', label: '平静' },
-  { type: 'low', label: '低落' },
-  { type: 'anxious', label: '焦虑' },
-  { type: 'happy', label: '愉悦' },
-  { type: 'tired', label: '疲惫' },
-];
-
-const trendPoints = [
-  { day: '周一', value: 54, x: 2, y: 62 },
-  { day: '周二', value: 68, x: 18, y: 46 },
-  { day: '周三', value: 58, x: 34, y: 58 },
-  { day: '周四', value: 76, x: 50, y: 34 },
-  { day: '周五', value: 70, x: 66, y: 44 },
-  { day: '周六', value: 82, x: 82, y: 26 },
-  { day: '周日', value: 78, x: 98, y: 32 },
-];
-
-const growth = {
-  continuousDays: 7,
-  monthKeywords: '放松 · 接纳 · 修复',
-};
-
-const favorites = [
-  {
-    id: 'sleep',
-    title: '睡前呼吸音频',
-    description: '温柔呼吸，安心入眠',
-    icon: '眠',
-    action: '播放',
-    route: '/pages/emotion/index',
-  },
-  {
-    id: 'reset',
-    title: '情绪复位练习',
-    description: '平复情绪，找回平衡',
-    icon: '莲',
-    action: '练习',
-    route: '/pages/emotion/index',
-  },
-];
-
-const isLoggedIn = computed(() => Boolean(authToken.value));
+const isLoggedIn = computed(() => recordOverview.value.isLoggedIn);
+const weekdays = computed(() => recordOverview.value.calendar.weekdays);
+const moodLegends = computed(() => recordOverview.value.calendar.legend);
+const favorites = computed(() => recordOverview.value.favorites);
+const growth = computed(() => recordOverview.value.growth);
+const overview = computed(() => recordOverview.value.overview);
+const currentMonthLabel = computed(() => recordOverview.value.calendar.monthLabel);
 
 const emotionRecords = computed(() =>
-  items.value.filter((item) => item.recordType === 'emotion'),
+  recordOverview.value.recentRecords.filter((item) => item.recordType === 'emotion'),
 );
 
 const testRecords = computed(() =>
-  items.value.filter((item) =>
+  recordOverview.value.recentRecords.filter((item) =>
     ['personality', 'bazi', 'zodiac'].includes(item.recordType),
   ),
 );
 
 const meditationRecords = computed(() =>
-  items.value.filter((item) => item.recordType === 'meditation'),
+  recordOverview.value.recentRecords.filter((item) => item.recordType === 'meditation'),
 );
 
 const visibleRecentRecords = computed(() => {
@@ -318,24 +328,6 @@ const visibleRecentRecords = computed(() => {
   }
 
   return meditationRecords.value.slice(0, 4);
-});
-
-const overview = computed(() => {
-  const recordedDays = isLoggedIn.value
-    ? Math.max(7, Math.min(28, items.value.length || 7))
-    : 0;
-  const latestEmotionScore = emotionRecords.value.find((item) => item.score !== null)?.score ?? 78;
-  const healingProgress = Math.max(62, Math.min(96, latestEmotionScore + 8));
-
-  return {
-    recordedDays,
-    emotionalStability: latestEmotionScore,
-    healingProgress,
-    encouragement: isLoggedIn.value
-      ? '你正在慢慢靠近更平和的自己'
-      : '先建立第一条记录，变化会开始被看见',
-    actionText: isLoggedIn.value ? '继续记录' : '去登录',
-  };
 });
 
 const overviewStats = computed(() => [
@@ -353,43 +345,22 @@ const overviewStats = computed(() => [
   },
 ]);
 
-const calendarDays = computed<CalendarDay[]>(() => {
-  const today = new Date();
-  const moodSequence: MoodType[] = [
-    'calm',
-    'low',
-    'calm',
-    'happy',
-    'tired',
-    'calm',
-    'anxious',
-    'calm',
-    'happy',
-    'calm',
-    'low',
-    'tired',
-    'calm',
-    'happy',
-  ];
+const calendarDays = computed(() =>
+  recordOverview.value.calendar.days.map((day) => ({
+    ...day,
+    isSelected: day.date === selectedDate.value,
+  })),
+);
 
-  return Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - 13 + index);
-    const dateText = buildLocalDateString(date);
+const trendPoints = computed(() => {
+  const list = recordOverview.value.trend.points;
+  const maxValue = Math.max(...list.map((item) => item.value), 100);
 
-    return {
-      date: dateText,
-      day: date.getDate(),
-      moodType: moodSequence[index % moodSequence.length],
-      hasRecord: index % 3 !== 1 || dateText === selectedDate.value,
-      isSelected: dateText === selectedDate.value,
-    };
-  });
-});
-
-const currentMonthLabel = computed(() => {
-  const now = new Date();
-  return `${now.getFullYear()}年${now.getMonth() + 1}月`;
+  return list.map((point, index) => ({
+    ...point,
+    x: list.length === 1 ? 50 : (index / (list.length - 1)) * 100,
+    y: 16 + ((maxValue - point.value) / maxValue) * 58,
+  }));
 });
 
 const emptyRecordTitle = computed(() => {
@@ -420,19 +391,18 @@ const emptyRecordText = computed(() => {
   return '开始一次放松练习后，这里会记录你的疗愈足迹。';
 });
 
-async function loadHistory() {
-  if (!isLoggedIn.value) {
-    items.value = [];
-    return;
-  }
-
+async function loadRecordOverview() {
   try {
     loading.value = true;
-    const response = await fetchUnifiedHistory();
-    items.value = response.data.items;
+    const response = await fetchRecordOverview();
+    recordOverview.value = response.data;
+    if (!response.data.isLoggedIn && authToken.value) {
+      clearSession();
+      authToken.value = '';
+    }
   } catch (error) {
-    console.warn('load unified history failed', error);
-    items.value = [];
+    console.warn('load record overview failed', error);
+    recordOverview.value = fallbackOverviewData;
     if (handleAuthExpired(error, true)) {
       authToken.value = '';
       return;
@@ -515,7 +485,7 @@ function buildLocalDateString(date: Date) {
 }
 
 onLoad(() => {
-  void loadHistory();
+  void loadRecordOverview();
 });
 
 onShow(() => {
@@ -523,7 +493,7 @@ onShow(() => {
   if (latestToken !== authToken.value) {
     authToken.value = latestToken;
   }
-  void loadHistory();
+  void loadRecordOverview();
 });
 </script>
 

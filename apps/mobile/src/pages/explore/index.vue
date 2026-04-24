@@ -19,7 +19,7 @@
             v-model="keyword"
             class="search-box__input"
             confirm-type="search"
-            placeholder="搜索测试 / 冥想 / 星座 / 八字"
+            :placeholder="exploreData.searchPlaceholder"
             placeholder-class="search-box__placeholder"
             @confirm="submitSearch"
           />
@@ -32,23 +32,23 @@
         </view>
       </view>
 
-      <view class="fit-pill" @tap="open('/pages/emotion/index')">
-        <text class="fit-pill__icon">莲</text>
-        <text>今日适合：情绪疗愈</text>
+      <view class="fit-pill" @tap="open(exploreData.todayFit.route)">
+        <text class="fit-pill__icon">{{ exploreData.todayFit.icon }}</text>
+        <text>{{ exploreData.todayFit.text }}</text>
         <text class="fit-pill__arrow">›</text>
       </view>
 
-      <view class="hero-banner" @tap="open('/pages/emotion/index')">
+      <view class="hero-banner" @tap="open(exploreData.banner.route)">
         <view class="hero-banner__copy">
-          <text class="hero-banner__eyebrow">为你推荐</text>
-          <text class="hero-banner__title">情绪自测与疗愈地图</text>
-          <text class="hero-banner__summary">识别情绪状态，找到专属疗愈方案。</text>
-          <text class="hero-banner__cta">立即探索 →</text>
+          <text class="hero-banner__eyebrow">{{ exploreData.banner.eyebrow }}</text>
+          <text class="hero-banner__title">{{ exploreData.banner.title }}</text>
+          <text class="hero-banner__summary">{{ exploreData.banner.summary }}</text>
+          <text class="hero-banner__cta">{{ exploreData.banner.ctaText }} →</text>
         </view>
 
         <view class="hero-banner__art">
           <view class="hero-banner__moon"></view>
-          <view class="hero-banner__lotus">莲</view>
+          <view class="hero-banner__lotus">{{ exploreData.banner.icon }}</view>
         </view>
       </view>
 
@@ -180,43 +180,21 @@
 </template>
 
 <script setup lang="ts">
+import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import { fetchExploreIndex } from '../../api/explore';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { getErrorMessage } from '../../services/errors';
+import type {
+  ExploreContentItem,
+  ExploreFeatureItem,
+  ExploreIndexData,
+  ExploreFilterOption,
+  ExploreTopicItem,
+} from '../../types/explore';
 
 type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
-
-interface FeatureEntry {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  type: FilterType;
-  goals: string[];
-  route: string;
-}
-
-interface TopicEntry {
-  id: string;
-  title: string;
-  summary: string;
-  tag: string;
-  route: string;
-}
-
-interface ContentEntry {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  type: string;
-  filterType: FilterType;
-  goals: string[];
-  duration: string;
-  stat: string;
-  buttonText: string;
-  route: string;
-}
 
 const { themePalette, themeVars } = useThemePreference();
 
@@ -225,169 +203,74 @@ const showFilter = ref(false);
 const selectedType = ref<FilterType>('all');
 const selectedGoals = ref<string[]>([]);
 
-const typeFilters: Array<{ label: string; value: FilterType }> = [
-  { label: '全部', value: 'all' },
-  { label: '心理测试', value: 'test' },
-  { label: '冥想', value: 'meditation' },
-  { label: '星座', value: 'zodiac' },
-  { label: '八字', value: 'bazi' },
-  { label: '日记', value: 'journal' },
-  { label: '内容', value: 'content' },
-];
+function normalizeFilterType(value: string): FilterType {
+  if (
+    value === 'test' ||
+    value === 'meditation' ||
+    value === 'zodiac' ||
+    value === 'bazi' ||
+    value === 'journal' ||
+    value === 'content'
+  ) {
+    return value;
+  }
 
-const goalFilters = [
-  { label: '放松', value: 'relax' },
-  { label: '睡眠', value: 'sleep' },
-  { label: '减压', value: 'stress' },
-  { label: '自我探索', value: 'self' },
-  { label: '关系分析', value: 'relationship' },
-];
-
-const features: FeatureEntry[] = [
-  {
-    id: 'emotion',
-    title: '心理测试',
-    description: '心情评分 / 抑郁倾向 / 焦虑状态',
-    icon: '心',
-    type: 'test',
-    goals: ['stress', 'self'],
+  return 'all';
+}
+const fallbackExploreData: ExploreIndexData = {
+  isLoggedIn: false,
+  searchPlaceholder: '搜索测试 / 冥想 / 星座 / 八字',
+  todayFit: {
+    icon: '莲',
+    text: '今日适合：情绪疗愈',
     route: '/pages/emotion/index',
   },
-  {
-    id: 'zodiac',
-    title: '星座运势',
-    description: '今日运势 / 星座解析',
-    icon: '月',
-    type: 'zodiac',
-    goals: ['self'],
-    route: '/pages/zodiac/index',
+  filters: {
+    types: [
+      { label: '全部', value: 'all' },
+      { label: '心理测试', value: 'test' },
+      { label: '冥想', value: 'meditation' },
+      { label: '星座', value: 'zodiac' },
+      { label: '八字', value: 'bazi' },
+      { label: '日记', value: 'journal' },
+      { label: '内容', value: 'content' },
+    ],
+    goals: [
+      { label: '放松', value: 'relax' },
+      { label: '睡眠', value: 'sleep' },
+      { label: '减压', value: 'stress' },
+      { label: '自我探索', value: 'self' },
+      { label: '关系分析', value: 'relationship' },
+    ],
   },
-  {
-    id: 'bazi',
-    title: '八字命理',
-    description: '五行 / 流日气运',
-    icon: '卦',
-    type: 'bazi',
-    goals: ['self'],
-    route: '/pages/bazi/index',
-  },
-  {
-    id: 'meditation',
-    title: '冥想放松',
-    description: '呼吸 / 睡眠 / 减压',
-    icon: '静',
-    type: 'meditation',
-    goals: ['relax', 'sleep', 'stress'],
+  banner: {
+    eyebrow: '为你推荐',
+    title: '情绪自测与疗愈地图',
+    summary: '识别情绪状态，找到专属疗愈方案。',
+    ctaText: '立即探索',
+    icon: '莲',
     route: '/pages/emotion/index',
   },
-  {
-    id: 'journal',
-    title: '情绪日记',
-    description: '记录心情 / 情绪追踪',
-    icon: '记',
-    type: 'journal',
-    goals: ['self', 'stress'],
-    route: '/pages/records/index',
-  },
-  {
-    id: 'compatibility',
-    title: '合盘合性',
-    description: '关系分析 / 默契度',
-    icon: '合',
-    type: 'content',
-    goals: ['relationship'],
-    route: '/pages/zodiac/index',
-  },
-  {
-    id: 'healing',
-    title: '疗愈内容',
-    description: '文章 / 音频 / 卡片',
-    icon: '泉',
-    type: 'content',
-    goals: ['relax', 'stress'],
-    route: '/pages/lucky/index',
-  },
-  {
-    id: 'more',
-    title: '更多工具',
-    description: '塔罗灵感 / 自我觉察',
-    icon: '罗',
-    type: 'content',
-    goals: ['self'],
-    route: '/pages/lucky/index',
-  },
-];
-
-const topics: TopicEntry[] = [
-  {
-    id: 'stress',
-    title: '焦虑缓解',
-    summary: '舒缓压力，找回平静',
-    tag: '热门',
-    route: '/pages/emotion/index',
-  },
-  {
-    id: 'sleep',
-    title: '睡前疗愈',
-    summary: '放松身心，安稳入眠',
-    tag: '睡眠',
-    route: '/pages/emotion/index',
-  },
-  {
-    id: 'week',
-    title: '本周星缘',
-    summary: '把握星象能量',
-    tag: '星座',
-    route: '/pages/zodiac/index',
-  },
-];
-
-const contents: ContentEntry[] = [
-  {
-    id: 'reset',
-    title: '3 分钟情绪复位练习',
-    description: '快速平复情绪，回到内心的稳定中心。',
-    icon: '水',
-    type: '冥想',
-    filterType: 'meditation',
-    goals: ['relax', 'stress'],
-    duration: '8 分钟',
-    stat: '1.2 万人练习',
-    buttonText: '进入',
-    route: '/pages/emotion/index',
-  },
-  {
-    id: 'zodiac-week',
-    title: '本周星座能量提醒',
-    description: '本周星象影响解析，提前掌握重要转折。',
-    icon: '星',
-    type: '星座',
-    filterType: 'zodiac',
-    goals: ['self'],
-    duration: '5 分钟阅读',
-    stat: '2.3 万人关注',
-    buttonText: '查看',
-    route: '/pages/zodiac/index',
-  },
-  {
-    id: 'element',
-    title: '今日五行平衡建议',
-    description: '结合八字五行，看今日能量如何调和。',
-    icon: '衡',
-    type: '八字',
-    filterType: 'bazi',
-    goals: ['self'],
-    duration: '6 分钟阅读',
-    stat: '9861 人查看',
-    buttonText: '查看',
-    route: '/pages/bazi/index',
-  },
-];
+  features: [],
+  topics: [],
+  contents: [],
+};
+const exploreData = ref<ExploreIndexData>(fallbackExploreData);
 
 const normalizedKeyword = computed(() => keyword.value.trim().toLowerCase());
+const typeFilters = computed<Array<ExploreFilterOption & { value: FilterType }>>(() =>
+  exploreData.value.filters.types.map((item) => ({
+    ...item,
+    value: normalizeFilterType(item.value),
+  })),
+);
+const goalFilters = computed<ExploreFilterOption[]>(() => exploreData.value.filters.goals);
+const features = computed<ExploreFeatureItem[]>(() => exploreData.value.features);
+const topics = computed<ExploreTopicItem[]>(() => exploreData.value.topics);
+const contents = computed<ExploreContentItem[]>(() => exploreData.value.contents);
 
 const filteredFeatures = computed(() =>
-  features.filter((item) => {
+  features.value.filter((item) => {
     const matchesType = selectedType.value === 'all' || item.type === selectedType.value;
     const matchesGoal =
       selectedGoals.value.length === 0 ||
@@ -401,7 +284,7 @@ const filteredFeatures = computed(() =>
 );
 
 const filteredContents = computed(() =>
-  contents.filter((item) => {
+  contents.value.filter((item) => {
     const matchesType = selectedType.value === 'all' || item.filterType === selectedType.value;
     const matchesGoal =
       selectedGoals.value.length === 0 ||
@@ -413,6 +296,20 @@ const filteredContents = computed(() =>
     return matchesType && matchesGoal && matchesKeyword;
   }),
 );
+
+async function loadExploreIndex() {
+  try {
+    const response = await fetchExploreIndex();
+    exploreData.value = response.data;
+  } catch (error) {
+    console.warn('load explore index failed', error);
+    exploreData.value = fallbackExploreData;
+    uni.showToast({
+      title: getErrorMessage(error, '探索数据加载失败'),
+      icon: 'none',
+    });
+  }
+}
 
 function open(route: string) {
   uni.navigateTo({
@@ -445,6 +342,14 @@ function resetFilters() {
   selectedType.value = 'all';
   selectedGoals.value = [];
 }
+
+onLoad(() => {
+  void loadExploreIndex();
+});
+
+onShow(() => {
+  void loadExploreIndex();
+});
 </script>
 
 <style lang="scss">

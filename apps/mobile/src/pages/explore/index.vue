@@ -1,38 +1,176 @@
 <template>
   <view class="page-shell" :style="themeVars">
     <view class="page">
-      <view class="hero-panel">
-        <text class="hero-panel__eyebrow">发现当下适合自己的疗愈方式</text>
-        <view class="hero-panel__head">
-          <text class="hero-panel__title">探索</text>
-          <text class="hero-panel__meta">{{ themePalette.name }}主题</text>
+      <view class="ambient ambient--glow"></view>
+      <view class="ambient ambient--moon"></view>
+
+      <view class="page-header">
+        <view>
+          <text class="page-header__title">探索</text>
+          <text class="page-header__subtitle">发现适合当下自己的疗愈与指引</text>
         </view>
-        <text class="hero-panel__summary">
-          Phase 1 先把导航与主题体系接上，这里作为探索页骨架，后续会继续补搜索、筛选、Banner 与专题内容。
-        </text>
+        <text class="page-header__theme">{{ themePalette.name }}</text>
       </view>
 
-      <view class="chip-row">
-        <text class="chip">今日适合：情绪疗愈</text>
-        <text class="chip">冥想与记录优先</text>
+      <view class="search-row">
+        <view class="search-box">
+          <text class="search-box__icon">⌕</text>
+          <input
+            v-model="keyword"
+            class="search-box__input"
+            confirm-type="search"
+            placeholder="搜索测试 / 冥想 / 星座 / 八字"
+            placeholder-class="search-box__placeholder"
+            @confirm="submitSearch"
+          />
+          <text v-if="keyword" class="search-box__clear" @tap="clearKeyword">清除</text>
+        </view>
+
+        <view class="filter-button" @tap="showFilter = true">
+          <text class="filter-button__icon">筛</text>
+          <text>筛选</text>
+        </view>
+      </view>
+
+      <view class="fit-pill" @tap="open('/pages/emotion/index')">
+        <text class="fit-pill__icon">莲</text>
+        <text>今日适合：情绪疗愈</text>
+        <text class="fit-pill__arrow">›</text>
+      </view>
+
+      <view class="hero-banner" @tap="open('/pages/emotion/index')">
+        <view class="hero-banner__copy">
+          <text class="hero-banner__eyebrow">为你推荐</text>
+          <text class="hero-banner__title">情绪自测与疗愈地图</text>
+          <text class="hero-banner__summary">识别情绪状态，找到专属疗愈方案。</text>
+          <text class="hero-banner__cta">立即探索 →</text>
+        </view>
+
+        <view class="hero-banner__art">
+          <view class="hero-banner__moon"></view>
+          <view class="hero-banner__lotus">莲</view>
+        </view>
       </view>
 
       <view class="section">
         <view class="section__head">
-          <text class="section__title">核心入口</text>
-          <text class="section__meta">V2 骨架</text>
+          <text class="section__title">功能入口</text>
+          <text class="section__meta">{{ filteredFeatures.length }} 项</text>
         </view>
 
-        <view class="entry-grid">
+        <view class="feature-grid">
           <view
-            v-for="entry in entries"
-            :key="entry.route"
-            class="entry-card"
-            @tap="open(entry.route)"
+            v-for="item in filteredFeatures"
+            :key="item.id"
+            class="feature-card"
+            @tap="open(item.route)"
           >
-            <text class="entry-card__title">{{ entry.title }}</text>
-            <text class="entry-card__desc">{{ entry.description }}</text>
+            <view class="feature-card__icon">{{ item.icon }}</view>
+            <view class="feature-card__copy">
+              <text class="feature-card__title">{{ item.title }}</text>
+              <text class="feature-card__desc">{{ item.description }}</text>
+            </view>
+            <text class="feature-card__arrow">›</text>
           </view>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section__head">
+          <text class="section__title">热门专题</text>
+          <text class="section__link">全部专题 ›</text>
+        </view>
+
+        <scroll-view class="topic-scroll" scroll-x>
+          <view class="topic-track">
+            <view
+              v-for="topic in topics"
+              :key="topic.id"
+              class="topic-card"
+              @tap="open(topic.route)"
+            >
+              <text class="topic-card__title">{{ topic.title }}</text>
+              <text class="topic-card__summary">{{ topic.summary }}</text>
+              <text class="topic-card__tag">{{ topic.tag }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="section">
+        <view class="section__head">
+          <text class="section__title">精选内容</text>
+          <text class="section__link">更多内容 ›</text>
+        </view>
+
+        <view class="content-list">
+          <view
+            v-for="item in filteredContents"
+            :key="item.id"
+            class="content-card"
+            @tap="open(item.route)"
+          >
+            <view class="content-card__cover">
+              <text>{{ item.icon }}</text>
+            </view>
+
+            <view class="content-card__body">
+              <view class="content-card__head">
+                <text class="content-card__title">{{ item.title }}</text>
+                <text class="content-card__tag">{{ item.type }}</text>
+              </view>
+              <text class="content-card__desc">{{ item.description }}</text>
+              <text class="content-card__meta">{{ item.duration }} · {{ item.stat }}</text>
+            </view>
+
+            <button class="content-card__button" @tap.stop="open(item.route)">
+              {{ item.buttonText }}
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="showFilter" class="filter-mask" @tap="showFilter = false">
+      <view class="filter-sheet" @tap.stop>
+        <view class="filter-sheet__head">
+          <text class="filter-sheet__title">筛选内容</text>
+          <text class="filter-sheet__close" @tap="showFilter = false">关闭</text>
+        </view>
+
+        <view class="filter-group">
+          <text class="filter-group__title">类型</text>
+          <view class="filter-options">
+            <view
+              v-for="item in typeFilters"
+              :key="item.value"
+              class="filter-chip"
+              :class="{ 'filter-chip--active': selectedType === item.value }"
+              @tap="selectedType = item.value"
+            >
+              <text>{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="filter-group">
+          <text class="filter-group__title">目标</text>
+          <view class="filter-options">
+            <view
+              v-for="item in goalFilters"
+              :key="item.value"
+              class="filter-chip"
+              :class="{ 'filter-chip--active': selectedGoals.includes(item.value) }"
+              @tap="toggleGoal(item.value)"
+            >
+              <text>{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="filter-actions">
+          <button class="filter-actions__reset" @tap="resetFilters">重置</button>
+          <button class="filter-actions__confirm" @tap="showFilter = false">确定</button>
         </view>
       </view>
     </view>
@@ -42,75 +180,519 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 
+type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
+
+interface FeatureEntry {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  type: FilterType;
+  goals: string[];
+  route: string;
+}
+
+interface TopicEntry {
+  id: string;
+  title: string;
+  summary: string;
+  tag: string;
+  route: string;
+}
+
+interface ContentEntry {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  type: string;
+  filterType: FilterType;
+  goals: string[];
+  duration: string;
+  stat: string;
+  buttonText: string;
+  route: string;
+}
+
 const { themePalette, themeVars } = useThemePreference();
 
-const entries = [
+const keyword = ref('');
+const showFilter = ref(false);
+const selectedType = ref<FilterType>('all');
+const selectedGoals = ref<string[]>([]);
+
+const typeFilters: Array<{ label: string; value: FilterType }> = [
+  { label: '全部', value: 'all' },
+  { label: '心理测试', value: 'test' },
+  { label: '冥想', value: 'meditation' },
+  { label: '星座', value: 'zodiac' },
+  { label: '八字', value: 'bazi' },
+  { label: '日记', value: 'journal' },
+  { label: '内容', value: 'content' },
+];
+
+const goalFilters = [
+  { label: '放松', value: 'relax' },
+  { label: '睡眠', value: 'sleep' },
+  { label: '减压', value: 'stress' },
+  { label: '自我探索', value: 'self' },
+  { label: '关系分析', value: 'relationship' },
+];
+
+const features: FeatureEntry[] = [
   {
-    title: '情绪自检',
-    description: '先观察最近的情绪起伏与压力变化。',
+    id: 'emotion',
+    title: '心理测试',
+    description: '心情评分 / 抑郁倾向 / 焦虑状态',
+    icon: '心',
+    type: 'test',
+    goals: ['stress', 'self'],
     route: '/pages/emotion/index',
   },
   {
-    title: '性格测评',
-    description: '看看你更自然的节奏与反应方式。',
-    route: '/pages/personality/index',
-  },
-  {
+    id: 'zodiac',
     title: '星座运势',
-    description: '把今日提示变成更轻量的阅读入口。',
+    description: '今日运势 / 星座解析',
+    icon: '月',
+    type: 'zodiac',
+    goals: ['self'],
     route: '/pages/zodiac/index',
   },
   {
-    title: '八字气运',
-    description: '基于生日资料补充个性化参考。',
+    id: 'bazi',
+    title: '八字命理',
+    description: '五行 / 流日气运',
+    icon: '卦',
+    type: 'bazi',
+    goals: ['self'],
+    route: '/pages/bazi/index',
+  },
+  {
+    id: 'meditation',
+    title: '冥想放松',
+    description: '呼吸 / 睡眠 / 减压',
+    icon: '静',
+    type: 'meditation',
+    goals: ['relax', 'sleep', 'stress'],
+    route: '/pages/emotion/index',
+  },
+  {
+    id: 'journal',
+    title: '情绪日记',
+    description: '记录心情 / 情绪追踪',
+    icon: '记',
+    type: 'journal',
+    goals: ['self', 'stress'],
+    route: '/pages/records/index',
+  },
+  {
+    id: 'compatibility',
+    title: '合盘合性',
+    description: '关系分析 / 默契度',
+    icon: '合',
+    type: 'content',
+    goals: ['relationship'],
+    route: '/pages/zodiac/index',
+  },
+  {
+    id: 'healing',
+    title: '疗愈内容',
+    description: '文章 / 音频 / 卡片',
+    icon: '泉',
+    type: 'content',
+    goals: ['relax', 'stress'],
+    route: '/pages/lucky/index',
+  },
+  {
+    id: 'more',
+    title: '更多工具',
+    description: '塔罗灵感 / 自我觉察',
+    icon: '罗',
+    type: 'content',
+    goals: ['self'],
+    route: '/pages/lucky/index',
+  },
+];
+
+const topics: TopicEntry[] = [
+  {
+    id: 'stress',
+    title: '焦虑缓解',
+    summary: '舒缓压力，找回平静',
+    tag: '热门',
+    route: '/pages/emotion/index',
+  },
+  {
+    id: 'sleep',
+    title: '睡前疗愈',
+    summary: '放松身心，安稳入眠',
+    tag: '睡眠',
+    route: '/pages/emotion/index',
+  },
+  {
+    id: 'week',
+    title: '本周星缘',
+    summary: '把握星象能量',
+    tag: '星座',
+    route: '/pages/zodiac/index',
+  },
+];
+
+const contents: ContentEntry[] = [
+  {
+    id: 'reset',
+    title: '3 分钟情绪复位练习',
+    description: '快速平复情绪，回到内心的稳定中心。',
+    icon: '水',
+    type: '冥想',
+    filterType: 'meditation',
+    goals: ['relax', 'stress'],
+    duration: '8 分钟',
+    stat: '1.2 万人练习',
+    buttonText: '进入',
+    route: '/pages/emotion/index',
+  },
+  {
+    id: 'zodiac-week',
+    title: '本周星座能量提醒',
+    description: '本周星象影响解析，提前掌握重要转折。',
+    icon: '星',
+    type: '星座',
+    filterType: 'zodiac',
+    goals: ['self'],
+    duration: '5 分钟阅读',
+    stat: '2.3 万人关注',
+    buttonText: '查看',
+    route: '/pages/zodiac/index',
+  },
+  {
+    id: 'element',
+    title: '今日五行平衡建议',
+    description: '结合八字五行，看今日能量如何调和。',
+    icon: '衡',
+    type: '八字',
+    filterType: 'bazi',
+    goals: ['self'],
+    duration: '6 分钟阅读',
+    stat: '9861 人查看',
+    buttonText: '查看',
     route: '/pages/bazi/index',
   },
 ];
+
+const normalizedKeyword = computed(() => keyword.value.trim().toLowerCase());
+
+const filteredFeatures = computed(() =>
+  features.filter((item) => {
+    const matchesType = selectedType.value === 'all' || item.type === selectedType.value;
+    const matchesGoal =
+      selectedGoals.value.length === 0 ||
+      selectedGoals.value.some((goal) => item.goals.includes(goal));
+    const matchesKeyword =
+      !normalizedKeyword.value ||
+      `${item.title}${item.description}`.toLowerCase().includes(normalizedKeyword.value);
+
+    return matchesType && matchesGoal && matchesKeyword;
+  }),
+);
+
+const filteredContents = computed(() =>
+  contents.filter((item) => {
+    const matchesType = selectedType.value === 'all' || item.filterType === selectedType.value;
+    const matchesGoal =
+      selectedGoals.value.length === 0 ||
+      selectedGoals.value.some((goal) => item.goals.includes(goal));
+    const matchesKeyword =
+      !normalizedKeyword.value ||
+      `${item.title}${item.description}${item.type}`.toLowerCase().includes(normalizedKeyword.value);
+
+    return matchesType && matchesGoal && matchesKeyword;
+  }),
+);
 
 function open(route: string) {
   uni.navigateTo({
     url: route,
   });
 }
+
+function submitSearch() {
+  if (!keyword.value.trim()) {
+    return;
+  }
+
+  uni.showToast({
+    title: `已搜索：${keyword.value.trim()}`,
+    icon: 'none',
+  });
+}
+
+function clearKeyword() {
+  keyword.value = '';
+}
+
+function toggleGoal(value: string) {
+  selectedGoals.value = selectedGoals.value.includes(value)
+    ? selectedGoals.value.filter((item) => item !== value)
+    : [...selectedGoals.value, value];
+}
+
+function resetFilters() {
+  selectedType.value = 'all';
+  selectedGoals.value = [];
+}
 </script>
 
 <style lang="scss">
 .page-shell {
+  position: relative;
   min-height: 100vh;
   padding-bottom: 144rpx;
+  overflow: hidden;
   background:
-    radial-gradient(circle at top left, var(--theme-glow), transparent 32%),
+    radial-gradient(circle at top left, var(--theme-glow), transparent 34%),
     linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .page {
+  position: relative;
   min-height: 100vh;
   padding: 28rpx 24rpx 0;
 }
 
-.hero-panel,
-.section {
+.ambient {
+  position: absolute;
+  border-radius: 999rpx;
+  pointer-events: none;
+  filter: blur(28rpx);
+}
+
+.ambient--glow {
+  top: 46rpx;
+  right: -80rpx;
+  width: 300rpx;
+  height: 300rpx;
+  background: var(--theme-glow);
+}
+
+.ambient--moon {
+  top: 330rpx;
+  left: -70rpx;
+  width: 230rpx;
+  height: 230rpx;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.page-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 26rpx;
+}
+
+.page-header__title {
+  display: block;
+  font-size: 72rpx;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  font-family:
+    'Iowan Old Style',
+    'Times New Roman',
+    'Noto Serif SC',
+    serif;
+}
+
+.page-header__subtitle,
+.page-header__theme,
+.section__meta,
+.section__link {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.page-header__theme {
+  margin-top: 16rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.search-row {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-  padding: 30rpx;
-  border-radius: 34rpx;
-  background: var(--theme-surface);
+  grid-template-columns: minmax(0, 1fr) 132rpx;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+}
+
+.search-box,
+.filter-button,
+.fit-pill,
+.hero-banner,
+.section,
+.filter-sheet {
   border: 1rpx solid var(--theme-border);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.search-box,
+.filter-button,
+.fit-pill {
+  min-height: 82rpx;
+  border-radius: 999rpx;
+  background: var(--theme-surface);
+}
+
+.search-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14rpx;
+  padding: 0 24rpx;
+}
+
+.search-box__icon,
+.search-box__clear,
+.filter-button__icon {
+  font-size: 24rpx;
+  color: var(--theme-primary);
+}
+
+.search-box__input {
+  min-width: 0;
+  font-size: 26rpx;
+  color: var(--theme-text-primary);
+}
+
+.search-box__placeholder {
+  color: var(--theme-text-tertiary);
+}
+
+.filter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  color: var(--theme-text-primary);
+}
+
+.fit-pill {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12rpx;
+  width: fit-content;
+  margin: 0 0 20rpx auto;
+  padding: 0 22rpx;
+  font-size: 24rpx;
+  color: var(--theme-text-primary);
+}
+
+.fit-pill__icon,
+.fit-pill__arrow {
+  color: var(--theme-primary);
+}
+
+.hero-banner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240rpx;
+  min-height: 250rpx;
+  gap: 20rpx;
+  margin-bottom: 28rpx;
+  padding: 34rpx;
+  overflow: hidden;
+  border-radius: 36rpx;
+  background:
+    radial-gradient(circle at 78% 34%, rgba(255, 255, 255, 0.92), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.84) 0%, var(--theme-soft) 100%);
   box-shadow: var(--theme-shadow);
 }
 
-.hero-panel__eyebrow,
-.section__meta {
+.hero-banner__copy {
+  display: grid;
+  gap: 12rpx;
+  align-content: center;
+}
+
+.hero-banner__eyebrow {
   font-size: 22rpx;
   letter-spacing: 0.16em;
   color: var(--theme-primary);
 }
 
-.hero-panel__head,
+.hero-banner__title {
+  font-size: 42rpx;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--theme-text-primary);
+}
+
+.hero-banner__summary {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.hero-banner__cta {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: var(--theme-primary);
+}
+
+.hero-banner__art {
+  position: relative;
+  min-height: 200rpx;
+}
+
+.hero-banner__moon,
+.hero-banner__lotus {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.hero-banner__moon {
+  inset: 16rpx 0 auto auto;
+  width: 210rpx;
+  height: 210rpx;
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.96), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, var(--theme-soft) 100%);
+}
+
+.hero-banner__lotus {
+  right: 54rpx;
+  bottom: 20rpx;
+  display: grid;
+  place-items: center;
+  width: 98rpx;
+  height: 98rpx;
+  color: var(--theme-primary);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.section {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18rpx;
+  margin-bottom: 28rpx;
+}
+
 .section__head {
   display: flex;
   align-items: baseline;
@@ -118,56 +700,249 @@ function open(route: string) {
   gap: 16rpx;
 }
 
-.hero-panel__title,
-.section__title,
-.entry-card__title {
+.section__title {
   font-size: 40rpx;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--theme-text-primary);
 }
 
-.hero-panel__summary,
-.entry-card__desc,
-.hero-panel__meta {
-  font-size: 24rpx;
-  line-height: 1.7;
+.section__link {
+  color: var(--theme-primary);
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
+}
+
+.feature-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 84rpx minmax(0, 1fr) auto;
+  gap: 16rpx;
+  min-height: 164rpx;
+  padding: 24rpx;
+  border-radius: 30rpx;
+  background: var(--theme-surface);
+  border: 1rpx solid var(--theme-border);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.feature-card__icon,
+.content-card__cover {
+  display: grid;
+  place-items: center;
+  border-radius: 26rpx;
+  color: var(--theme-primary);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, var(--theme-soft) 100%);
+}
+
+.feature-card__icon {
+  width: 84rpx;
+  height: 84rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.feature-card__copy {
+  display: grid;
+  gap: 8rpx;
+}
+
+.feature-card__title,
+.content-card__title,
+.topic-card__title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+}
+
+.feature-card__desc,
+.content-card__desc,
+.topic-card__summary,
+.content-card__meta {
+  font-size: 22rpx;
+  line-height: 1.6;
   color: var(--theme-text-secondary);
 }
 
-.chip-row,
-.entry-grid {
-  display: grid;
+.feature-card__arrow {
+  color: var(--theme-text-tertiary);
+}
+
+.topic-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.topic-track {
+  display: inline-flex;
   gap: 16rpx;
+  padding-bottom: 4rpx;
 }
 
-.chip-row {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 24rpx;
+.topic-card {
+  display: inline-grid;
+  gap: 10rpx;
+  width: 214rpx;
+  min-height: 126rpx;
+  padding: 24rpx;
+  border-radius: 28rpx;
+  background: var(--theme-surface);
+  border: 1rpx solid var(--theme-border);
+  box-shadow: var(--theme-shadow-soft);
+  white-space: normal;
 }
 
-.chip {
-  padding: 18rpx 20rpx;
+.topic-card__tag,
+.content-card__tag {
+  width: fit-content;
+  padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  text-align: center;
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: var(--theme-primary);
   background: var(--theme-tag-bg);
 }
 
-.entry-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.content-list {
+  display: grid;
+  gap: 16rpx;
 }
 
-.entry-card {
+.content-card {
   display: grid;
+  grid-template-columns: 132rpx minmax(0, 1fr) 104rpx;
+  gap: 18rpx;
+  align-items: center;
+  padding: 18rpx;
+  border-radius: 30rpx;
+  background: var(--theme-surface);
+  border: 1rpx solid var(--theme-border);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.content-card__cover {
+  width: 132rpx;
+  height: 104rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.content-card__body {
+  display: grid;
+  gap: 8rpx;
+}
+
+.content-card__head {
+  display: flex;
+  align-items: center;
   gap: 10rpx;
-  min-height: 176rpx;
+}
+
+.content-card__button {
+  display: grid;
+  place-items: center;
+  min-height: 64rpx;
+  padding: 0;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: var(--theme-primary);
+  background: transparent;
+  border: 1rpx solid var(--theme-primary);
+}
+
+.content-card__button::after {
+  border: none;
+}
+
+.filter-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
   padding: 24rpx;
-  border-radius: 28rpx;
+  background: rgba(47, 58, 74, 0.22);
+}
+
+.filter-sheet {
+  display: grid;
+  gap: 26rpx;
+  width: 100%;
+  padding: 30rpx;
+  border-radius: 34rpx;
+  background: var(--theme-surface-strong);
+}
+
+.filter-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.filter-sheet__title,
+.filter-group__title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+}
+
+.filter-sheet__close {
+  font-size: 24rpx;
+  color: var(--theme-primary);
+}
+
+.filter-group {
+  display: grid;
+  gap: 14rpx;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.filter-chip {
+  padding: 14rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: var(--theme-text-secondary);
   background: var(--theme-surface-muted);
 }
 
-.entry-card__title {
-  font-size: 30rpx;
+.filter-chip--active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+.filter-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.filter-actions__reset,
+.filter-actions__confirm {
+  min-height: 76rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+}
+
+.filter-actions__reset {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.filter-actions__confirm {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+.filter-actions__reset::after,
+.filter-actions__confirm::after {
+  border: none;
 }
 </style>

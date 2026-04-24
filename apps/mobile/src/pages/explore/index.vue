@@ -123,9 +123,18 @@
               <text class="content-card__meta">{{ item.duration }} · {{ item.stat }}</text>
             </view>
 
-            <button class="content-card__button" @tap.stop="open(item.route)">
-              {{ item.buttonText }}
-            </button>
+            <view class="content-card__actions">
+              <button
+                class="content-card__favorite"
+                :class="{ 'content-card__favorite--active': isFavorited(item.id) }"
+                @tap.stop="handleFavorite(item)"
+              >
+                {{ isFavorited(item.id) ? '已藏' : '收藏' }}
+              </button>
+              <button class="content-card__button" @tap.stop="open(item.route)">
+                {{ item.buttonText }}
+              </button>
+            </view>
           </view>
         </view>
       </view>
@@ -183,9 +192,11 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchExploreIndex, fetchExploreSearch } from '../../api/explore';
+import { fetchFavorites, toggleFavorite } from '../../api/favorites';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
+import { getAuthToken } from '../../services/session';
 import type {
   ExploreContentItem,
   ExploreFeatureItem,
@@ -203,6 +214,7 @@ const showFilter = ref(false);
 const selectedType = ref<FilterType>('all');
 const selectedGoals = ref<string[]>([]);
 const searchedKeyword = ref('');
+const favoriteKeys = ref<string[]>([]);
 
 function normalizeFilterType(value: string): FilterType {
   if (
@@ -327,6 +339,21 @@ async function loadExploreIndex() {
   }
 }
 
+async function loadFavoritesState() {
+  if (!getAuthToken()) {
+    favoriteKeys.value = [];
+    return;
+  }
+
+  try {
+    const response = await fetchFavorites();
+    favoriteKeys.value = response.data.items.map((item) => item.itemKey);
+  } catch (error) {
+    console.warn('load favorites state failed', error);
+    favoriteKeys.value = [];
+  }
+}
+
 function open(route: string) {
   uni.navigateTo({
     url: route,
@@ -353,6 +380,10 @@ function clearKeyword() {
   searchedFeatures.value = null;
   searchedTopics.value = null;
   searchedContents.value = null;
+}
+
+function isFavorited(itemKey: string) {
+  return favoriteKeys.value.includes(itemKey);
 }
 
 function toggleGoal(value: string) {
@@ -386,12 +417,55 @@ async function loadExploreSearch(nextKeyword: string) {
   }
 }
 
+async function handleFavorite(item: ExploreContentItem) {
+  if (!getAuthToken()) {
+    uni.navigateTo({
+      url: '/pages/profile/index',
+    });
+    return;
+  }
+
+  try {
+    const response = await toggleFavorite({
+      itemType: item.sourceType,
+      itemKey: item.id,
+      title: item.title,
+      summary: item.description,
+      icon: item.icon,
+      route: item.route,
+      extraJson: {
+        type: item.type,
+        filterType: item.filterType,
+      },
+    });
+
+    if (response.data.active) {
+      favoriteKeys.value = Array.from(new Set([...favoriteKeys.value, item.id]));
+    } else {
+      favoriteKeys.value = favoriteKeys.value.filter((key) => key !== item.id);
+    }
+
+    uni.showToast({
+      title: response.data.active ? '已收藏' : '已取消',
+      icon: 'none',
+    });
+  } catch (error) {
+    console.warn('toggle favorite failed', error);
+    uni.showToast({
+      title: getErrorMessage(error, '收藏失败'),
+      icon: 'none',
+    });
+  }
+}
+
 onLoad(() => {
   void loadExploreIndex();
+  void loadFavoritesState();
 });
 
 onShow(() => {
   void loadExploreIndex();
+  void loadFavoritesState();
 });
 </script>
 
@@ -760,7 +834,7 @@ onShow(() => {
 
 .content-card {
   display: grid;
-  grid-template-columns: 132rpx minmax(0, 1fr) 104rpx;
+  grid-template-columns: 132rpx minmax(0, 1fr) 124rpx;
   gap: 18rpx;
   align-items: center;
   padding: 18rpx;
@@ -788,6 +862,11 @@ onShow(() => {
   gap: 10rpx;
 }
 
+.content-card__actions {
+  display: grid;
+  gap: 10rpx;
+}
+
 .content-card__button {
   display: grid;
   place-items: center;
@@ -800,6 +879,21 @@ onShow(() => {
   border: 1rpx solid var(--theme-primary);
 }
 
+.content-card__favorite {
+  min-height: 56rpx;
+  padding: 0;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface-muted);
+}
+
+.content-card__favorite--active {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.content-card__favorite::after,
 .content-card__button::after {
   border: none;
 }

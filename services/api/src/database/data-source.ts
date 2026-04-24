@@ -6,6 +6,7 @@ import { AssessmentQuestionEntity } from './entities/assessment-question.entity'
 import { AssessmentSessionEntity } from './entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './entities/assessment-test-group.entity';
+import { FavoriteEntity } from './entities/favorite.entity';
 import { FortuneContentEntity } from './entities/fortune-content.entity';
 import { LuckyItemEntity } from './entities/lucky-item.entity';
 import { MembershipProductEntity } from './entities/membership-product.entity';
@@ -29,6 +30,7 @@ export default new DataSource({
     AssessmentQuestionEntity,
     AssessmentTestConfigEntity,
     AssessmentTestGroupEntity,
+    FavoriteEntity,
     UserEntity,
     UserRecordEntity,
     FortuneContentEntity,

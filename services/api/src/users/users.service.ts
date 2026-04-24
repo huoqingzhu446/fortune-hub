@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { OrderEntity } from '../database/entities/order.entity';
-import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { FavoritesService } from '../favorites/favorites.service';
 import { MembershipService } from '../membership/membership.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -44,9 +44,8 @@ export class UsersService {
     private readonly userRecordRepository: Repository<UserRecordEntity>,
     @InjectRepository(OrderEntity)
     private readonly orderRepository: Repository<OrderEntity>,
-    @InjectRepository(ShareRecordEntity)
-    private readonly shareRecordRepository: Repository<ShareRecordEntity>,
     private readonly authService: AuthService,
+    private readonly favoritesService: FavoritesService,
     private readonly membershipService: MembershipService,
   ) {}
 
@@ -64,7 +63,7 @@ export class UsersService {
     const isVipActive = this.membershipService.isVipActive(user);
     const recentHistory = user ? await this.loadUnifiedHistoryItems(user, 3) : [];
     const latestScore = recentHistory.find((item) => item.score !== null)?.score ?? null;
-    const [totalRecords, emotionCount, orderCount, paidOrderCount, savedPosterCount] = user
+    const [totalRecords, emotionCount, orderCount, paidOrderCount, favoriteCount] = user
       ? await Promise.all([
           this.userRecordRepository.count({
             where: { userId: user.id },
@@ -78,9 +77,7 @@ export class UsersService {
           this.orderRepository.count({
             where: { userId: user.id, status: 'paid' },
           }),
-          this.shareRecordRepository.count({
-            where: { userId: user.id },
-          }),
+          this.favoritesService.countFavorites(user.id),
         ])
       : [0, 0, 0, 0, 0];
     const vipExpireText = isVipActive ? this.formatDate(serializedUser?.vipExpiredAt) : null;
@@ -135,7 +132,7 @@ export class UsersService {
         {
           title: '好运能量值',
           value: isLoggedIn
-            ? `${Math.max(120, totalRecords * 20 + savedPosterCount * 10 + (isProfileCompleted ? 80 : 20))}`
+            ? `${Math.max(120, totalRecords * 20 + favoriteCount * 10 + (isProfileCompleted ? 80 : 20))}`
             : '--',
           meta: isLoggedIn ? '分' : '登录后同步',
           tone: 'gold',
@@ -146,7 +143,7 @@ export class UsersService {
         orderCount,
         paidOrderCount,
         reportCount: totalRecords,
-        savedPosterCount,
+        favoriteCount,
       }),
       recentHistory,
     });
@@ -260,7 +257,9 @@ export class UsersService {
         continuousDays: this.calculateContinuousDays(records),
         monthKeywords,
       },
-      favorites: this.buildFavoriteItems(),
+      favorites: user
+        ? await this.favoritesService.listRecentFavorites(user.id, 2)
+        : this.buildFavoriteItems(),
     });
   }
 
@@ -508,7 +507,7 @@ export class UsersService {
     orderCount: number;
     paidOrderCount: number;
     reportCount: number;
-    savedPosterCount: number;
+    favoriteCount: number;
   }) {
     return [
       {
@@ -527,11 +526,11 @@ export class UsersService {
       },
       {
         title: '我的收藏',
-        description: input.savedPosterCount
-          ? `已保存 ${input.savedPosterCount} 张海报`
+        description: input.favoriteCount
+          ? `已收藏 ${input.favoriteCount} 项内容`
           : '暂无保存内容',
         icon: '藏',
-        route: '/pages/lucky/index',
+        route: '/pages/favorites/index',
       },
       {
         title: '我的咨询',

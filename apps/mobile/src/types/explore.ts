@@ -35,6 +35,7 @@ export interface ExploreContentItem {
   stat: string;
   buttonText: string;
   route: string;
+  sourceType: 'lucky_item' | 'fortune_content' | 'report_template' | 'fallback';
 }
 
 export interface ExploreIndexData {

@@ -13,6 +13,7 @@ import { AssessmentQuestionEntity } from './database/entities/assessment-questio
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
+import { FavoriteEntity } from './database/entities/favorite.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
 import { LuckyItemEntity } from './database/entities/lucky-item.entity';
 import { MembershipProductEntity } from './database/entities/membership-product.entity';
@@ -24,6 +25,7 @@ import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
 import { FortuneModule } from './fortune/fortune.module';
 import { ExploreModule } from './explore/explore.module';
+import { FavoritesModule } from './favorites/favorites.module';
 import { HomeModule } from './home/home.module';
 import { HealthController } from './health/health.controller';
 import { LuckyModule } from './lucky/lucky.module';
@@ -53,9 +55,10 @@ import { ZodiacModule } from './zodiac/zodiac.module';
         entities: [
           AssessmentSessionEntity,
           AssessmentQuestionEntity,
-          AssessmentTestConfigEntity,
-          AssessmentTestGroupEntity,
-          UserEntity,
+        AssessmentTestConfigEntity,
+        AssessmentTestGroupEntity,
+        FavoriteEntity,
+        UserEntity,
           UserRecordEntity,
           FortuneContentEntity,
           LuckyItemEntity,
@@ -89,6 +92,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     AuthModule,
     UsersModule,
     ExploreModule,
+    FavoritesModule,
     HomeModule,
     ZodiacModule,
     FortuneModule,

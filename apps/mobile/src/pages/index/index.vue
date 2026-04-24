@@ -4,43 +4,54 @@
       <view class="ambient ambient--blue"></view>
       <view class="ambient ambient--mint"></view>
 
-      <view class="topbar">
-        <view class="brand-block">
-          <text class="brand-block__eyebrow">FORTUNE HUB</text>
-          <text class="brand-block__title">运势中枢</text>
+      <view class="state-stage">
+        <view class="state-stage__copy">
+          <text class="state-stage__eyebrow">current status</text>
+          <text class="state-stage__title">{{ stateOverview.title }}</text>
+          <text class="state-stage__summary">{{ stateOverview.summary }}</text>
         </view>
-        <view class="sync-chip">
-          <view class="sync-chip__dot" :class="{ 'sync-chip__dot--loading': loading }"></view>
-          <text>{{ topbarStatus }}</text>
+
+        <view class="state-stage__board">
+          <view class="state-stage__primary">
+            <text class="state-stage__label">{{ todayLuckyScore.label }}</text>
+            <text class="state-stage__value">{{ todayLuckyScore.value }}</text>
+            <text class="state-stage__hint">{{ stateOverview.confidenceLabel }}</text>
+          </view>
+
+          <view class="state-stage__secondary">
+            <text class="state-stage__secondary-label">{{ annualLuckyScore.label }}</text>
+            <text class="state-stage__secondary-value">{{ annualLuckyScore.value }}</text>
+            <text class="state-stage__secondary-hint">{{ annualLuckyScore.hint }}</text>
+          </view>
+        </view>
+
+        <view v-if="stateOverview.basisTags.length" class="state-stage__tags">
+          <text v-for="tag in stateOverview.basisTags" :key="tag" class="state-stage__tag">
+            {{ tag }}
+          </text>
         </view>
       </view>
 
-      <view class="hero-card">
-        <view class="hero-copy">
-          <text class="hero-copy__eyebrow">今日总览</text>
-          <text class="hero-copy__title">{{ dashboard.headline.title }}</text>
-          <text class="hero-copy__summary">{{ heroSummary }}</text>
-
-          <view class="hero-actions">
-            <button class="hero-button hero-button--primary" @tap="goToLuckySign">
-              查看幸运签
-            </button>
-            <button class="hero-button hero-button--secondary" @tap="goToLuckyCenter">
-              幸运物推荐
-            </button>
-          </view>
+      <view class="factor-grid">
+        <view
+          v-for="factor in stateOverview.factors"
+          :key="factor.id"
+          class="factor-card"
+          :class="`factor-card--${factor.tone}`"
+        >
+          <text class="factor-card__label">{{ factor.label }}</text>
+          <text class="factor-card__value">{{ factor.value }}</text>
+          <text class="factor-card__hint">{{ factor.hint }}</text>
         </view>
+      </view>
 
-        <view class="score-panel">
-          <text class="score-panel__label">{{ todayLuckyScore.label }}</text>
-          <text class="score-panel__value">{{ todayLuckyScore.value }}</text>
-          <text class="score-panel__hint">{{ todayLuckyScore.hint }}</text>
-
-          <view class="score-panel__annual">
-            <text class="score-panel__annual-label">{{ annualLuckyScore.label }}</text>
-            <text class="score-panel__annual-value">{{ annualLuckyScore.value }}</text>
-          </view>
+      <view class="evidence-panel">
+        <view class="evidence-panel__head">
+          <text class="evidence-panel__eyebrow">本次依据</text>
+          <text class="evidence-panel__meta">{{ stateOverview.evidenceLabel }}</text>
         </view>
+        <text class="evidence-panel__suggestion">{{ stateOverview.primarySuggestion }}</text>
+        <text class="evidence-panel__disclaimer">{{ stateOverview.disclaimer }}</text>
       </view>
 
       <view class="insight-grid">
@@ -62,10 +73,9 @@
       <view class="section-block">
         <view class="section-head">
           <view>
-            <text class="section-head__eyebrow">常用功能</text>
-            <text class="section-head__title">首页入口</text>
+            <text class="section-head__eyebrow">评测模块</text>
           </view>
-          <text class="section-head__side">{{ moduleCards.length }} 个</text>
+<!--          <text class="section-head__side">{{ moduleCards.length }} 个</text>-->
         </view>
 
         <view class="module-grid">
@@ -81,13 +91,6 @@
             <text class="module-card__description">{{ module.description }}</text>
           </view>
         </view>
-      </view>
-
-      <view class="refresh-bar">
-        <text class="refresh-bar__text">内容会在资料更新后自动同步，也可以手动刷新一次。</text>
-        <button class="hero-button hero-button--ghost" :loading="loading" @tap="refreshDashboard">
-          刷新首页
-        </button>
       </view>
     </view>
 
@@ -108,12 +111,9 @@ const loading = computed(() => dashboardStore.loading);
 const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
-const heroSummary = computed(() => {
-  const summary = dashboard.value.todayFortuneSummary?.trim() || '';
-  return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
-});
+const stateOverview = computed(() => dashboard.value.stateOverview);
 const posterCardSummary = computed(() => {
-  const summary = `综合星座、气运和生日资料，生成适合微信分享的高清图片`;
+  const summary = `把当前状态指数转成一张适合微信分享的高清图片`;
   return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
 });
 
@@ -236,7 +236,12 @@ onPullDownRefresh(async () => {
 .hero-card,
 .hero-copy,
 .hero-actions,
-.section-block {
+.section-block,
+.state-stage,
+.state-stage__copy,
+.state-stage__board,
+.factor-grid,
+.evidence-panel {
   display: grid;
   gap: 18rpx;
 }
@@ -293,9 +298,150 @@ onPullDownRefresh(async () => {
 
 .hero-card,
 .insight-grid,
-.module-grid {
+.module-grid,
+.state-stage,
+.factor-grid,
+.evidence-panel {
   position: relative;
   z-index: 1;
+}
+
+.state-stage {
+  margin-bottom: 18rpx;
+  padding: 28rpx;
+  border-radius: 36rpx;
+  background:
+    radial-gradient(circle at top right, rgba(121, 176, 255, 0.18), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 248, 255, 0.98) 100%);
+  border: 1rpx solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 28rpx 80rpx rgba(93, 118, 153, 0.14);
+}
+
+.state-stage__eyebrow,
+.evidence-panel__eyebrow,
+.factor-card__label {
+  font-size: 20rpx;
+  letter-spacing: 0.28em;
+  color: var(--apple-subtle);
+  text-transform: uppercase;
+}
+
+.state-stage__title {
+  font-size: 48rpx;
+  line-height: 1.16;
+  font-weight: 700;
+  color: var(--apple-text);
+}
+
+.state-stage__summary,
+.evidence-panel__meta,
+.evidence-panel__disclaimer,
+.factor-card__hint {
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: var(--apple-muted);
+}
+
+.state-stage__board {
+  grid-template-columns: 1.08fr 0.92fr;
+  gap: 16rpx;
+}
+
+.state-stage__primary,
+.state-stage__secondary,
+.factor-card {
+  display: grid;
+  gap: 10rpx;
+  padding: 22rpx;
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.state-stage__label,
+.state-stage__secondary-label {
+  font-size: 22rpx;
+  color: var(--apple-subtle);
+}
+
+.state-stage__value {
+  font-size: 84rpx;
+  line-height: 0.95;
+  font-weight: 700;
+  color: var(--apple-text);
+}
+
+.state-stage__secondary-value,
+.factor-card__value {
+  font-size: 44rpx;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--apple-text);
+}
+
+.state-stage__hint,
+.state-stage__secondary-hint {
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--apple-muted);
+}
+
+.state-stage__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.state-stage__tag {
+  padding: 12rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(233, 242, 255, 0.92);
+  color: #5377b1;
+  font-size: 22rpx;
+}
+
+.factor-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18rpx;
+}
+
+.factor-card {
+  min-height: 188rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
+}
+
+.factor-card--positive {
+  background: linear-gradient(180deg, rgba(237, 248, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.factor-card--steady {
+  background: linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.factor-card--watch {
+  background: linear-gradient(180deg, rgba(255, 246, 233, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.evidence-panel {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1rpx solid rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
+}
+
+.evidence-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.evidence-panel__suggestion {
+  font-size: 28rpx;
+  line-height: 1.68;
+  color: var(--apple-text);
 }
 
 .hero-card {
@@ -497,11 +643,20 @@ onPullDownRefresh(async () => {
 }
 
 @media (max-width: 720px) {
+  .state-stage__board,
   .hero-card {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .factor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .hero-copy__title {
+    font-size: 42rpx;
+  }
+
+  .state-stage__title {
     font-size: 42rpx;
   }
 }

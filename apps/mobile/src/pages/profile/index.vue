@@ -153,12 +153,35 @@
 
       <view class="field">
         <text class="field__label">生日</text>
-        <input v-model="form.birthday" class="field__input" placeholder="例如 1998-08-08" />
+        <picker
+          mode="date"
+          :value="form.birthday || todayDate"
+          :start="birthdayStart"
+          :end="todayDate"
+          @change="handleBirthdayChange"
+        >
+          <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthday }">
+            <text class="field__picker-text">{{ form.birthday || '请选择生日' }}</text>
+            <text class="field__picker-icon">›</text>
+          </view>
+        </picker>
       </view>
 
       <view class="field">
-        <text class="field__label">出生时间</text>
-        <input v-model="form.birthTime" class="field__input" placeholder="例如 08:30" />
+        <view class="field__head">
+          <text class="field__label">出生时间</text>
+          <text v-if="form.birthTime" class="field__action" @tap="clearBirthTime">清空</text>
+        </view>
+        <picker
+          mode="time"
+          :value="form.birthTime || defaultBirthTime"
+          @change="handleBirthTimeChange"
+        >
+          <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthTime }">
+            <text class="field__picker-text">{{ form.birthTime || '请选择出生时间' }}</text>
+            <text class="field__picker-icon">›</text>
+          </view>
+        </picker>
       </view>
 
       <view class="field">
@@ -216,6 +239,14 @@ import type { UnifiedRecordItem } from '../../types/records';
 
 type GenderValue = 'male' | 'female' | 'unknown';
 
+function buildLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, '0');
+  const day = `${now.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '男', value: 'male' },
   { label: '女', value: 'female' },
@@ -226,6 +257,9 @@ const currentPlatform = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase();
 const isMpWeixin = currentPlatform === 'mp-weixin';
+const birthdayStart = '1950-01-01';
+const todayDate = buildLocalDateString();
+const defaultBirthTime = '12:00';
 
 const emptyProfile: UserProfile = {
   id: '',
@@ -399,6 +433,18 @@ function syncForm() {
   form.birthday = profile.value.birthday || '';
   form.birthTime = profile.value.birthTime || '';
   form.gender = (profile.value.gender as GenderValue) || 'unknown';
+}
+
+function handleBirthdayChange(event: { detail: { value: string } }) {
+  form.birthday = event.detail.value;
+}
+
+function handleBirthTimeChange(event: { detail: { value: string } }) {
+  form.birthTime = event.detail.value;
+}
+
+function clearBirthTime() {
+  form.birthTime = '';
 }
 
 async function loginForExperience() {
@@ -700,7 +746,8 @@ onShow(() => {
 
 .profile-row,
 .section-head,
-.history-card__top {
+.history-card__top,
+.field__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -718,6 +765,7 @@ onShow(() => {
 .profile-value,
 .profile-badge,
 .field__input,
+.field__picker,
 .history-card__title,
 .history-card__score,
 .shortcut-card__title,
@@ -786,11 +834,39 @@ onShow(() => {
   gap: 12rpx;
 }
 
-.field__input {
+.field__input,
+.field__picker {
   min-height: 84rpx;
   padding: 0 22rpx;
   border-radius: 22rpx;
   background: rgba(246, 249, 252, 0.92);
+}
+
+.field__picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+}
+
+.field__picker-text {
+  flex: 1;
+}
+
+.field__picker-icon {
+  margin-left: 16rpx;
+  font-size: 34rpx;
+  line-height: 1;
+  color: #9fb1cb;
+}
+
+.field__picker--placeholder {
+  color: var(--apple-muted);
+}
+
+.field__action {
+  font-size: 24rpx;
+  color: var(--apple-blue);
 }
 
 .gender-grid,

@@ -8,19 +8,19 @@ import type {
 
 const fallbackDashboard: MobileDashboardPayload = {
   headline: {
-    title: '今天的好运正在刷新中',
+    title: '先用测评和资料，重新认识今天的自己',
     subtitle:
-      '先把生日资料、幸运指数、功能入口和上传链路跑顺，再继续接八字与测评闭环。',
+      '首页会优先参考情绪、性格和资料完整度来判断当前状态，不再只给一个抽象的幸运分。',
   },
   todayLuckyScore: {
-    label: '今日幸运指数',
-    value: '86',
-    hint: '适合先完成一件最重要的小目标。',
+    label: '当前状态指数',
+    value: '78',
+    hint: '更适合单线程推进，把注意力放回一件真正重要的事。',
   },
   annualLuckyScore: {
-    label: '年度幸运指数',
-    value: '92',
-    hint: '适合持续建设长期表达与作品。',
+    label: '自我认知完成度',
+    value: '54',
+    hint: '补齐资料并完成性格、情绪两项短测后，首页判断会更稳定。',
   },
   todayLuckySign: {
     bizCode: 'sign-breeze-open',
@@ -29,40 +29,73 @@ const fallbackDashboard: MobileDashboardPayload = {
     tag: '静观有得',
   },
   todayFortuneSummary:
-    '运势整体平稳，适合先完成手头事务，再安排一次轻量社交或自我奖励。',
+    '这版首页会把情绪自检权重放得更高，再结合性格、资料完整度和轻量个性化标签来解释你当前的状态。',
+  stateOverview: {
+    title: '今天适合先稳住节奏，再推进重点',
+    summary:
+      '最近还没有足够多的测评依据时，首页会先给出保守判断，避免把玄学标签直接当成健康结论。',
+    primarySuggestion: '先完成一件最重要的小事，再决定今天还要不要继续加码。',
+    confidenceLabel: '依据中等：先补 1-2 项测评会更准',
+    evidenceLabel: '当前主要基于基础资料和完成情况做估算。',
+    disclaimer: '指数用于帮助你观察当前节奏与自我认知进度，不构成医学或心理诊断。',
+    basisTags: ['状态观察中', '资料待补齐'],
+    factors: [
+      {
+        id: 'emotion',
+        label: '情绪稳定度',
+        value: '68',
+        hint: '还没有最近的情绪自检，建议先做一次 3 分钟短测。',
+        tone: 'steady',
+      },
+      {
+        id: 'personality',
+        label: '节奏掌控度',
+        value: '66',
+        hint: '还没有最近的性格测评结果，完成后会更清楚你更适合怎样推进事情。',
+        tone: 'steady',
+      },
+      {
+        id: 'completion',
+        label: '认知完善度',
+        value: '54',
+        hint: '还差补齐生日资料、完成情绪自检，首页判断会更完整。',
+        tone: 'watch',
+      },
+    ],
+  },
   featureEntries: [
-    {
-      id: 'zodiac',
-      title: '星座运势',
-      description: '查看今日、本周、年度运势与幸运提示。',
-      route: '/pages/zodiac/index',
-      badge: '主入口',
-    },
-    {
-      id: 'bazi',
-      title: '八字解读',
-      description: '录入生日与时辰，生成简易排盘与五行解读。',
-      route: '/pages/bazi/index',
-      badge: '待完善',
-    },
     {
       id: 'personality',
       title: '性格测评',
-      description: '完成答题后生成精简报告与分享卡片。',
+      description: '识别你更自然的推进方式，帮助理解自己为什么会这样反应。',
       route: '/pages/personality/index',
-      badge: '长期留存',
+      badge: '先做这个',
     },
     {
       id: 'emotion',
       title: '情绪自检',
-      description: '简化量表 + 风险提示 + 放松建议。',
+      description: '用 3 分钟观察近一周的紧张或低落变化，优先看当前状态。',
       route: '/pages/emotion/index',
-      badge: '合规重点',
+      badge: '当前状态',
+    },
+    {
+      id: 'bazi',
+      title: '八字解读',
+      description: '把生日资料转成节奏参考，用来补充个性化表达和提示。',
+      route: '/pages/bazi/index',
+      badge: '个性化参考',
+    },
+    {
+      id: 'zodiac',
+      title: '星座运势',
+      description: '把星座当作轻量标签，提供更容易阅读的节律化提示。',
+      route: '/pages/zodiac/index',
+      badge: '轻量标签',
     },
     {
       id: 'lucky-item',
       title: '幸运物',
-      description: '结合幸运指数推荐每日幸运物、壁纸和分享图主题。',
+      description: '把当前状态翻译成更轻松的内容化表达、分享图和日常提醒。',
       route: '/pages/lucky/index',
       badge: '内容化',
     },
@@ -71,7 +104,7 @@ const fallbackDashboard: MobileDashboardPayload = {
     {
       id: 'profile',
       title: '先去登录',
-      description: '从个人中心发起登录，后续历史和会员都会绑定到账号。',
+      description: '从个人中心发起登录，后续历史和状态变化都会绑定到账号。',
       route: '/pages/profile/index',
       badge: '立即开始',
     },
@@ -111,9 +144,9 @@ const fallbackDashboard: MobileDashboardPayload = {
       completed: false,
     },
     {
-      id: 'lucky',
-      title: '进入今日闭环',
-      description: '登录并补齐资料后，幸运签、幸运物和历史记录会更顺畅地串起来。',
+      id: 'assessment',
+      title: '建立状态基线',
+      description: '先做性格和情绪两项短测，首页分数才会开始更有依据。',
       completed: false,
     },
   ],
@@ -149,24 +182,24 @@ const fallbackDashboard: MobileDashboardPayload = {
   ],
   stats: [
     {
-      label: '今日幸运指数',
-      value: '86',
-      hint: '推荐先完成一件最重要的小目标。',
+      label: '当前状态指数',
+      value: '78',
+      hint: '更适合单线程推进，把注意力放回一件真正重要的事。',
     },
     {
-      label: '年度幸运指数',
-      value: '92',
-      hint: '适合持续建设长期表达与作品。',
+      label: '情绪稳定度',
+      value: '68',
+      hint: '最近还没有情绪自检，建议先做一次 3 分钟短测。',
+    },
+    {
+      label: '自我认知完成度',
+      value: '54',
+      hint: '补齐资料并完成两项核心测评后，首页判断会更稳定。',
     },
     {
       label: '今日幸运签',
       value: '静观有得',
       hint: '慢下来一点，答案会在下一次呼吸里浮现。',
-    },
-    {
-      label: '功能入口',
-      value: '5',
-      hint: '星座、八字、测评、情绪、幸运物将逐步完善。',
     },
   ],
   modules: [],
@@ -203,7 +236,11 @@ export const useDashboardStore = defineStore('dashboard', {
         const response = await http.get<MobileDashboardResponse>(
           '/home/index',
         );
-        this.dashboard = response.data;
+        this.dashboard = {
+          ...fallbackDashboard,
+          ...response.data,
+          stateOverview: response.data.stateOverview || fallbackDashboard.stateOverview,
+        };
       } catch (error) {
         console.warn('load dashboard fallback', error);
         this.dashboard = fallbackDashboard;

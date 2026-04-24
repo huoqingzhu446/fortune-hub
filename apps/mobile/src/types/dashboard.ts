@@ -9,6 +9,25 @@ export interface DashboardLuckyMetric {
   hint: string;
 }
 
+export interface DashboardStateFactor {
+  id: string;
+  label: string;
+  value: string;
+  hint: string;
+  tone: 'positive' | 'steady' | 'watch';
+}
+
+export interface DashboardStateOverview {
+  title: string;
+  summary: string;
+  primarySuggestion: string;
+  confidenceLabel: string;
+  evidenceLabel: string;
+  disclaimer: string;
+  basisTags: string[];
+  factors: DashboardStateFactor[];
+}
+
 export interface DashboardLuckySign {
   bizCode?: string;
   title: string;
@@ -77,6 +96,7 @@ export interface MobileDashboardPayload {
   annualLuckyScore: DashboardLuckyMetric;
   todayLuckySign: DashboardLuckySign;
   todayFortuneSummary: string;
+  stateOverview: DashboardStateOverview;
   featureEntries: DashboardModule[];
   quickEntries: DashboardQuickEntry[];
   journeyEntries: DashboardJourneyEntry[];

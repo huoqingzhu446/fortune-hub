@@ -90,6 +90,9 @@ export class HomeService {
 
   async getHomeIndex(user: UserEntity | null) {
     const luckySign = await this.luckyService.getTodaySignSnapshot();
+    const dailyThemeKey = this.resolveDailyThemeKey(
+      this.pickString((luckySign as { themeName?: string }).themeName, ''),
+    );
     const integrations = this.buildIntegrations();
     const signals = user ? await this.loadHomeSignals(user.id) : this.createEmptySignals();
     const stateOverview = this.buildStateOverview(user, signals);
@@ -209,6 +212,7 @@ export class HomeService {
       code: 0,
       message: 'ok',
       data: {
+        dailyThemeKey,
         headline,
         todayLuckyScore: stateOverview.currentScore,
         annualLuckyScore: stateOverview.completionScore,
@@ -276,6 +280,48 @@ export class HomeService {
       },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private resolveDailyThemeKey(themeName: string) {
+    const normalized = themeName.toLowerCase();
+
+    if (normalized.includes('mint')) {
+      return 'mint_cyan';
+    }
+
+    if (
+      normalized.includes('gold') ||
+      normalized.includes('champagne') ||
+      normalized.includes('oriental')
+    ) {
+      return 'champagne_gold';
+    }
+
+    if (normalized.includes('silver') || normalized.includes('metal')) {
+      return 'moon_silver';
+    }
+
+    if (normalized.includes('amber') || normalized.includes('warm')) {
+      return 'amber_honey';
+    }
+
+    if (normalized.includes('pink') || normalized.includes('rose')) {
+      return 'rose_dust';
+    }
+
+    if (normalized.includes('lavender') || normalized.includes('violet')) {
+      return 'lavender';
+    }
+
+    if (
+      normalized.includes('ocean') ||
+      normalized.includes('sea') ||
+      normalized.includes('water')
+    ) {
+      return 'sea_salt';
+    }
+
+    return 'mist_blue';
   }
 
   private async loadHomeSignals(userId: string): Promise<HomeSignals> {

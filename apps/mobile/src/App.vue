@@ -16,30 +16,46 @@ onHide(() => {
 
 <style lang="scss">
 page {
-  --apple-bg-top: #f7fbff;
-  --apple-bg-bottom: #e8f0f6;
-  --apple-surface: rgba(255, 255, 255, 0.82);
-  --apple-surface-strong: rgba(255, 255, 255, 0.94);
-  --apple-border: rgba(255, 255, 255, 0.7);
-  --apple-text: #142033;
-  --apple-muted: #66778a;
-  --apple-subtle: #8a9ab0;
-  --apple-blue: #5b8def;
-  --apple-blue-soft: #dce8ff;
-  --apple-mint: #86d1b6;
-  --apple-mint-soft: #ddf4ea;
-  --apple-sun: #ffd596;
-  --apple-sun-soft: #fff2d7;
-  --apple-shadow: 0 20rpx 60rpx rgba(73, 106, 142, 0.12);
+  --theme-primary: #6f91b7;
+  --theme-soft: #eef5fa;
+  --theme-accent: #afc8e5;
+  --theme-page-top: #fbf9f5;
+  --theme-page-bottom: #eef5fa;
+  --theme-surface: rgba(255, 255, 255, 0.76);
+  --theme-surface-strong: rgba(255, 255, 255, 0.9);
+  --theme-surface-muted: rgba(244, 248, 252, 0.92);
+  --theme-text-primary: #2f3a4a;
+  --theme-text-secondary: #7f8793;
+  --theme-text-tertiary: #aeb4bd;
+  --theme-border: rgba(255, 255, 255, 0.82);
+  --theme-tag-bg: rgba(238, 245, 250, 0.96);
+  --theme-glow: rgba(175, 200, 229, 0.42);
+  --theme-shadow: 0 16rpx 48rpx rgba(92, 112, 140, 0.12);
+  --theme-shadow-soft: 0 8rpx 24rpx rgba(92, 112, 140, 0.12);
+  --apple-bg-top: var(--theme-page-top);
+  --apple-bg-bottom: var(--theme-page-bottom);
+  --apple-surface: var(--theme-surface);
+  --apple-surface-strong: var(--theme-surface-strong);
+  --apple-border: var(--theme-border);
+  --apple-text: var(--theme-text-primary);
+  --apple-muted: var(--theme-text-secondary);
+  --apple-subtle: var(--theme-text-tertiary);
+  --apple-blue: var(--theme-primary);
+  --apple-blue-soft: var(--theme-soft);
+  --apple-mint: var(--theme-accent);
+  --apple-mint-soft: var(--theme-soft);
+  --apple-sun: var(--theme-accent);
+  --apple-sun-soft: var(--theme-soft);
+  --apple-shadow: var(--theme-shadow);
   background:
-    radial-gradient(circle at top left, rgba(134, 209, 182, 0.34), transparent 28%),
-    radial-gradient(circle at top right, rgba(91, 141, 239, 0.2), transparent 30%),
-    linear-gradient(180deg, var(--apple-bg-top) 0%, var(--apple-bg-bottom) 100%);
-  color: var(--apple-text);
+    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.72), transparent 24%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+  color: var(--theme-text-primary);
   font-family:
-    'SF Pro Display',
-    'SF Pro Text',
     'PingFang SC',
+    'Noto Serif SC',
+    'Hiragino Mincho ProN',
     'Helvetica Neue',
     sans-serif;
 }

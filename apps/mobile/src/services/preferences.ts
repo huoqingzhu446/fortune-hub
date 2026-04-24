@@ -1,8 +1,12 @@
+import type { ThemeKey, ThemeMode } from '../theme/tokens';
+
 export interface AppSettings {
   dailyReminderEnabled: boolean;
   luckyPushEnabled: boolean;
   quietModeEnabled: boolean;
   saveHistoryCardsEnabled: boolean;
+  themeMode: ThemeMode;
+  manualThemeKey: ThemeKey | '';
 }
 
 export interface FeedbackEntry {
@@ -14,12 +18,15 @@ export interface FeedbackEntry {
 
 const APP_SETTINGS_KEY = 'fortune-hub-app-settings';
 const FEEDBACK_HISTORY_KEY = 'fortune-hub-feedback-history';
+const DAILY_THEME_KEY = 'fortune-hub-daily-theme-key';
 
 const DEFAULT_SETTINGS: AppSettings = {
   dailyReminderEnabled: true,
   luckyPushEnabled: true,
   quietModeEnabled: false,
   saveHistoryCardsEnabled: true,
+  themeMode: 'auto',
+  manualThemeKey: '',
 };
 
 export function getAppSettings() {
@@ -33,6 +40,14 @@ export function getAppSettings() {
 
 export function saveAppSettings(settings: AppSettings) {
   uni.setStorageSync(APP_SETTINGS_KEY, settings);
+}
+
+export function getStoredDailyThemeKey() {
+  return (uni.getStorageSync(DAILY_THEME_KEY) as ThemeKey | '' | null) ?? '';
+}
+
+export function saveDailyThemeKey(themeKey: ThemeKey | '') {
+  uni.setStorageSync(DAILY_THEME_KEY, themeKey);
 }
 
 export function getFeedbackHistory() {

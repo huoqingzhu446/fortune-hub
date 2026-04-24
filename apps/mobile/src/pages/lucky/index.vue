@@ -154,7 +154,7 @@
       <button class="hero-button hero-button--secondary" @tap="backHome">返回首页</button>
     </view>
     </view>
-    <AppTabBar current-tab="lucky" />
+    <AppTabBar current-tab="explore" />
   </view>
 </template>
 

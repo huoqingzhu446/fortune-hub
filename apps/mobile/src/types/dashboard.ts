@@ -33,6 +33,7 @@ export interface DashboardLuckySign {
   title: string;
   summary: string;
   tag: string;
+  themeName?: string;
 }
 
 export interface DashboardStat {
@@ -91,6 +92,7 @@ export interface DashboardUserSummary {
 }
 
 export interface MobileDashboardPayload {
+  dailyThemeKey?: string;
   headline: DashboardHeadline;
   todayLuckyScore: DashboardLuckyMetric;
   annualLuckyScore: DashboardLuckyMetric;

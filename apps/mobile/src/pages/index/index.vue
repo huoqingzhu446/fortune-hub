@@ -1,12 +1,23 @@
 <template>
-  <view class="page-shell">
+  <view class="page-shell" :style="themeVars">
     <view class="home-page">
       <view class="ambient ambient--blue"></view>
       <view class="ambient ambient--mint"></view>
 
+      <view class="page-header">
+        <view class="page-header__copy">
+          <text class="page-header__title">今日气运</text>
+          <text class="page-header__subtitle">{{ pageSubtitle }}</text>
+        </view>
+        <view class="page-header__date">
+          <text class="page-header__date-line">{{ displayDate }}</text>
+          <text class="page-header__date-line">{{ dateHint }}</text>
+        </view>
+      </view>
+
       <view class="state-stage">
         <view class="state-stage__copy">
-          <text class="state-stage__eyebrow">current status</text>
+          <text class="state-stage__eyebrow">综合状态</text>
           <text class="state-stage__title">{{ stateOverview.title }}</text>
           <text class="state-stage__summary">{{ stateOverview.summary }}</text>
         </view>
@@ -73,7 +84,7 @@
       <view class="section-block">
         <view class="section-head">
           <view>
-            <text class="section-head__eyebrow">评测模块</text>
+            <text class="section-head__eyebrow">探索入口</text>
           </view>
 <!--          <text class="section-head__side">{{ moduleCards.length }} 个</text>-->
         </view>
@@ -102,7 +113,9 @@
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
+import type { ThemeKey } from '../../theme/tokens';
 
 const dashboardStore = useDashboardStore();
 
@@ -112,6 +125,21 @@ const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
 const stateOverview = computed(() => dashboard.value.stateOverview);
+const dailyThemeKey = computed<ThemeKey | ''>(
+  () => (dashboard.value.dailyThemeKey as ThemeKey | undefined) || '',
+);
+const { themeVars } = useThemePreference(dailyThemeKey);
+const pageSubtitle = computed(
+  () => dashboard.value.headline.subtitle || '身心和谐 · 顺势而为',
+);
+const displayDate = computed(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  return `${year}年${month}月${day}日`;
+});
+const dateHint = computed(() => (loading.value ? '今日主题同步中' : '跟随今日幸运色'));
 const posterCardSummary = computed(() => {
   const summary = `把当前状态指数转成一张适合微信分享的高清图片`;
   return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
@@ -198,7 +226,9 @@ onPullDownRefresh(async () => {
   min-height: 100vh;
   padding-bottom: 144rpx;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
+  background:
+    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .home-page {
@@ -206,6 +236,40 @@ onPullDownRefresh(async () => {
   min-height: 100vh;
   padding: 28rpx 24rpx 0;
   overflow: hidden;
+}
+
+.page-header {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20rpx;
+  align-items: start;
+  margin-bottom: 24rpx;
+}
+
+.page-header__copy,
+.page-header__date {
+  display: grid;
+  gap: 10rpx;
+}
+
+.page-header__title {
+  font-size: 64rpx;
+  font-weight: 500;
+  color: var(--theme-text-primary);
+}
+
+.page-header__subtitle,
+.page-header__date-line {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.page-header__date {
+  justify-items: end;
+  margin-top: 10rpx;
 }
 
 .ambient {
@@ -220,7 +284,7 @@ onPullDownRefresh(async () => {
   right: -64rpx;
   width: 260rpx;
   height: 260rpx;
-  background: rgba(129, 178, 255, 0.2);
+  background: var(--theme-glow);
 }
 
 .ambient--mint {
@@ -228,7 +292,7 @@ onPullDownRefresh(async () => {
   left: -60rpx;
   width: 220rpx;
   height: 220rpx;
-  background: rgba(133, 214, 189, 0.16);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .topbar,

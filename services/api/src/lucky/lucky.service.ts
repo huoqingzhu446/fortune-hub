@@ -191,12 +191,14 @@ export class LuckyService {
     await this.ensureSeedData();
     const sign = await this.resolveTodaySign();
     const content = this.readSignContent(sign);
+    const sharePoster = this.readSharePoster(sign, content);
 
     return {
       bizCode: sign.bizCode,
       title: sign.title,
       summary: sign.summary ?? '把节奏放慢一点，今天更适合温柔但清晰的推进。',
       tag: content.tag ?? '今日吉签',
+      themeName: sharePoster.themeName,
     };
   }
 

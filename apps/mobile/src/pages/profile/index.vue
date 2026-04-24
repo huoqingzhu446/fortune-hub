@@ -1,5 +1,5 @@
 <template>
-  <view class="page-shell">
+  <view class="page-shell" :style="themeVars">
     <view class="page">
       <view class="panel hero-panel">
         <text class="eyebrow">profile center</text>
@@ -214,7 +214,7 @@
       </view>
       </view>
     </view>
-    <AppTabBar current-tab="profile" />
+    <AppTabBar current-tab="mine" />
   </view>
 </template>
 
@@ -224,6 +224,7 @@ import { computed, reactive, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchMe, loginWithCode, updateMyProfile } from '../../api/auth';
 import { fetchUnifiedHistory } from '../../api/records';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import {
   clearSession,
@@ -284,6 +285,7 @@ const authToken = ref(getAuthToken());
 const authMeta = ref(getAuthSessionMeta());
 const loginErrorMessage = ref('');
 const recentHistory = ref<UnifiedRecordItem[]>([]);
+const { themeVars } = useThemePreference();
 const form = reactive({
   nickname: profile.value.nickname || '',
   birthday: profile.value.birthday || '',

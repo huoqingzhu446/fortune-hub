@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia';
 import { appEnv } from '../config/env';
+import { saveDailyThemeKey } from '../services/preferences';
 import { http } from '../services/request';
 import type {
   MobileDashboardPayload,
   MobileDashboardResponse,
 } from '../types/dashboard';
+import type { ThemeKey } from '../theme/tokens';
 
 const fallbackDashboard: MobileDashboardPayload = {
+  dailyThemeKey: 'mist_blue',
   headline: {
     title: '先用测评和资料，重新认识今天的自己',
     subtitle:
@@ -27,6 +30,7 @@ const fallbackDashboard: MobileDashboardPayload = {
     title: '今日幸运签',
     summary: '慢下来一点，答案会在下一次呼吸里浮现。',
     tag: '静观有得',
+    themeName: 'fresh-mint',
   },
   todayFortuneSummary:
     '这版首页会把情绪自检权重放得更高，再结合性格、资料完整度和轻量个性化标签来解释你当前的状态。',
@@ -155,28 +159,28 @@ const fallbackDashboard: MobileDashboardPayload = {
       id: 'home',
       label: '首页',
       route: '/pages/index/index',
-      iconText: 'H',
+      iconText: '今',
       active: true,
     },
     {
-      id: 'tests',
-      label: '测评',
-      route: '/pages/personality/index',
-      iconText: 'T',
+      id: 'explore',
+      label: '探索',
+      route: '/pages/explore/index',
+      iconText: '探',
       active: false,
     },
     {
-      id: 'lucky',
-      label: '幸运物',
-      route: '/pages/lucky/index',
-      iconText: 'L',
+      id: 'record',
+      label: '记录',
+      route: '/pages/records/index',
+      iconText: '记',
       active: false,
     },
     {
-      id: 'me',
+      id: 'mine',
       label: '我的',
       route: '/pages/profile/index',
-      iconText: 'M',
+      iconText: '我',
       active: false,
     },
   ],
@@ -236,13 +240,23 @@ export const useDashboardStore = defineStore('dashboard', {
         const response = await http.get<MobileDashboardResponse>(
           '/home/index',
         );
-        this.dashboard = {
+
+        const nextDashboard: MobileDashboardPayload = {
           ...fallbackDashboard,
           ...response.data,
+          todayLuckySign: {
+            ...fallbackDashboard.todayLuckySign,
+            ...response.data.todayLuckySign,
+          },
           stateOverview: response.data.stateOverview || fallbackDashboard.stateOverview,
         };
+
+        saveDailyThemeKey((nextDashboard.dailyThemeKey as ThemeKey | undefined) || '');
+
+        this.dashboard = nextDashboard;
       } catch (error) {
         console.warn('load dashboard fallback', error);
+        saveDailyThemeKey((fallbackDashboard.dailyThemeKey as ThemeKey | undefined) || '');
         this.dashboard = fallbackDashboard;
       } finally {
         this.loading = false;

@@ -304,7 +304,7 @@
       </view>
     </view>
     </view>
-    <AppTabBar current-tab="personality" />
+    <AppTabBar current-tab="explore" />
   </view>
 </template>
 

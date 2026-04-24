@@ -1,74 +1,80 @@
 <template>
-  <view class="page">
-    <view class="hero-card">
-      <text class="hero-card__eyebrow">history center</text>
-      <text class="hero-card__title">统一历史记录</text>
-      <text class="hero-card__subtitle">
-        {{ isLoggedIn ? '这里会汇总八字、性格和情绪结果，方便你回看最近的状态。' : '先登录，历史记录才会开始沉淀。' }}
-      </text>
-    </view>
-
-    <view v-if="!isLoggedIn" class="section-card empty-card">
-      <text class="empty-card__title">还没有登录</text>
-      <text class="empty-card__text">去个人中心完成登录后，后续测评和解读结果都会自动写进这里。</text>
-      <button class="hero-button hero-button--primary" @tap="goProfile">去个人中心</button>
-    </view>
-
-    <template v-else>
-      <view class="section-card">
-        <view class="filter-row">
-          <view
-            v-for="item in filters"
-            :key="item.value"
-            class="filter-chip"
-            :class="{ 'filter-chip--active': activeFilter === item.value }"
-            @tap="activeFilter = item.value"
-          >
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
+  <view class="page-shell" :style="themeVars">
+    <view class="page">
+      <view class="hero-card">
+        <text class="hero-card__eyebrow">看见自己的情绪轨迹与变化</text>
+        <text class="hero-card__title">记录</text>
+        <text class="hero-card__subtitle">
+          {{ isLoggedIn ? '这里会慢慢沉淀你的情绪、测试与疗愈记录。' : '登录后，记录和变化才会开始长期保存。' }}
+        </text>
       </view>
 
-      <view v-if="loading" class="section-card empty-card">
-        <text class="empty-card__title">正在同步历史记录...</text>
-        <text class="empty-card__text">马上就好。</text>
+      <view v-if="!isLoggedIn" class="section-card empty-card">
+        <text class="empty-card__title">还没有登录</text>
+        <text class="empty-card__text">去“我的”完成登录后，后续测评和记录都会自动沉淀在这里。</text>
+        <button class="hero-button hero-button--primary" @tap="goProfile">去我的</button>
       </view>
 
-      <view v-else-if="filteredItems.length" class="section-card">
-        <view class="record-list">
-          <view
-            v-for="item in filteredItems"
-            :key="item.id"
-            class="record-card"
-            @tap="openRecord(item)"
-          >
-            <view class="record-card__top">
-              <view>
-                <text class="record-card__type">{{ item.recordTypeLabel }}</text>
-                <text class="record-card__title">{{ item.title }}</text>
-              </view>
-              <text class="record-card__score">{{ item.score !== null ? item.score : '--' }}</text>
+      <template v-else>
+        <view class="section-card">
+          <view class="filter-row">
+            <view
+              v-for="item in filters"
+              :key="item.value"
+              class="filter-chip"
+              :class="{ 'filter-chip--active': activeFilter === item.value }"
+              @tap="activeFilter = item.value"
+            >
+              <text>{{ item.label }}</text>
             </view>
-
-            <text class="record-card__subtitle">{{ item.subtitle || item.detailHint || '查看详情' }}</text>
-            <text class="record-card__summary">{{ item.summary || '这条记录暂时还没有补充摘要。' }}</text>
-            <text class="record-card__time">{{ formatDateTime(item.completedAt) }}</text>
           </view>
         </view>
-      </view>
 
-      <view v-else class="section-card empty-card">
-        <text class="empty-card__title">还没有对应记录</text>
-        <text class="empty-card__text">完成一次八字、性格或情绪结果后，这里就会出现。</text>
-      </view>
-    </template>
+        <view v-if="loading" class="section-card empty-card">
+          <text class="empty-card__title">正在同步记录...</text>
+          <text class="empty-card__text">马上就好。</text>
+        </view>
+
+        <view v-else-if="filteredItems.length" class="section-card">
+          <view class="record-list">
+            <view
+              v-for="item in filteredItems"
+              :key="item.id"
+              class="record-card"
+              @tap="openRecord(item)"
+            >
+              <view class="record-card__top">
+                <view>
+                  <text class="record-card__type">{{ item.recordTypeLabel }}</text>
+                  <text class="record-card__title">{{ item.title }}</text>
+                </view>
+                <text class="record-card__score">{{ item.score !== null ? item.score : '--' }}</text>
+              </view>
+
+              <text class="record-card__subtitle">{{ item.subtitle || item.detailHint || '查看详情' }}</text>
+              <text class="record-card__summary">{{ item.summary || '这条记录暂时还没有补充摘要。' }}</text>
+              <text class="record-card__time">{{ formatDateTime(item.completedAt) }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-else class="section-card empty-card">
+          <text class="empty-card__title">还没有对应记录</text>
+          <text class="empty-card__text">完成一次测试、日记或解读后，这里就会出现。</text>
+        </view>
+      </template>
+    </view>
+
+    <AppTabBar current-tab="record" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchUnifiedHistory } from '../../api/records';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { UnifiedRecordItem } from '../../types/records';
@@ -77,6 +83,7 @@ const items = ref<UnifiedRecordItem[]>([]);
 const loading = ref(false);
 const authToken = ref(getAuthToken());
 const activeFilter = ref<'all' | 'personality' | 'emotion' | 'bazi'>('all');
+const { themeVars } = useThemePreference();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const filters = computed(() => [
@@ -155,12 +162,17 @@ onShow(() => {
 </script>
 
 <style lang="scss">
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: 144rpx;
+  background:
+    radial-gradient(circle at top left, var(--theme-glow), transparent 32%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+}
+
 .page {
   min-height: 100vh;
-  padding: 24rpx;
-  background:
-    radial-gradient(circle at top left, rgba(134, 209, 182, 0.24), transparent 22%),
-    linear-gradient(180deg, #f9fbff 0%, #edf2f7 100%);
+  padding: 28rpx 24rpx 0;
 }
 
 .hero-card,
@@ -170,22 +182,22 @@ onShow(() => {
   margin-bottom: 20rpx;
   padding: 28rpx;
   border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--apple-shadow);
+  background: var(--theme-surface);
+  border: 1rpx solid var(--theme-border);
+  box-shadow: var(--theme-shadow);
 }
 
 .hero-card__eyebrow,
 .record-card__type {
-  font-size: 20rpx;
-  text-transform: uppercase;
-  letter-spacing: 0.28em;
-  color: var(--apple-subtle);
+  font-size: 22rpx;
+  letter-spacing: 0.12em;
+  color: var(--theme-primary);
 }
 
 .hero-card__title {
-  font-size: 42rpx;
-  font-weight: 700;
-  color: var(--apple-text);
+  font-size: 52rpx;
+  font-weight: 500;
+  color: var(--theme-text-primary);
 }
 
 .hero-card__subtitle,
@@ -194,7 +206,7 @@ onShow(() => {
 .record-card__subtitle {
   font-size: 26rpx;
   line-height: 1.7;
-  color: var(--apple-muted);
+  color: var(--theme-text-secondary);
 }
 
 .filter-row,
@@ -211,14 +223,14 @@ onShow(() => {
   padding: 18rpx 0;
   border-radius: 999rpx;
   text-align: center;
-  background: rgba(244, 247, 250, 0.92);
-  color: var(--apple-muted);
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-secondary);
   font-size: 24rpx;
 }
 
 .filter-chip--active {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
 .record-card {
@@ -226,7 +238,7 @@ onShow(() => {
   gap: 10rpx;
   padding: 22rpx;
   border-radius: 24rpx;
-  background: rgba(246, 249, 252, 0.92);
+  background: var(--theme-surface-muted);
 }
 
 .record-card__top {
@@ -241,18 +253,18 @@ onShow(() => {
   margin-top: 8rpx;
   font-size: 34rpx;
   font-weight: 700;
-  color: var(--apple-text);
+  color: var(--theme-text-primary);
 }
 
 .record-card__score,
 .empty-card__title {
   font-size: 30rpx;
-  color: var(--apple-text);
+  color: var(--theme-text-primary);
 }
 
 .record-card__time {
   font-size: 22rpx;
-  color: var(--apple-subtle);
+  color: var(--theme-text-tertiary);
 }
 
 .hero-button {
@@ -261,7 +273,7 @@ onShow(() => {
   line-height: 82rpx;
   font-size: 28rpx;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
 .hero-button::after {

@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-type TabId = 'home' | 'personality' | 'lucky' | 'profile';
+type TabId = 'home' | 'explore' | 'record' | 'mine';
 
 interface TabItem {
   id: TabId;
@@ -28,15 +28,15 @@ const props = defineProps<{
 }>();
 
 const items: TabItem[] = [
-  { id: 'home', label: '首页', route: '/pages/index/index', iconText: '运' },
-  { id: 'personality', label: '测评', route: '/pages/personality/index', iconText: '测' },
-  { id: 'lucky', label: '幸运物', route: '/pages/lucky/index', iconText: '幸' },
-  { id: 'profile', label: '我的', route: '/pages/profile/index', iconText: '我' },
+  { id: 'home', label: '首页', route: '/pages/index/index', iconText: '今' },
+  { id: 'explore', label: '探索', route: '/pages/explore/index', iconText: '探' },
+  { id: 'record', label: '记录', route: '/pages/records/index', iconText: '记' },
+  { id: 'mine', label: '我的', route: '/pages/profile/index', iconText: '我' },
 ];
 
 function handlePress(item: TabItem) {
   if (item.id === props.currentTab) {
-    if (item.id === 'home') {
+    if (item.id === 'home' || item.id === 'explore' || item.id === 'record' || item.id === 'mine') {
       uni.pageScrollTo({
         scrollTop: 0,
         duration: 220,
@@ -64,9 +64,9 @@ function handlePress(item: TabItem) {
   box-sizing: border-box;
   padding: 10rpx 18rpx calc(8rpx + constant(safe-area-inset-bottom));
   padding: 10rpx 18rpx calc(8rpx + env(safe-area-inset-bottom));
-  background: rgba(250, 252, 255, 0.9);
-  border-top: 1rpx solid rgba(196, 210, 229, 0.38);
-  box-shadow: 0 -16rpx 44rpx rgba(34, 54, 88, 0.08);
+  background: var(--theme-surface-strong);
+  border-top: 1rpx solid var(--theme-border);
+  box-shadow: 0 -16rpx 44rpx rgba(50, 60, 80, 0.06);
   backdrop-filter: blur(24rpx);
 }
 
@@ -79,7 +79,7 @@ function handlePress(item: TabItem) {
 }
 
 .app-tabbar__item--active {
-  background: linear-gradient(180deg, rgba(231, 239, 255, 0.9) 0%, rgba(255, 255, 255, 0.84) 100%);
+  background: linear-gradient(180deg, var(--theme-tag-bg) 0%, rgba(255, 255, 255, 0.84) 100%);
 }
 
 .app-tabbar__icon {
@@ -88,24 +88,24 @@ function handlePress(item: TabItem) {
   width: 52rpx;
   height: 52rpx;
   border-radius: 50%;
-  background: rgba(91, 141, 239, 0.12);
-  color: var(--apple-blue);
+  background: var(--theme-tag-bg);
+  color: var(--theme-primary);
   font-size: 22rpx;
   font-weight: 700;
 }
 
 .app-tabbar__item--active .app-tabbar__icon {
-  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
   color: #ffffff;
 }
 
 .app-tabbar__label {
   font-size: 22rpx;
-  color: var(--apple-muted);
+  color: var(--theme-text-secondary);
 }
 
 .app-tabbar__item--active .app-tabbar__label {
-  color: var(--apple-text);
+  color: var(--theme-text-primary);
   font-weight: 600;
 }
 </style>

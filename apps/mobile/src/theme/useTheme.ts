@@ -12,6 +12,24 @@ function isThemeKey(value: unknown): value is ThemeKey {
   return typeof value === 'string' && THEME_KEYS.includes(value as ThemeKey);
 }
 
+function hexToRgbChannels(hex: string) {
+  const normalized = hex.replace('#', '').trim();
+
+  if (normalized.length !== 6) {
+    return '0, 0, 0';
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  if ([red, green, blue].some((item) => Number.isNaN(item))) {
+    return '0, 0, 0';
+  }
+
+  return `${red}, ${green}, ${blue}`;
+}
+
 export function normalizeThemeKey(value: unknown, fallback: ThemeKey = DEFAULT_THEME_KEY): ThemeKey {
   return isThemeKey(value) ? value : fallback;
 }
@@ -60,15 +78,19 @@ export function buildThemeCssVars(themeKey: ThemeKey) {
 
   return {
     '--theme-primary': palette.primary,
+    '--theme-primary-rgb': hexToRgbChannels(palette.primary),
     '--theme-soft': palette.soft,
     '--theme-accent': palette.accent,
+    '--theme-accent-rgb': hexToRgbChannels(palette.accent),
     '--theme-page-top': palette.pageTop,
     '--theme-page-bottom': palette.pageBottom,
     '--theme-surface': palette.surface,
     '--theme-surface-strong': palette.surfaceStrong,
     '--theme-surface-muted': palette.surfaceMuted,
     '--theme-text-primary': palette.textPrimary,
+    '--theme-text-primary-rgb': hexToRgbChannels(palette.textPrimary),
     '--theme-text-secondary': palette.textSecondary,
+    '--theme-text-secondary-rgb': hexToRgbChannels(palette.textSecondary),
     '--theme-text-tertiary': palette.textTertiary,
     '--theme-border': palette.border,
     '--theme-tag-bg': palette.tagBg,

@@ -1,17 +1,21 @@
 <template>
   <view class="advice-card">
     <view class="advice-card__illustration">
-      <view class="advice-card__moon"></view>
+      <view class="advice-card__mist"></view>
+      <view class="advice-card__orb"></view>
       <view class="advice-card__silhouette">静</view>
     </view>
 
     <view class="advice-card__content">
-      <text class="advice-card__eyebrow">今日建议</text>
+      <text class="advice-card__eyebrow">今日建议 ✧</text>
       <text class="advice-card__title">{{ title }}</text>
       <text class="advice-card__summary">{{ summary }}</text>
 
       <view class="advice-card__actions">
-        <button class="advice-card__button" @tap.stop="$emit('action')">{{ actionText }}</button>
+        <button class="advice-card__button" @tap.stop="$emit('action')">
+          <text>{{ actionText }}</text>
+          <text class="advice-card__button-arrow">▶</text>
+        </button>
       </view>
     </view>
   </view>
@@ -32,45 +36,60 @@ defineEmits<{
 <style lang="scss">
 .advice-card {
   display: grid;
-  grid-template-columns: 164rpx minmax(0, 1fr);
-  gap: 22rpx;
+  grid-template-columns: 168rpx minmax(0, 1fr);
+  gap: 26rpx;
   align-items: center;
-  padding: 28rpx;
-  border-radius: 34rpx;
+  padding: 28rpx 30rpx;
+  border-radius: 36rpx;
   background:
-    radial-gradient(circle at 85% 20%, rgba(255, 255, 255, 0.78), transparent 24%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.84) 0%, var(--theme-soft) 100%);
-  border: 1rpx solid var(--theme-border);
-  box-shadow: var(--theme-shadow);
+    radial-gradient(circle at 82% 20%, rgba(var(--theme-accent-rgb), 0.18), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(var(--theme-primary-rgb), 0.08) 100%);
+  border: 1rpx solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 20rpx 54rpx rgba(var(--theme-text-primary-rgb), 0.08),
+    0 0 0 1rpx rgba(255, 255, 255, 0.44) inset;
 }
 
 .advice-card__illustration {
   position: relative;
-  width: 164rpx;
-  height: 164rpx;
+  width: 168rpx;
+  height: 168rpx;
 }
 
-.advice-card__moon,
+.advice-card__mist,
+.advice-card__orb,
 .advice-card__silhouette {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
 }
 
-.advice-card__moon {
+.advice-card__mist {
+  inset: auto -20rpx -6rpx auto;
+  width: 110rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.18) 0%, rgba(255, 255, 255, 0) 74%);
+  filter: blur(10rpx);
+}
+
+.advice-card__orb {
+  border-radius: 34rpx;
   background:
-    radial-gradient(circle at 32% 32%, rgba(255, 255, 255, 0.92), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, var(--theme-soft) 100%);
-  box-shadow: 0 0 0 1rpx rgba(255, 255, 255, 0.72) inset;
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.94), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(var(--theme-primary-rgb), 0.18) 100%);
+  box-shadow:
+    0 0 0 1rpx rgba(255, 255, 255, 0.76) inset,
+    0 22rpx 44rpx rgba(var(--theme-primary-rgb), 0.12);
 }
 
 .advice-card__silhouette {
   display: grid;
   place-items: center;
-  inset: 24rpx;
+  inset: 30rpx;
   font-size: 42rpx;
   color: var(--theme-primary);
-  background: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
 }
 
 .advice-card__content {
@@ -80,12 +99,12 @@ defineEmits<{
 
 .advice-card__eyebrow {
   font-size: 22rpx;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   color: var(--theme-primary);
 }
 
 .advice-card__title {
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 500;
   color: var(--theme-text-primary);
 }
@@ -104,17 +123,25 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 190rpx;
-  min-height: 76rpx;
+  gap: 14rpx;
+  min-width: 214rpx;
+  min-height: 80rpx;
   margin: 0;
-  padding: 0 26rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
   font-size: 26rpx;
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  color: var(--theme-text-primary);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.22);
+  box-shadow: 0 14rpx 28rpx rgba(var(--theme-primary-rgb), 0.08);
 }
 
 .advice-card__button::after {
   border: none;
+}
+
+.advice-card__button-arrow {
+  font-size: 22rpx;
+  color: var(--theme-primary);
 }
 </style>

@@ -11,6 +11,14 @@
       </view>
       <text class="summary">{{ detail.sign.summary }}</text>
       <text class="mantra">签语提醒：{{ detail.sign.mantra }}</text>
+      <button
+        class="favorite-button"
+        :class="{ 'favorite-button--active': favoriteActive }"
+        :loading="favoriteLoading"
+        @tap="toggleSignFavorite"
+      >
+        {{ favoriteActive ? '已收藏这张签' : '收藏这张签' }}
+      </button>
     </view>
 
     <view class="panel">
@@ -89,6 +97,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { generateLuckySignPoster } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
+import { useFavoriteToggle } from '../../../composables/useFavoriteToggle';
 import { getErrorMessage } from '../../../services/errors';
 import {
   handlePosterImageError,
@@ -132,6 +141,12 @@ const fallbackDetail: LuckySignDetailData = {
 const detail = ref<LuckySignDetailData>(fallbackDetail);
 const poster = ref<GeneratedPoster | null>(null);
 const posterLoading = ref(false);
+const {
+  favoriteActive,
+  favoriteLoading,
+  syncFavoriteState,
+  toggleCurrent,
+} = useFavoriteToggle();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
@@ -140,6 +155,7 @@ async function loadDetail(bizCode: string) {
   try {
     const response = await fetchLuckySignDetail(bizCode);
     detail.value = response.data;
+    await syncFavoriteState(`sign:${response.data.sign.bizCode}`);
   } catch (error) {
     console.warn('load lucky sign failed', error);
     detail.value = fallbackDetail;
@@ -148,6 +164,20 @@ async function loadDetail(bizCode: string) {
       icon: 'none',
     });
   }
+}
+
+async function toggleSignFavorite() {
+  await toggleCurrent({
+    itemType: 'sign',
+    itemKey: `sign:${detail.value.sign.bizCode}`,
+    title: detail.value.sign.title,
+    summary: detail.value.sign.summary,
+    icon: '签',
+    route: `/pages/lucky/sign/index?bizCode=${encodeURIComponent(detail.value.sign.bizCode)}`,
+    extraJson: {
+      tag: detail.value.sign.tag,
+    },
+  });
 }
 
 function goLucky() {
@@ -409,7 +439,25 @@ onLoad((options) => {
   font-size: 28rpx;
 }
 
-.hero-button::after {
+.favorite-button {
+  width: fit-content;
+  min-height: 72rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  line-height: 72rpx;
+  font-size: 24rpx;
+  color: var(--apple-text);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.favorite-button--active {
+  color: #2f8471;
+  background: rgba(221, 243, 234, 0.9);
+}
+
+.hero-button::after,
+.favorite-button::after {
   border: none;
 }
 

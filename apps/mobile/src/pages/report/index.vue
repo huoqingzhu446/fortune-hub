@@ -23,6 +23,16 @@
           </text>
         </view>
       </view>
+
+      <button
+        v-if="report"
+        class="favorite-button"
+        :class="{ 'favorite-button--active': favoriteActive }"
+        :loading="favoriteLoading"
+        @tap="toggleReportFavorite"
+      >
+        {{ favoriteActive ? '已收藏这份报告' : '收藏这份报告' }}
+      </button>
     </view>
 
     <view v-if="loading" class="section-card empty-card">
@@ -163,6 +173,7 @@ import { computed, ref } from 'vue';
 import { verifyRewardUnlock } from '../../api/ads';
 import { generateReportPoster } from '../../api/posters';
 import { fetchReport } from '../../api/reports';
+import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { getErrorMessage } from '../../services/errors';
 import {
   handlePosterImageError,
@@ -181,6 +192,12 @@ const unlocking = ref(false);
 const posterLoading = ref(false);
 const report = ref<UnifiedReport | null>(null);
 const poster = ref<GeneratedPoster | null>(null);
+const {
+  favoriteActive,
+  favoriteLoading,
+  syncFavoriteState,
+  toggleCurrent,
+} = useFavoriteToggle();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
@@ -199,6 +216,7 @@ const reportTypeLabel = computed(() => {
 async function loadReport() {
   if (!recordId.value || !isLoggedIn.value) {
     report.value = null;
+    favoriteActive.value = false;
     return;
   }
 
@@ -206,6 +224,7 @@ async function loadReport() {
     loading.value = true;
     const response = await fetchReport(recordId.value);
     report.value = response.data.report;
+    await syncFavoriteState(`report:${recordId.value}`);
   } catch (error) {
     console.warn('load report failed', error);
     report.value = null;
@@ -216,6 +235,24 @@ async function loadReport() {
   } finally {
     loading.value = false;
   }
+}
+
+async function toggleReportFavorite() {
+  if (!report.value || !recordId.value) {
+    return;
+  }
+
+  await toggleCurrent({
+    itemType: 'report',
+    itemKey: `report:${recordId.value}`,
+    title: report.value.title,
+    summary: report.value.summary,
+    icon: '报',
+    route: `/pages/report/index?recordId=${encodeURIComponent(recordId.value)}`,
+    extraJson: {
+      recordType: report.value.recordType,
+    },
+  });
 }
 
 async function unlockByAd() {
@@ -490,7 +527,25 @@ onShow(() => {
   font-size: 28rpx;
 }
 
-.hero-button::after {
+.favorite-button {
+  width: fit-content;
+  min-height: 72rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  line-height: 72rpx;
+  font-size: 24rpx;
+  color: var(--apple-text);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.favorite-button--active {
+  color: #2f8471;
+  background: rgba(229, 242, 236, 0.96);
+}
+
+.hero-button::after,
+.favorite-button::after {
   border: none;
 }
 

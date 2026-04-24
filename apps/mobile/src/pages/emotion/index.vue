@@ -200,6 +200,18 @@
         <text v-for="item in latestResult.relaxSteps" :key="item" class="tips-card__item">{{ item }}</text>
       </view>
 
+      <view class="favorite-strip">
+        <text class="favorite-strip__text">把这组疗愈练习收藏起来，之后可以在“我的收藏”里继续查看。</text>
+        <button
+          class="favorite-strip__button"
+          :class="{ 'favorite-strip__button--active': favoriteActive }"
+          :loading="favoriteLoading"
+          @tap="toggleHealingFavorite"
+        >
+          {{ favoriteActive ? '已收藏这组练习' : '收藏这组练习' }}
+        </button>
+      </view>
+
       <view class="tips-card">
         <text class="tips-card__title">支持信号</text>
         <text class="tips-card__text">{{ latestResult.supportSignal }}</text>
@@ -260,6 +272,7 @@ import {
   fetchEmotionTests,
   submitEmotionAssessment,
 } from '../../api/emotion';
+import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { getAuthToken } from '../../services/session';
 import type {
   EmotionHistoryItem,
@@ -285,6 +298,12 @@ const loadingHistory = ref(false);
 const loadingDetailCode = ref('');
 const submitting = ref(false);
 const authToken = ref(getAuthToken());
+const {
+  favoriteActive,
+  favoriteLoading,
+  syncFavoriteState,
+  toggleCurrent,
+} = useFavoriteToggle();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const currentQuestion = computed(
@@ -396,6 +415,7 @@ function previousQuestion() {
 
 function backToList() {
   screen.value = 'list';
+  favoriteActive.value = false;
 }
 
 async function submitEmotionCheck() {
@@ -426,6 +446,9 @@ async function submitEmotionCheck() {
     latestSubmitSaved.value = response.data.isSaved;
     latestRecordId.value = response.data.recordId;
     screen.value = 'result';
+    await syncFavoriteState(
+      response.data.recordId ? `healing:${response.data.recordId}` : `healing:${activeTest.value.code}`,
+    );
 
     if (response.data.isSaved) {
       await loadHistory();
@@ -448,6 +471,31 @@ async function submitEmotionCheck() {
   } finally {
     submitting.value = false;
   }
+}
+
+async function toggleHealingFavorite() {
+  if (!latestResult.value || !latestTest.value) {
+    return;
+  }
+
+  const itemKey = latestRecordId.value
+    ? `healing:${latestRecordId.value}`
+    : `healing:${latestTest.value.code}`;
+
+  await toggleCurrent({
+    itemType: 'healing_practice',
+    itemKey,
+    title: `${latestTest.value.title} · 疗愈练习`,
+    summary: latestResult.value.primarySuggestion,
+    icon: '静',
+    route: latestRecordId.value
+      ? `/pages/report/index?recordId=${encodeURIComponent(latestRecordId.value)}`
+      : '/pages/emotion/index',
+    extraJson: {
+      testCode: latestTest.value.code,
+      resultTitle: latestResult.value.title,
+    },
+  });
 }
 
 function restartLatestTest() {
@@ -719,6 +767,7 @@ onShow(() => {
 }
 
 .hero-button::after,
+.favorite-strip__button::after,
 .inline-back::after {
   border: none;
 }
@@ -796,6 +845,38 @@ onShow(() => {
 .signal-card,
 .tips-card {
   margin-bottom: 16rpx;
+}
+
+.favorite-strip {
+  display: grid;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 24rpx;
+  background: rgba(246, 249, 255, 0.84);
+}
+
+.favorite-strip__text {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--apple-muted);
+}
+
+.favorite-strip__button {
+  width: fit-content;
+  min-height: 68rpx;
+  margin: 0;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  line-height: 68rpx;
+  font-size: 24rpx;
+  color: var(--apple-text);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.favorite-strip__button--active {
+  color: #2f8471;
+  background: rgba(229, 242, 236, 0.96);
 }
 
 .poster-card {

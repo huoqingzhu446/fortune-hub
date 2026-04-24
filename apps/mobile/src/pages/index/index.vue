@@ -1,107 +1,70 @@
 <template>
   <view class="page-shell" :style="themeVars">
     <view class="home-page">
-      <view class="ambient ambient--blue"></view>
-      <view class="ambient ambient--mint"></view>
+      <view class="ambient ambient--glow"></view>
+      <view class="ambient ambient--mist"></view>
 
       <view class="page-header">
         <view class="page-header__copy">
           <text class="page-header__title">今日气运</text>
           <text class="page-header__subtitle">{{ pageSubtitle }}</text>
         </view>
-        <view class="page-header__date">
-          <text class="page-header__date-line">{{ displayDate }}</text>
-          <text class="page-header__date-line">{{ dateHint }}</text>
+
+        <view class="page-header__meta">
+          <text class="page-header__date">{{ displayDate }}</text>
+          <text class="page-header__hint">{{ dateHint }}</text>
         </view>
       </view>
 
-      <view class="state-stage">
-        <view class="state-stage__copy">
-          <text class="state-stage__eyebrow">综合状态</text>
-          <text class="state-stage__title">{{ stateOverview.title }}</text>
-          <text class="state-stage__summary">{{ stateOverview.summary }}</text>
+      <FortuneScoreCard
+        :label="fortuneCardLabel"
+        :score="fortuneScore"
+        :status="fortuneStatus"
+        :title="fortuneTitle"
+        :summary="fortuneSummary"
+        :tags="fortuneTags"
+        @select="goToReport"
+      />
+
+      <view class="section">
+        <view class="section__head">
+          <text class="section__title">状态一览</text>
+          <text class="section__meta">今天可以先从这些线索看起</text>
         </view>
 
-        <view class="state-stage__board">
-          <view class="state-stage__primary">
-            <text class="state-stage__label">{{ todayLuckyScore.label }}</text>
-            <text class="state-stage__value">{{ todayLuckyScore.value }}</text>
-            <text class="state-stage__hint">{{ stateOverview.confidenceLabel }}</text>
-          </view>
-
-          <view class="state-stage__secondary">
-            <text class="state-stage__secondary-label">{{ annualLuckyScore.label }}</text>
-            <text class="state-stage__secondary-value">{{ annualLuckyScore.value }}</text>
-            <text class="state-stage__secondary-hint">{{ annualLuckyScore.hint }}</text>
-          </view>
-        </view>
-
-        <view v-if="stateOverview.basisTags.length" class="state-stage__tags">
-          <text v-for="tag in stateOverview.basisTags" :key="tag" class="state-stage__tag">
-            {{ tag }}
-          </text>
-        </view>
-      </view>
-
-      <view class="factor-grid">
-        <view
-          v-for="factor in stateOverview.factors"
-          :key="factor.id"
-          class="factor-card"
-          :class="`factor-card--${factor.tone}`"
-        >
-          <text class="factor-card__label">{{ factor.label }}</text>
-          <text class="factor-card__value">{{ factor.value }}</text>
-          <text class="factor-card__hint">{{ factor.hint }}</text>
-        </view>
-      </view>
-
-      <view class="evidence-panel">
-        <view class="evidence-panel__head">
-          <text class="evidence-panel__eyebrow">本次依据</text>
-          <text class="evidence-panel__meta">{{ stateOverview.evidenceLabel }}</text>
-        </view>
-        <text class="evidence-panel__suggestion">{{ stateOverview.primarySuggestion }}</text>
-        <text class="evidence-panel__disclaimer">{{ stateOverview.disclaimer }}</text>
-      </view>
-
-      <view class="insight-grid">
-        <view class="insight-card" @tap="goToLuckySign">
-          <text class="insight-card__eyebrow">今日幸运签</text>
-          <text class="insight-card__title">{{ luckySign.tag }}</text>
-          <text class="insight-card__text">{{ luckySign.summary }}</text>
-          <text class="insight-card__link">查看详情</text>
-        </view>
-
-        <view class="insight-card insight-card--soft" @tap="goToTodayPoster">
-          <text class="insight-card__eyebrow">今日分享图</text>
-          <text class="insight-card__metric">{{ todayLuckyScore.value }}</text>
-          <text class="insight-card__text">{{ posterCardSummary }}</text>
-          <text class="insight-card__link">生成高清图</text>
-        </view>
-      </view>
-
-      <view class="section-block">
-        <view class="section-head">
-          <view>
-            <text class="section-head__eyebrow">探索入口</text>
-          </view>
-<!--          <text class="section-head__side">{{ moduleCards.length }} 个</text>-->
-        </view>
-
-        <view class="module-grid">
+        <view class="status-grid">
           <view
-            v-for="module in moduleCards"
-            :key="module.id"
-            class="module-card"
-            :class="module.toneClass"
-            @tap="handleRoute(module.route)"
+            v-for="card in homeCards"
+            :key="card.id"
+            class="status-grid__item"
+            @tap="handleRoute(card.route)"
           >
-            <text class="module-card__badge">{{ module.badge }}</text>
-            <text class="module-card__title">{{ module.title }}</text>
-            <text class="module-card__description">{{ module.description }}</text>
+            <HomeStatusCard
+              :icon="card.icon"
+              :title="card.title"
+              :value="card.value"
+              :suffix="card.suffix"
+              :badge="card.badge"
+              :description="card.description"
+            />
           </view>
         </view>
+      </view>
+
+      <TodayAdviceCard
+        :title="adviceTitle"
+        :summary="adviceSummary"
+        :action-text="adviceAction.label"
+        @action="handleRoute(adviceAction.route)"
+      />
+
+      <view class="section">
+        <view class="section__head">
+          <text class="section__title">便捷入口</text>
+          <text class="section__meta">继续完善资料、查看历史或深入探索</text>
+        </view>
+
+        <QuickToolStrip :items="quickTools" @select="handleRoute" />
       </view>
     </view>
 
@@ -113,6 +76,10 @@
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
+import FortuneScoreCard, { type FortuneCardTag } from '../../components/FortuneScoreCard.vue';
+import HomeStatusCard from '../../components/HomeStatusCard.vue';
+import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolStrip.vue';
+import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
 import type { ThemeKey } from '../../theme/tokens';
@@ -125,34 +92,192 @@ const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
 const stateOverview = computed(() => dashboard.value.stateOverview);
+const userSummary = computed(() => dashboard.value.userSummary);
+const featureEntries = computed(() => dashboard.value.featureEntries);
+const quickEntries = computed(() => dashboard.value.quickEntries);
 const dailyThemeKey = computed<ThemeKey | ''>(
   () => (dashboard.value.dailyThemeKey as ThemeKey | undefined) || '',
 );
-const { themeVars } = useThemePreference(dailyThemeKey);
+const { themePalette, themeVars } = useThemePreference(dailyThemeKey);
+
+const fortuneScore = computed(() => {
+  const parsed = Number(todayLuckyScore.value.value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 78;
+});
+
+const fortuneCardLabel = computed(() => todayLuckyScore.value.label || '综合气运指数');
+
+const fortuneStatus = computed(() => {
+  const score = fortuneScore.value;
+
+  if (score >= 90) {
+    return '极佳';
+  }
+  if (score >= 80) {
+    return '良好';
+  }
+  if (score >= 70) {
+    return '平稳';
+  }
+  if (score >= 60) {
+    return '波动';
+  }
+
+  return '需调整';
+});
+
+const fortuneTitle = computed(() => stateOverview.value.title || '今天适合先稳住节奏');
+const fortuneSummary = computed(
+  () => stateOverview.value.primarySuggestion || stateOverview.value.summary,
+);
+
 const pageSubtitle = computed(
   () => dashboard.value.headline.subtitle || '身心和谐 · 顺势而为',
 );
+
 const displayDate = computed(() => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const day = now.getDate();
-  return `${year}年${month}月${day}日`;
-});
-const dateHint = computed(() => (loading.value ? '今日主题同步中' : '跟随今日幸运色'));
-const posterCardSummary = computed(() => {
-  const summary = `把当前状态指数转成一张适合微信分享的高清图片`;
-  return summary.length > 34 ? `${summary.slice(0, 34)}...` : summary;
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return `${year}年${month}月${day}日 ${weekdays[now.getDay()]}`;
 });
 
-const moduleCards = computed(() =>
-  dashboard.value.featureEntries.map((module, index) => ({
-    ...module,
-    toneClass: `module-card--tone-${(index % 5) + 1}`,
-  })),
+const dateHint = computed(() =>
+  loading.value ? '正在同步今日主题' : `今日主题 · ${themePalette.value.name}`,
 );
 
-const topbarStatus = computed(() => (loading.value ? '同步中' : '今日已就绪'));
+const fortuneTags = computed<FortuneCardTag[]>(() => [
+  {
+    label: '今日主题',
+    value: themePalette.value.name,
+  },
+  {
+    label: '当前依据',
+    value: shortConfidenceLabel(stateOverview.value.confidenceLabel),
+  },
+  {
+    label: '幸运签',
+    value: luckySign.value.tag || '静观有得',
+  },
+]);
+
+const factorMap = computed(() => {
+  const map = new Map<string, { label: string; value: string; hint: string }>();
+  for (const item of stateOverview.value.factors) {
+    map.set(item.id, {
+      label: item.label,
+      value: item.value,
+      hint: item.hint,
+    });
+  }
+  return map;
+});
+
+const homeCards = computed(() => {
+  const emotionFactor = factorMap.value.get('emotion');
+  const personalityFactor = factorMap.value.get('personality');
+  const completionFactor = factorMap.value.get('completion');
+
+  return [
+    {
+      id: 'emotion',
+      icon: '情',
+      title: emotionFactor?.label || '情绪稳定度',
+      value: emotionFactor?.value || '--',
+      suffix: emotionFactor?.value ? '/100' : '',
+      badge: '当前状态',
+      description: emotionFactor?.hint || '先通过一轮轻量自检了解最近的情绪变化。',
+      route: '/pages/emotion/index',
+    },
+    {
+      id: 'personality',
+      icon: '节',
+      title: personalityFactor?.label || '节奏掌控度',
+      value: personalityFactor?.value || annualLuckyScore.value.value || '--',
+      suffix: personalityFactor?.value || annualLuckyScore.value.value ? '/100' : '',
+      badge: '自我认知',
+      description:
+        personalityFactor?.hint || annualLuckyScore.value.hint || '完成测评后会更清楚自己的推进方式。',
+      route: '/pages/personality/index',
+    },
+    {
+      id: 'completion',
+      icon: '资',
+      title: completionFactor?.label || '认知完善度',
+      value: completionFactor?.value || '--',
+      suffix: completionFactor?.value ? '/100' : '',
+      badge: userSummary.value.profileCompleted ? '已完善' : '待补齐',
+      description:
+        completionFactor?.hint ||
+        (userSummary.value.profileCompleted
+          ? '资料已就绪，可以继续查看更完整的个性化内容。'
+          : '补齐生日和基础资料后，首页解释会更贴近你。'),
+      route: '/pages/profile/index',
+    },
+    {
+      id: 'sign',
+      icon: '签',
+      title: '今日幸运签',
+      value: luckySign.value.tag || '静观有得',
+      suffix: '',
+      badge: '轻提醒',
+      description: luckySign.value.summary || '把节奏放慢一点，今天更适合温柔但清晰的推进。',
+      route: buildLuckySignRoute(luckySign.value.bizCode),
+    },
+  ];
+});
+
+const adviceTitle = computed(() =>
+  userSummary.value.profileCompleted ? '慢下来，先照顾好自己' : '先补齐资料，再继续探索',
+);
+
+const adviceSummary = computed(() => {
+  if (!userSummary.value.isLoggedIn) {
+    return '先登录并绑定当前账号，之后的测试、记录和主题偏好才能稳定沉淀下来。';
+  }
+
+  if (!userSummary.value.profileCompleted) {
+    return '补齐生日和基础资料后，首页的个性化判断会更完整，也能更好地接住后续的八字与星座入口。';
+  }
+
+  return stateOverview.value.primarySuggestion || '今天更适合把注意力放回自己的节奏，再决定下一步要不要加码。';
+});
+
+const adviceAction = computed(() => {
+  if (!userSummary.value.isLoggedIn) {
+    return {
+      label: '去登录',
+      route: userSummary.value.primaryActionRoute || '/pages/profile/index',
+    };
+  }
+
+  if (!userSummary.value.profileCompleted) {
+    return {
+      label: '完善资料',
+      route: '/pages/profile/index',
+    };
+  }
+
+  return {
+    label: '查看完整报告',
+    route: '/pages/report/index',
+  };
+});
+
+const quickTools = computed<QuickToolItem[]>(() => {
+  const items = quickEntries.value.slice(0, 4);
+  const iconMap = ['我', '录', '设', '会'];
+
+  return items.map((item, index) => ({
+    id: item.id,
+    title: item.title,
+    description: item.badge,
+    icon: iconMap[index] || '今',
+    route: item.route,
+  }));
+});
 
 let skipFirstShowRefresh = true;
 
@@ -181,22 +306,25 @@ function handleRoute(route: string) {
   });
 }
 
-function goToLuckySign() {
-  const bizCode = dashboard.value.todayLuckySign.bizCode || 'sign-breeze-open';
-
-  uni.navigateTo({
-    url: `/pages/lucky/sign/index?bizCode=${encodeURIComponent(bizCode)}`,
-  });
+function goToReport() {
+  handleRoute('/pages/report/index');
 }
 
-function goToLuckyCenter() {
-  handleRoute('/pages/lucky/index');
+function shortConfidenceLabel(label: string) {
+  if (!label) {
+    return '观察中';
+  }
+
+  return label
+    .replace('依据', '')
+    .replace('：', '')
+    .replace(/\s+/g, '')
+    .slice(0, 6);
 }
 
-function goToTodayPoster() {
-  uni.navigateTo({
-    url: '/pages/poster/today/index?auto=1',
-  });
+function buildLuckySignRoute(bizCode?: string) {
+  const code = bizCode || 'sign-breeze-open';
+  return `/pages/lucky/sign/index?bizCode=${encodeURIComponent(code)}`;
 }
 
 onLoad(() => {
@@ -227,7 +355,7 @@ onPullDownRefresh(async () => {
   padding-bottom: 144rpx;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    radial-gradient(circle at top left, var(--theme-glow), transparent 32%),
     linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
@@ -238,490 +366,98 @@ onPullDownRefresh(async () => {
   overflow: hidden;
 }
 
+.ambient {
+  position: absolute;
+  border-radius: 999rpx;
+  pointer-events: none;
+  filter: blur(28rpx);
+}
+
+.ambient--glow {
+  top: 56rpx;
+  right: -58rpx;
+  width: 280rpx;
+  height: 280rpx;
+  background: var(--theme-glow);
+}
+
+.ambient--mist {
+  top: 360rpx;
+  left: -74rpx;
+  width: 240rpx;
+  height: 240rpx;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.page-header,
+.section,
+.section__head {
+  display: grid;
+  gap: 16rpx;
+}
+
 .page-header {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 20rpx;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   margin-bottom: 24rpx;
 }
 
 .page-header__copy,
-.page-header__date {
+.page-header__meta {
   display: grid;
-  gap: 10rpx;
+  gap: 8rpx;
 }
 
 .page-header__title {
-  font-size: 64rpx;
+  font-size: 72rpx;
   font-weight: 500;
   color: var(--theme-text-primary);
+  font-family:
+    'Iowan Old Style',
+    'Times New Roman',
+    'Noto Serif SC',
+    serif;
 }
 
 .page-header__subtitle,
-.page-header__date-line {
+.page-header__date,
+.page-header__hint,
+.section__meta {
   font-size: 24rpx;
   line-height: 1.7;
   color: var(--theme-text-secondary);
 }
 
-.page-header__date {
+.page-header__meta {
   justify-items: end;
-  margin-top: 10rpx;
+  margin-top: 14rpx;
 }
 
-.ambient {
-  position: absolute;
-  border-radius: 999rpx;
-  pointer-events: none;
-  filter: blur(24rpx);
-}
-
-.ambient--blue {
-  top: 40rpx;
-  right: -64rpx;
-  width: 260rpx;
-  height: 260rpx;
-  background: var(--theme-glow);
-}
-
-.ambient--mint {
-  top: 360rpx;
-  left: -60rpx;
-  width: 220rpx;
-  height: 220rpx;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.topbar,
-.brand-block,
-.hero-card,
-.hero-copy,
-.hero-actions,
-.section-block,
-.state-stage,
-.state-stage__copy,
-.state-stage__board,
-.factor-grid,
-.evidence-panel {
-  display: grid;
-  gap: 18rpx;
-}
-
-.topbar {
+.section {
   position: relative;
   z-index: 1;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  margin-bottom: 24rpx;
+  margin-top: 26rpx;
 }
 
-.brand-block__eyebrow,
-.hero-copy__eyebrow,
-.insight-card__eyebrow,
-.section-head__eyebrow,
-.module-card__badge,
-.score-panel__label,
-.score-panel__annual-label {
-  font-size: 20rpx;
-  letter-spacing: 0.12em;
-  color: var(--apple-subtle);
+.section__head {
+  gap: 6rpx;
 }
 
-.brand-block__title {
+.section__title {
   font-size: 40rpx;
-  font-weight: 700;
-  color: var(--apple-text);
+  font-weight: 500;
+  color: var(--theme-text-primary);
 }
 
-.sync-chip {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 12rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1rpx solid rgba(255, 255, 255, 0.82);
-  box-shadow: 0 10rpx 24rpx rgba(96, 124, 164, 0.08);
-  font-size: 22rpx;
-  color: var(--apple-muted);
-}
-
-.sync-chip__dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #7ccfb0;
-}
-
-.sync-chip__dot--loading {
-  background: var(--apple-blue);
-}
-
-.hero-card,
-.insight-grid,
-.module-grid,
-.state-stage,
-.factor-grid,
-.evidence-panel {
-  position: relative;
-  z-index: 1;
-}
-
-.state-stage {
-  margin-bottom: 18rpx;
-  padding: 28rpx;
-  border-radius: 36rpx;
-  background:
-    radial-gradient(circle at top right, rgba(121, 176, 255, 0.18), transparent 34%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 248, 255, 0.98) 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.92);
-  box-shadow: 0 28rpx 80rpx rgba(93, 118, 153, 0.14);
-}
-
-.state-stage__eyebrow,
-.evidence-panel__eyebrow,
-.factor-card__label {
-  font-size: 20rpx;
-  letter-spacing: 0.28em;
-  color: var(--apple-subtle);
-  text-transform: uppercase;
-}
-
-.state-stage__title {
-  font-size: 48rpx;
-  line-height: 1.16;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.state-stage__summary,
-.evidence-panel__meta,
-.evidence-panel__disclaimer,
-.factor-card__hint {
-  font-size: 24rpx;
-  line-height: 1.65;
-  color: var(--apple-muted);
-}
-
-.state-stage__board {
-  grid-template-columns: 1.08fr 0.92fr;
-  gap: 16rpx;
-}
-
-.state-stage__primary,
-.state-stage__secondary,
-.factor-card {
-  display: grid;
-  gap: 10rpx;
-  padding: 22rpx;
-  border-radius: 26rpx;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.state-stage__label,
-.state-stage__secondary-label {
-  font-size: 22rpx;
-  color: var(--apple-subtle);
-}
-
-.state-stage__value {
-  font-size: 84rpx;
-  line-height: 0.95;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.state-stage__secondary-value,
-.factor-card__value {
-  font-size: 44rpx;
-  line-height: 1;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.state-stage__hint,
-.state-stage__secondary-hint {
-  font-size: 22rpx;
-  line-height: 1.5;
-  color: var(--apple-muted);
-}
-
-.state-stage__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.state-stage__tag {
-  padding: 12rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(233, 242, 255, 0.92);
-  color: #5377b1;
-  font-size: 22rpx;
-}
-
-.factor-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 18rpx;
-}
-
-.factor-card {
-  min-height: 188rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.86);
-  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
-}
-
-.factor-card--positive {
-  background: linear-gradient(180deg, rgba(237, 248, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.factor-card--steady {
-  background: linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.factor-card--watch {
-  background: linear-gradient(180deg, rgba(255, 246, 233, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.evidence-panel {
-  margin-bottom: 24rpx;
-  padding: 24rpx;
-  border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1rpx solid rgba(255, 255, 255, 0.86);
-  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
-}
-
-.evidence-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
-}
-
-.evidence-panel__suggestion {
-  font-size: 28rpx;
-  line-height: 1.68;
-  color: var(--apple-text);
-}
-
-.hero-card {
-  grid-template-columns: 1.08fr 0.92fr;
-  align-items: stretch;
-  margin-bottom: 16rpx;
-  padding: 24rpx;
-  border-radius: 32rpx;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 249, 255, 0.98) 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 24rpx 70rpx rgba(93, 118, 153, 0.12);
-}
-
-.hero-copy__title {
-  font-size: 46rpx;
-  line-height: 1.18;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.hero-copy__summary,
-.insight-card__text,
-.module-card__description,
-.refresh-bar__text,
-.score-panel__hint {
-  font-size: 24rpx;
-  line-height: 1.6;
-  color: var(--apple-muted);
-}
-
-.hero-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12rpx;
-}
-
-.hero-button {
-  min-height: 76rpx;
-  padding: 0 24rpx;
-  border-radius: 999rpx;
-  line-height: 76rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-}
-
-.hero-button::after {
-  border: none;
-}
-
-.hero-button--primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #72a7ff 0%, #5b8def 100%);
-  box-shadow: 0 16rpx 34rpx rgba(91, 141, 239, 0.22);
-}
-
-.hero-button--secondary,
-.hero-button--ghost {
-  color: var(--apple-text);
-  background: rgba(240, 245, 251, 0.96);
-}
-
-.score-panel {
-  display: grid;
-  gap: 10rpx;
-  align-content: start;
-  padding: 20rpx;
-  border-radius: 26rpx;
-  background:
-    radial-gradient(circle at top right, rgba(170, 207, 255, 0.32), transparent 32%),
-    linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(248, 251, 255, 0.98) 100%);
-}
-
-.score-panel__value,
-.insight-card__metric {
-  font-size: 60rpx;
-  line-height: 1;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.score-panel__annual {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 6rpx;
-  padding: 14rpx 18rpx;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.score-panel__annual-value {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--apple-blue);
-}
-
-.insight-grid {
+.status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
-  margin-bottom: 24rpx;
 }
 
-.insight-card,
-.module-card,
-.refresh-bar {
-  border-radius: 30rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.86);
-  box-shadow: 0 18rpx 48rpx rgba(93, 118, 153, 0.08);
-}
-
-.insight-card {
-  display: grid;
-  gap: 14rpx;
-  min-height: 220rpx;
-  padding: 26rpx;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.insight-card--soft {
-  background: linear-gradient(180deg, rgba(239, 247, 255, 0.94) 0%, rgba(255, 255, 255, 0.9) 100%);
-}
-
-.insight-card__title,
-.section-head__title,
-.module-card__title {
-  font-size: 34rpx;
-  line-height: 1.24;
-  font-weight: 700;
-  color: var(--apple-text);
-}
-
-.insight-card__link {
-  align-self: end;
-  font-size: 24rpx;
-  color: var(--apple-blue);
-}
-
-.section-block {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 22rpx;
-}
-
-.section-head {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: end;
-  gap: 18rpx;
-  margin-bottom: 18rpx;
-}
-
-.section-head__side {
-  font-size: 24rpx;
-  color: var(--apple-muted);
-}
-
-.module-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-}
-
-.module-card {
-  display: grid;
-  gap: 12rpx;
-  min-height: 210rpx;
-  padding: 24rpx;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.module-card--tone-1 {
-  background: linear-gradient(180deg, rgba(236, 244, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.module-card--tone-2 {
-  background: linear-gradient(180deg, rgba(237, 248, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.module-card--tone-3 {
-  background: linear-gradient(180deg, rgba(255, 246, 233, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.module-card--tone-4 {
-  background: linear-gradient(180deg, rgba(242, 245, 252, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.module-card--tone-5 {
-  background: linear-gradient(180deg, rgba(239, 248, 250, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
-}
-
-.refresh-bar {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 18rpx;
-  padding: 24rpx;
-  margin-bottom: 24rpx;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-@media (max-width: 720px) {
-  .state-stage__board,
-  .hero-card {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .factor-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .hero-copy__title {
-    font-size: 42rpx;
-  }
-
-  .state-stage__title {
-    font-size: 42rpx;
-  }
+.status-grid__item {
+  min-width: 0;
 }
 </style>

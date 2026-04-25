@@ -6,30 +6,15 @@
       <view class="ambient ambient--mist-left"></view>
       <view class="ambient ambient--mist-right"></view>
       <view class="ambient ambient--constellation"></view>
-      <view class="ambient ambient--mountain"></view>
 
       <view class="hero">
         <view class="hero__top">
           <view class="hero__brand">
-            <view class="hero__emblem">
-              <view class="hero__emblem-ring"></view>
-              <view class="hero__emblem-line hero__emblem-line--horizontal"></view>
-              <view class="hero__emblem-line hero__emblem-line--vertical"></view>
-            </view>
+
 
             <view class="hero__copy">
               <text class="hero__title">{{ pageTitle }}</text>
               <text class="hero__subtitle">{{ pageSubtitle }}</text>
-            </view>
-          </view>
-
-          <view class="hero__actions">
-            <view class="hero__action" @tap="handleRoute('/pages/explore/index')">
-              <view class="hero__dots"></view>
-            </view>
-            <view class="hero__divider"></view>
-            <view class="hero__action" @tap="handleRoute('/pages/profile/index')">
-              <view class="hero__target"></view>
             </view>
           </view>
         </view>
@@ -58,20 +43,20 @@
           class="insight-grid__item"
           @tap="handleRoute(card.route)"
         >
-          <HomeStatusCard
-            :icon="card.icon"
-            :variant="card.variant"
-            :title="card.title"
-            :subtitle="card.subtitle"
-            :value="card.value"
-            :metric-mode="card.metricMode"
-            :suffix="card.suffix"
-            :badge="card.badge"
-            :description="card.description"
-            :note="card.note"
-            :progress="card.progress"
-            :stars="card.stars"
-          />
+            <HomeStatusCard
+              :variant="card.variant"
+              :icon-color="card.iconColor"
+              :title="card.title"
+              :subtitle="card.subtitle"
+              :value="card.value"
+              :metric-mode="card.metricMode"
+              :suffix="card.suffix"
+              :badge="card.badge"
+              :description="card.description"
+              :note="card.note"
+              :progress="card.progress"
+              :stars="card.stars"
+            />
         </view>
       </view>
 
@@ -109,8 +94,8 @@ import type { ThemeKey } from '../../theme/tokens';
 
 type InsightCard = {
   id: string;
-  icon: string;
   variant: 'lotus' | 'mind' | 'bagua' | 'stars';
+  iconColor: string;
   title: string;
   subtitle: string;
   value: string;
@@ -156,10 +141,11 @@ const fortuneScore = computed(() => {
   const parsed = Number(todayLuckyScore.value.value);
   return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 100) : 86;
 });
-
-const pageTitle = computed(() => dashboard.value.headline.title || '今日气运');
+// dashboard.value.headline.title ||
+const pageTitle = computed(() =>  '今日气运');
+// dashboard.value.headline.subtitle ||
 const pageSubtitle = computed(
-  () => dashboard.value.headline.subtitle || '身心和谐 · 顺势而为',
+  () =>  '身心和谐 · 顺势而为',
 );
 
 const displayDate = computed(() => {
@@ -229,8 +215,8 @@ const homeCards = computed<InsightCard[]>(() => {
   return [
     {
       id: 'emotion',
-      icon: '莲',
       variant: 'lotus',
+      iconColor: themePalette.value.primary,
       title: '心情情绪评分',
       subtitle: emotionFactor?.label || '情绪稳定度',
       value: String(emotionScore.value),
@@ -245,8 +231,8 @@ const homeCards = computed<InsightCard[]>(() => {
     },
     {
       id: 'mental',
-      icon: '愈',
       variant: 'mind',
+      iconColor: themePalette.value.primary,
       title: '心理健康',
       subtitle: mentalFactor?.label || annualLuckyScore.value.label || '抑郁测试分数',
       value: String(mentalScore.value),
@@ -261,8 +247,8 @@ const homeCards = computed<InsightCard[]>(() => {
     },
     {
       id: 'bazi',
-      icon: '易',
       variant: 'bagua',
+      iconColor: themePalette.value.accent,
       title: '八字气运',
       subtitle: '',
       value: baziLevel,
@@ -277,8 +263,8 @@ const homeCards = computed<InsightCard[]>(() => {
     },
     {
       id: 'zodiac',
-      icon: '星',
       variant: 'stars',
+      iconColor: themePalette.value.primary,
       title: '星座运势',
       subtitle: '',
       value: '',
@@ -633,18 +619,6 @@ onPullDownRefresh(async () => {
     -184rpx -108rpx 0 rgba(var(--theme-accent-rgb), 0.24);
 }
 
-.ambient--mountain {
-  left: 18rpx;
-  right: 18rpx;
-  top: 716rpx;
-  height: 210rpx;
-  background:
-    radial-gradient(circle at 16% 74%, rgba(var(--theme-primary-rgb), 0.14) 0%, rgba(255, 255, 255, 0) 36%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(var(--theme-primary-rgb), 0.08) 100%);
-  clip-path: polygon(0 88%, 11% 68%, 18% 74%, 28% 58%, 40% 76%, 50% 56%, 62% 74%, 74% 50%, 86% 70%, 100% 58%, 100% 100%, 0 100%);
-  opacity: 0.7;
-}
-
 .hero,
 .home-page__main-card,
 .insight-grid,
@@ -672,6 +646,7 @@ onPullDownRefresh(async () => {
   align-items: flex-start;
   gap: 14rpx;
   min-width: 0;
+  margin-top: 12rpx;
 }
 
 .hero__emblem {
@@ -679,7 +654,7 @@ onPullDownRefresh(async () => {
   flex: 0 0 62rpx;
   width: 62rpx;
   height: 62rpx;
-  margin-top: 10rpx;
+  margin-top: 2rpx;
 }
 
 .hero__emblem-ring,
@@ -814,6 +789,7 @@ onPullDownRefresh(async () => {
 
 .insight-grid__item {
   min-width: 0;
+  height: 280rpx;
 }
 
 .home-page__advice {

@@ -1,7 +1,9 @@
 import { http } from '../services/request';
 import type {
   MeditationRecordListResponse,
+  MeditationRecordDetailResponse,
   RecordOverviewResponse,
+  MoodRecordDetailResponse,
   MoodRecordListResponse,
   SaveMeditationRecordPayload,
   SaveMeditationRecordResponse,
@@ -23,6 +25,23 @@ export function fetchMoodRecords() {
   return http.get<MoodRecordListResponse>('/record/mood');
 }
 
+export function fetchMoodRecordDetail(params: {
+  recordId?: string;
+  recordDate?: string;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.recordId) {
+    searchParams.set('recordId', params.recordId);
+  }
+
+  if (params.recordDate) {
+    searchParams.set('recordDate', params.recordDate);
+  }
+
+  return http.get<MoodRecordDetailResponse>(`/record/mood/detail?${searchParams.toString()}`);
+}
+
 export function saveMoodRecord(payload: SaveMoodRecordPayload) {
   return http.post<SaveMoodRecordResponse, SaveMoodRecordPayload>(
     '/record/mood',
@@ -32,6 +51,12 @@ export function saveMoodRecord(payload: SaveMoodRecordPayload) {
 
 export function fetchMeditationRecords() {
   return http.get<MeditationRecordListResponse>('/record/meditation');
+}
+
+export function fetchMeditationRecordDetail(recordId: string) {
+  return http.get<MeditationRecordDetailResponse>(
+    `/record/meditation/detail?recordId=${encodeURIComponent(recordId)}`,
+  );
 }
 
 export function saveMeditationRecord(payload: SaveMeditationRecordPayload) {

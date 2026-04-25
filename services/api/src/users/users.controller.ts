@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Post, Put, Query } from '@nestjs/common
 import { AuthService } from '../auth/auth.service';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -33,6 +34,21 @@ export class UsersController {
     return this.usersService.updateProfile(user, dto);
   }
 
+  @Get('me/preferences')
+  async getPreferences(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getPreferences(user);
+  }
+
+  @Put('me/preferences')
+  async updatePreferences(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: UpdatePreferencesDto,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.updatePreferences(user, dto);
+  }
+
   @Get('records')
   async getRecords(
     @Headers('authorization') authorization?: string,
@@ -57,6 +73,19 @@ export class UsersController {
     return this.usersService.getMoodRecords(user);
   }
 
+  @Get('record/mood/detail')
+  async getMoodRecordDetail(
+    @Headers('authorization') authorization?: string,
+    @Query('recordDate') recordDate?: string,
+    @Query('recordId') recordId?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getMoodRecordDetail(user, {
+      recordDate,
+      recordId,
+    });
+  }
+
   @Post('record/mood')
   async saveMoodRecord(
     @Headers('authorization') authorization: string | undefined,
@@ -70,6 +99,15 @@ export class UsersController {
   async getMeditationRecords(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.usersService.getMeditationRecords(user);
+  }
+
+  @Get('record/meditation/detail')
+  async getMeditationRecordDetail(
+    @Headers('authorization') authorization?: string,
+    @Query('recordId') recordId?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getMeditationRecordDetail(user, recordId);
   }
 
   @Post('record/meditation')

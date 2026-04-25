@@ -21,12 +21,14 @@ export class ExploreController {
     @Query('keyword') keyword?: string,
     @Query('type') type?: string,
     @Query('goal') goal?: string,
+    @Query('sort') sort?: string,
   ) {
     const user = await this.authService.resolveUserFromAuthorization(authorization);
     return this.exploreService.searchExplore(user, {
       keyword,
       type,
       goal,
+      sort,
     });
   }
 }

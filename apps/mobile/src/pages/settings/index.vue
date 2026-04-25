@@ -117,6 +117,7 @@
 </template>
 
 <script setup lang="ts">
+import { onShow } from '@dcloudio/uni-app';
 import { computed } from 'vue';
 import ThemePreviewCard from '../../components/ThemePreviewCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
@@ -137,6 +138,7 @@ const {
   setThemeMode,
   setManualTheme,
   patchSettings,
+  syncSettingsFromServer,
 } = useThemePreference();
 
 const themeOptions = Object.values(themePalettes);
@@ -187,6 +189,10 @@ function goFeedback() {
 function goAbout() {
   uni.navigateTo({ url: '/pages/settings/about/index' });
 }
+
+onShow(() => {
+  void syncSettingsFromServer(true);
+});
 </script>
 
 <style lang="scss">

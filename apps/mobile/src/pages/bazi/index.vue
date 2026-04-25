@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="page-orb page-orb--jade"></view>
     <view class="page-orb page-orb--gold"></view>
 
@@ -223,6 +223,7 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
 import { analyzeBazi, fetchBaziHistory } from '../../api/bazi';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken, getCachedUser } from '../../services/session';
 import type { BaziHistoryItem, BaziResult } from '../../types/bazi';
 
@@ -248,6 +249,7 @@ const latestResult = ref<BaziResult | null>(null);
 const latestSubmitSaved = ref(false);
 const latestRecordId = ref<string | null>(null);
 const historyItems = ref<BaziHistoryItem[]>([]);
+const { themeVars } = useThemePreference();
 const loadingHistory = ref(false);
 const submitting = ref(false);
 const authToken = ref(getAuthToken());
@@ -388,8 +390,8 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx 24rpx 42rpx;
   background:
-    radial-gradient(circle at top right, rgba(206, 187, 130, 0.18), transparent 26%),
-    linear-gradient(180deg, #f7f3eb 0%, #efe9dd 100%);
+    radial-gradient(circle at top right, var(--theme-glow), transparent 26%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
   overflow: hidden;
 }
 

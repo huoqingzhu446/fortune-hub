@@ -16,6 +16,10 @@ export interface FeedbackEntry {
   createdAt: string;
 }
 
+export interface PreferenceSettingsResponseData {
+  settings: AppSettings;
+}
+
 const APP_SETTINGS_KEY = 'fortune-hub-app-settings';
 const FEEDBACK_HISTORY_KEY = 'fortune-hub-feedback-history';
 const DAILY_THEME_KEY = 'fortune-hub-daily-theme-key';

@@ -1,0 +1,49 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="32" r="13.5"/>
+    <path d="M32 18.5C37.1 18.5 41.3 22.7 41.3 27.8C41.3 32.9 37.1 37.1 32 37.1C26.9 37.1 22.7 41.3 22.7 46.4"/>
+    <path d="M32 18.5C26.9 18.5 22.7 22.7 22.7 27.8C22.7 32.9 26.9 37.1 32 37.1C37.1 37.1 41.3 41.3 41.3 46.4"/>
+    <circle cx="32" cy="27.8" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="32" cy="46.2" r="2.2" fill="currentColor" stroke="none"/>
+    <path d="M27 5.5H37"/>
+    <path d="M27 8.8H31"/>
+    <path d="M33 8.8H37"/>
+    <path d="M27 12.1H31"/>
+    <path d="M33 12.1H37"/>
+    <path d="M48.9 12.5L55.9 19.5"/>
+    <path d="M47.4 15.9L50.2 18.7"/>
+    <path d="M54.6 16.8L57.4 19.6"/>
+    <path d="M46.5 23.1L49.3 25.9"/>
+    <path d="M53.7 24L56.5 26.8"/>
+    <path d="M51.9 27H58.5"/>
+    <path d="M51.9 30.3H54.5"/>
+    <path d="M55.9 30.3H58.5"/>
+    <path d="M51.9 33.6H54.5"/>
+    <path d="M55.9 33.6H58.5"/>
+    <path d="M48.9 51.5L55.9 44.5"/>
+    <path d="M46.5 40.9L49.3 38.1"/>
+    <path d="M53.7 40L56.5 37.2"/>
+    <path d="M47.4 48.1L50.2 45.3"/>
+    <path d="M54.6 47.2L57.4 44.4"/>
+    <path d="M27 58.5H37"/>
+    <path d="M27 55.2H31"/>
+    <path d="M33 55.2H37"/>
+    <path d="M27 51.9H31"/>
+    <path d="M33 51.9H37"/>
+    <path d="M15.1 51.5L8.1 44.5"/>
+    <path d="M16.6 48.1L13.8 45.3"/>
+    <path d="M9.4 47.2L6.6 44.4"/>
+    <path d="M17.5 40.9L14.7 38.1"/>
+    <path d="M10.3 40L7.5 37.2"/>
+    <path d="M12.1 27H5.5"/>
+    <path d="M12.1 30.3H9.5"/>
+    <path d="M8.1 30.3H5.5"/>
+    <path d="M12.1 33.6H9.5"/>
+    <path d="M8.1 33.6H5.5"/>
+    <path d="M15.1 12.5L8.1 19.5"/>
+    <path d="M17.5 23.1L14.7 25.9"/>
+    <path d="M10.3 24L7.5 26.8"/>
+    <path d="M16.6 15.9L13.8 18.7"/>
+    <path d="M9.4 16.8L6.6 19.6"/>
+  </g>
+</svg>

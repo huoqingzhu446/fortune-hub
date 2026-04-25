@@ -16,6 +16,7 @@ export interface UserProfile {
   zodiac: string | null;
   baziSummary: string | null;
   fiveElements: Record<string, number> | null;
+  preferences?: Record<string, unknown> | null;
   vipStatus: string;
   vipExpiredAt: string | null;
 }

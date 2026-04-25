@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsDateString,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,6 +11,11 @@ import {
 } from 'class-validator';
 
 export class SaveMeditationRecordDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  recordId?: string;
+
   @IsDateString()
   recordDate!: string;
 
@@ -22,6 +28,16 @@ export class SaveMeditationRecordDto {
   @MaxLength(32)
   category?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  sourceType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  sourceTitle?: string;
+
   @IsInt()
   @Min(1)
   @Max(180)
@@ -30,6 +46,11 @@ export class SaveMeditationRecordDto {
   @IsOptional()
   @IsBoolean()
   completed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['completed', 'partial', 'skipped'])
+  completionStatus?: 'completed' | 'partial' | 'skipped';
 
   @IsOptional()
   @IsString()

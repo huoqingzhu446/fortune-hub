@@ -6,11 +6,41 @@
         <text class="page-header__subtitle">把一次放松练习安静地留在今天的记录里</text>
       </view>
 
+      <view v-if="loadingDetail" class="card">
+        <text class="field__label">正在同步这次练习</text>
+        <text class="duration-text">马上把之前的来源和完成状态带回来。</text>
+      </view>
+
+      <view v-else-if="isEditMode" class="card">
+        <text class="field__label">回看与编辑</text>
+        <text class="duration-text">{{ form.recordDate }} 的练习已加载，可以继续补充。</text>
+      </view>
+
       <view class="card">
         <text class="field__label">记录日期</text>
         <picker mode="date" :value="form.recordDate" :end="todayDate" @change="handleDateChange">
           <view class="picker">{{ form.recordDate }}</view>
         </picker>
+      </view>
+
+      <view class="card">
+        <text class="field__label">内容来源</text>
+        <view class="tag-grid">
+          <view
+            v-for="item in sourceOptions"
+            :key="item.value"
+            class="tag-chip"
+            :class="{ 'tag-chip--active': form.sourceType === item.value }"
+            @tap="form.sourceType = item.value"
+          >
+            <text>{{ item.label }}</text>
+          </view>
+        </view>
+        <input
+          v-model="form.sourceTitle"
+          class="picker"
+          placeholder="例如：睡前呼吸、探索页推荐、自己常用音频"
+        />
       </view>
 
       <view class="card">
@@ -47,6 +77,21 @@
       </view>
 
       <view class="card">
+        <text class="field__label">完成状态</text>
+        <view class="tag-grid">
+          <view
+            v-for="item in completionOptions"
+            :key="item.value"
+            class="tag-chip"
+            :class="{ 'tag-chip--active': form.completionStatus === item.value }"
+            @tap="form.completionStatus = item.value"
+          >
+            <text>{{ item.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="card">
         <text class="field__label">一句备注</text>
         <textarea
           v-model="form.summary"
@@ -56,17 +101,20 @@
         />
       </view>
 
-      <button class="save-button" :loading="saving" @tap="submit">保存这次练习</button>
+      <button class="save-button" :loading="saving" @tap="submit">
+        {{ isEditMode ? '更新这次练习' : '保存这次练习' }}
+      </button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
-import { reactive, ref } from 'vue';
-import { saveMeditationRecord } from '../../api/records';
+import { computed, reactive, ref } from 'vue';
+import { fetchMeditationRecordDetail, saveMeditationRecord } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
+import type { MeditationLogItem } from '../../types/records';
 
 function buildLocalDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -78,15 +126,34 @@ function buildLocalDateString(date = new Date()) {
 const { themeVars } = useThemePreference();
 const todayDate = buildLocalDateString();
 const saving = ref(false);
+const loadingDetail = ref(false);
 const categories = ['meditation', 'sleep', 'breath', 'focus'];
+const completionOptions = [
+  { label: '完整完成', value: 'completed' },
+  { label: '完成一半', value: 'partial' },
+  { label: '今天跳过', value: 'skipped' },
+] as const;
+const sourceOptions = [
+  { label: '探索推荐', value: 'explore' },
+  { label: '情绪疗愈', value: 'emotion' },
+  { label: '睡眠放松', value: 'sleep' },
+  { label: '自定义练习', value: 'custom' },
+] as const;
 
 const form = reactive({
+  recordId: '',
   recordDate: todayDate,
   title: '呼吸放松练习',
   category: 'meditation',
+  sourceType: 'custom',
+  sourceTitle: '',
   durationMinutes: 8,
+  completionStatus: 'completed' as 'completed' | 'partial' | 'skipped',
   summary: '',
 });
+
+const isEditMode = computed(() => Boolean(form.recordId));
+const completedValue = computed(() => form.completionStatus === 'completed');
 
 function handleDateChange(event: { detail: { value: string } }) {
   form.recordDate = event.detail.value;
@@ -100,11 +167,15 @@ async function submit() {
   try {
     saving.value = true;
     await saveMeditationRecord({
+      recordId: form.recordId || undefined,
       recordDate: form.recordDate,
       title: form.title,
       category: form.category,
+      sourceType: form.sourceType,
+      sourceTitle: form.sourceTitle,
       durationMinutes: form.durationMinutes,
-      completed: true,
+      completed: completedValue.value,
+      completionStatus: form.completionStatus,
       summary: form.summary,
     });
     uni.showToast({
@@ -127,7 +198,45 @@ async function submit() {
   }
 }
 
+function applyRecord(item: MeditationLogItem) {
+  form.recordId = item.id;
+  form.recordDate = item.recordDate;
+  form.title = item.title;
+  form.category = item.category;
+  form.sourceType = item.sourceType || 'custom';
+  form.sourceTitle = item.sourceTitle || '';
+  form.durationMinutes = item.durationMinutes;
+  form.completionStatus = item.completionStatus || (item.completed ? 'completed' : 'partial');
+  form.summary = item.summary;
+}
+
+async function loadDetail(recordId: string) {
+  if (!recordId) {
+    return;
+  }
+
+  try {
+    loadingDetail.value = true;
+    const response = await fetchMeditationRecordDetail(recordId);
+    if (response.data.item) {
+      applyRecord(response.data.item);
+    }
+  } catch (error) {
+    console.warn('load meditation detail failed', error);
+    uni.showToast({
+      title: getErrorMessage(error, '记录读取失败'),
+      icon: 'none',
+    });
+  } finally {
+    loadingDetail.value = false;
+  }
+}
+
 onLoad((options) => {
+  if (typeof options?.recordId === 'string' && options.recordId) {
+    form.recordId = decodeURIComponent(options.recordId);
+    void loadDetail(form.recordId);
+  }
   if (typeof options?.recordDate === 'string' && options.recordDate) {
     form.recordDate = decodeURIComponent(options.recordDate);
   }

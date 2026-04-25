@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="panel">
       <text class="eyebrow">feedback</text>
       <text class="title">意见反馈</text>
@@ -31,11 +31,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useThemePreference } from '../../../composables/useThemePreference';
 import { appendFeedbackEntry, getFeedbackHistory } from '../../../services/preferences';
 
 const message = ref('');
 const contact = ref('');
 const history = ref(getFeedbackHistory());
+const { themeVars } = useThemePreference();
 
 function submitFeedback() {
   if (!message.value.trim()) {
@@ -78,7 +80,9 @@ function formatDateTime(value: string) {
 .page {
   min-height: 100vh;
   padding: 24rpx;
-  background: linear-gradient(180deg, #f8fbff 0%, #edf2f7 100%);
+  background:
+    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .panel {

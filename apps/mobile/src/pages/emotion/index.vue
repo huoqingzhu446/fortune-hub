@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="page-orb page-orb--mint"></view>
     <view class="page-orb page-orb--amber"></view>
 
@@ -273,6 +273,7 @@ import {
   submitEmotionAssessment,
 } from '../../api/emotion';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken } from '../../services/session';
 import type {
   EmotionHistoryItem,
@@ -304,6 +305,7 @@ const {
   syncFavoriteState,
   toggleCurrent,
 } = useFavoriteToggle();
+const { themeVars } = useThemePreference();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const currentQuestion = computed(
@@ -584,8 +586,8 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx 24rpx 42rpx;
   background:
-    radial-gradient(circle at top right, rgba(137, 218, 198, 0.24), transparent 26%),
-    linear-gradient(180deg, #f8fbff 0%, #edf3f7 100%);
+    radial-gradient(circle at top right, var(--theme-glow), transparent 26%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
   overflow: hidden;
 }
 

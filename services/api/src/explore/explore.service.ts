@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { UserEntity } from '../database/entities/user.entity';
+
+type ExploreSortType = 'recommended' | 'related' | 'latest';
 
 type ExploreFeatureItem = {
   id: string;
@@ -22,6 +25,7 @@ type ExploreTopicItem = {
   summary: string;
   tag: string;
   route: string;
+  publishedAt: string | null;
 };
 
 type ExploreContentItem = {
@@ -36,7 +40,14 @@ type ExploreContentItem = {
   stat: string;
   buttonText: string;
   route: string;
-  sourceType: 'lucky_item' | 'fortune_content' | 'report_template' | 'fallback';
+  sourceType:
+    | 'lucky_item'
+    | 'fortune_content'
+    | 'report_template'
+    | 'assessment_test'
+    | 'fallback';
+  sourceLabel: string;
+  publishedAt: string | null;
 };
 
 const FALLBACK_FEATURES: ExploreFeatureItem[] = [
@@ -121,6 +132,7 @@ const FALLBACK_TOPICS: ExploreTopicItem[] = [
     summary: '舒缓压力，找回平静',
     tag: '热门',
     route: '/pages/emotion/index',
+    publishedAt: null,
   },
   {
     id: 'sleep',
@@ -128,6 +140,7 @@ const FALLBACK_TOPICS: ExploreTopicItem[] = [
     summary: '放松身心，安稳入眠',
     tag: '睡眠',
     route: '/pages/emotion/index',
+    publishedAt: null,
   },
   {
     id: 'week',
@@ -135,6 +148,7 @@ const FALLBACK_TOPICS: ExploreTopicItem[] = [
     summary: '把握星象能量',
     tag: '星座',
     route: '/pages/zodiac/index',
+    publishedAt: null,
   },
 ];
 
@@ -152,6 +166,8 @@ const FALLBACK_CONTENTS: ExploreContentItem[] = [
     buttonText: '进入',
     route: '/pages/emotion/index',
     sourceType: 'fallback',
+    sourceLabel: '精选推荐',
+    publishedAt: null,
   },
   {
     id: 'zodiac-week',
@@ -166,6 +182,8 @@ const FALLBACK_CONTENTS: ExploreContentItem[] = [
     buttonText: '查看',
     route: '/pages/zodiac/index',
     sourceType: 'fallback',
+    sourceLabel: '精选推荐',
+    publishedAt: null,
   },
   {
     id: 'element',
@@ -180,12 +198,16 @@ const FALLBACK_CONTENTS: ExploreContentItem[] = [
     buttonText: '查看',
     route: '/pages/bazi/index',
     sourceType: 'fallback',
+    sourceLabel: '精选推荐',
+    publishedAt: null,
   },
 ];
 
 @Injectable()
 export class ExploreService {
   constructor(
+    @InjectRepository(AssessmentTestConfigEntity)
+    private readonly assessmentTestRepository: Repository<AssessmentTestConfigEntity>,
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
     @InjectRepository(LuckyItemEntity)
@@ -204,27 +226,42 @@ export class ExploreService {
       keyword?: string;
       type?: string;
       goal?: string;
+      sort?: string;
     },
   ) {
     const data = await this.buildExploreData(user);
     const keyword = this.normalizeKeyword(query.keyword);
     const requestedGoals = this.normalizeGoalQuery(query.goal);
     const requestedType = this.normalizeType(query.type);
+    const requestedSort = this.normalizeSort(query.sort, Boolean(keyword));
 
-    const featureMatches = data.features.filter((item) =>
-      this.matchExploreItem(item.title, item.description, keyword) &&
-      this.matchExploreFilters(item.type, item.goals, requestedType, requestedGoals),
+    const featureMatches = this.sortExploreFeatures(
+      data.features.filter((item) =>
+        this.matchExploreItem(item.title, item.description, keyword) &&
+        this.matchExploreFilters(item.type, item.goals, requestedType, requestedGoals),
+      ),
+      keyword,
+      requestedSort,
     );
-    const topicMatches = data.topics.filter((item) =>
-      this.matchExploreItem(item.title, item.summary, keyword),
+    const topicMatches = this.sortExploreTopics(
+      data.topics.filter((item) =>
+        this.matchExploreItem(item.title, item.summary, keyword),
+      ),
+      keyword,
+      requestedSort,
     );
-    const contentMatches = data.contents.filter((item) =>
-      this.matchExploreItem(item.title, item.description, keyword) &&
-      this.matchExploreFilters(item.filterType, item.goals, requestedType, requestedGoals),
+    const contentMatches = this.sortExploreContents(
+      data.contents.filter((item) =>
+        this.matchExploreItem(item.title, item.description, keyword) &&
+        this.matchExploreFilters(item.filterType, item.goals, requestedType, requestedGoals),
+      ),
+      keyword,
+      requestedSort,
     );
 
     return this.buildEnvelope({
       keyword: keyword ?? '',
+      sort: requestedSort,
       features: featureMatches,
       topics: topicMatches,
       contents: contentMatches,
@@ -263,7 +300,13 @@ export class ExploreService {
           { label: '自我探索', value: 'self' },
           { label: '关系分析', value: 'relationship' },
         ],
+        sorts: [
+          { label: '推荐优先', value: 'recommended' },
+          { label: '搜索相关', value: 'related' },
+          { label: '最新上架', value: 'latest' },
+        ],
       },
+      defaultSort: 'recommended',
       banner: {
         eyebrow: '为你推荐',
         title: '情绪自测与疗愈地图',
@@ -273,8 +316,16 @@ export class ExploreService {
         route: '/pages/emotion/index',
       },
       features: FALLBACK_FEATURES,
-      topics: liveTopics.length ? liveTopics : FALLBACK_TOPICS,
-      contents: liveContents.length ? liveContents : FALLBACK_CONTENTS,
+      topics: this.sortExploreTopics(
+        liveTopics.length ? liveTopics : FALLBACK_TOPICS,
+        null,
+        'recommended',
+      ),
+      contents: this.sortExploreContents(
+        liveContents.length ? liveContents : FALLBACK_CONTENTS,
+        null,
+        'recommended',
+      ),
     };
   }
 
@@ -297,11 +348,12 @@ export class ExploreService {
       summary: item.summary ?? `${item.category}相关内容已更新`,
       tag: item.category || '专题',
       route: '/pages/lucky/index',
+      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
     }));
   }
 
   private async buildLiveContents() {
-    const [luckyItems, contents, templates] = await Promise.all([
+    const [luckyItems, contents, templates, assessments] = await Promise.all([
       this.luckyItemRepository.find({
         where: {
           status: 'published',
@@ -334,6 +386,16 @@ export class ExploreService {
         },
         take: 6,
       }),
+      this.assessmentTestRepository.find({
+        where: {
+          status: 'published',
+        },
+        order: {
+          publishedAt: 'DESC',
+          id: 'DESC',
+        },
+        take: 6,
+      }),
     ]);
 
     const liveLuckyItems: ExploreContentItem[] = luckyItems.map((item) => ({
@@ -349,6 +411,8 @@ export class ExploreService {
       buttonText: '查看',
       route: '/pages/lucky/index',
       sourceType: 'lucky_item',
+      sourceLabel: '幸运物',
+      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
     }));
 
     const liveFortuneContents: ExploreContentItem[] = contents.map((item) => ({
@@ -364,6 +428,8 @@ export class ExploreService {
       buttonText: '查看',
       route: this.resolveFortuneContentRoute(item),
       sourceType: 'fortune_content',
+      sourceLabel: '内容中心',
+      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
     }));
 
     const liveTemplates: ExploreContentItem[] = templates.map((item) => ({
@@ -379,9 +445,37 @@ export class ExploreService {
       buttonText: '查看',
       route: this.resolveTemplateRoute(item.templateType),
       sourceType: 'report_template',
+      sourceLabel: '报告模板',
+      publishedAt: this.resolvePublishedAt(item.publishedAt),
     }));
 
-    return [...liveLuckyItems, ...liveFortuneContents, ...liveTemplates].slice(0, 8);
+    const liveAssessments: ExploreContentItem[] = assessments.map((item) => ({
+      id: `assessment-${item.category}-${item.code}`,
+      title: item.title,
+      description: item.description || item.subtitle || `${item.category}测评`,
+      icon: item.category === 'emotion' ? '测' : '格',
+      type: '测评',
+      filterType: 'test',
+      goals: this.resolveGoals(
+        `${item.title} ${item.subtitle} ${item.description} ${(item.tagsJson || []).join(' ')}`,
+      ),
+      duration: `${item.durationMinutes} 分钟`,
+      stat: item.category === 'emotion' ? '情绪自检' : '性格测评',
+      buttonText: '开始',
+      route: this.resolveAssessmentRoute(item),
+      sourceType: 'assessment_test',
+      sourceLabel: '题库测评',
+      publishedAt: this.resolvePublishedAt(item.publishedAt),
+    }));
+
+    return this.sortExploreContents(
+      [...liveLuckyItems, ...liveFortuneContents, ...liveTemplates, ...liveAssessments].slice(
+        0,
+        14,
+      ),
+      null,
+      'recommended',
+    ).slice(0, 10);
   }
 
   private resolveContentType(contentType: string) {
@@ -460,6 +554,18 @@ export class ExploreService {
     return '/pages/report/index';
   }
 
+  private resolveAssessmentRoute(item: AssessmentTestConfigEntity) {
+    if (item.category === 'emotion') {
+      return '/pages/emotion/index';
+    }
+
+    if (item.category === 'personality') {
+      return '/pages/personality/index';
+    }
+
+    return '/pages/explore/index';
+  }
+
   private resolveGoals(text: string) {
     const normalized = text.toLowerCase();
     const goals = new Set<string>();
@@ -517,6 +623,20 @@ export class ExploreService {
     return normalized || null;
   }
 
+  private normalizeSort(sort?: string, hasKeyword = false): ExploreSortType {
+    const normalized = sort?.trim().toLowerCase();
+
+    if (normalized === 'latest') {
+      return 'latest';
+    }
+
+    if (normalized === 'related') {
+      return 'related';
+    }
+
+    return hasKeyword ? 'related' : 'recommended';
+  }
+
   private normalizeType(type?: string) {
     const normalized = type?.trim().toLowerCase() ?? '';
     return normalized && normalized !== 'all' ? normalized : null;
@@ -527,6 +647,155 @@ export class ExploreService {
       .split(',')
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean);
+  }
+
+  private sortExploreFeatures(
+    items: ExploreFeatureItem[],
+    keyword: string | null,
+    sort: ExploreSortType,
+  ) {
+    return [...items].sort((left, right) => {
+      if (sort === 'latest') {
+        return left.id.localeCompare(right.id);
+      }
+
+      return this.compareByKeyword(
+        `${left.title} ${left.description}`,
+        `${right.title} ${right.description}`,
+        keyword,
+      );
+    });
+  }
+
+  private sortExploreTopics(
+    items: ExploreTopicItem[],
+    keyword: string | null,
+    sort: ExploreSortType,
+  ) {
+    return [...items].sort((left, right) => {
+      if (sort === 'latest') {
+        return this.compareDateDesc(left.publishedAt, right.publishedAt);
+      }
+
+      const keywordCompare = this.compareByKeyword(
+        `${left.title} ${left.summary}`,
+        `${right.title} ${right.summary}`,
+        keyword,
+      );
+
+      if (keywordCompare !== 0) {
+        return keywordCompare;
+      }
+
+      return this.compareDateDesc(left.publishedAt, right.publishedAt);
+    });
+  }
+
+  private sortExploreContents(
+    items: ExploreContentItem[],
+    keyword: string | null,
+    sort: ExploreSortType,
+  ) {
+    return [...items].sort((left, right) => {
+      if (sort === 'latest') {
+        return this.compareDateDesc(left.publishedAt, right.publishedAt);
+      }
+
+      const leftScore = this.computeContentScore(left, keyword, sort);
+      const rightScore = this.computeContentScore(right, keyword, sort);
+
+      if (rightScore !== leftScore) {
+        return rightScore - leftScore;
+      }
+
+      return this.compareDateDesc(left.publishedAt, right.publishedAt);
+    });
+  }
+
+  private computeContentScore(
+    item: ExploreContentItem,
+    keyword: string | null,
+    sort: ExploreSortType,
+  ) {
+    const basePriority = this.resolveSourcePriority(item.sourceType);
+    const keywordScore = this.resolveKeywordScore(
+      `${item.title} ${item.description} ${item.type} ${item.sourceLabel}`,
+      keyword,
+      item.title,
+    );
+
+    if (sort === 'related') {
+      return keywordScore * 10 + basePriority;
+    }
+
+    return basePriority * 10 + keywordScore;
+  }
+
+  private resolveSourcePriority(sourceType: ExploreContentItem['sourceType']) {
+    switch (sourceType) {
+      case 'assessment_test':
+        return 6;
+      case 'fortune_content':
+        return 5;
+      case 'report_template':
+        return 4;
+      case 'lucky_item':
+        return 3;
+      case 'fallback':
+      default:
+        return 1;
+    }
+  }
+
+  private compareByKeyword(leftText: string, rightText: string, keyword: string | null) {
+    const leftScore = this.resolveKeywordScore(leftText, keyword);
+    const rightScore = this.resolveKeywordScore(rightText, keyword);
+
+    return rightScore - leftScore;
+  }
+
+  private resolveKeywordScore(text: string, keyword: string | null, title?: string) {
+    if (!keyword) {
+      return 0;
+    }
+
+    const normalizedText = text.toLowerCase();
+    const normalizedTitle = title?.toLowerCase() ?? '';
+
+    if (normalizedTitle === keyword) {
+      return 16;
+    }
+
+    if (normalizedTitle.includes(keyword)) {
+      return 10;
+    }
+
+    if (normalizedText.includes(keyword)) {
+      return 6;
+    }
+
+    return 0;
+  }
+
+  private compareDateDesc(left: string | null, right: string | null) {
+    const leftTimestamp = left ? new Date(left).getTime() : 0;
+    const rightTimestamp = right ? new Date(right).getTime() : 0;
+    return rightTimestamp - leftTimestamp;
+  }
+
+  private resolvePublishedAt(
+    publishedAt?: Date | null,
+    publishDate?: string | null,
+  ) {
+    if (publishedAt instanceof Date) {
+      return publishedAt.toISOString();
+    }
+
+    if (publishDate) {
+      return new Date(`${publishDate}T00:00:00.000Z`).toISOString();
+    }
+
+    return null;
   }
 
   private buildEnvelope<TData>(data: TData) {

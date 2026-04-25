@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="page-orb"></view>
 
     <view class="panel hero-panel">
@@ -86,6 +86,7 @@
 import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { generateLuckyWallpaper } from '../../../api/lucky';
+import { useThemePreference } from '../../../composables/useThemePreference';
 import { getLuckyWallpaperTheme } from '../../../services/lucky-wallpaper';
 import type { LuckyWallpaperData, LuckyWallpaperTheme } from '../../../types/lucky';
 
@@ -102,6 +103,7 @@ const wallpaper = ref<LuckyWallpaperData['wallpaper'] | null>(null);
 const loading = ref(false);
 const aspectRatio = ref<AspectRatio>('9:16');
 const downloadLabel = ref('下载 SVG 壁纸');
+const { themeVars } = useThemePreference();
 
 async function loadWallpaper() {
   if (!activeTheme.value) {
@@ -238,8 +240,8 @@ onLoad(() => {
   min-height: 100vh;
   padding: 24rpx;
   background:
-    radial-gradient(circle at top left, rgba(140, 219, 189, 0.28), transparent 24%),
-    linear-gradient(180deg, #f7fbff 0%, #edf3f8 100%);
+    radial-gradient(circle at top left, var(--theme-glow), transparent 24%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .page-orb {

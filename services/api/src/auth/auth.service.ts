@@ -137,6 +137,7 @@ export class AuthService {
       zodiac: user.zodiac,
       baziSummary: user.baziSummary,
       fiveElements: user.fiveElements,
+      preferences: user.preferencesJson,
       vipStatus: isVipActive ? 'active' : 'inactive',
       vipExpiredAt: isVipActive ? user.vipExpiredAt : null,
     };

@@ -12,6 +12,7 @@ export function fetchExploreSearch(params: {
   keyword: string;
   type?: string;
   goal?: string[];
+  sort?: 'recommended' | 'related' | 'latest';
 }) {
   const searchParams = new URLSearchParams();
   searchParams.set('keyword', params.keyword);
@@ -22,6 +23,10 @@ export function fetchExploreSearch(params: {
 
   if (params.goal?.length) {
     searchParams.set('goal', params.goal.join(','));
+  }
+
+  if (params.sort) {
+    searchParams.set('sort', params.sort);
   }
 
   return http.get<ExploreSearchResponse>(`/explore/search?${searchParams.toString()}`);

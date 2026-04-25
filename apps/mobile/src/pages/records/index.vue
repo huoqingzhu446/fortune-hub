@@ -360,8 +360,8 @@ const visibleRecentRecords = computed<RecentDisplayItem[]>(() => {
     id: item.id,
     icon: '静',
     title: item.title,
-    tag: `${item.durationMinutes} 分钟`,
-    summary: item.summary || `${item.category} 练习`,
+    tag: `${item.durationMinutes} 分钟 · ${meditationStatusLabel(item.completionStatus)}`,
+    summary: item.summary || `${item.sourceTitle || item.category} 练习`,
     time: formatTime(item.updatedAt),
     route: item.route,
   }));
@@ -488,7 +488,7 @@ function continueRecord() {
     return;
   }
 
-  open('/pages/journal/index');
+  open(`/pages/journal/index?recordDate=${encodeURIComponent(selectedDate.value)}`);
 }
 
 function goProfile() {
@@ -521,6 +521,16 @@ function moodLabel(moodType: string) {
   };
 
   return mapping[moodType] || '今日状态';
+}
+
+function meditationStatusLabel(status: string) {
+  const mapping: Record<string, string> = {
+    completed: '完整完成',
+    partial: '完成一半',
+    skipped: '已跳过',
+  };
+
+  return mapping[status] || '已记录';
 }
 
 function formatTime(value: string) {

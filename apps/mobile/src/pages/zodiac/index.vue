@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="hero-shell">
       <text class="eyebrow">zodiac center</text>
       <view class="hero-heading">
@@ -284,6 +284,7 @@ import {
   fetchZodiacWeekly,
   fetchZodiacYearly,
 } from '../../api/zodiac';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getCachedUser } from '../../services/session';
 import type {
   ZodiacCompatibilityData,
@@ -446,6 +447,7 @@ const selectedPartner = ref<ZodiacSign | string>('白羊座');
 const activeView = ref<ZodiacViewMode>('daily');
 const loading = ref(false);
 const compatibilityLoading = ref(false);
+const { themeVars } = useThemePreference();
 const dailyFortune = ref<ZodiacDailyData>(buildDailyFallback('狮子座'));
 const weeklyFortune = ref<ZodiacWeeklyData>(buildWeeklyFallback('狮子座'));
 const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
@@ -586,9 +588,9 @@ onPullDownRefresh(async () => {
   min-height: 100vh;
   padding: 24rpx 24rpx 120rpx;
   background:
-    radial-gradient(circle at top right, rgba(255, 213, 150, 0.24), transparent 26%),
-    radial-gradient(circle at top left, rgba(120, 174, 255, 0.18), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, #eaf1f7 100%);
+    radial-gradient(circle at top right, rgba(var(--theme-accent-rgb), 0.22), transparent 26%),
+    radial-gradient(circle at top left, var(--theme-glow), transparent 24%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .hero-shell,

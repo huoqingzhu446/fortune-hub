@@ -1,5 +1,5 @@
 <template>
-  <view class="page-shell">
+  <view class="page-shell" :style="themeVars">
     <view class="page">
     <view class="page-orb page-orb--mint"></view>
     <view class="page-orb page-orb--peach"></view>
@@ -319,6 +319,7 @@ import {
   submitPersonalityAssessment,
 } from '../../api/assessment';
 import { fetchEmotionTests } from '../../api/emotion';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken } from '../../services/session';
 import type {
   PersonalityHistoryItem,
@@ -346,6 +347,7 @@ const loadingHistory = ref(false);
 const loadingDetailCode = ref('');
 const submitting = ref(false);
 const authToken = ref(getAuthToken());
+const { themeVars } = useThemePreference();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const currentQuestion = computed(
@@ -676,8 +678,8 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx 24rpx 24rpx;
   background:
-    radial-gradient(circle at top right, rgba(255, 190, 148, 0.24), transparent 26%),
-    linear-gradient(180deg, #f8fbff 0%, #edf3f7 100%);
+    radial-gradient(circle at top right, var(--theme-glow), transparent 26%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
   overflow: visible;
   overflow-x: hidden;
 }

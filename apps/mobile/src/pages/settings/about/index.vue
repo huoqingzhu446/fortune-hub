@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="panel">
       <text class="eyebrow">about</text>
       <text class="title">关于 Fortune Hub</text>
@@ -26,11 +26,19 @@
   </view>
 </template>
 
+<script setup lang="ts">
+import { useThemePreference } from '../../../composables/useThemePreference';
+
+const { themeVars } = useThemePreference();
+</script>
+
 <style lang="scss">
 .page {
   min-height: 100vh;
   padding: 24rpx;
-  background: linear-gradient(180deg, #f8fbff 0%, #edf2f7 100%);
+  background:
+    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .panel {

@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="page-orb"></view>
 
     <view class="panel hero-panel">
@@ -98,6 +98,7 @@ import { ref } from 'vue';
 import { generateLuckySignPoster } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
 import { useFavoriteToggle } from '../../../composables/useFavoriteToggle';
+import { useThemePreference } from '../../../composables/useThemePreference';
 import { getErrorMessage } from '../../../services/errors';
 import {
   handlePosterImageError,
@@ -147,6 +148,7 @@ const {
   syncFavoriteState,
   toggleCurrent,
 } = useFavoriteToggle();
+const { themeVars } = useThemePreference();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';

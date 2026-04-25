@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="hero-card">
       <text class="hero-card__eyebrow">full report</text>
       <text class="hero-card__title">{{ report?.title || '完整版报告' }}</text>
@@ -174,6 +174,7 @@ import { verifyRewardUnlock } from '../../api/ads';
 import { generateReportPoster } from '../../api/posters';
 import { fetchReport } from '../../api/reports';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
 import {
   handlePosterImageError,
@@ -198,6 +199,7 @@ const {
   syncFavoriteState,
   toggleCurrent,
 } = useFavoriteToggle();
+const { themeVars } = useThemePreference();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
@@ -388,8 +390,8 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx;
   background:
-    radial-gradient(circle at top left, rgba(125, 196, 255, 0.18), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+    radial-gradient(circle at top left, var(--theme-glow), transparent 24%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .hero-card,

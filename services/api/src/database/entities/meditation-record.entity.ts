@@ -26,11 +26,20 @@ export class MeditationRecordEntity {
   @Column({ type: 'varchar', length: 32, default: 'meditation' })
   category!: string;
 
+  @Column({ type: 'varchar', length: 32, default: 'custom' })
+  sourceType!: string;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  sourceTitle!: string | null;
+
   @Column({ type: 'int', unsigned: true })
   durationMinutes!: number;
 
   @Column({ type: 'boolean', default: true })
   completed!: boolean;
+
+  @Column({ type: 'varchar', length: 16, default: 'completed' })
+  completionStatus!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   summary!: string | null;

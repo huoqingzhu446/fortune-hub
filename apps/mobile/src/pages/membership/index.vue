@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="hero-card">
       <text class="hero-card__eyebrow">vip center</text>
       <text class="hero-card__title">
@@ -91,6 +91,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchMembershipStatus } from '../../api/membership';
 import { createMembershipOrder, simulateMembershipPay } from '../../api/orders';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { MembershipStatusData } from '../../types/membership';
@@ -103,6 +104,7 @@ const paying = ref(false);
 const pendingProductCode = ref('');
 const membership = ref<MembershipStatusData | null>(null);
 const currentOrder = ref<MembershipOrder | null>(null);
+const { themeVars } = useThemePreference();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 

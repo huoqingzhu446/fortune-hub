@@ -57,7 +57,7 @@ function handlePress(item: TabItem) {
   position: fixed;
   left: 24rpx;
   right: 24rpx;
-  bottom: calc(18rpx + env(safe-area-inset-bottom));
+  bottom: calc(18rpx);
   z-index: 40;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

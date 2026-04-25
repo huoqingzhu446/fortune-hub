@@ -38,6 +38,21 @@
         <text class="fit-pill__arrow">›</text>
       </view>
 
+      <view class="sort-row">
+        <text class="sort-row__label">排序方式</text>
+        <view class="sort-row__chips">
+          <view
+            v-for="item in sortFilters"
+            :key="item.value"
+            class="sort-chip"
+            :class="{ 'sort-chip--active': selectedSort === item.value }"
+            @tap="selectedSort = item.value"
+          >
+            <text>{{ item.label }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="hero-banner" @tap="open(exploreData.banner.route)">
         <view class="hero-banner__copy">
           <text class="hero-banner__eyebrow">{{ exploreData.banner.eyebrow }}</text>
@@ -70,7 +85,16 @@
               <text class="feature-card__title">{{ item.title }}</text>
               <text class="feature-card__desc">{{ item.description }}</text>
             </view>
-            <text class="feature-card__arrow">›</text>
+            <view class="feature-card__actions">
+              <button
+                class="feature-card__favorite"
+                :class="{ 'feature-card__favorite--active': isFavorited(`feature:${item.id}`) }"
+                @tap.stop="handleFeatureFavorite(item)"
+              >
+                {{ isFavorited(`feature:${item.id}`) ? '已藏' : '收藏' }}
+              </button>
+              <text class="feature-card__arrow">›</text>
+            </view>
           </view>
         </view>
       </view>
@@ -91,7 +115,16 @@
             >
               <text class="topic-card__title">{{ topic.title }}</text>
               <text class="topic-card__summary">{{ topic.summary }}</text>
-              <text class="topic-card__tag">{{ topic.tag }}</text>
+              <view class="topic-card__footer">
+                <text class="topic-card__tag">{{ topic.tag }}</text>
+                <button
+                  class="topic-card__favorite"
+                  :class="{ 'topic-card__favorite--active': isFavorited(`topic:${topic.id}`) }"
+                  @tap.stop="handleTopicFavorite(topic)"
+                >
+                  {{ isFavorited(`topic:${topic.id}`) ? '已藏' : '收藏' }}
+                </button>
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -120,7 +153,7 @@
                 <text class="content-card__tag">{{ item.type }}</text>
               </view>
               <text class="content-card__desc">{{ item.description }}</text>
-              <text class="content-card__meta">{{ item.duration }} · {{ item.stat }}</text>
+              <text class="content-card__meta">{{ item.sourceLabel }} · {{ item.duration }} · {{ item.stat }}</text>
             </view>
 
             <view class="content-card__actions">
@@ -206,6 +239,7 @@ import type {
 } from '../../types/explore';
 
 type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
+type SortType = ExploreIndexData['defaultSort'];
 
 const { themePalette, themeVars } = useThemePreference();
 
@@ -213,6 +247,7 @@ const keyword = ref('');
 const showFilter = ref(false);
 const selectedType = ref<FilterType>('all');
 const selectedGoals = ref<string[]>([]);
+const selectedSort = ref<SortType>('recommended');
 const searchedKeyword = ref('');
 const favoriteKeys = ref<string[]>([]);
 
@@ -255,7 +290,13 @@ const fallbackExploreData: ExploreIndexData = {
       { label: '自我探索', value: 'self' },
       { label: '关系分析', value: 'relationship' },
     ],
+    sorts: [
+      { label: '推荐优先', value: 'recommended' },
+      { label: '搜索相关', value: 'related' },
+      { label: '最新上架', value: 'latest' },
+    ],
   },
+  defaultSort: 'recommended',
   banner: {
     eyebrow: '为你推荐',
     title: '情绪自测与疗愈地图',
@@ -281,6 +322,15 @@ const typeFilters = computed<Array<ExploreFilterOption & { value: FilterType }>>
   })),
 );
 const goalFilters = computed<ExploreFilterOption[]>(() => exploreData.value.filters.goals);
+const sortFilters = computed<Array<ExploreFilterOption & { value: SortType }>>(() =>
+  exploreData.value.filters.sorts.map((item) => ({
+    ...item,
+    value:
+      item.value === 'latest' || item.value === 'related'
+        ? item.value
+        : 'recommended',
+  })),
+);
 const features = computed<ExploreFeatureItem[]>(() =>
   searchedFeatures.value && searchedKeyword.value === normalizedKeyword.value
     ? searchedFeatures.value
@@ -312,23 +362,26 @@ const filteredFeatures = computed(() =>
 );
 
 const filteredContents = computed(() =>
-  contents.value.filter((item) => {
-    const matchesType = selectedType.value === 'all' || item.filterType === selectedType.value;
-    const matchesGoal =
-      selectedGoals.value.length === 0 ||
-      selectedGoals.value.some((goal) => item.goals.includes(goal));
-    const matchesKeyword =
-      !normalizedKeyword.value ||
-      `${item.title}${item.description}${item.type}`.toLowerCase().includes(normalizedKeyword.value);
+  sortContentItems(
+    contents.value.filter((item) => {
+      const matchesType = selectedType.value === 'all' || item.filterType === selectedType.value;
+      const matchesGoal =
+        selectedGoals.value.length === 0 ||
+        selectedGoals.value.some((goal) => item.goals.includes(goal));
+      const matchesKeyword =
+        !normalizedKeyword.value ||
+        `${item.title}${item.description}${item.type}`.toLowerCase().includes(normalizedKeyword.value);
 
-    return matchesType && matchesGoal && matchesKeyword;
-  }),
+      return matchesType && matchesGoal && matchesKeyword;
+    }),
+  ),
 );
 
 async function loadExploreIndex() {
   try {
     const response = await fetchExploreIndex();
     exploreData.value = response.data;
+    selectedSort.value = response.data.defaultSort || 'recommended';
   } catch (error) {
     console.warn('load explore index failed', error);
     exploreData.value = fallbackExploreData;
@@ -403,6 +456,7 @@ async function loadExploreSearch(nextKeyword: string) {
       keyword: nextKeyword,
       type: selectedType.value === 'all' ? undefined : selectedType.value,
       goal: selectedGoals.value,
+      sort: selectedSort.value,
     });
     searchedKeyword.value = nextKeyword.toLowerCase();
     searchedFeatures.value = response.data.features;
@@ -417,7 +471,127 @@ async function loadExploreSearch(nextKeyword: string) {
   }
 }
 
+function sortContentItems(items: ExploreContentItem[]) {
+  const list = [...items];
+
+  if (selectedSort.value === 'latest') {
+    return list.sort((left, right) => compareDate(right.publishedAt, left.publishedAt));
+  }
+
+  if (selectedSort.value === 'related') {
+    return list.sort((left, right) => computeKeywordScore(right) - computeKeywordScore(left));
+  }
+
+  return list.sort((left, right) => {
+    const rightScore = resolveSourcePriority(right.sourceType) * 10 + computeKeywordScore(right);
+    const leftScore = resolveSourcePriority(left.sourceType) * 10 + computeKeywordScore(left);
+
+    if (rightScore !== leftScore) {
+      return rightScore - leftScore;
+    }
+
+    return compareDate(right.publishedAt, left.publishedAt);
+  });
+}
+
+function computeKeywordScore(item: ExploreContentItem) {
+  if (!normalizedKeyword.value) {
+    return 0;
+  }
+
+  const keywordValue = normalizedKeyword.value;
+  const title = item.title.toLowerCase();
+  const contentText = `${item.title} ${item.description} ${item.sourceLabel}`.toLowerCase();
+
+  if (title === keywordValue) {
+    return 16;
+  }
+
+  if (title.includes(keywordValue)) {
+    return 10;
+  }
+
+  if (contentText.includes(keywordValue)) {
+    return 6;
+  }
+
+  return 0;
+}
+
+function resolveSourcePriority(sourceType: ExploreContentItem['sourceType']) {
+  switch (sourceType) {
+    case 'assessment_test':
+      return 6;
+    case 'fortune_content':
+      return 5;
+    case 'report_template':
+      return 4;
+    case 'lucky_item':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+function compareDate(left: string | null, right: string | null) {
+  const leftTime = left ? new Date(left).getTime() : 0;
+  const rightTime = right ? new Date(right).getTime() : 0;
+  return leftTime - rightTime;
+}
+
 async function handleFavorite(item: ExploreContentItem) {
+  await toggleFavoriteEntry({
+    itemType: item.sourceType,
+    itemKey: item.id,
+    title: item.title,
+    summary: item.description,
+    icon: item.icon,
+    route: item.route,
+    extraJson: {
+      type: item.type,
+      filterType: item.filterType,
+    },
+  });
+}
+
+async function handleFeatureFavorite(item: ExploreFeatureItem) {
+  await toggleFavoriteEntry({
+    itemType: 'explore_feature',
+    itemKey: `feature:${item.id}`,
+    title: item.title,
+    summary: item.description,
+    icon: item.icon,
+    route: item.route,
+    extraJson: {
+      type: item.type,
+    },
+  });
+}
+
+async function handleTopicFavorite(item: ExploreTopicItem) {
+  await toggleFavoriteEntry({
+    itemType: 'explore_topic',
+    itemKey: `topic:${item.id}`,
+    title: item.title,
+    summary: item.summary,
+    icon: item.tag.slice(0, 2),
+    route: item.route,
+    extraJson: {
+      tag: item.tag,
+      publishedAt: item.publishedAt,
+    },
+  });
+}
+
+async function toggleFavoriteEntry(input: {
+  itemType: string;
+  itemKey: string;
+  title: string;
+  summary?: string;
+  icon?: string;
+  route: string;
+  extraJson?: Record<string, unknown>;
+}) {
   if (!getAuthToken()) {
     uni.navigateTo({
       url: '/pages/profile/index',
@@ -427,22 +601,19 @@ async function handleFavorite(item: ExploreContentItem) {
 
   try {
     const response = await toggleFavorite({
-      itemType: item.sourceType,
-      itemKey: item.id,
-      title: item.title,
-      summary: item.description,
-      icon: item.icon,
-      route: item.route,
-      extraJson: {
-        type: item.type,
-        filterType: item.filterType,
-      },
+      itemType: input.itemType,
+      itemKey: input.itemKey,
+      title: input.title,
+      summary: input.summary,
+      icon: input.icon,
+      route: input.route,
+      extraJson: input.extraJson,
     });
 
     if (response.data.active) {
-      favoriteKeys.value = Array.from(new Set([...favoriteKeys.value, item.id]));
+      favoriteKeys.value = Array.from(new Set([...favoriteKeys.value, input.itemKey]));
     } else {
-      favoriteKeys.value = favoriteKeys.value.filter((key) => key !== item.id);
+      favoriteKeys.value = favoriteKeys.value.filter((key) => key !== input.itemKey);
     }
 
     uni.showToast({
@@ -623,6 +794,39 @@ onShow(() => {
   color: var(--theme-text-primary);
 }
 
+.sort-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.sort-row__label {
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.sort-row__chips {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.sort-chip {
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface);
+  border: 1rpx solid var(--theme-border);
+}
+
+.sort-chip--active {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
 .fit-pill__icon,
 .fit-pill__arrow {
   color: var(--theme-primary);
@@ -793,6 +997,28 @@ onShow(() => {
   color: var(--theme-text-tertiary);
 }
 
+.feature-card__actions {
+  display: grid;
+  justify-items: end;
+  gap: 10rpx;
+}
+
+.feature-card__favorite,
+.topic-card__favorite {
+  min-height: 50rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  color: var(--theme-text-secondary);
+  background: var(--theme-surface-muted);
+}
+
+.feature-card__favorite--active,
+.topic-card__favorite--active {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
 .topic-scroll {
   width: 100%;
   white-space: nowrap;
@@ -825,6 +1051,13 @@ onShow(() => {
   font-size: 20rpx;
   color: var(--theme-primary);
   background: var(--theme-tag-bg);
+}
+
+.topic-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
 }
 
 .content-list {
@@ -894,7 +1127,9 @@ onShow(() => {
 }
 
 .content-card__favorite::after,
-.content-card__button::after {
+.content-card__button::after,
+.feature-card__favorite::after,
+.topic-card__favorite::after {
   border: none;
 }
 

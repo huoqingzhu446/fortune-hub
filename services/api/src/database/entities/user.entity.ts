@@ -44,6 +44,9 @@ export class UserEntity {
   @Column({ type: 'json', nullable: true })
   fiveElements!: Record<string, number> | null;
 
+  @Column({ type: 'json', nullable: true })
+  preferencesJson!: Record<string, unknown> | null;
+
   @Column({ length: 16, default: 'inactive' })
   vipStatus!: string;
 

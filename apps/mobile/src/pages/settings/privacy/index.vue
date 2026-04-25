@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="panel">
       <text class="eyebrow">privacy</text>
       <text class="title">隐私与合规说明</text>
@@ -12,7 +12,7 @@
         <text class="bullet-item">登录标识：`openid` 或开发环境 mock openid。</text>
         <text class="bullet-item">基础资料：昵称、生日、出生时间、性别、星座、简易五行结果。</text>
         <text class="bullet-item">结果历史：八字、性格测评、情绪自检生成的记录。</text>
-        <text class="bullet-item">本地偏好：提醒开关、反馈草稿等仅保存在当前设备。</text>
+        <text class="bullet-item">偏好设置：主题与提醒偏好登录后会同步到账号，反馈草稿仍保存在当前设备。</text>
       </view>
     </view>
 
@@ -32,11 +32,19 @@
   </view>
 </template>
 
+<script setup lang="ts">
+import { useThemePreference } from '../../../composables/useThemePreference';
+
+const { themeVars } = useThemePreference();
+</script>
+
 <style lang="scss">
 .page {
   min-height: 100vh;
   padding: 24rpx;
-  background: linear-gradient(180deg, #f8fbff 0%, #edf2f7 100%);
+  background:
+    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .panel {

@@ -11,6 +11,7 @@ import { FavoritesService } from '../favorites/favorites.service';
 import { MembershipService } from '../membership/membership.service';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 const WESTERN_ZODIAC_BOUNDARIES = [
@@ -39,6 +40,15 @@ const RECORD_LEGEND = [
   { type: 'tired', label: '疲惫' },
 ] as const;
 
+const USER_PREFERENCE_DEFAULTS = {
+  dailyReminderEnabled: true,
+  luckyPushEnabled: true,
+  quietModeEnabled: false,
+  saveHistoryCardsEnabled: true,
+  themeMode: 'auto',
+  manualThemeKey: '',
+} as const;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -61,6 +71,12 @@ export class UsersService {
     return this.buildEnvelope({
       user: this.authService.serializeUser(user),
       isProfileCompleted: Boolean(user.birthday && user.zodiac),
+    });
+  }
+
+  getPreferences(user: UserEntity) {
+    return this.buildEnvelope({
+      settings: this.normalizeUserPreferences(user.preferencesJson),
     });
   }
 
@@ -182,6 +198,25 @@ export class UsersService {
     };
   }
 
+  async updatePreferences(user: UserEntity, dto: UpdatePreferencesDto) {
+    const currentSettings = this.normalizeUserPreferences(user.preferencesJson);
+    const nextSettings = {
+      ...currentSettings,
+      ...this.pickDefinedPreferencePatch(dto),
+    };
+
+    if (nextSettings.themeMode !== 'manual') {
+      nextSettings.manualThemeKey = nextSettings.manualThemeKey || '';
+    }
+
+    user.preferencesJson = nextSettings;
+    const savedUser = await this.userRepository.save(user);
+
+    return this.buildEnvelope({
+      settings: this.normalizeUserPreferences(savedUser.preferencesJson),
+    });
+  }
+
   async getUnifiedHistory(user: UserEntity, limit?: number) {
     return this.buildEnvelope({
       items: await this.loadUnifiedHistoryItems(
@@ -208,21 +243,71 @@ export class UsersService {
     });
   }
 
-  async saveMoodRecord(user: UserEntity, dto: SaveMoodRecordDto) {
-    const existing = await this.moodRecordRepository.findOne({
+  async getMoodRecordDetail(
+    user: UserEntity,
+    query: {
+      recordDate?: string;
+      recordId?: string;
+    },
+  ) {
+    const targetRecord = query.recordId
+      ? await this.moodRecordRepository.findOne({
+          where: {
+            id: query.recordId,
+            userId: user.id,
+          },
+        })
+      : query.recordDate
+        ? await this.moodRecordRepository.findOne({
+            where: {
+              userId: user.id,
+              recordDate: query.recordDate,
+            },
+          })
+        : null;
+
+    const recentRecords = await this.moodRecordRepository.find({
       where: {
         userId: user.id,
-        recordDate: dto.recordDate,
       },
+      order: {
+        recordDate: 'DESC',
+        updatedAt: 'DESC',
+      },
+      take: 6,
     });
+
+    return this.buildEnvelope({
+      item: targetRecord ? this.serializeMoodRecord(targetRecord) : null,
+      recentItems: recentRecords
+        .filter((record) => record.id !== targetRecord?.id)
+        .slice(0, 4)
+        .map((record) => this.serializeMoodRecord(record)),
+    });
+  }
+
+  async saveMoodRecord(user: UserEntity, dto: SaveMoodRecordDto) {
+    const existing = dto.recordId
+      ? await this.moodRecordRepository.findOne({
+          where: {
+            id: dto.recordId,
+            userId: user.id,
+          },
+        })
+      : await this.moodRecordRepository.findOne({
+          where: {
+            userId: user.id,
+            recordDate: dto.recordDate,
+          },
+        });
 
     const record =
       existing ??
       this.moodRecordRepository.create({
         userId: user.id,
-        recordDate: dto.recordDate,
       });
 
+    record.recordDate = dto.recordDate;
     record.moodType = dto.moodType;
     record.moodScore = dto.moodScore;
     record.emotionTags = dto.emotionTags?.slice(0, 8) ?? [];
@@ -252,21 +337,67 @@ export class UsersService {
     });
   }
 
-  async saveMeditationRecord(user: UserEntity, dto: SaveMeditationRecordDto) {
-    const record = await this.meditationRecordRepository.save(
-      this.meditationRecordRepository.create({
+  async getMeditationRecordDetail(user: UserEntity, recordId?: string) {
+    const targetRecord = recordId
+      ? await this.meditationRecordRepository.findOne({
+          where: {
+            id: recordId,
+            userId: user.id,
+          },
+        })
+      : null;
+
+    const recentRecords = await this.meditationRecordRepository.find({
+      where: {
         userId: user.id,
-        recordDate: dto.recordDate,
-        title: dto.title.trim(),
-        category: dto.category?.trim() || 'meditation',
-        durationMinutes: dto.durationMinutes,
-        completed: dto.completed ?? true,
-        summary: dto.summary?.trim() || null,
-      }),
-    );
+      },
+      order: {
+        recordDate: 'DESC',
+        updatedAt: 'DESC',
+      },
+      take: 6,
+    });
 
     return this.buildEnvelope({
-      item: this.serializeMeditationRecord(record),
+      item: targetRecord ? this.serializeMeditationRecord(targetRecord) : null,
+      recentItems: recentRecords
+        .filter((record) => record.id !== targetRecord?.id)
+        .slice(0, 4)
+        .map((record) => this.serializeMeditationRecord(record)),
+    });
+  }
+
+  async saveMeditationRecord(user: UserEntity, dto: SaveMeditationRecordDto) {
+    const existing = dto.recordId
+      ? await this.meditationRecordRepository.findOne({
+          where: {
+            id: dto.recordId,
+            userId: user.id,
+          },
+        })
+      : null;
+
+    const completionStatus = dto.completionStatus ?? (dto.completed === false ? 'partial' : 'completed');
+    const record =
+      existing ??
+      this.meditationRecordRepository.create({
+        userId: user.id,
+      });
+
+    record.recordDate = dto.recordDate;
+    record.title = dto.title.trim();
+    record.category = dto.category?.trim() || 'meditation';
+    record.sourceType = dto.sourceType?.trim() || 'custom';
+    record.sourceTitle = dto.sourceTitle?.trim() || null;
+    record.durationMinutes = dto.durationMinutes;
+    record.completed = completionStatus === 'completed';
+    record.completionStatus = completionStatus;
+    record.summary = dto.summary?.trim() || null;
+
+    const saved = await this.meditationRecordRepository.save(record);
+
+    return this.buildEnvelope({
+      item: this.serializeMeditationRecord(saved),
     });
   }
 
@@ -463,7 +594,7 @@ export class UsersService {
       emotionTags: record.emotionTags ?? [],
       content: record.content ?? '',
       updatedAt: record.updatedAt.toISOString(),
-      route: `/pages/journal/index?recordDate=${encodeURIComponent(record.recordDate)}`,
+      route: `/pages/journal/index?recordId=${encodeURIComponent(record.id)}&recordDate=${encodeURIComponent(record.recordDate)}`,
     };
   }
 
@@ -473,11 +604,14 @@ export class UsersService {
       recordDate: record.recordDate,
       title: record.title,
       category: record.category,
+      sourceType: record.sourceType,
+      sourceTitle: record.sourceTitle ?? '',
       durationMinutes: record.durationMinutes,
       completed: record.completed,
+      completionStatus: record.completionStatus,
       summary: record.summary ?? '',
       updatedAt: record.updatedAt.toISOString(),
-      route: `/pages/meditation/index?recordDate=${encodeURIComponent(record.recordDate)}`,
+      route: `/pages/meditation/index?recordId=${encodeURIComponent(record.id)}`,
     };
   }
 
@@ -796,5 +930,44 @@ export class UsersService {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private normalizeUserPreferences(input: Record<string, unknown> | null | undefined) {
+    return {
+      ...USER_PREFERENCE_DEFAULTS,
+      ...(input || {}),
+      manualThemeKey:
+        typeof input?.manualThemeKey === 'string' ? input.manualThemeKey : '',
+      themeMode: input?.themeMode === 'manual' ? 'manual' : 'auto',
+      dailyReminderEnabled:
+        typeof input?.dailyReminderEnabled === 'boolean'
+          ? input.dailyReminderEnabled
+          : USER_PREFERENCE_DEFAULTS.dailyReminderEnabled,
+      luckyPushEnabled:
+        typeof input?.luckyPushEnabled === 'boolean'
+          ? input.luckyPushEnabled
+          : USER_PREFERENCE_DEFAULTS.luckyPushEnabled,
+      quietModeEnabled:
+        typeof input?.quietModeEnabled === 'boolean'
+          ? input.quietModeEnabled
+          : USER_PREFERENCE_DEFAULTS.quietModeEnabled,
+      saveHistoryCardsEnabled:
+        typeof input?.saveHistoryCardsEnabled === 'boolean'
+          ? input.saveHistoryCardsEnabled
+          : USER_PREFERENCE_DEFAULTS.saveHistoryCardsEnabled,
+    };
+  }
+
+  private pickDefinedPreferencePatch(dto: UpdatePreferencesDto) {
+    return Object.fromEntries(
+      Object.entries({
+        dailyReminderEnabled: dto.dailyReminderEnabled,
+        luckyPushEnabled: dto.luckyPushEnabled,
+        quietModeEnabled: dto.quietModeEnabled,
+        saveHistoryCardsEnabled: dto.saveHistoryCardsEnabled,
+        themeMode: dto.themeMode,
+        manualThemeKey: dto.manualThemeKey,
+      }).filter(([, value]) => value !== undefined),
+    );
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <view class="page-shell">
+  <view class="page-shell" :style="themeVars">
     <view class="page">
     <view class="page-orb page-orb--mint"></view>
     <view class="page-orb page-orb--peach"></view>
@@ -163,6 +163,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchLuckyToday } from '../../api/lucky';
+import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { setLuckyWallpaperTheme } from '../../services/lucky-wallpaper';
 import { getAuthToken } from '../../services/session';
@@ -203,6 +204,7 @@ const fallbackLucky: LuckyTodayData = {
   recommendations: [],
   wallpaperThemes: [],
 };
+const { themeVars } = useThemePreference();
 
 const luckyData = ref<LuckyTodayData>(fallbackLucky);
 const loading = ref(false);
@@ -292,9 +294,9 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx 24rpx 24rpx;
   background:
-    radial-gradient(circle at top left, rgba(134, 209, 182, 0.28), transparent 22%),
-    radial-gradient(circle at top right, rgba(255, 214, 195, 0.28), transparent 18%),
-    linear-gradient(180deg, #f8fbff 0%, #edf2f7 100%);
+    radial-gradient(circle at top left, var(--theme-glow), transparent 22%),
+    radial-gradient(circle at top right, rgba(var(--theme-accent-rgb), 0.24), transparent 18%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
   overflow-x: hidden;
 }
 

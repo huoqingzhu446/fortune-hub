@@ -21,6 +21,7 @@ export interface ExploreTopicItem {
   summary: string;
   tag: string;
   route: string;
+  publishedAt: string | null;
 }
 
 export interface ExploreContentItem {
@@ -35,7 +36,14 @@ export interface ExploreContentItem {
   stat: string;
   buttonText: string;
   route: string;
-  sourceType: 'lucky_item' | 'fortune_content' | 'report_template' | 'fallback';
+  sourceType:
+    | 'lucky_item'
+    | 'fortune_content'
+    | 'report_template'
+    | 'assessment_test'
+    | 'fallback';
+  sourceLabel: string;
+  publishedAt: string | null;
 }
 
 export interface ExploreIndexData {
@@ -49,7 +57,9 @@ export interface ExploreIndexData {
   filters: {
     types: ExploreFilterOption[];
     goals: ExploreFilterOption[];
+    sorts: ExploreFilterOption[];
   };
+  defaultSort: 'recommended' | 'related' | 'latest';
   banner: {
     eyebrow: string;
     title: string;
@@ -67,6 +77,7 @@ export type ExploreIndexResponse = ApiEnvelope<ExploreIndexData>;
 
 export interface ExploreSearchData {
   keyword: string;
+  sort: 'recommended' | 'related' | 'latest';
   features: ExploreFeatureItem[];
   topics: ExploreTopicItem[];
   contents: ExploreContentItem[];

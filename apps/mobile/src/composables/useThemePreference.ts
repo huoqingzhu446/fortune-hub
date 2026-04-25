@@ -1,10 +1,12 @@
-import { computed, reactive, type Ref } from 'vue';
+import { computed, reactive, ref, type Ref } from 'vue';
+import { fetchPreferenceSettings, updatePreferenceSettings } from '../api/preferences';
 import {
   getAppSettings,
   getStoredDailyThemeKey,
   saveAppSettings,
   type AppSettings,
 } from '../services/preferences';
+import { getAuthToken } from '../services/session';
 import {
   buildThemeCssVars,
   normalizeThemeKey,
@@ -19,6 +21,11 @@ import {
 
 type DailyThemeSource = Ref<ThemeKey | '' | undefined> | ThemeKey | '' | undefined;
 
+const sharedSettings = reactive<AppSettings>(getAppSettings());
+const serverSyncing = ref(false);
+let hydratedToken = '';
+let syncPromise: Promise<void> | null = null;
+
 function readDailyThemeKey(source?: DailyThemeSource) {
   if (typeof source === 'string') {
     return source;
@@ -32,7 +39,7 @@ function readDailyThemeKey(source?: DailyThemeSource) {
 }
 
 export function useThemePreference(dailyThemeSource?: DailyThemeSource) {
-  const settings = reactive<AppSettings>(getAppSettings());
+  const settings = sharedSettings;
 
   const dailyThemeKey = computed<ThemeKey | ''>(() => {
     const input = readDailyThemeKey(dailyThemeSource);
@@ -53,14 +60,35 @@ export function useThemePreference(dailyThemeSource?: DailyThemeSource) {
   const themePalette = computed(() => getThemePalette(resolvedTheme.value.effectiveThemeKey));
   const themeVars = computed(() => buildThemeCssVars(themePalette.value.key));
 
-  function patchSettings(patch: Partial<AppSettings>) {
+  function applySettings(nextSettings: AppSettings) {
+    Object.assign(settings, nextSettings);
+    saveAppSettings(nextSettings);
+  }
+
+  function patchSettings(
+    patch: Partial<AppSettings>,
+    options?: {
+      persist?: boolean;
+    },
+  ) {
     const nextSettings: AppSettings = {
       ...settings,
       ...patch,
     };
 
-    Object.assign(settings, nextSettings);
-    saveAppSettings(nextSettings);
+    applySettings(nextSettings);
+
+    if (options?.persist === false || !getAuthToken()) {
+      return;
+    }
+
+    void updatePreferenceSettings(patch)
+      .then((response) => {
+        applySettings(response.data.settings);
+      })
+      .catch((error) => {
+        console.warn('sync preference settings failed', error);
+      });
   }
 
   function setThemeMode(mode: ThemeMode) {
@@ -89,6 +117,36 @@ export function useThemePreference(dailyThemeSource?: DailyThemeSource) {
     });
   }
 
+  async function syncSettingsFromServer(force = false) {
+    const token = getAuthToken();
+
+    if (!token) {
+      hydratedToken = '';
+      return;
+    }
+
+    if (!force && hydratedToken === token) {
+      return syncPromise ?? Promise.resolve();
+    }
+
+    serverSyncing.value = true;
+    syncPromise = fetchPreferenceSettings()
+      .then((response) => {
+        applySettings(response.data.settings);
+        hydratedToken = token;
+      })
+      .catch((error) => {
+        console.warn('load preference settings failed', error);
+      })
+      .finally(() => {
+        serverSyncing.value = false;
+      });
+
+    return syncPromise;
+  }
+
+  void syncSettingsFromServer();
+
   return {
     settings,
     dailyThemeKey,
@@ -98,5 +156,7 @@ export function useThemePreference(dailyThemeSource?: DailyThemeSource) {
     setThemeMode,
     setManualTheme,
     patchSettings,
+    serverSyncing,
+    syncSettingsFromServer,
   };
 }

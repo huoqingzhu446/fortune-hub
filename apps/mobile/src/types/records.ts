@@ -45,8 +45,11 @@ export interface MeditationLogItem {
   recordDate: string;
   title: string;
   category: string;
+  sourceType: string;
+  sourceTitle: string;
   durationMinutes: number;
   completed: boolean;
+  completionStatus: 'completed' | 'partial' | 'skipped';
   summary: string;
   updatedAt: string;
   route: string;
@@ -106,6 +109,7 @@ export interface MeditationRecordListData {
 }
 
 export interface SaveMoodRecordPayload {
+  recordId?: string;
   recordDate: string;
   moodType: 'calm' | 'low' | 'anxious' | 'happy' | 'tired';
   moodScore: number;
@@ -114,11 +118,15 @@ export interface SaveMoodRecordPayload {
 }
 
 export interface SaveMeditationRecordPayload {
+  recordId?: string;
   recordDate: string;
   title: string;
   category?: string;
+  sourceType?: string;
+  sourceTitle?: string;
   durationMinutes: number;
   completed?: boolean;
+  completionStatus?: 'completed' | 'partial' | 'skipped';
   summary?: string;
 }
 
@@ -126,3 +134,11 @@ export type MoodRecordListResponse = ApiEnvelope<MoodRecordListData>;
 export type MeditationRecordListResponse = ApiEnvelope<MeditationRecordListData>;
 export type SaveMoodRecordResponse = ApiEnvelope<{ item: MoodJournalItem }>;
 export type SaveMeditationRecordResponse = ApiEnvelope<{ item: MeditationLogItem }>;
+export type MoodRecordDetailResponse = ApiEnvelope<{
+  item: MoodJournalItem | null;
+  recentItems: MoodJournalItem[];
+}>;
+export type MeditationRecordDetailResponse = ApiEnvelope<{
+  item: MeditationLogItem | null;
+  recentItems: MeditationLogItem[];
+}>;

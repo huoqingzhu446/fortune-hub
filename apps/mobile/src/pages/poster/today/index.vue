@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" :style="themeVars">
     <view class="page-orb page-orb--blue"></view>
     <view class="page-orb page-orb--gold"></view>
 
@@ -118,6 +118,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchMe } from '../../../api/auth';
 import { generateTodayIndexPoster } from '../../../api/posters';
+import { useThemePreference } from '../../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
 import {
   handlePosterImageError,
@@ -137,6 +138,7 @@ const poster = ref<GeneratedPoster | null>(null);
 const loading = ref(false);
 const contextLoading = ref(false);
 const autoGenerate = ref(false);
+const { themeVars } = useThemePreference();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
@@ -369,8 +371,8 @@ onShow(() => {
   min-height: 100vh;
   padding: 24rpx;
   background:
-    radial-gradient(circle at top left, rgba(115, 171, 255, 0.18), transparent 26%),
-    linear-gradient(180deg, #f8fbff 0%, #edf3fb 100%);
+    radial-gradient(circle at top left, var(--theme-glow), transparent 26%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
 .page-orb {

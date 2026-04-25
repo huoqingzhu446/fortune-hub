@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
@@ -233,6 +234,8 @@ export class EmotionAssessmentService {
     private readonly assessmentQuestionRepository: Repository<AssessmentQuestionEntity>,
     @InjectRepository(AssessmentTestConfigEntity)
     private readonly assessmentTestConfigRepository: Repository<AssessmentTestConfigEntity>,
+    @InjectRepository(AppConfigEntity)
+    private readonly appConfigRepository: Repository<AppConfigEntity>,
   ) {}
 
   async getEmotionTests() {
@@ -305,7 +308,10 @@ export class EmotionAssessmentService {
       totalScore += selectedOption.score;
     }
 
-    const result = this.buildResultPayload(test, totalScore);
+    const result = {
+      ...this.buildResultPayload(test, totalScore),
+      compliance: await this.resolveEmotionCompliance(),
+    };
     let recordId: string | null = null;
 
     if (user) {
@@ -523,6 +529,40 @@ export class EmotionAssessmentService {
         riskLevel: threshold.level,
       }),
       completedAt: new Date().toISOString(),
+    };
+  }
+
+  private async resolveEmotionCompliance() {
+    const config = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'compliance',
+        configKey: 'emotion_support',
+        status: 'published',
+      },
+      order: {
+        publishedAt: 'DESC',
+        updatedAt: 'DESC',
+      },
+    });
+    const payload = this.asRecord(config?.valueJson);
+
+    return {
+      disclaimerVersion: this.pickString(payload.disclaimerVersion, '2026-04-25'),
+      disclaimer: this.pickString(
+        payload.disclaimer,
+        '本结果仅用于日常自我观察，不构成医学诊断或治疗建议；如持续不适，请及时联系专业机构。',
+      ),
+      crisisTitle: this.pickString(payload.crisisTitle, '请优先获得现实支持'),
+      crisisMessage: this.pickString(
+        payload.crisisMessage,
+        '如果已经出现明显失控感或伤害自己的想法，请立即联系急救、医院或当地心理危机干预资源。',
+      ),
+      resources: Array.isArray(payload.resources)
+        ? payload.resources.map((item) => this.asRecord(item)).filter((item) => Object.keys(item).length)
+        : [
+            { region: '中国大陆', name: '紧急医疗救助', phone: '120', type: 'emergency' },
+            { region: '中国大陆', name: '公安报警', phone: '110', type: 'emergency' },
+          ],
     };
   }
 

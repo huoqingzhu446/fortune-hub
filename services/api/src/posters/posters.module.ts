@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { LuckyModule } from '../lucky/lucky.module';
@@ -13,6 +14,7 @@ import { PostersService } from './posters.service';
   imports: [
     TypeOrmModule.forFeature([
       ShareRecordEntity,
+      PosterJobEntity,
       FortuneContentEntity,
       ReportTemplateEntity,
     ]),

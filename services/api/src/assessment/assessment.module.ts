@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 import { AuthModule } from '../auth/auth.module';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from '../database/entities/assessment-test-group.entity';
@@ -17,6 +18,7 @@ import { EmotionAssessmentService } from './emotion-assessment.service';
   imports: [
     TypeOrmModule.forFeature([
       UserRecordEntity,
+      AppConfigEntity,
       AssessmentQuestionEntity,
       AssessmentTestConfigEntity,
       AssessmentTestGroupEntity,

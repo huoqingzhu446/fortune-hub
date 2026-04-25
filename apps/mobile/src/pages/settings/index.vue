@@ -119,6 +119,7 @@
 <script setup lang="ts">
 import { onShow } from '@dcloudio/uni-app';
 import { computed } from 'vue';
+import { subscribeNotification } from '../../api/notifications';
 import ThemePreviewCard from '../../components/ThemePreviewCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { themePalettes } from '../../theme/themes';
@@ -176,6 +177,57 @@ function toggle(
   patchSettings({
     [key]: Boolean(nextValue),
   } as Partial<AppSettings>);
+
+  if (Boolean(nextValue)) {
+    void requestNotificationSubscription(key);
+  }
+}
+
+async function requestNotificationSubscription(key: ToggleSettingKey) {
+  const sceneMap: Partial<Record<ToggleSettingKey, string>> = {
+    dailyReminderEnabled: 'daily_reminder',
+    luckyPushEnabled: 'lucky_push',
+  };
+  const scene = sceneMap[key];
+  const templateId = resolveTemplateId(scene);
+
+  if (!scene || !templateId) {
+    return;
+  }
+
+  try {
+    if (typeof uni.requestSubscribeMessage === 'function') {
+      await new Promise<void>((resolve, reject) => {
+        uni.requestSubscribeMessage({
+          tmplIds: [templateId],
+          success: () => resolve(),
+          fail: reject,
+        });
+      });
+    }
+
+    await subscribeNotification({
+      scene,
+      templateIds: [templateId],
+      extra: {
+        source: 'settings',
+      },
+    });
+  } catch (error) {
+    console.warn('request notification subscription failed', error);
+  }
+}
+
+function resolveTemplateId(scene?: string) {
+  if (scene === 'daily_reminder') {
+    return import.meta.env.VITE_WECHAT_DAILY_REMINDER_TEMPLATE_ID || '';
+  }
+
+  if (scene === 'lucky_push') {
+    return import.meta.env.VITE_WECHAT_LUCKY_PUSH_TEMPLATE_ID || '';
+  }
+
+  return '';
 }
 
 function goPrivacy() {

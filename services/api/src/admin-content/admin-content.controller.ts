@@ -74,6 +74,20 @@ export class AdminContentController {
     return this.adminContentService.createContent(dto);
   }
 
+  @Post('preview')
+  previewContent(@Body() dto: { id: string; kind?: 'fortune_content' }) {
+    return this.adminContentService.previewContent('fortune_content', dto.id);
+  }
+
+  @Post('batch-status')
+  batchStatus(@Body() dto: { ids: string[]; status: string }) {
+    return this.adminContentService.batchUpdateContentStatus(
+      'fortune_content',
+      dto.ids,
+      dto.status,
+    );
+  }
+
   @Put(':id')
   updateContent(@Param('id') id: string, @Body() dto: SaveFortuneContentDto) {
     return this.adminContentService.updateContent(id, dto);
@@ -109,6 +123,20 @@ export class AdminLuckyItemsController {
   @Post()
   createLuckyItem(@Body() dto: SaveLuckyItemDto) {
     return this.adminContentService.createLuckyItem(dto);
+  }
+
+  @Post('preview')
+  previewLuckyItem(@Body() dto: { id: string }) {
+    return this.adminContentService.previewContent('lucky_item', dto.id);
+  }
+
+  @Post('batch-status')
+  batchStatus(@Body() dto: { ids: string[]; status: string }) {
+    return this.adminContentService.batchUpdateContentStatus(
+      'lucky_item',
+      dto.ids,
+      dto.status,
+    );
   }
 
   @Put(':id')
@@ -153,6 +181,36 @@ export class AdminReportTemplatesController {
     return this.adminContentService.createReportTemplate(dto);
   }
 
+  @Post(':id/preview')
+  previewReportTemplate(
+    @Param('id') id: string,
+    @Body() dto: { sample?: Record<string, unknown> },
+  ) {
+    return this.adminContentService.previewReportTemplate(id, dto.sample);
+  }
+
+  @Get(':id/versions')
+  listReportTemplateVersions(@Param('id') id: string) {
+    return this.adminContentService.listReportTemplateVersions(id);
+  }
+
+  @Post(':id/rollback/:versionId')
+  rollbackReportTemplate(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.adminContentService.rollbackReportTemplate(id, versionId);
+  }
+
+  @Post('batch-status')
+  batchStatus(@Body() dto: { ids: string[]; status: string }) {
+    return this.adminContentService.batchUpdateContentStatus(
+      'report_template',
+      dto.ids,
+      dto.status,
+    );
+  }
+
   @Put(':id')
   updateReportTemplate(
     @Param('id') id: string,
@@ -195,6 +253,20 @@ export class AdminConfigsController {
       ...dto,
       valueType: dto.valueType ?? 'json',
     });
+  }
+
+  @Post('preview')
+  previewConfig(@Body() dto: { id: string }) {
+    return this.adminContentService.previewContent('config', dto.id);
+  }
+
+  @Post('batch-status')
+  batchStatus(@Body() dto: { ids: string[]; status: string }) {
+    return this.adminContentService.batchUpdateContentStatus(
+      'config',
+      dto.ids,
+      dto.status,
+    );
   }
 
   @Put(':id')

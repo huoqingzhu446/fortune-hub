@@ -13,6 +13,7 @@ export interface LuckyTodaySign {
   tag: string;
   mantra: string;
   accent: string;
+  themeKey?: string;
 }
 
 export interface LuckyRecommendationItem {
@@ -89,9 +90,42 @@ export interface LuckySignDetailData {
       title: string;
       subtitle: string;
       accentText: string;
-      footerText: string;
+    footerText: string;
     };
+    themeKey?: string;
   };
+}
+
+export interface LuckyYearlyData {
+  year: number;
+  profile: {
+    personalized: boolean;
+    nickname: string | null;
+    zodiac: string | null;
+    dominantElement: string;
+  };
+  score: LuckyScoreMetric;
+  theme: {
+    title: string;
+    summary: string;
+    themeKey: string;
+  };
+  quarters: Array<{
+    label: string;
+    title: string;
+    summary: string;
+  }>;
+  annualFocus: string[];
+}
+
+export interface LuckyRecommendationsData {
+  profile: {
+    personalized: boolean;
+    zodiac: string | null;
+    dominantElement: string;
+  };
+  themeKey: string;
+  items: LuckyRecommendationItem[];
 }
 
 export interface GenerateLuckyWallpaperPayload {
@@ -124,4 +158,6 @@ export interface LuckyWallpaperData {
 
 export type LuckyTodayResponse = ApiEnvelope<LuckyTodayData>;
 export type LuckySignDetailResponse = ApiEnvelope<LuckySignDetailData>;
+export type LuckyYearlyResponse = ApiEnvelope<LuckyYearlyData>;
+export type LuckyRecommendationsResponse = ApiEnvelope<LuckyRecommendationsData>;
 export type LuckyWallpaperResponse = ApiEnvelope<LuckyWallpaperData>;

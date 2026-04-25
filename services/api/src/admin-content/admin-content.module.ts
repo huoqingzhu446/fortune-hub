@@ -5,6 +5,7 @@ import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
+import { ReportTemplateVersionEntity } from '../database/entities/report-template-version.entity';
 import {
   AdminConfigsController,
   AdminContentController,
@@ -21,6 +22,7 @@ import { AdminContentService } from './admin-content.service';
       FortuneContentEntity,
       LuckyItemEntity,
       ReportTemplateEntity,
+      ReportTemplateVersionEntity,
       AppConfigEntity,
     ]),
     AdminAuthModule,

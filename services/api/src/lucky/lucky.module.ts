@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { LuckyController } from './lucky.controller';
 import { LuckyService } from './lucky.service';
@@ -13,6 +14,7 @@ import { LuckyService } from './lucky.service';
     TypeOrmModule.forFeature([
       FortuneContentEntity,
       LuckyItemEntity,
+      PosterJobEntity,
       AppConfigEntity,
       UserRecordEntity,
     ]),

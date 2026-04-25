@@ -4,6 +4,9 @@ export interface BaziAnalyzePayload {
   birthday: string;
   birthTime: string;
   gender?: 'male' | 'female' | 'unknown';
+  mode?: 'lite' | 'professional';
+  longitude?: number;
+  timezoneOffset?: number;
 }
 
 export interface BaziElementItem {
@@ -44,6 +47,16 @@ export interface BaziResult {
     dailyFocus: string;
   };
   complianceNotice: string;
+  professional?: {
+    mode: 'professional';
+    adjustedBirthday: string;
+    adjustedBirthTime: string;
+    trueSolarOffsetMinutes: number;
+    longitude: number;
+    timezoneOffset: number;
+    monthRule: string;
+    regressionSamples: Array<Record<string, string>>;
+  };
   generatedAt: string;
 }
 

@@ -11,6 +11,7 @@ import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
+import { ReportTemplateVersionEntity } from '../database/entities/report-template-version.entity';
 import {
   buildPublicApiFileContentUrl,
   extractFileIdFromFileUrl,
@@ -36,6 +37,8 @@ export class AdminContentService {
     private readonly luckyItemRepository: Repository<LuckyItemEntity>,
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
+    @InjectRepository(ReportTemplateVersionEntity)
+    private readonly reportTemplateVersionRepository: Repository<ReportTemplateVersionEntity>,
     @InjectRepository(AppConfigEntity)
     private readonly appConfigRepository: Repository<AppConfigEntity>,
     private readonly configService: ConfigService,
@@ -254,6 +257,7 @@ export class AdminContentService {
 
     this.applyLifecycleStatus(item, dto.status);
     const saved = await this.reportTemplateRepository.save(item);
+    await this.snapshotReportTemplate(saved, 'created');
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
 
@@ -271,6 +275,7 @@ export class AdminContentService {
     this.applyLifecycleStatus(item, dto.status);
 
     const saved = await this.reportTemplateRepository.save(item);
+    await this.snapshotReportTemplate(saved, 'updated');
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
 
@@ -278,7 +283,91 @@ export class AdminContentService {
     const item = await this.getReportTemplateOrThrow(id);
     this.applyLifecycleStatus(item, status);
     const saved = await this.reportTemplateRepository.save(item);
+    await this.snapshotReportTemplate(saved, `status:${status}`);
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
+  }
+
+  async listReportTemplateVersions(templateId: string) {
+    const versions = await this.reportTemplateVersionRepository.find({
+      where: { templateId },
+      order: { versionNo: 'DESC' },
+      take: 50,
+    });
+
+    return this.buildListEnvelope(versions.map((item) => this.serializeTemplateVersion(item)));
+  }
+
+  async previewReportTemplate(id: string, sample?: Record<string, unknown>) {
+    const item = await this.getReportTemplateOrThrow(id);
+
+    return this.buildDetailEnvelope('preview', {
+      template: this.serializeReportTemplate(item),
+      sample: sample ?? {},
+      rendered: this.renderTemplatePreview(item.payloadJson, sample ?? {}),
+    });
+  }
+
+  async rollbackReportTemplate(id: string, versionId: string) {
+    const item = await this.getReportTemplateOrThrow(id);
+    const version = await this.reportTemplateVersionRepository.findOne({
+      where: {
+        id: versionId,
+        templateId: item.id,
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('模板版本不存在');
+    }
+
+    item.title = version.title;
+    item.engine = version.engine;
+    item.payloadJson = version.payloadJson;
+    const saved = await this.reportTemplateRepository.save(item);
+    await this.snapshotReportTemplate(saved, `rollback:${version.versionNo}`);
+
+    return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
+  }
+
+  async previewContent(
+    kind: 'fortune_content' | 'lucky_item' | 'config',
+    id: string,
+  ) {
+    if (kind === 'lucky_item') {
+      const item = await this.getLuckyItemOrThrow(id);
+      return this.buildDetailEnvelope('preview', this.serializeLuckyItem(item));
+    }
+
+    if (kind === 'config') {
+      const item = await this.getConfigOrThrow(id);
+      return this.buildDetailEnvelope('preview', this.serializeConfig(item));
+    }
+
+    const item = await this.getContentOrThrow(id);
+    return this.buildDetailEnvelope('preview', this.serializeContent(item));
+  }
+
+  async batchUpdateContentStatus(
+    kind: 'fortune_content' | 'lucky_item' | 'report_template' | 'config',
+    ids: string[],
+    status: string,
+  ) {
+    const uniqueIds = [...new Set(ids.map((item) => String(item).trim()).filter(Boolean))];
+    const items = [];
+
+    for (const id of uniqueIds) {
+      if (kind === 'fortune_content') {
+        items.push((await this.changeContentStatus(id, status)).data.item);
+      } else if (kind === 'lucky_item') {
+        items.push((await this.changeLuckyItemStatus(id, status)).data.item);
+      } else if (kind === 'report_template') {
+        items.push((await this.changeReportTemplateStatus(id, status)).data.item);
+      } else {
+        items.push((await this.changeConfigStatus(id, status)).data.item);
+      }
+    }
+
+    return this.buildListEnvelope(items);
   }
 
   async deleteReportTemplate(id: string) {
@@ -567,6 +656,73 @@ export class AdminContentService {
       archivedAt: item.archivedAt?.toISOString() ?? null,
       updatedAt: item.updatedAt.toISOString(),
     };
+  }
+
+  private serializeTemplateVersion(item: ReportTemplateVersionEntity) {
+    return {
+      id: item.id,
+      templateId: item.templateId,
+      templateType: item.templateType,
+      bizCode: item.bizCode,
+      versionNo: item.versionNo,
+      title: item.title,
+      engine: item.engine,
+      payloadJson: item.payloadJson,
+      status: item.status,
+      createdBy: item.createdBy,
+      createdAt: item.createdAt.toISOString(),
+    };
+  }
+
+  private async snapshotReportTemplate(item: ReportTemplateEntity, reason: string) {
+    const latest = await this.reportTemplateVersionRepository.findOne({
+      where: { templateId: item.id },
+      order: { versionNo: 'DESC' },
+    });
+
+    await this.reportTemplateVersionRepository.save(
+      this.reportTemplateVersionRepository.create({
+        templateId: item.id,
+        templateType: item.templateType,
+        bizCode: item.bizCode,
+        versionNo: (latest?.versionNo ?? 0) + 1,
+        title: item.title,
+        engine: item.engine,
+        payloadJson: item.payloadJson,
+        status: reason,
+        createdBy: null,
+      }),
+    );
+  }
+
+  private renderTemplatePreview(
+    payload: Record<string, unknown>,
+    sample: Record<string, unknown>,
+  ) {
+    const renderValue = (value: unknown): unknown => {
+      if (typeof value === 'string') {
+        return value.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_match, key: string) =>
+          String(sample[key] ?? `{${key}}`),
+        );
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => renderValue(item));
+      }
+
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+            key,
+            renderValue(entry),
+          ]),
+        );
+      }
+
+      return value;
+    };
+
+    return renderValue(payload);
   }
 
   private serializeConfig(item: AppConfigEntity) {

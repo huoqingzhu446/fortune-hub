@@ -30,4 +30,10 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     meta: 'Growth & Commerce',
     permission: 'commerce:manage',
   },
+  {
+    path: '/operations',
+    label: '运营中心',
+    meta: 'Operations',
+    permission: 'operations:view',
+  },
 ] as const;

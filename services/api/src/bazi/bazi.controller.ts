@@ -19,6 +19,15 @@ export class BaziController {
     return this.baziService.analyze(dto, user);
   }
 
+  @Post('professional/analyze')
+  async analyzeProfessional(
+    @Body() dto: AnalyzeBaziDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.baziService.analyzeProfessional(dto, user);
+  }
+
   @Get('history')
   async getHistory(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUserFromAuthorization(authorization);

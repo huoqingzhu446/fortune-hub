@@ -44,6 +44,15 @@ export class ShareRecordEntity {
   @Column({ type: 'json', nullable: true })
   payloadJson!: Record<string, unknown> | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  fileUrl!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  storageProvider!: string | null;
+
+  @Column({ type: 'int', unsigned: true, nullable: true })
+  templateVersion!: number | null;
+
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 

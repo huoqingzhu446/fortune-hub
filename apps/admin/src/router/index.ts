@@ -33,6 +33,11 @@ export const router = createRouter({
           name: 'commerce-center',
           component: () => import('../views/CommerceCenterView.vue'),
         },
+        {
+          path: 'operations',
+          name: 'operations',
+          component: () => import('../views/OperationsView.vue'),
+        },
       ],
     },
   ],

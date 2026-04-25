@@ -93,6 +93,13 @@ const currentPage = computed(() => {
     };
   }
 
+  if (route.path === '/operations') {
+    return {
+      title: '运营中心',
+      subtitle: '查看用户、订单、反馈、通知投递、广告解锁和审计日志。',
+    };
+  }
+
   return {
     title: '控制台总览',
     subtitle: '先看整体运行状态，再继续推进题库、内容和结果模板运营化。',

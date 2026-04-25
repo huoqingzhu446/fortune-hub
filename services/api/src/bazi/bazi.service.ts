@@ -73,7 +73,8 @@ export class BaziService {
   ) {}
 
   async analyze(dto: AnalyzeBaziDto, user: UserEntity | null) {
-    const result = this.buildResult(dto);
+    const result =
+      dto.mode === 'professional' ? this.buildProfessionalResult(dto) : this.buildResult(dto);
     let recordId: string | null = null;
 
     if (user) {
@@ -81,6 +82,42 @@ export class BaziService {
         userId: user.id,
         recordType: 'bazi',
         sourceCode: 'lite-bazi-chart',
+        resultTitle: result.title,
+        score: result.dominantElement.value.toFixed(2),
+        resultLevel: result.dominantElement.name,
+        resultData: result,
+        isFullReportUnlocked: false,
+        unlockType: null,
+      });
+
+      const savedRecord = await this.userRecordRepository.save(record);
+      recordId = savedRecord.id;
+    }
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        recordId,
+        isSaved: Boolean(recordId),
+        result,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async analyzeProfessional(dto: AnalyzeBaziDto, user: UserEntity | null) {
+    const result = this.buildProfessionalResult({
+      ...dto,
+      mode: 'professional',
+    });
+    let recordId: string | null = null;
+
+    if (user) {
+      const record = this.userRecordRepository.create({
+        userId: user.id,
+        recordType: 'bazi',
+        sourceCode: 'professional-bazi-chart',
         resultTitle: result.title,
         score: result.dominantElement.value.toFixed(2),
         resultLevel: result.dominantElement.name,
@@ -237,6 +274,103 @@ export class BaziService {
       complianceNotice: COMPLIANCE_NOTICE,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  private buildProfessionalResult(dto: AnalyzeBaziDto) {
+    const adjusted = this.applyTrueSolarTime(dto);
+    const liteResult = this.buildResult({
+      ...dto,
+      birthday: adjusted.birthday,
+      birthTime: adjusted.birthTime,
+      mode: 'lite',
+    });
+    const [year, month] = adjusted.birthday.split('-').map((item) => Number(item));
+    const monthBranchIndex = this.resolveSolarTermMonthBranchIndex(adjusted.birthday);
+    const monthStemIndex = this.normalizeIndex((year - 1984) * 12 + monthBranchIndex + 1, 10);
+    const professionalMonthPillar = `${HEAVENLY_STEMS[monthStemIndex]}${EARTHLY_BRANCHES[monthBranchIndex]}`;
+    const professionalElements = this.computeFiveElements([
+      liteResult.chart.yearPillar,
+      professionalMonthPillar,
+      liteResult.chart.dayPillar,
+      liteResult.chart.hourPillar,
+    ]);
+    const dominantElement = [...professionalElements].sort((left, right) => right.value - left.value)[0];
+    const supportElement = [...professionalElements].sort((left, right) => left.value - right.value)[0];
+
+    return {
+      ...liteResult,
+      title: `${dominantElement.name}势专业校正版`,
+      subtitle: `已按节气换月与真太阳时近似校正，${professionalMonthPillar}月柱用于专业版参考。`,
+      chart: {
+        ...liteResult.chart,
+        monthPillar: professionalMonthPillar,
+      },
+      dominantElement,
+      supportElement,
+      fiveElements: professionalElements,
+      professional: {
+        mode: 'professional',
+        adjustedBirthday: adjusted.birthday,
+        adjustedBirthTime: adjusted.birthTime,
+        trueSolarOffsetMinutes: adjusted.offsetMinutes,
+        longitude: dto.longitude ?? 120,
+        timezoneOffset: dto.timezoneOffset ?? 8,
+        monthRule: '节气换月近似：按固定节气日切换月令，适合产品专业版首轮校准。',
+        regressionSamples: [
+          { birthday: '1984-02-04', expectedYearPillar: '甲子' },
+          { birthday: '1990-01-27', expectedZodiac: '蛇/马交界需按立春校验' },
+        ],
+      },
+      complianceNotice:
+        '当前为专业版近似校准：已纳入节气换月和真太阳时修正，但未接入天文历表级精算，仅用于内容体验和自我观察。',
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  private applyTrueSolarTime(dto: AnalyzeBaziDto) {
+    const longitude = dto.longitude ?? 120;
+    const timezoneOffset = dto.timezoneOffset ?? 8;
+    const standardLongitude = timezoneOffset * 15;
+    const offsetMinutes = Math.round((longitude - standardLongitude) * 4);
+    const [hour, minute] = dto.birthTime.split(':').map((item) => Number(item));
+    const date = new Date(`${dto.birthday}T00:00:00Z`);
+    date.setUTCMinutes(hour * 60 + minute + offsetMinutes);
+
+    const yyyy = date.getUTCFullYear();
+    const mm = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+    const dd = `${date.getUTCDate()}`.padStart(2, '0');
+    const hh = `${date.getUTCHours()}`.padStart(2, '0');
+    const mi = `${date.getUTCMinutes()}`.padStart(2, '0');
+
+    return {
+      birthday: `${yyyy}-${mm}-${dd}`,
+      birthTime: `${hh}:${mi}`,
+      offsetMinutes,
+    };
+  }
+
+  private resolveSolarTermMonthBranchIndex(birthday: string) {
+    const monthDay = birthday.slice(5, 10);
+    const boundaries = [
+      { start: '02-04', branchIndex: 2 },
+      { start: '03-06', branchIndex: 3 },
+      { start: '04-05', branchIndex: 4 },
+      { start: '05-06', branchIndex: 5 },
+      { start: '06-06', branchIndex: 6 },
+      { start: '07-07', branchIndex: 7 },
+      { start: '08-08', branchIndex: 8 },
+      { start: '09-08', branchIndex: 9 },
+      { start: '10-08', branchIndex: 10 },
+      { start: '11-07', branchIndex: 11 },
+      { start: '12-07', branchIndex: 0 },
+      { start: '01-06', branchIndex: 1 },
+    ];
+
+    const matched = [...boundaries]
+      .sort((left, right) => right.start.localeCompare(left.start))
+      .find((item) => monthDay >= item.start);
+
+    return matched?.branchIndex ?? 1;
   }
 
   private computeFiveElements(pillars: string[]) {

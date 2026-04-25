@@ -11,6 +11,7 @@ import sharp from 'sharp';
 import { Repository } from 'typeorm';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
+import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { LuckyService } from '../lucky/lucky.service';
@@ -75,6 +76,8 @@ export class PostersService {
   constructor(
     @InjectRepository(ShareRecordEntity)
     private readonly shareRecordRepository: Repository<ShareRecordEntity>,
+    @InjectRepository(PosterJobEntity)
+    private readonly posterJobRepository: Repository<PosterJobEntity>,
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
     @InjectRepository(ReportTemplateEntity)
@@ -115,6 +118,10 @@ export class PostersService {
       imageBuffer = await this.renderPosterPng(svgMarkup);
     }
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
+    const fileUrl = await this.persistPosterFile(
+      imageBuffer,
+      `fortune-hub-${this.slugify(source.title)}-poster.png`,
+    );
     const payload = {
       posterId,
       sourceType: source.sourceType,
@@ -133,6 +140,7 @@ export class PostersService {
       format: 'png',
       svgMarkup,
       imageDataUrl: `data:image/png;base64,${imageBuffer.toString('base64')}`,
+      fileUrl,
     };
 
     await this.shareRecordRepository.save(
@@ -147,6 +155,8 @@ export class PostersService {
         status: backgroundAsset.status,
         prompt: providerPrompt,
         payloadJson: payload,
+        fileUrl,
+        storageProvider: fileUrl ? 'file-service' : 'inline',
       }),
     );
 
@@ -183,6 +193,83 @@ export class PostersService {
       },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async createPosterJob(dto: GeneratePosterDto, user: UserEntity | null) {
+    const job = await this.posterJobRepository.save(
+      this.posterJobRepository.create({
+        jobId: `poster_job_${randomBytes(10).toString('hex')}`,
+        userId: user?.id ?? null,
+        jobType: dto.recordId ? 'report_poster' : dto.sourceType ?? 'poster',
+        status: 'queued',
+        requestJson: dto as Record<string, unknown>,
+        resultJson: null,
+        fileUrl: null,
+        errorMessage: null,
+        startedAt: null,
+        finishedAt: null,
+      }),
+    );
+
+    void this.processPosterJob(job.jobId, user).catch((error) => {
+      console.warn('poster job failed', error);
+    });
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        job: this.serializeJob(job),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getPosterJob(jobId: string, user: UserEntity | null) {
+    const job = await this.posterJobRepository.findOne({
+      where: { jobId },
+    });
+
+    if (!job || (job.userId && job.userId !== user?.id)) {
+      throw new NotFoundException('海报任务不存在或无权访问');
+    }
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        job: this.serializeJob(job),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async processPosterJob(jobId: string, user: UserEntity | null) {
+    const job = await this.posterJobRepository.findOne({ where: { jobId } });
+
+    if (!job) {
+      return;
+    }
+
+    job.status = 'processing';
+    job.startedAt = new Date();
+    await this.posterJobRepository.save(job);
+
+    try {
+      const response = await this.generatePoster(job.requestJson as GeneratePosterDto, user);
+      const poster = response.data.poster as Record<string, unknown>;
+      job.status = 'completed';
+      job.resultJson = poster;
+      job.fileUrl = typeof poster.fileUrl === 'string' ? poster.fileUrl : null;
+      job.finishedAt = new Date();
+      job.errorMessage = null;
+    } catch (error) {
+      job.status = 'failed';
+      job.errorMessage = error instanceof Error ? error.message : '海报生成失败';
+      job.finishedAt = new Date();
+    }
+
+    await this.posterJobRepository.save(job);
   }
 
   private async resolvePosterSource(dto: GeneratePosterDto, user: UserEntity | null): Promise<PosterSource> {
@@ -548,6 +635,66 @@ export class PostersService {
     }
   }
 
+  private async persistPosterFile(imageBuffer: Buffer, fileName: string) {
+    const uploadUrl = this.resolveFileServiceUploadUrl();
+
+    if (!uploadUrl) {
+      return null;
+    }
+
+    const token = this.configService.get<string>('FILE_SERVICE_TOKEN');
+    const formData = new FormData();
+    const blob = new Blob([new Uint8Array(imageBuffer)], {
+      type: 'image/png',
+    });
+
+    formData.append('appCode', 'fortune-hub');
+    formData.append('bizType', 'share-poster');
+    formData.append('visibility', 'public');
+    formData.append('file', blob, fileName);
+
+    try {
+      const response = await this.fetchWithTimeout(
+        uploadUrl,
+        {
+          method: 'POST',
+          headers: token ? { 'x-file-service-token': token } : undefined,
+          body: formData,
+        },
+        12000,
+        '海报文件上传超时，已保留内联图片',
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            id?: string;
+            contentUrl?: string;
+            url?: string;
+          }
+        | null;
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return payload?.contentUrl ?? payload?.url ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveFileServiceUploadUrl() {
+    const baseUrl = this.configService.get<string>('FILE_SERVICE_BASE_URL');
+
+    if (!baseUrl) {
+      return null;
+    }
+
+    const normalized = baseUrl.replace(/\/$/, '');
+    return normalized.endsWith('/api')
+      ? `${normalized}/files/upload`
+      : `${normalized}/api/files/upload`;
+  }
+
   private async fetchWithTimeout(
     input: string,
     init: RequestInit | undefined,
@@ -571,6 +718,23 @@ export class PostersService {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private serializeJob(job: PosterJobEntity) {
+    return {
+      jobId: job.jobId,
+      userId: job.userId,
+      jobType: job.jobType,
+      status: job.status,
+      request: job.requestJson ?? {},
+      result: job.resultJson ?? null,
+      fileUrl: job.fileUrl,
+      errorMessage: job.errorMessage,
+      startedAt: job.startedAt?.toISOString() ?? null,
+      finishedAt: job.finishedAt?.toISOString() ?? null,
+      createdAt: job.createdAt.toISOString(),
+      updatedAt: job.updatedAt.toISOString(),
+    };
   }
 
   private buildPosterSvg(source: PosterSource, backgroundDataUrl: string | null) {

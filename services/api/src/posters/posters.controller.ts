@@ -19,6 +19,24 @@ export class PostersController {
     return this.postersService.generatePoster(dto, user);
   }
 
+  @Post('jobs')
+  async createPosterJob(
+    @Body() dto: GeneratePosterDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.postersService.createPosterJob(dto, user);
+  }
+
+  @Get('jobs/:jobId')
+  async getPosterJob(
+    @Param('jobId') jobId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.resolveUserFromAuthorization(authorization);
+    return this.postersService.getPosterJob(jobId, user);
+  }
+
   @Get(':posterId')
   async getPoster(
     @Param('posterId') posterId: string,

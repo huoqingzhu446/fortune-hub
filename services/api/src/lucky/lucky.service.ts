@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { GenerateLuckyWallpaperDto } from './dto/generate-lucky-wallpaper.dto';
@@ -68,6 +70,17 @@ type LuckyRecommendationPolicy = {
   wallpaperThemeCount: number;
 };
 
+type LuckyRecommendationConfig = {
+  defaultBaseScore: number;
+  elementBoost: number;
+  zodiacBoost: number;
+  baziBoost: number;
+  personalityBoost: number;
+  emotionBoost: number;
+  emotionSteadyBoost: number;
+  rules: Record<string, LuckyRecommendationRule>;
+};
+
 const DEFAULT_PALETTE = ['#d7f0e6', '#edf8f6', '#9ccdb7'];
 const DEFAULT_RECOMMENDATION_POLICY: LuckyRecommendationPolicy = {
   maxItems: 3,
@@ -113,6 +126,17 @@ const RECOMMENDATION_RULES: Record<string, LuckyRecommendationRule> = {
   },
 };
 
+const DEFAULT_RECOMMENDATION_CONFIG: LuckyRecommendationConfig = {
+  defaultBaseScore: 68,
+  elementBoost: 12,
+  zodiacBoost: 9,
+  baziBoost: 6,
+  personalityBoost: 8,
+  emotionBoost: 10,
+  emotionSteadyBoost: 4,
+  rules: RECOMMENDATION_RULES,
+};
+
 @Injectable()
 export class LuckyService {
   constructor(
@@ -124,6 +148,8 @@ export class LuckyService {
     private readonly appConfigRepository: Repository<AppConfigEntity>,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(PosterJobEntity)
+    private readonly posterJobRepository: Repository<PosterJobEntity>,
   ) {}
 
   async getToday(user: UserEntity | null) {
@@ -170,6 +196,9 @@ export class LuckyService {
         tag: signContent.tag ?? '今日吉签',
         mantra: signContent.mantra ?? '稳住节奏，好运会慢慢靠近。',
         accent: signContent.accent ?? 'mint',
+        themeKey: this.resolveDailyThemeKey(
+          this.readSharePoster(sign, signContent).themeName,
+        ),
       },
       actionTips: signContent.suggestions ?? [
         '先完成最重要的一小步，再决定下一步。',
@@ -243,7 +272,77 @@ export class LuckyService {
         avoid: content.avoid ?? '避免在疲惫或情绪化时做重大决定。',
         suggestions: content.suggestions ?? [],
         sharePoster,
+        themeKey: this.resolveDailyThemeKey(sharePoster.themeName),
       },
+    });
+  }
+
+  async getYearlyDetail(user: UserEntity | null, year?: number) {
+    await this.ensureSeedData();
+    const targetYear = year && year >= 2024 ? year : new Date().getFullYear();
+    const signals = await this.resolveRecentSignals(user);
+    const dominantElement = this.resolveDominantElement(user, signals.bazi?.dominantElement ?? null);
+    const config = await this.resolveYearlyConfig();
+    const annualLuckyScore = this.buildAnnualLuckyScore(user, dominantElement);
+    const themeKey = this.resolveThemeKeyByElement(dominantElement);
+
+    return this.buildEnvelope({
+      year: targetYear,
+      profile: {
+        personalized: Boolean(user),
+        nickname: user?.nickname ?? null,
+        zodiac: user?.zodiac ?? null,
+        dominantElement,
+      },
+      score: {
+        label: '年度幸运指数',
+        value: String(annualLuckyScore),
+        hint: this.buildAnnualHint(annualLuckyScore),
+      },
+      theme: {
+        title: this.pickString(config.title, `${targetYear} 年度幸运节奏`),
+        summary: this.pickString(
+          config.summary,
+          `这一年适合围绕${dominantElement}元素，把优势沉淀成可持续的日常节奏。`,
+        ),
+        themeKey,
+      },
+      quarters: this.pickObjectArray(config.quarters).slice(0, 4).map((item, index) => ({
+        label: this.pickString(item.label, `Q${index + 1}`),
+        title: this.pickString(item.title, ['整理基础', '主动推进', '复盘调频', '沉淀成果'][index] ?? '年度节奏'),
+        summary: this.pickString(
+          item.summary,
+          `这一阶段适合把${dominantElement}元素的优势放进更具体的行动里。`,
+        ),
+      })),
+      annualFocus: [
+        `${dominantElement}元素主轴`,
+        signals.personality?.label ? `${signals.personality.label}节奏` : '稳定输出',
+        signals.emotion?.riskLevel ? this.buildEmotionTag(signals.emotion.riskLevel) : '长期复盘',
+      ],
+    });
+  }
+
+  async getRecommendations(user: UserEntity | null) {
+    await this.ensureSeedData();
+    const policy = await this.resolveRecommendationPolicy();
+    const signals = await this.resolveRecentSignals(user);
+    const dominantElement = this.resolveDominantElement(user, signals.bazi?.dominantElement ?? null);
+    const recommendations = await this.resolveRecommendations(
+      user,
+      signals,
+      dominantElement,
+      policy.maxItems,
+    );
+
+    return this.buildEnvelope({
+      profile: {
+        personalized: Boolean(user),
+        zodiac: user?.zodiac ?? null,
+        dominantElement,
+      },
+      themeKey: this.resolveThemeKeyByElement(dominantElement),
+      items: recommendations,
     });
   }
 
@@ -308,6 +407,69 @@ export class LuckyService {
         imageDataUrl: `data:image/svg+xml;base64,${Buffer.from(svgMarkup).toString('base64')}`,
       },
     });
+  }
+
+  async createWallpaperJob(input: GenerateLuckyWallpaperDto, user: UserEntity | null) {
+    const job = await this.posterJobRepository.save(
+      this.posterJobRepository.create({
+        jobId: `wallpaper_job_${randomBytes(10).toString('hex')}`,
+        userId: user?.id ?? null,
+        jobType: 'lucky_wallpaper',
+        status: 'queued',
+        requestJson: input as Record<string, unknown>,
+        resultJson: null,
+        fileUrl: null,
+        errorMessage: null,
+        startedAt: null,
+        finishedAt: null,
+      }),
+    );
+
+    void this.processWallpaperJob(job.jobId, user).catch((error) => {
+      console.warn('wallpaper job failed', error);
+    });
+
+    return this.buildEnvelope({
+      job: this.serializeWallpaperJob(job),
+    });
+  }
+
+  async getWallpaperJob(jobId: string, user: UserEntity | null) {
+    const job = await this.posterJobRepository.findOne({ where: { jobId } });
+
+    if (!job || job.jobType !== 'lucky_wallpaper' || (job.userId && job.userId !== user?.id)) {
+      throw new NotFoundException('壁纸任务不存在或无权访问');
+    }
+
+    return this.buildEnvelope({
+      job: this.serializeWallpaperJob(job),
+    });
+  }
+
+  private async processWallpaperJob(jobId: string, user: UserEntity | null) {
+    const job = await this.posterJobRepository.findOne({ where: { jobId } });
+
+    if (!job) {
+      return;
+    }
+
+    job.status = 'processing';
+    job.startedAt = new Date();
+    await this.posterJobRepository.save(job);
+
+    try {
+      const response = await this.generateWallpaper(job.requestJson as GenerateLuckyWallpaperDto, user);
+      job.status = 'completed';
+      job.resultJson = response.data.wallpaper as Record<string, unknown>;
+      job.finishedAt = new Date();
+      job.errorMessage = null;
+    } catch (error) {
+      job.status = 'failed';
+      job.errorMessage = error instanceof Error ? error.message : '壁纸生成失败';
+      job.finishedAt = new Date();
+    }
+
+    await this.posterJobRepository.save(job);
   }
 
   private async ensureSeedData() {
@@ -400,6 +562,42 @@ export class LuckyService {
         archivedAt: null,
       }),
     );
+
+    const rulesConfig = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'lucky',
+        configKey: 'recommendation_rules',
+      },
+    });
+
+    if (!rulesConfig) {
+      await this.appConfigRepository.save(
+        this.appConfigRepository.create({
+          namespace: 'lucky',
+          configKey: 'recommendation_rules',
+          title: '幸运推荐规则',
+          description: '控制幸运物推荐的适配分和标签。',
+          valueType: 'json',
+          valueJson: {
+            ...DEFAULT_RECOMMENDATION_CONFIG,
+            rules: Object.fromEntries(
+              Object.entries(RECOMMENDATION_RULES).map(([key, value]) => [
+                key,
+                {
+                  ...value,
+                  personalityKeys: [...value.personalityKeys],
+                  emotionLevels: [...value.emotionLevels],
+                  focusTags: [...value.focusTags],
+                },
+              ]),
+            ),
+          },
+          status: 'published',
+          publishedAt: new Date(),
+          archivedAt: null,
+        }),
+      );
+    }
   }
 
   private async resolveTodaySign() {
@@ -456,21 +654,22 @@ export class LuckyService {
 
     const zodiac = user?.zodiac ?? null;
     const seed = this.buildDateSeed();
+    const ruleConfig = await this.resolveRecommendationConfig();
 
     return items
       .map((item, index) => {
         const content = this.readItemContent(item);
-        const rule = RECOMMENDATION_RULES[item.bizCode];
+        const rule = ruleConfig.rules[item.bizCode] ?? RECOMMENDATION_RULES[item.bizCode];
         const fitTags: string[] = [];
-        let fitScore = 68 + ((seed + index * 9) % 11);
+        let fitScore = ruleConfig.defaultBaseScore + ((seed + index * 9) % 11);
 
         if (content.elements?.includes(dominantElement)) {
-          fitScore += 12;
+          fitScore += ruleConfig.elementBoost;
           fitTags.push(`${dominantElement}元素契合`);
         }
 
         if (zodiac && content.zodiacs?.includes(zodiac)) {
-          fitScore += 9;
+          fitScore += ruleConfig.zodiacBoost;
           fitTags.push(`${zodiac}节奏友好`);
         }
 
@@ -479,17 +678,20 @@ export class LuckyService {
           content.elements?.includes(signals.bazi.dominantElement) &&
           !fitTags.includes(`${signals.bazi.dominantElement}主轴呼应`)
         ) {
-          fitScore += 6;
+          fitScore += ruleConfig.baziBoost;
           fitTags.push(`${signals.bazi.dominantElement}主轴呼应`);
         }
 
         if (signals.personality?.key && rule?.personalityKeys.includes(signals.personality.key)) {
-          fitScore += 8;
+          fitScore += ruleConfig.personalityBoost;
           fitTags.push(`${signals.personality.label ?? '最近测评'}加成`);
         }
 
         if (signals.emotion?.riskLevel && rule?.emotionLevels.includes(signals.emotion.riskLevel)) {
-          fitScore += signals.emotion.riskLevel === 'steady' ? 4 : 10;
+          fitScore +=
+            signals.emotion.riskLevel === 'steady'
+              ? ruleConfig.emotionSteadyBoost
+              : ruleConfig.emotionBoost;
           fitTags.push(this.buildEmotionTag(signals.emotion.riskLevel));
         }
 
@@ -541,6 +743,58 @@ export class LuckyService {
         4,
       ),
     };
+  }
+
+  private async resolveRecommendationConfig(): Promise<LuckyRecommendationConfig> {
+    const config = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'lucky',
+        configKey: 'recommendation_rules',
+        status: 'published',
+      },
+      order: {
+        publishedAt: 'DESC',
+        updatedAt: 'DESC',
+      },
+    });
+    const payload = this.asRecord(config?.valueJson);
+    const rawRules = this.asRecord(payload.rules);
+
+    return {
+      defaultBaseScore: this.clampNumber(payload.defaultBaseScore, DEFAULT_RECOMMENDATION_CONFIG.defaultBaseScore, 0, 100),
+      elementBoost: this.clampNumber(payload.elementBoost, DEFAULT_RECOMMENDATION_CONFIG.elementBoost, 0, 40),
+      zodiacBoost: this.clampNumber(payload.zodiacBoost, DEFAULT_RECOMMENDATION_CONFIG.zodiacBoost, 0, 40),
+      baziBoost: this.clampNumber(payload.baziBoost, DEFAULT_RECOMMENDATION_CONFIG.baziBoost, 0, 40),
+      personalityBoost: this.clampNumber(payload.personalityBoost, DEFAULT_RECOMMENDATION_CONFIG.personalityBoost, 0, 40),
+      emotionBoost: this.clampNumber(payload.emotionBoost, DEFAULT_RECOMMENDATION_CONFIG.emotionBoost, 0, 40),
+      emotionSteadyBoost: this.clampNumber(payload.emotionSteadyBoost, DEFAULT_RECOMMENDATION_CONFIG.emotionSteadyBoost, 0, 40),
+      rules: {
+        ...RECOMMENDATION_RULES,
+        ...Object.fromEntries(
+          Object.entries(rawRules)
+            .map(([key, value]) => [key, this.normalizeRecommendationRule(value)] as const)
+            .filter((entry): entry is readonly [string, LuckyRecommendationRule] =>
+              Boolean(entry[1]),
+            ),
+        ),
+      },
+    };
+  }
+
+  private async resolveYearlyConfig() {
+    const config = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'lucky',
+        configKey: 'yearly_detail',
+        status: 'published',
+      },
+      order: {
+        publishedAt: 'DESC',
+        updatedAt: 'DESC',
+      },
+    });
+
+    return this.asRecord(config?.valueJson);
   }
 
   private async resolveRecentSignals(user: UserEntity | null): Promise<LuckyRecentSignals> {
@@ -869,8 +1123,14 @@ export class LuckyService {
     return lines.slice(0, 4);
   }
 
-  private pickString(...values: Array<string | null | undefined>) {
-    return values.find((value) => typeof value === 'string' && value.trim())?.trim() ?? '';
+  private pickString(...values: unknown[]) {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
   }
 
   private normalizePalette(input: string[]) {
@@ -887,6 +1147,21 @@ export class LuckyService {
     }
 
     return palette;
+  }
+
+  private serializeWallpaperJob(job: PosterJobEntity) {
+    return {
+      jobId: job.jobId,
+      userId: job.userId,
+      status: job.status,
+      request: job.requestJson ?? {},
+      result: job.resultJson ?? null,
+      errorMessage: job.errorMessage,
+      startedAt: job.startedAt?.toISOString() ?? null,
+      finishedAt: job.finishedAt?.toISOString() ?? null,
+      createdAt: job.createdAt.toISOString(),
+      updatedAt: job.updatedAt.toISOString(),
+    };
   }
 
   private slugify(input: string) {
@@ -934,6 +1209,111 @@ export class LuckyService {
 
   private readItemContent(content: { contentJson: Record<string, unknown> | null }) {
     return (content.contentJson ?? {}) as LuckyItemContent;
+  }
+
+  private normalizeRecommendationRule(value: unknown): LuckyRecommendationRule | null {
+    const record = this.asRecord(value);
+    const personalityKeys = this.pickStringList(record.personalityKeys);
+    const emotionLevels = this.pickStringList(record.emotionLevels);
+    const focusTags = this.pickStringList(record.focusTags);
+
+    if (!personalityKeys.length && !emotionLevels.length && !focusTags.length) {
+      return null;
+    }
+
+    return {
+      personalityKeys,
+      emotionLevels,
+      supportiveFocus: this.pickString(
+        typeof record.supportiveFocus === 'string' ? record.supportiveFocus : '',
+        '它更适合帮你把节奏拉回稳定、舒展和清晰的状态。',
+      ),
+      focusTags,
+    };
+  }
+
+  private pickStringList(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  private pickObjectArray(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => this.asRecord(item))
+      .filter((item) => Object.keys(item).length > 0);
+  }
+
+  private resolveThemeKeyByElement(element: string) {
+    if (element === '木') {
+      return 'mint_cyan';
+    }
+
+    if (element === '火') {
+      return 'amber_honey';
+    }
+
+    if (element === '土') {
+      return 'champagne_gold';
+    }
+
+    if (element === '金') {
+      return 'moon_silver';
+    }
+
+    if (element === '水') {
+      return 'sea_salt';
+    }
+
+    return 'mist_blue';
+  }
+
+  private resolveDailyThemeKey(themeName: string) {
+    const normalized = themeName.toLowerCase();
+
+    if (normalized.includes('mint')) {
+      return 'mint_cyan';
+    }
+
+    if (
+      normalized.includes('gold') ||
+      normalized.includes('champagne') ||
+      normalized.includes('oriental')
+    ) {
+      return 'champagne_gold';
+    }
+
+    if (normalized.includes('silver') || normalized.includes('metal')) {
+      return 'moon_silver';
+    }
+
+    if (normalized.includes('amber') || normalized.includes('warm')) {
+      return 'amber_honey';
+    }
+
+    if (normalized.includes('pink') || normalized.includes('rose')) {
+      return 'rose_dust';
+    }
+
+    if (normalized.includes('lavender') || normalized.includes('violet')) {
+      return 'lavender';
+    }
+
+    if (
+      normalized.includes('ocean') ||
+      normalized.includes('sea') ||
+      normalized.includes('water')
+    ) {
+      return 'sea_salt';
+    }
+
+    return 'mist_blue';
   }
 
   private clampNumber(value: unknown, fallback: number, min: number, max: number) {

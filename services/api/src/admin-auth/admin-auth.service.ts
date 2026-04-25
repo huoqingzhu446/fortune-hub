@@ -82,6 +82,7 @@ export class AdminAuthService {
         'question-bank:manage',
         'content:manage',
         'commerce:manage',
+        'operations:view',
       ],
     };
   }

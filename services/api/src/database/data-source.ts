@@ -2,18 +2,24 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AdConfigEntity } from './entities/ad-config.entity';
 import { AppConfigEntity } from './entities/app-config.entity';
+import { AuditLogEntity } from './entities/audit-log.entity';
 import { AssessmentQuestionEntity } from './entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './entities/assessment-test-group.entity';
 import { FavoriteEntity } from './entities/favorite.entity';
+import { FeedbackEntity } from './entities/feedback.entity';
 import { FortuneContentEntity } from './entities/fortune-content.entity';
 import { LuckyItemEntity } from './entities/lucky-item.entity';
 import { MeditationRecordEntity } from './entities/meditation-record.entity';
 import { MembershipProductEntity } from './entities/membership-product.entity';
 import { MoodRecordEntity } from './entities/mood-record.entity';
 import { OrderEntity } from './entities/order.entity';
+import { PosterJobEntity } from './entities/poster-job.entity';
+import { PushDeliveryLogEntity } from './entities/push-delivery-log.entity';
+import { PushSubscriptionEntity } from './entities/push-subscription.entity';
 import { ReportTemplateEntity } from './entities/report-template.entity';
+import { ReportTemplateVersionEntity } from './entities/report-template-version.entity';
 import { ShareRecordEntity } from './entities/share-record.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserRecordEntity } from './entities/user-record.entity';
@@ -33,6 +39,7 @@ export default new DataSource({
     AssessmentTestConfigEntity,
     AssessmentTestGroupEntity,
     FavoriteEntity,
+    FeedbackEntity,
     UserEntity,
     UserRecordEntity,
     MoodRecordEntity,
@@ -45,6 +52,11 @@ export default new DataSource({
     OrderEntity,
     AdConfigEntity,
     ShareRecordEntity,
+    PushSubscriptionEntity,
+    PushDeliveryLogEntity,
+    AuditLogEntity,
+    ReportTemplateVersionEntity,
+    PosterJobEntity,
   ],
   migrations: [`${__dirname}/migrations/*{.ts,.js}`],
 });

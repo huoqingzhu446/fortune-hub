@@ -1,4 +1,13 @@
-import { IsDateString, IsIn, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class AnalyzeBaziDto {
   @IsDateString()
@@ -12,4 +21,21 @@ export class AnalyzeBaziDto {
   @IsString()
   @IsIn(['male', 'female', 'unknown'])
   gender?: 'male' | 'female' | 'unknown';
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['lite', 'professional'])
+  mode?: 'lite' | 'professional';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-12)
+  @Max(14)
+  timezoneOffset?: number;
 }

@@ -18,15 +18,7 @@
       </view>
 
       <view class="fortune-card__orbital">
-        <view class="fortune-card__halo fortune-card__halo--outer"></view>
-        <view class="fortune-card__halo fortune-card__halo--mid"></view>
-        <view class="fortune-card__halo fortune-card__halo--inner"></view>
-        <view class="fortune-card__axis fortune-card__axis--horizontal"></view>
-        <view class="fortune-card__axis fortune-card__axis--vertical"></view>
-        <view class="fortune-card__axis fortune-card__axis--diagonal-left"></view>
-        <view class="fortune-card__axis fortune-card__axis--diagonal-right"></view>
-        <view class="fortune-card__orb"></view>
-        <view class="fortune-card__cloud"></view>
+        <view class="fortune-card__orbital-art" :style="orbitalStyle"></view>
       </view>
     </view>
 
@@ -49,23 +41,30 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 export interface FortuneCardTag {
   label: string;
   value: string;
 }
 
-defineProps<{
+const props = defineProps<{
   label: string;
   score: number;
   status: string;
   title: string;
   summary: string;
   tags: FortuneCardTag[];
+  orbitalSrc?: string;
 }>();
 
 defineEmits<{
   (event: 'select'): void;
 }>();
+
+const orbitalStyle = computed(() => ({
+  backgroundImage: props.orbitalSrc ? `url("${props.orbitalSrc}")` : 'none',
+}));
 </script>
 
 <style lang="scss">
@@ -211,130 +210,20 @@ defineEmits<{
 
 .fortune-card__orbital {
   position: relative;
-  flex: 0 0 286rpx;
-  width: 286rpx;
+  flex: 0 0 336rpx;
+  width: 336rpx;
   height: 286rpx;
   margin-top: 8rpx;
 }
 
-.fortune-card__halo,
-.fortune-card__orb,
-.fortune-card__cloud,
-.fortune-card__axis {
+.fortune-card__orbital-art {
   position: absolute;
   inset: 0;
-}
-
-.fortune-card__halo {
-  border-radius: 50%;
-}
-
-.fortune-card__halo--outer {
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.34);
-  box-shadow: 0 0 0 1rpx rgba(255, 255, 255, 0.4) inset;
-}
-
-.fortune-card__halo--mid {
-  inset: 28rpx;
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.26);
-}
-
-.fortune-card__halo--inner {
-  inset: 56rpx;
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.22);
-}
-
-.fortune-card__axis {
-  inset: 16rpx;
-  border-radius: 50%;
-  overflow: visible;
-}
-
-.fortune-card__axis::before,
-.fortune-card__axis::after {
-  content: '';
-  position: absolute;
-  background: rgba(var(--theme-accent-rgb), 0.24);
-}
-
-.fortune-card__axis--horizontal::before {
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1rpx;
-}
-
-.fortune-card__axis--vertical::before {
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1rpx;
-}
-
-.fortune-card__axis--diagonal-left::before,
-.fortune-card__axis--diagonal-right::before {
-  left: 50%;
-  top: 50%;
-  width: 252rpx;
-  height: 1rpx;
-  transform-origin: center;
-}
-
-.fortune-card__axis--diagonal-left::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.fortune-card__axis--diagonal-right::before {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.fortune-card__orb {
-  inset: 74rpx;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.94), transparent 24%),
-    radial-gradient(circle at 55% 66%, rgba(var(--theme-primary-rgb), 0.24), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(var(--theme-primary-rgb), 0.22) 100%);
-  box-shadow:
-    0 0 0 1rpx rgba(255, 255, 255, 0.76) inset,
-    0 26rpx 56rpx rgba(var(--theme-primary-rgb), 0.18);
-}
-
-.fortune-card__cloud {
-  right: 8rpx;
-  bottom: 40rpx;
-  left: auto;
-  top: auto;
-  width: 112rpx;
-  height: 64rpx;
-  border-radius: 40rpx;
-  border: 2rpx solid rgba(var(--theme-accent-rgb), 0.68);
-  border-top-color: transparent;
-  border-left-color: rgba(var(--theme-accent-rgb), 0.52);
-  transform: rotate(-10deg);
-}
-
-.fortune-card__cloud::before,
-.fortune-card__cloud::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  border: 2rpx solid rgba(var(--theme-accent-rgb), 0.68);
-  border-bottom-color: transparent;
-}
-
-.fortune-card__cloud::before {
-  left: 14rpx;
-  top: -22rpx;
-  width: 42rpx;
-  height: 42rpx;
-}
-
-.fortune-card__cloud::after {
-  left: 44rpx;
-  top: -30rpx;
-  width: 58rpx;
-  height: 58rpx;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 104%;
+  filter: drop-shadow(0 18rpx 40rpx rgba(var(--theme-primary-rgb), 0.14));
+  transform: none;
 }
 
 .fortune-card__body {

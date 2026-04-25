@@ -34,6 +34,7 @@
         :title="fortuneTitle"
         :summary="fortuneSummary"
         :tags="fortuneTags"
+        :orbital-src="fortuneOrbitalSrc"
         @select="goToReport"
       />
 
@@ -90,6 +91,7 @@ import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolSt
 import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
 import heroMountainsSvg from '../../static/illustrations/hero_mountains.svg?raw';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { getFortuneOrbitalDataUrl } from '../../theme/fortune-orbital';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
 import type { DashboardStateFactor } from '../../types/dashboard';
@@ -179,6 +181,8 @@ const heroMountainSrc = computed(() => buildSvgDataUrl(heroMountainsSvg, themePa
 const heroMountainStyle = computed(() => ({
   backgroundImage: `url("${heroMountainSrc.value}")`,
 }));
+
+const fortuneOrbitalSrc = computed(() => getFortuneOrbitalDataUrl(themePalette.value.key));
 
 const fortuneTitle = computed(
   () => stateOverview.value.title || todayLuckyScore.value.hint || '状态平稳，适合自我疗愈与整理内心',

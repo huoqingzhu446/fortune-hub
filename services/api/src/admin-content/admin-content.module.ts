@@ -9,6 +9,7 @@ import {
   AdminConfigsController,
   AdminContentController,
   AdminLuckyItemsController,
+  AdminUploadsController,
   AdminReportTemplatesController,
 } from './admin-content.controller';
 import { AdminContentService } from './admin-content.service';
@@ -28,6 +29,7 @@ import { AdminContentService } from './admin-content.service';
     AdminLuckyItemsController,
     AdminReportTemplatesController,
     AdminConfigsController,
+    AdminUploadsController,
   ],
   providers: [AdminContentService],
 })

@@ -78,6 +78,15 @@ export interface ConfigEntryItem {
   updatedAt: string;
 }
 
+export interface UploadedAdminFile {
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  relativePath: string;
+}
+
 export interface SaveFortuneContentPayload {
   contentType: string;
   bizCode: string;
@@ -300,5 +309,23 @@ export async function updateConfigEntryStatus(
 
 export async function deleteConfigEntry(id: string) {
   const { data } = await http.delete(`/admin/configs/${id}`);
+  return data;
+}
+
+export async function uploadAdminAudio(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await http.post<DetailResponse<UploadedAdminFile>>(
+    '/admin/uploads/audio',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000,
+    },
+  );
+
   return data;
 }

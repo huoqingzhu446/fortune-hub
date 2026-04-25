@@ -1,4 +1,5 @@
 import type { ApiEnvelope } from './auth';
+import type { MeditationMusicItem } from './lucky';
 
 export interface UnifiedRecordItem {
   id: string;
@@ -141,4 +142,8 @@ export type MoodRecordDetailResponse = ApiEnvelope<{
 export type MeditationRecordDetailResponse = ApiEnvelope<{
   item: MeditationLogItem | null;
   recentItems: MeditationLogItem[];
+}>;
+export type MeditationMusicLibraryResponse = ApiEnvelope<{
+  source: 'config' | 'fallback';
+  items: MeditationMusicItem[];
 }>;

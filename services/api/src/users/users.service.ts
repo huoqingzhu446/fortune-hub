@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { OrderEntity } from '../database/entities/order.entity';
@@ -40,6 +41,45 @@ const RECORD_LEGEND = [
   { type: 'tired', label: '疲惫' },
 ] as const;
 
+const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
+  {
+    id: 'moon-breath',
+    title: '月光呼吸',
+    subtitle: '适合睡前放松，呼吸节奏更慢一点。',
+    category: 'sleep',
+    durationMinutes: 12,
+    atmosphere: '柔和白噪',
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
+  },
+  {
+    id: 'forest-focus',
+    title: '林间专注',
+    subtitle: '适合工作前整理心绪，安静进入状态。',
+    category: 'focus',
+    durationMinutes: 10,
+    atmosphere: '自然环境音',
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
+  },
+  {
+    id: 'tidal-reset',
+    title: '潮汐复位',
+    subtitle: '适合情绪起伏后，重新稳定身体节奏。',
+    category: 'healing',
+    durationMinutes: 8,
+    atmosphere: '海浪与低频铺底',
+    previewUrl: 'https://actions.google.com/sounds/v1/water/dripping_water.ogg',
+  },
+  {
+    id: 'silent-count',
+    title: '静数呼吸',
+    subtitle: '适合短时间呼吸练习，轻量不打扰。',
+    category: 'breath',
+    durationMinutes: 5,
+    atmosphere: '极简提示音',
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/woodland_night.ogg',
+  },
+] as const;
+
 const USER_PREFERENCE_DEFAULTS = {
   dailyReminderEnabled: true,
   luckyPushEnabled: true,
@@ -52,6 +92,8 @@ const USER_PREFERENCE_DEFAULTS = {
 @Injectable()
 export class UsersService {
   constructor(
+    @InjectRepository(AppConfigEntity)
+    private readonly appConfigRepository: Repository<AppConfigEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(UserRecordEntity)
@@ -334,6 +376,33 @@ export class UsersService {
 
     return this.buildEnvelope({
       items: records.map((record) => this.serializeMeditationRecord(record)),
+    });
+  }
+
+  async getMeditationMusicLibrary() {
+    const config = await this.appConfigRepository.findOne({
+      where: {
+        namespace: 'meditation',
+        configKey: 'music_library',
+        status: 'published',
+      },
+      order: {
+        publishedAt: 'DESC',
+        updatedAt: 'DESC',
+      },
+    });
+
+    const rawItems = Array.isArray((config?.valueJson as { items?: unknown[] } | null)?.items)
+      ? ((config?.valueJson as { items?: unknown[] }).items ?? [])
+      : [];
+
+    const items = rawItems
+      .map((item, index) => this.normalizeMeditationMusicItem(item, index))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    return this.buildEnvelope({
+      source: items.length ? 'config' : 'fallback',
+      items: items.length ? items : DEFAULT_MEDITATION_MUSIC_LIBRARY,
     });
   }
 
@@ -969,5 +1038,56 @@ export class UsersService {
         manualThemeKey: dto.manualThemeKey,
       }).filter(([, value]) => value !== undefined),
     );
+  }
+
+  private normalizeMeditationMusicItem(input: unknown, index: number) {
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+
+    const item = input as Record<string, unknown>;
+    const enabled = item.enabled !== false;
+
+    if (!enabled) {
+      return null;
+    }
+
+    const id =
+      typeof item.id === 'string' && item.id.trim()
+        ? item.id.trim()
+        : `music-${index + 1}`;
+    const title =
+      typeof item.title === 'string' && item.title.trim()
+        ? item.title.trim()
+        : null;
+
+    if (!title) {
+      return null;
+    }
+
+    return {
+      id,
+      title,
+      subtitle:
+        typeof item.subtitle === 'string' && item.subtitle.trim()
+          ? item.subtitle.trim()
+          : '冥想音乐',
+      category:
+        typeof item.category === 'string' && item.category.trim()
+          ? item.category.trim()
+          : 'healing',
+      durationMinutes: Math.max(
+        1,
+        Math.min(180, Number(item.durationMinutes) || 5),
+      ),
+      atmosphere:
+        typeof item.atmosphere === 'string' && item.atmosphere.trim()
+          ? item.atmosphere.trim()
+          : '轻环境音',
+      previewUrl:
+        typeof item.previewUrl === 'string' && item.previewUrl.trim()
+          ? item.previewUrl.trim()
+          : '',
+    };
   }
 }

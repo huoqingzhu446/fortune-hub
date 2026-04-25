@@ -349,6 +349,72 @@
           <el-form-item label="描述">
             <el-input v-model="configForm.description" type="textarea" :rows="2" />
           </el-form-item>
+          <template v-if="isMeditationMusicConfig">
+            <el-form-item label="冥想音乐条目">
+              <div class="content-center__music-editor">
+                <div
+                  v-for="(item, index) in meditationMusicItems"
+                  :key="item.localId"
+                  class="content-center__music-item"
+                >
+                  <div class="content-center__grid content-center__grid--four">
+                    <el-form-item label="音乐 ID">
+                      <el-input v-model="item.id" placeholder="例如 moon-breath" />
+                    </el-form-item>
+                    <el-form-item label="分类">
+                      <el-select v-model="item.category">
+                        <el-option label="sleep" value="sleep" />
+                        <el-option label="breath" value="breath" />
+                        <el-option label="focus" value="focus" />
+                        <el-option label="healing" value="healing" />
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="时长（分钟）">
+                      <el-input-number v-model="item.durationMinutes" :min="1" :max="180" />
+                    </el-form-item>
+                    <el-form-item label="启用">
+                      <el-switch v-model="item.enabled" />
+                    </el-form-item>
+                  </div>
+
+                  <div class="content-center__grid content-center__grid--two">
+                    <el-form-item label="标题">
+                      <el-input v-model="item.title" />
+                    </el-form-item>
+                    <el-form-item label="氛围">
+                      <el-input v-model="item.atmosphere" placeholder="例如 柔和白噪" />
+                    </el-form-item>
+                  </div>
+
+                  <el-form-item label="副标题">
+                    <el-input v-model="item.subtitle" type="textarea" :rows="2" />
+                  </el-form-item>
+
+                  <div class="content-center__grid content-center__grid--two">
+                    <el-form-item label="试听地址">
+                      <el-input v-model="item.previewUrl" placeholder="上传后自动回填" />
+                    </el-form-item>
+                    <el-form-item label="上传音频">
+                      <el-upload
+                        :show-file-list="false"
+                        accept="audio/*"
+                        :http-request="(options: UploadRequestOptions) => handleMeditationAudioUpload(index, options.file as File)"
+                      >
+                        <el-button :loading="uploadingAudioIndex === index">上传音乐</el-button>
+                      </el-upload>
+                    </el-form-item>
+                  </div>
+
+                  <div class="content-center__music-actions">
+                    <el-button text @click="duplicateMeditationMusicItem(index)">复制一条</el-button>
+                    <el-button text type="danger" @click="removeMeditationMusicItem(index)">删除</el-button>
+                  </div>
+                </div>
+
+                <el-button plain @click="addMeditationMusicItem">新增音乐条目</el-button>
+              </div>
+            </el-form-item>
+          </template>
           <el-form-item label="配置值 JSON">
             <el-input v-model="configForm.valueJsonText" type="textarea" :rows="16" />
           </el-form-item>
@@ -364,8 +430,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import type { UploadRequestOptions } from 'element-plus';
 import {
   createConfigEntry,
   createFortuneContent,
@@ -387,6 +454,7 @@ import {
   updateLuckyItemStatus,
   updateReportTemplate,
   updateReportTemplateStatus,
+  uploadAdminAudio,
   type ConfigEntryItem,
   type FortuneContentItem,
   type LifecycleStatus,
@@ -407,7 +475,7 @@ const contentTypeOptions = [
 ];
 
 const templateTypeOptions = ['report_result', 'share_poster'];
-const namespaceOptions = ['lucky', 'reports', 'posters', 'assessment', 'commerce'];
+const namespaceOptions = ['lucky', 'meditation', 'reports', 'posters', 'assessment', 'commerce'];
 const statusFilterOptions = [
   { label: '全部状态', value: 'all' },
   { label: '草稿', value: 'draft' },
@@ -494,6 +562,24 @@ const configForm = reactive({
   status: 'draft' as LifecycleStatus,
   valueJsonText: '{\n  "enabled": true\n}',
 });
+type MeditationMusicEditorItem = {
+  localId: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  category: 'sleep' | 'breath' | 'focus' | 'healing';
+  durationMinutes: number;
+  atmosphere: string;
+  previewUrl: string;
+  enabled: boolean;
+};
+
+const meditationMusicItems = ref<MeditationMusicEditorItem[]>([]);
+const uploadingAudioIndex = ref(-1);
+
+const DEFAULT_CONFIG_TEMPLATE = '{\n  "enabled": true\n}';
+const MEDITATION_MUSIC_TEMPLATE =
+  '{\n  "items": [\n    {\n      "id": "moon-breath",\n      "title": "月光呼吸",\n      "subtitle": "适合睡前放松，呼吸节奏更慢一点。",\n      "category": "sleep",\n      "durationMinutes": 12,\n      "atmosphere": "柔和白噪",\n      "previewUrl": "https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg",\n      "enabled": true\n    }\n  ]\n}';
 
 const currentItems = computed(() => {
   if (activeTab.value === 'fortune') {
@@ -510,6 +596,12 @@ const currentItems = computed(() => {
 
   return configEntries.value;
 });
+const isMeditationMusicConfig = computed(
+  () =>
+    activeTab.value === 'configs' &&
+    configForm.namespace === 'meditation' &&
+    configForm.configKey === 'music_library',
+);
 
 const currentStatusFilter = computed({
   get: () => {
@@ -709,6 +801,7 @@ function openEditDialog(row: ContentRow) {
     configForm.valueType = item.valueType;
     configForm.status = item.status;
     configForm.valueJsonText = JSON.stringify(item.valueJson, null, 2);
+    syncMeditationMusicFromValue(item.valueJson);
   }
 
   dialogVisible.value = true;
@@ -769,6 +862,10 @@ async function saveItem() {
         await createReportTemplate(payload);
       }
     } else {
+      if (isMeditationMusicConfig.value) {
+        syncMeditationMusicToJson();
+      }
+
       const payload = {
         namespace: configForm.namespace.trim(),
         configKey: configForm.configKey.trim(),
@@ -885,20 +982,183 @@ function resetCurrentForm() {
     return;
   }
 
-  configForm.namespace = 'lucky';
-  configForm.configKey = '';
+  configForm.namespace = 'meditation';
+  configForm.configKey = 'music_library';
   configForm.title = '';
   configForm.description = '';
   configForm.valueType = 'json';
   configForm.status = 'draft';
-  configForm.valueJsonText = '{\n  "enabled": true\n}';
+  configForm.valueJsonText = buildConfigTemplate(
+    configForm.namespace,
+    configForm.configKey,
+  );
+  syncMeditationMusicFromValue(safeParseJsonText(configForm.valueJsonText));
 }
+
+function buildConfigTemplate(namespace: string, configKey: string) {
+  if (namespace === 'meditation' && configKey === 'music_library') {
+    return MEDITATION_MUSIC_TEMPLATE;
+  }
+
+  return DEFAULT_CONFIG_TEMPLATE;
+}
+
+function createMeditationMusicItem(
+  input?: Partial<Omit<MeditationMusicEditorItem, 'localId'>>,
+): MeditationMusicEditorItem {
+  return {
+    localId: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    id: input?.id || '',
+    title: input?.title || '',
+    subtitle: input?.subtitle || '',
+    category: input?.category || 'healing',
+    durationMinutes: input?.durationMinutes || 5,
+    atmosphere: input?.atmosphere || '',
+    previewUrl: input?.previewUrl || '',
+    enabled: input?.enabled ?? true,
+  };
+}
+
+function syncMeditationMusicFromValue(value: Record<string, unknown>) {
+  const rawItems = Array.isArray((value as { items?: unknown[] }).items)
+    ? (((value as { items?: unknown[] }).items ?? []) as unknown[])
+    : [];
+
+  meditationMusicItems.value = rawItems.length
+    ? rawItems.map((item) => {
+        const record = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+        return createMeditationMusicItem({
+          id: typeof record.id === 'string' ? record.id : '',
+          title: typeof record.title === 'string' ? record.title : '',
+          subtitle: typeof record.subtitle === 'string' ? record.subtitle : '',
+          category:
+            record.category === 'sleep' ||
+            record.category === 'breath' ||
+            record.category === 'focus'
+              ? record.category
+              : 'healing',
+          durationMinutes: Number(record.durationMinutes) || 5,
+          atmosphere: typeof record.atmosphere === 'string' ? record.atmosphere : '',
+          previewUrl: typeof record.previewUrl === 'string' ? record.previewUrl : '',
+          enabled: record.enabled !== false,
+        });
+      })
+    : [createMeditationMusicItem({ id: 'moon-breath', title: '月光呼吸', category: 'sleep', durationMinutes: 12 })];
+}
+
+function syncMeditationMusicToJson() {
+  configForm.valueJsonText = JSON.stringify(
+    {
+      items: meditationMusicItems.value.map((item) => ({
+        id: item.id.trim(),
+        title: item.title.trim(),
+        subtitle: item.subtitle.trim(),
+        category: item.category,
+        durationMinutes: Number(item.durationMinutes) || 5,
+        atmosphere: item.atmosphere.trim(),
+        previewUrl: item.previewUrl.trim(),
+        enabled: item.enabled,
+      })),
+    },
+    null,
+    2,
+  );
+}
+
+function addMeditationMusicItem() {
+  meditationMusicItems.value.push(createMeditationMusicItem());
+  syncMeditationMusicToJson();
+}
+
+function duplicateMeditationMusicItem(index: number) {
+  const current = meditationMusicItems.value[index];
+  if (!current) {
+    return;
+  }
+
+  meditationMusicItems.value.splice(
+    index + 1,
+    0,
+    createMeditationMusicItem({
+      ...current,
+      id: current.id ? `${current.id}-copy` : '',
+    }),
+  );
+  syncMeditationMusicToJson();
+}
+
+function removeMeditationMusicItem(index: number) {
+  meditationMusicItems.value.splice(index, 1);
+  if (!meditationMusicItems.value.length) {
+    meditationMusicItems.value.push(createMeditationMusicItem());
+  }
+  syncMeditationMusicToJson();
+}
+
+async function handleMeditationAudioUpload(index: number, file: File) {
+  try {
+    uploadingAudioIndex.value = index;
+    const response = await uploadAdminAudio(file);
+    const target = meditationMusicItems.value[index];
+
+    if (!target) {
+      return;
+    }
+
+    target.previewUrl = response.data.item.url;
+    if (!target.title) {
+      target.title = file.name.replace(/\.[^.]+$/, '');
+    }
+    syncMeditationMusicToJson();
+    ElMessage.success('音频上传成功');
+  } catch (error) {
+    console.warn('upload meditation audio failed', error);
+    ElMessage.error(error instanceof Error ? error.message : '音频上传失败');
+  } finally {
+    uploadingAudioIndex.value = -1;
+  }
+}
+
+watch(
+  () => [configForm.namespace, configForm.configKey, dialogVisible.value, editingId.value] as const,
+  ([namespace, configKey, visible, currentEditingId], [, , previousVisible]) => {
+    if (!visible || currentEditingId) {
+      return;
+    }
+
+    if (namespace === 'meditation' && configKey === 'music_library') {
+      if (!configForm.title) {
+        configForm.title = '冥想音乐库';
+      }
+      if (!configForm.description) {
+        configForm.description = '移动端冥想页可选音乐列表，支持试听链接与分类配置。';
+      }
+      syncMeditationMusicFromValue(safeParseJsonText(configForm.valueJsonText));
+    }
+
+    if (
+      !previousVisible ||
+      configForm.valueJsonText === DEFAULT_CONFIG_TEMPLATE ||
+      configForm.valueJsonText === MEDITATION_MUSIC_TEMPLATE
+    ) {
+      configForm.valueJsonText = buildConfigTemplate(namespace, configKey);
+    }
+  },
+);
 
 function parseJsonText(label: string, value: string) {
   try {
     return JSON.parse(value) as Record<string, unknown>;
   } catch {
     throw new Error(`${label} 不是合法 JSON`);
+  }
+}
+
+function safeParseJsonText(value: string) {
+  try {
+    return JSON.parse(value) as Record<string, unknown>;
+  } catch {
+    return {};
   }
 }
 
@@ -957,6 +1217,26 @@ onMounted(() => {
   void loadCurrentTab();
 });
 </script>
+
+<style scoped>
+.content-center__music-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.content-center__music-item {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7f9fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.content-center__music-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+</style>
 
 <style scoped lang="scss">
 .content-center {

@@ -5,23 +5,24 @@
       <view class="ambient ambient--glow"></view>
       <view class="ambient ambient--mist-left"></view>
       <view class="ambient ambient--mist-right"></view>
-      <view class="ambient ambient--constellation"></view>
 
       <view class="hero">
-        <view class="hero__top">
-          <view class="hero__brand">
+        <view class="hero__scene">
+          <view class="hero__mountain-backdrop" :style="heroMountainStyle"></view>
 
+          <view class="hero__top">
+            <view class="hero__brand">
+              <view class="hero__copy">
+                <text class="hero__title">{{ pageTitle }}</text>
+                <text class="hero__subtitle">{{ pageSubtitle }}</text>
+              </view>
+            </view>
 
-            <view class="hero__copy">
-              <text class="hero__title">{{ pageTitle }}</text>
-              <text class="hero__subtitle">{{ pageSubtitle }}</text>
+            <view class="hero__meta">
+              <text class="hero__meta-line">{{ displayDate }}</text>
+              <text class="hero__meta-line hero__meta-line--secondary">{{ lunarDate }}</text>
             </view>
           </view>
-        </view>
-
-        <view class="hero__meta">
-          <text class="hero__meta-line">{{ displayDate }}</text>
-          <text class="hero__meta-line hero__meta-line--secondary">{{ lunarDate }}</text>
         </view>
       </view>
 
@@ -87,6 +88,7 @@ import FortuneScoreCard, { type FortuneCardTag } from '../../components/FortuneS
 import HomeStatusCard from '../../components/HomeStatusCard.vue';
 import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolStrip.vue';
 import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
+import heroMountainsSvg from '../../static/illustrations/hero_mountains.svg?raw';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
@@ -171,6 +173,12 @@ const lunarDate = computed(() => {
 });
 
 const fortuneCardLabel = computed(() => todayLuckyScore.value.label || '综合气运指数');
+
+const heroMountainSrc = computed(() => buildSvgDataUrl(heroMountainsSvg, themePalette.value.primary));
+
+const heroMountainStyle = computed(() => ({
+  backgroundImage: `url("${heroMountainSrc.value}")`,
+}));
 
 const fortuneTitle = computed(
   () => stateOverview.value.title || todayLuckyScore.value.hint || '状态平稳，适合自我疗愈与整理内心',
@@ -501,6 +509,12 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function buildSvgDataUrl(markup: string, color: string) {
+  const normalizedColor = color || '#6F91B7';
+  const nextMarkup = markup.replace(/currentColor/g, normalizedColor);
+  return `data:image/svg+xml;utf8,${encodeURIComponent(nextMarkup)}`;
+}
+
 onLoad(() => {
   resetScrollTop();
   void refreshDashboard();
@@ -590,40 +604,6 @@ onPullDownRefresh(async () => {
   filter: blur(24rpx);
 }
 
-.ambient--constellation {
-  top: 188rpx;
-  right: 52rpx;
-  width: 340rpx;
-  height: 340rpx;
-  border-radius: 50%;
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.24);
-  box-shadow:
-    0 0 0 36rpx rgba(var(--theme-accent-rgb), 0.08),
-    0 0 0 72rpx rgba(var(--theme-accent-rgb), 0.03);
-  opacity: 0.65;
-}
-
-.ambient--constellation::before,
-.ambient--constellation::after {
-  content: '';
-  position: absolute;
-  inset: 16rpx;
-  border-radius: 50%;
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.18);
-}
-
-.ambient--constellation::after {
-  inset: auto 54rpx 34rpx auto;
-  width: 10rpx;
-  height: 10rpx;
-  border: 0;
-  background: rgba(var(--theme-accent-rgb), 0.72);
-  box-shadow:
-    -86rpx -42rpx 0 rgba(var(--theme-accent-rgb), 0.46),
-    -124rpx 26rpx 0 rgba(var(--theme-accent-rgb), 0.36),
-    -184rpx -108rpx 0 rgba(var(--theme-accent-rgb), 0.24);
-}
-
 .hero,
 .home-page__main-card,
 .insight-grid,
@@ -634,16 +614,55 @@ onPullDownRefresh(async () => {
 }
 
 .hero {
-  display: grid;
-  gap: 28rpx;
-  margin-bottom: 26rpx;
+  position: relative;
+  margin-bottom: 10rpx;
+}
+
+.hero__scene {
+  position: relative;
+  min-height: 276rpx;
+  padding: 20rpx 8rpx 0;
+  overflow: hidden;
+}
+
+.hero__scene::before,
+.hero__scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero__scene::before {
+  inset: 0 12rpx auto;
+  height: 136rpx;
+  background: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.62) 22%, rgba(255, 255, 255, 0) 76%);
+}
+
+.hero__scene::after {
+  inset: auto 0 0;
+  height: 118rpx;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 44%, var(--theme-page-bottom) 100%);
+}
+
+.hero__mountain-backdrop {
+  position: absolute;
+  inset: 82rpx -42rpx 0;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: 106% auto;
+  opacity: 0.74;
+  transform: translateY(0);
 }
 
 .hero__top {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
+  padding: 0 14rpx 0 10rpx;
 }
 
 .hero__brand {
@@ -651,55 +670,17 @@ onPullDownRefresh(async () => {
   align-items: flex-start;
   gap: 14rpx;
   min-width: 0;
-  margin-top: 12rpx;
-}
-
-.hero__emblem {
-  position: relative;
-  flex: 0 0 62rpx;
-  width: 62rpx;
-  height: 62rpx;
-  margin-top: 2rpx;
-}
-
-.hero__emblem-ring,
-.hero__emblem-line {
-  position: absolute;
-}
-
-.hero__emblem-ring {
-  inset: 0;
-  border-radius: 50%;
-  border: 2rpx solid rgba(var(--theme-accent-rgb), 0.84);
-}
-
-.hero__emblem-line {
-  background: rgba(var(--theme-accent-rgb), 0.72);
-}
-
-.hero__emblem-line--horizontal {
-  left: 8rpx;
-  right: 8rpx;
-  top: 50%;
-  height: 2rpx;
-  transform: translateY(-50%);
-}
-
-.hero__emblem-line--vertical {
-  top: 8rpx;
-  bottom: 8rpx;
-  left: 50%;
-  width: 2rpx;
-  transform: translateX(-50%);
+  margin-top: 0;
 }
 
 .hero__copy {
   display: grid;
   gap: 10rpx;
+  max-width: 430rpx;
 }
 
 .hero__title {
-  font-size: 76rpx;
+  font-size: 74rpx;
   line-height: 1;
   color: var(--theme-text-primary);
   font-family:
@@ -716,66 +697,19 @@ onPullDownRefresh(async () => {
   color: var(--theme-text-secondary);
 }
 
-.hero__actions {
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  margin-top: 4rpx;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1rpx solid rgba(220, 223, 228, 0.74);
-  box-shadow: 0 12rpx 34rpx rgba(var(--theme-text-primary-rgb), 0.08);
-}
-
-.hero__action {
-  display: grid;
-  place-items: center;
-  width: 40rpx;
-  height: 40rpx;
-}
-
-.hero__divider {
-  width: 1rpx;
-  height: 36rpx;
-  background: rgba(189, 194, 202, 0.72);
-}
-
-.hero__dots {
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: #111111;
-  box-shadow:
-    16rpx 0 0 #111111,
-    32rpx 0 0 #111111;
-}
-
-.hero__target {
-  position: relative;
-  width: 24rpx;
-  height: 24rpx;
-  border-radius: 50%;
-  border: 3rpx solid #111111;
-}
-
-.hero__target::after {
-  content: '';
-  position: absolute;
-  inset: 5rpx;
-  border-radius: 50%;
-  border: 3rpx solid #111111;
-}
-
 .hero__meta {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: end;
-  gap: 10rpx;
+  gap: 6rpx;
+  margin-top: 8rpx;
+  flex: 0 0 auto;
 }
 
 .hero__meta-line {
-  font-size: 24rpx;
-  color: rgba(var(--theme-text-primary-rgb), 0.7);
+  font-size: 20rpx;
+  color: rgba(var(--theme-text-primary-rgb), 0.62);
 }
 
 .hero__meta-line--secondary {
@@ -783,6 +717,7 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__main-card {
+  margin-top: -10rpx;
   margin-bottom: 26rpx;
 }
 

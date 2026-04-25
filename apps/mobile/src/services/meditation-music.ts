@@ -1,6 +1,6 @@
 import type { MeditationMusicItem } from '../types/lucky';
 
-export const meditationMusicLibrary: MeditationMusicItem[] = [
+export const defaultMeditationMusicLibrary: MeditationMusicItem[] = [
   {
     id: 'moon-breath',
     title: '月光呼吸',
@@ -44,5 +44,5 @@ export function findMeditationMusic(id?: string) {
     return null;
   }
 
-  return meditationMusicLibrary.find((item) => item.id === id) ?? null;
+  return defaultMeditationMusicLibrary.find((item) => item.id === id) ?? null;
 }

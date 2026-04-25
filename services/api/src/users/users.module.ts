@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
@@ -14,6 +15,7 @@ import { UsersService } from './users.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      AppConfigEntity,
       UserEntity,
       UserRecordEntity,
       MoodRecordEntity,

@@ -52,7 +52,6 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Client'],
   });
-
   await app.listen(port);
   Logger.log(`Fortune Hub API listening on http://localhost:${port}/api/v1`, 'Bootstrap');
 }

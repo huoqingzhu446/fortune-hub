@@ -101,6 +101,11 @@ export class UsersController {
     return this.usersService.getMeditationRecords(user);
   }
 
+  @Get('record/meditation/music')
+  getMeditationMusicLibrary() {
+    return this.usersService.getMeditationMusicLibrary();
+  }
+
   @Get('record/meditation/detail')
   async getMeditationRecordDetail(
     @Headers('authorization') authorization?: string,

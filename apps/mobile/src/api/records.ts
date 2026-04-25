@@ -2,6 +2,7 @@ import { http } from '../services/request';
 import type {
   MeditationRecordListResponse,
   MeditationRecordDetailResponse,
+  MeditationMusicLibraryResponse,
   RecordOverviewResponse,
   MoodRecordDetailResponse,
   MoodRecordListResponse,
@@ -57,6 +58,10 @@ export function fetchMeditationRecordDetail(recordId: string) {
   return http.get<MeditationRecordDetailResponse>(
     `/record/meditation/detail?recordId=${encodeURIComponent(recordId)}`,
   );
+}
+
+export function fetchMeditationMusicLibrary() {
+  return http.get<MeditationMusicLibraryResponse>('/record/meditation/music');
 }
 
 export function saveMeditationRecord(payload: SaveMeditationRecordPayload) {

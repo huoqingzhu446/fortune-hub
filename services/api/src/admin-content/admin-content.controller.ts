@@ -1,14 +1,20 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { SaveConfigEntryDto } from './dto/save-config-entry.dto';
 import { SaveFortuneContentDto } from './dto/save-fortune-content.dto';
@@ -16,6 +22,36 @@ import { SaveLuckyItemDto } from './dto/save-lucky-item.dto';
 import { SaveReportTemplateDto } from './dto/save-report-template.dto';
 import { UpdateResourceStatusDto } from './dto/update-resource-status.dto';
 import { AdminContentService } from './admin-content.service';
+
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'audio/aac',
+  'audio/mp4',
+  'audio/webm',
+]);
+
+const audioUploadOptions = {
+  storage: memoryStorage(),
+  limits: {
+    fileSize: 30 * 1024 * 1024,
+  },
+  fileFilter: (
+    _request: unknown,
+    file: Express.Multer.File,
+    callback: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    if (!ALLOWED_AUDIO_MIME_TYPES.has(file.mimetype)) {
+      callback(new BadRequestException('仅支持 mp3 / wav / ogg / aac / webm 音频上传'), false);
+      return;
+    }
+
+    callback(null, true);
+  },
+};
 
 @Controller('admin/fortune-contents')
 @UseGuards(AdminSessionGuard)
@@ -178,5 +214,23 @@ export class AdminConfigsController {
     @Body() dto: UpdateResourceStatusDto,
   ) {
     return this.adminContentService.changeConfigStatus(id, dto.status);
+  }
+}
+
+@Controller('admin/uploads')
+@UseGuards(AdminSessionGuard)
+export class AdminUploadsController {
+  constructor(private readonly adminContentService: AdminContentService) {}
+
+  @Post('audio')
+  @UseInterceptors(FileInterceptor('file', audioUploadOptions))
+  uploadAudio(
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file) {
+      throw new BadRequestException('请先选择音频文件');
+    }
+
+    return this.adminContentService.uploadAudio(file);
   }
 }

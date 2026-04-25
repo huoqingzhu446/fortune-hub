@@ -1,8 +1,10 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
@@ -31,7 +33,14 @@ export class AdminContentService {
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     @InjectRepository(AppConfigEntity)
     private readonly appConfigRepository: Repository<AppConfigEntity>,
+    private readonly configService: ConfigService,
   ) {}
+
+  uploadAudio(
+    file: Express.Multer.File,
+  ) {
+    return this.forwardAudioToFileService(file);
+  }
 
   async listContents(contentType?: string, keyword?: string, status?: string) {
     const items = await this.fortuneContentRepository.find({
@@ -527,5 +536,88 @@ export class AdminContentService {
       archivedAt: item.archivedAt?.toISOString() ?? null,
       updatedAt: item.updatedAt.toISOString(),
     };
+  }
+
+  private async forwardAudioToFileService(file: Express.Multer.File) {
+    const uploadUrl = this.resolveFileServiceUploadUrl();
+    const token = this.configService.get<string>('FILE_SERVICE_TOKEN');
+    const formData = new FormData();
+    const blob = new Blob([new Uint8Array(file.buffer)], {
+      type: file.mimetype || 'application/octet-stream',
+    });
+
+    formData.append('appCode', 'fortune-hub');
+    formData.append('bizType', 'meditation-audio');
+    formData.append('visibility', 'public');
+    formData.append('file', blob, file.originalname || 'audio.mp3');
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: token
+          ? {
+              'x-file-service-token': token,
+            }
+          : undefined,
+        body: formData,
+        signal: controller.signal,
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            id?: string;
+            originalName?: string;
+            mimeType?: string;
+            size?: number;
+            contentUrl?: string;
+            storedName?: string;
+            objectKey?: string;
+          }
+        | null;
+
+      if (!response.ok || !payload?.contentUrl) {
+        throw new BadGatewayException(
+          typeof payload === 'object' && payload
+            ? JSON.stringify(payload)
+            : '文件服务上传失败',
+        );
+      }
+
+      return this.buildDetailEnvelope('item', {
+        fileId: payload.id,
+        fileName: payload.storedName || file.originalname,
+        originalName: payload.originalName || file.originalname,
+        mimeType: payload.mimeType || file.mimetype,
+        size: payload.size || file.size,
+        url: payload.contentUrl,
+        relativePath: payload.objectKey || '',
+      });
+    } catch (error) {
+      if (error instanceof BadGatewayException) {
+        throw error;
+      }
+
+      throw new BadGatewayException('连接 luckLink 文件服务失败，请检查 FILE_SERVICE_BASE_URL 或服务状态');
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private resolveFileServiceUploadUrl() {
+    const configuredBaseUrl = this.configService.get<string>(
+      'FILE_SERVICE_BASE_URL',
+      'http://8.152.214.57:3000/api',
+    );
+
+    const normalized = configuredBaseUrl.replace(/\/$/, '');
+
+    if (normalized.endsWith('/api')) {
+      return `${normalized}/files/upload`;
+    }
+
+    return `${normalized}/api/files/upload`;
   }
 }

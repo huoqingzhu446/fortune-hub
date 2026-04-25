@@ -135,11 +135,16 @@
 <script setup lang="ts">
 import { onHide, onLoad, onUnload } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
-import { fetchMeditationRecordDetail, saveMeditationRecord } from '../../api/records';
+import {
+  fetchMeditationMusicLibrary,
+  fetchMeditationRecordDetail,
+  saveMeditationRecord,
+} from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
-import { findMeditationMusic, meditationMusicLibrary } from '../../services/meditation-music';
+import { defaultMeditationMusicLibrary } from '../../services/meditation-music';
 import { usePageStateStore } from '../../stores/page-state';
+import type { MeditationMusicItem } from '../../types/lucky';
 import type { MeditationLogItem } from '../../types/records';
 
 function buildLocalDateString(date = new Date()) {
@@ -154,7 +159,7 @@ const todayDate = buildLocalDateString();
 const saving = ref(false);
 const loadingDetail = ref(false);
 const categories = ['meditation', 'sleep', 'breath', 'focus'];
-const musicOptions = meditationMusicLibrary;
+const musicOptions = ref<MeditationMusicItem[]>(defaultMeditationMusicLibrary);
 const selectedMusicId = ref('');
 const playingMusicId = ref('');
 const audioContext = uni.createInnerAudioContext();
@@ -243,7 +248,7 @@ function applyRecord(item: MeditationLogItem) {
   form.completionStatus = item.completionStatus || (item.completed ? 'completed' : 'partial');
   form.summary = item.summary;
   selectedMusicId.value =
-    musicOptions.find((music) => music.title === item.title || item.sourceTitle.includes(music.title))?.id ||
+    musicOptions.value.find((music) => music.title === item.title || item.sourceTitle.includes(music.title))?.id ||
     '';
 }
 
@@ -268,6 +273,14 @@ function togglePreview(id: string) {
     return;
   }
 
+  if (!selectedMusic.previewUrl) {
+    uni.showToast({
+      title: '这首音乐还没有上传试听文件',
+      icon: 'none',
+    });
+    return;
+  }
+
   if (playingMusicId.value === id) {
     audioContext.pause();
     playingMusicId.value = '';
@@ -278,6 +291,26 @@ function togglePreview(id: string) {
   audioContext.src = selectedMusic.previewUrl;
   audioContext.play();
   playingMusicId.value = id;
+}
+
+function findMeditationMusic(id?: string) {
+  if (!id) {
+    return null;
+  }
+
+  return musicOptions.value.find((item) => item.id === id) ?? null;
+}
+
+async function loadMusicLibrary() {
+  try {
+    const response = await fetchMeditationMusicLibrary();
+    musicOptions.value = response.data.items.length
+      ? response.data.items
+      : defaultMeditationMusicLibrary;
+  } catch (error) {
+    console.warn('load meditation music failed', error);
+    musicOptions.value = defaultMeditationMusicLibrary;
+  }
 }
 
 audioContext.onEnded(() => {
@@ -316,6 +349,7 @@ async function loadDetail(recordId: string) {
 }
 
 onLoad((options) => {
+  void loadMusicLibrary();
   if (typeof options?.recordId === 'string' && options.recordId) {
     form.recordId = decodeURIComponent(options.recordId);
     void loadDetail(form.recordId);

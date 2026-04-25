@@ -16,6 +16,12 @@
           <el-table-column prop="zodiac" label="星座" min-width="100" />
           <el-table-column prop="vipStatus" label="会员" min-width="100" />
           <el-table-column prop="lastLoginAt" label="最近登录" min-width="180" />
+          <el-table-column label="操作" width="180">
+            <template #default="{ row }">
+              <el-button text type="primary" @click="openUserDetail(row.id)">详情</el-button>
+              <el-button text type="primary" @click="toggleVip(row)">切换会员</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -35,9 +41,11 @@
           <el-table-column prop="message" label="内容" min-width="300" />
           <el-table-column prop="contact" label="联系方式" min-width="140" />
           <el-table-column prop="status" label="状态" width="120" />
-          <el-table-column label="操作" width="150">
+          <el-table-column prop="adminReply" label="回复" min-width="220" />
+          <el-table-column label="操作" width="220">
             <template #default="{ row }">
               <el-button text type="primary" @click="markFeedbackResolved(row.id)">标记已处理</el-button>
+              <el-button text type="primary" @click="replyFeedback(row.id)">回复</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -71,21 +79,65 @@
           <el-table-column prop="createdAt" label="时间" min-width="180" />
         </el-table>
       </el-tab-pane>
+
+      <el-tab-pane label="集成诊断" name="integrations">
+        <el-card shadow="never">
+          <template #header>
+            <div class="integration-head">
+              <span>智谱生图</span>
+              <el-button size="small" :loading="zhipuTesting" @click="runZhipuTest">测试生成</el-button>
+            </div>
+          </template>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="密钥">{{ zhipuStatus?.configured ? '已配置' : '未配置' }}</el-descriptions-item>
+            <el-descriptions-item label="模型环境变量">{{ zhipuStatus?.modelEnv }}</el-descriptions-item>
+            <el-descriptions-item label="生成超时变量">{{ zhipuStatus?.timeoutEnv }}</el-descriptions-item>
+          </el-descriptions>
+          <el-image v-if="zhipuPreview" class="zhipu-preview" :src="zhipuPreview" fit="cover" />
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
+
+    <el-drawer v-model="userDrawerVisible" title="用户详情" size="520px">
+      <template v-if="userDetail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="昵称">{{ userDetail.user.nickname || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="会员">{{ userDetail.user.vipStatus }}</el-descriptions-item>
+          <el-descriptions-item label="到期">{{ userDetail.user.vipExpiredAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="OpenID">{{ userDetail.user.openid }}</el-descriptions-item>
+        </el-descriptions>
+        <h3 class="drawer-title">最近订单</h3>
+        <el-table :data="userDetail.orders" size="small">
+          <el-table-column prop="orderNo" label="订单号" min-width="180" />
+          <el-table-column prop="status" label="状态" width="90" />
+        </el-table>
+        <h3 class="drawer-title">最近记录</h3>
+        <el-table :data="userDetail.records" size="small">
+          <el-table-column prop="resultTitle" label="标题" min-width="180" />
+          <el-table-column prop="unlockType" label="解锁" width="90" />
+        </el-table>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   fetchAdminAdUnlocks,
   fetchAdminAuditLogs,
   fetchAdminFeedback,
   fetchAdminNotificationLogs,
   fetchAdminOrders,
+  fetchAdminUserDetail,
   fetchAdminUsers,
+  fetchZhipuImageStatus,
+  testZhipuImage,
+  updateAdminUserMembership,
   updateAdminFeedbackStatus,
+  type AdminUserDetailData,
+  type ZhipuImageStatus,
   type AdminAdUnlockItem,
   type AdminAuditLogItem,
   type AdminFeedbackItem,
@@ -102,6 +154,11 @@ const feedback = ref<AdminFeedbackItem[]>([]);
 const adUnlocks = ref<AdminAdUnlockItem[]>([]);
 const notificationLogs = ref<AdminNotificationLogItem[]>([]);
 const auditLogs = ref<AdminAuditLogItem[]>([]);
+const userDrawerVisible = ref(false);
+const userDetail = ref<AdminUserDetailData | null>(null);
+const zhipuStatus = ref<ZhipuImageStatus | null>(null);
+const zhipuPreview = ref('');
+const zhipuTesting = ref(false);
 
 async function loadAll() {
   try {
@@ -113,6 +170,7 @@ async function loadAll() {
       adUnlockResponse,
       notificationResponse,
       auditResponse,
+      zhipuStatusResponse,
     ] = await Promise.all([
       fetchAdminUsers(),
       fetchAdminOrders(),
@@ -120,6 +178,7 @@ async function loadAll() {
       fetchAdminAdUnlocks(),
       fetchAdminNotificationLogs(),
       fetchAdminAuditLogs(),
+      fetchZhipuImageStatus(),
     ]);
 
     users.value = userResponse.data.items;
@@ -128,6 +187,7 @@ async function loadAll() {
     adUnlocks.value = adUnlockResponse.data.items;
     notificationLogs.value = notificationResponse.data.items;
     auditLogs.value = auditResponse.data.items;
+    zhipuStatus.value = zhipuStatusResponse.data;
   } catch (error) {
     console.warn('load operations failed', error);
     ElMessage.error('运营数据加载失败');
@@ -145,7 +205,75 @@ async function markFeedbackResolved(id: string) {
   await loadAll();
 }
 
+async function replyFeedback(id: string) {
+  const { value } = await ElMessageBox.prompt('输入给用户看的回复内容', '回复反馈', {
+    inputType: 'textarea',
+    inputPlaceholder: '例如：问题已定位，预计下个版本修复。',
+  });
+  await updateAdminFeedbackStatus(id, {
+    status: 'processing',
+    adminReply: value,
+    adminNote: '已回复用户',
+  });
+  ElMessage.success('已回复反馈');
+  await loadAll();
+}
+
+async function openUserDetail(id: string) {
+  const response = await fetchAdminUserDetail(id);
+  userDetail.value = response.data;
+  userDrawerVisible.value = true;
+}
+
+async function toggleVip(row: AdminUserItem) {
+  const nextStatus = row.vipStatus === 'active' ? 'inactive' : 'active';
+  const expireAt =
+    nextStatus === 'active'
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+  await updateAdminUserMembership(row.id, {
+    vipStatus: nextStatus,
+    vipExpiredAt: expireAt,
+  });
+  ElMessage.success('会员状态已更新');
+  await loadAll();
+}
+
+async function runZhipuTest() {
+  try {
+    zhipuTesting.value = true;
+    const response = await testZhipuImage();
+    zhipuPreview.value = response.data.item.imageDataUrl;
+    ElMessage.success('智谱生图测试成功');
+  } catch (error) {
+    console.warn('zhipu image test failed', error);
+    ElMessage.error('智谱生图测试失败，请检查 API Key / 模型 / 超时配置');
+  } finally {
+    zhipuTesting.value = false;
+  }
+}
+
 onMounted(() => {
   void loadAll();
 });
 </script>
+
+<style scoped>
+.drawer-title {
+  margin: 20px 0 10px;
+  font-size: 15px;
+}
+
+.integration-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zhipu-preview {
+  width: 220px;
+  height: 220px;
+  margin-top: 16px;
+  border-radius: 8px;
+}
+</style>

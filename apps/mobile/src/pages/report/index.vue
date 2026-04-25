@@ -171,7 +171,7 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { verifyRewardUnlock } from '../../api/ads';
-import { generateReportPoster } from '../../api/posters';
+import { generateReportPosterAsync } from '../../api/posters';
 import { fetchReport } from '../../api/reports';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
@@ -288,8 +288,7 @@ async function generatePoster() {
 
   try {
     posterLoading.value = true;
-    const response = await generateReportPoster(recordId.value);
-    poster.value = response.data.poster;
+    poster.value = await generateReportPosterAsync(recordId.value);
     uni.showToast({
       title: '海报已生成',
       icon: 'success',

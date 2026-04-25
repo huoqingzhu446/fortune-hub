@@ -7,12 +7,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'push_subscriptions' })
-@Index('uniq_push_subscriptions_user_scene_template', ['userId', 'scene', 'templateId'], {
-  unique: true,
-})
-@Index('idx_push_subscriptions_scene_status', ['scene', 'status'])
-export class PushSubscriptionEntity {
+@Entity({ name: 'user_consents' })
+@Index('idx_user_consents_user_type', ['userId', 'consentType'])
+@Index('idx_user_consents_type_version_status', ['consentType', 'version', 'status'])
+export class UserConsentEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;
 
@@ -20,25 +18,25 @@ export class PushSubscriptionEntity {
   userId!: string;
 
   @Column({ type: 'varchar', length: 32 })
-  scene!: string;
+  consentType!: string;
 
-  @Column({ type: 'varchar', length: 128 })
-  templateId!: string;
+  @Column({ type: 'varchar', length: 32 })
+  version!: string;
 
-  @Column({ type: 'varchar', length: 16, default: 'active' })
+  @Column({ type: 'varchar', length: 16, default: 'agreed' })
   status!: string;
 
+  @Column({ type: 'varchar', length: 32, default: 'mobile' })
+  source!: string;
+
   @Column({ type: 'json', nullable: true })
-  extraJson!: Record<string, unknown> | null;
+  clientInfoJson!: Record<string, unknown> | null;
 
   @Column({ type: 'datetime' })
-  lastSubscribedAt!: Date;
+  agreedAt!: Date;
 
   @Column({ type: 'datetime', nullable: true })
-  expireAt!: Date | null;
-
-  @Column({ type: 'datetime', nullable: true })
-  cancelledAt!: Date | null;
+  revokedAt!: Date | null;
 
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;

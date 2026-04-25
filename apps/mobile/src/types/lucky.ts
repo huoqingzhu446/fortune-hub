@@ -148,7 +148,13 @@ export interface LuckyWallpaperData {
     aspectRatio: '9:16' | '16:9' | '1:1';
     width: number;
     height: number;
-    format: 'svg';
+    format: 'svg' | 'png';
+    provider: string;
+    providerStatus: string;
+    providerImageUrl: string | null;
+    providerRequestId: string | null;
+    providerError: string | null;
+    fileUrl: string | null;
     generatedAt: string;
     downloadFileName: string;
     svgMarkup: string;
@@ -161,3 +167,22 @@ export type LuckySignDetailResponse = ApiEnvelope<LuckySignDetailData>;
 export type LuckyYearlyResponse = ApiEnvelope<LuckyYearlyData>;
 export type LuckyRecommendationsResponse = ApiEnvelope<LuckyRecommendationsData>;
 export type LuckyWallpaperResponse = ApiEnvelope<LuckyWallpaperData>;
+
+export interface LuckyWallpaperJob {
+  jobId: string;
+  userId: string | null;
+  jobType: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  request: Record<string, unknown>;
+  result: LuckyWallpaperData['wallpaper'] | null;
+  fileUrl: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LuckyWallpaperJobResponse = ApiEnvelope<{
+  job: LuckyWallpaperJob;
+}>;

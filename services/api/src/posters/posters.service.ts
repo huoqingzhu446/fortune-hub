@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { Repository } from 'typeorm';
+import { ZhipuImageService } from '../common/zhipu-image.service';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { PosterJobEntity } from '../database/entities/poster-job.entity';
@@ -43,22 +44,13 @@ type PosterSource = {
   highlightLines: string[];
 };
 
-type ZhipuImageResponse = {
-  data?: Array<{
-    url?: string;
-    b64_json?: string;
-    base64?: string;
-  }>;
-  error?: {
-    message?: string;
-  };
-};
-
 type PosterBackgroundAsset = {
   provider: string;
   status: string;
   providerImageUrl: string | null;
   backgroundImageDataUrl: string | null;
+  providerRequestId?: string | null;
+  providerError?: string | null;
 };
 
 type PosterLayout = {
@@ -67,9 +59,6 @@ type PosterLayout = {
   height: number;
   kind: 'square' | 'portrait';
 };
-
-const ZHIPU_GENERATION_TIMEOUT_MS = 8000;
-const PROVIDER_IMAGE_FETCH_TIMEOUT_MS = 3000;
 
 @Injectable()
 export class PostersService {
@@ -85,6 +74,7 @@ export class PostersService {
     private readonly reportsService: ReportsService,
     private readonly luckyService: LuckyService,
     private readonly configService: ConfigService,
+    private readonly zhipuImageService: ZhipuImageService,
   ) {}
 
   async generatePoster(dto: GeneratePosterDto, user: UserEntity | null) {
@@ -131,6 +121,8 @@ export class PostersService {
       footerText: source.footerText,
       themeName: source.themeName,
       providerImageUrl: backgroundAsset.providerImageUrl,
+      providerRequestId: backgroundAsset.providerRequestId ?? null,
+      providerError: backgroundAsset.providerError ?? null,
       providerPrompt,
       width: layout.width,
       height: layout.height,
@@ -527,36 +519,6 @@ export class PostersService {
     return this.asRecord(template?.payloadJson);
   }
 
-  private async generateBackgroundWithZhipu(apiKey: string, prompt: string, size: string) {
-    const response = await this.fetchWithTimeout(
-      'https://open.bigmodel.cn/api/paas/v4/images/generations',
-      {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'glm-image',
-        prompt,
-        size,
-      }),
-      },
-      ZHIPU_GENERATION_TIMEOUT_MS,
-      '智普生图响应超时，已切换内建海报背景',
-    );
-
-    const payload = (await response.json()) as ZhipuImageResponse;
-
-    if (!response.ok || !payload.data?.length) {
-      throw new BadGatewayException(
-        payload.error?.message || '智普海报背景生成失败，请稍后再试',
-      );
-    }
-
-    return payload.data[0];
-  }
-
   private async resolvePosterBackground(
     apiKey: string | undefined,
     prompt: string,
@@ -568,70 +530,38 @@ export class PostersService {
         status: 'fallback',
         providerImageUrl: null,
         backgroundImageDataUrl: null,
+        providerRequestId: null,
+        providerError: '未配置 ZHIPU_API_KEY',
       };
     }
 
     try {
-      const providerImage = await this.generateBackgroundWithZhipu(
-        apiKey,
+      const providerImage = await this.zhipuImageService.generateImage({
         prompt,
         size,
-      );
-      const backgroundImageDataUrl = await this.resolveProviderImageDataUrl(
-        providerImage,
-      );
+        purpose: '海报背景',
+      });
 
       return {
         provider: 'zhipu',
         status: 'generated',
-        providerImageUrl: providerImage.url ?? null,
-        backgroundImageDataUrl,
+        providerImageUrl: providerImage.providerImageUrl,
+        backgroundImageDataUrl: providerImage.imageDataUrl,
+        providerRequestId: providerImage.requestId,
+        providerError: null,
       };
     } catch (error) {
-      console.warn('poster background fallback to builtin', error);
+      const errorMessage = error instanceof Error ? error.message : '智谱海报背景生成失败';
+      console.warn('poster background fallback to builtin', errorMessage);
 
       return {
         provider: 'builtin',
         status: 'fallback',
         providerImageUrl: null,
         backgroundImageDataUrl: null,
+        providerRequestId: null,
+        providerError: errorMessage,
       };
-    }
-  }
-
-  private async resolveProviderImageDataUrl(image: {
-    url?: string;
-    b64_json?: string;
-    base64?: string;
-  }) {
-    if (image.b64_json) {
-      return `data:image/png;base64,${image.b64_json}`;
-    }
-
-    if (image.base64) {
-      return `data:image/png;base64,${image.base64}`;
-    }
-
-    if (!image.url) {
-      throw new BadGatewayException('智普返回的图片地址无效');
-    }
-
-    try {
-      const response = await this.fetchWithTimeout(
-        image.url,
-        undefined,
-        PROVIDER_IMAGE_FETCH_TIMEOUT_MS,
-        '智普背景图下载超时，已切换内建海报背景',
-      );
-      const mimeType = response.headers.get('content-type') || 'image/png';
-      const buffer = Buffer.from(await response.arrayBuffer());
-      return `data:${mimeType};base64,${buffer.toString('base64')}`;
-    } catch (error) {
-      if (error instanceof BadGatewayException) {
-        throw error;
-      }
-
-      return image.url;
     }
   }
 

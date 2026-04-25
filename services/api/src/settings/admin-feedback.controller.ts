@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import type { AdminProfile } from '../admin-auth/admin-auth.service';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { UpdateFeedbackStatusDto } from './dto/update-feedback-status.dto';
 import { SettingsService } from './settings.service';
@@ -23,11 +25,20 @@ export class AdminFeedbackController {
     });
   }
 
+  @Get(':id')
+  getDetail(@Param('id') id: string) {
+    return this.settingsService.getFeedbackDetail(id);
+  }
+
   @Put(':id/status')
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateFeedbackStatusDto,
+    @Req() request: Request & { admin?: AdminProfile },
   ) {
-    return this.settingsService.updateFeedbackStatus(id, dto);
+    return this.settingsService.updateFeedbackStatus(id, {
+      ...dto,
+      actorId: request.admin?.username ?? null,
+    });
   }
 }

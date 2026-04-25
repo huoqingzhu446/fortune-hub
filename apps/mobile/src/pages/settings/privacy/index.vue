@@ -3,7 +3,13 @@
     <view class="panel">
       <text class="eyebrow">privacy</text>
       <text class="title">隐私与合规说明</text>
-      <text class="summary">这是一版开发期隐私页，先把当前真实采集范围和用途说清楚，后面再接正式法务文案。</text>
+      <text class="summary">{{ privacySummary }}</text>
+      <view class="consent-row">
+        <text class="consent-row__status">{{ consentStatusText }}</text>
+        <button class="hero-button" :loading="loading" @tap="toggleConsent">
+          {{ consentButtonText }}
+        </button>
+      </view>
     </view>
 
     <view class="panel">
@@ -33,9 +39,76 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { agreeConsent, fetchSettings, revokeConsent } from '../../../api/settings';
 import { useThemePreference } from '../../../composables/useThemePreference';
+import { getAuthToken } from '../../../services/session';
+import type { UserConsentItem } from '../../../types/settings';
 
 const { themeVars } = useThemePreference();
+const privacyVersion = ref('2026-04-25');
+const privacySummary = ref('用于登录、保存历史、同步偏好、发送订阅提醒与处理反馈。');
+const consents = ref<UserConsentItem[]>([]);
+const loading = ref(false);
+
+const latestPrivacyConsent = computed(() =>
+  consents.value.find((item) => item.consentType === 'privacy'),
+);
+const hasAgreed = computed(() => latestPrivacyConsent.value?.status === 'agreed');
+const consentStatusText = computed(() =>
+  hasAgreed.value
+    ? `已确认隐私版本 ${latestPrivacyConsent.value?.version || privacyVersion.value}`
+    : `待确认隐私版本 ${privacyVersion.value}`,
+);
+const consentButtonText = computed(() => (hasAgreed.value ? '撤回确认' : '确认并继续使用'));
+
+async function loadPrivacyContext() {
+  try {
+    const response = await fetchSettings();
+    privacyVersion.value = response.data.settings.privacyVersion;
+    privacySummary.value = response.data.settings.privacySummary;
+    consents.value = response.data.consents || [];
+  } catch (error) {
+    console.warn('load privacy context failed', error);
+  }
+}
+
+async function toggleConsent() {
+  if (!getAuthToken()) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none',
+    });
+    return;
+  }
+
+  try {
+    loading.value = true;
+    if (hasAgreed.value) {
+      await revokeConsent('privacy');
+    } else {
+      await agreeConsent({
+        consentType: 'privacy',
+        version: privacyVersion.value,
+        source: 'mobile',
+      });
+    }
+    await loadPrivacyContext();
+  } catch (error) {
+    console.warn('update privacy consent failed', error);
+    uni.showToast({
+      title: '操作失败，请稍后再试',
+      icon: 'none',
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+onShow(() => {
+  void loadPrivacyContext();
+});
 </script>
 
 <style lang="scss">
@@ -85,5 +158,28 @@ const { themeVars } = useThemePreference();
 .bullet-list {
   display: grid;
   gap: 12rpx;
+}
+
+.consent-row {
+  display: grid;
+  gap: 14rpx;
+}
+
+.consent-row__status {
+  font-size: 24rpx;
+  color: var(--apple-subtle);
+}
+
+.hero-button {
+  min-height: 82rpx;
+  border-radius: 999rpx;
+  line-height: 82rpx;
+  font-size: 28rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--apple-blue) 0%, #7ba7ff 100%);
+}
+
+.hero-button::after {
+  border: none;
 }
 </style>

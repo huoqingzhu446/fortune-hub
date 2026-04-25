@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuditService } from '../common/audit.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
@@ -42,6 +43,7 @@ export class AdminContentService {
     @InjectRepository(AppConfigEntity)
     private readonly appConfigRepository: Repository<AppConfigEntity>,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
   ) {}
 
   uploadAudio(
@@ -124,6 +126,10 @@ export class AdminContentService {
 
     this.applyLifecycleStatus(content, dto.status);
     const saved = await this.fortuneContentRepository.save(content);
+    await this.auditResource('content.create', 'fortune_content', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+    });
 
     return this.buildDetailEnvelope('item', this.serializeContent(saved));
   }
@@ -141,6 +147,10 @@ export class AdminContentService {
     this.applyLifecycleStatus(content, dto.status);
 
     const saved = await this.fortuneContentRepository.save(content);
+    await this.auditResource('content.update', 'fortune_content', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+    });
     return this.buildDetailEnvelope('item', this.serializeContent(saved));
   }
 
@@ -148,12 +158,14 @@ export class AdminContentService {
     const content = await this.getContentOrThrow(id);
     this.applyLifecycleStatus(content, status);
     const saved = await this.fortuneContentRepository.save(content);
+    await this.auditResource('content.status', 'fortune_content', saved.id, { status });
     return this.buildDetailEnvelope('item', this.serializeContent(saved));
   }
 
   async deleteContent(id: string) {
     const content = await this.getContentOrThrow(id);
     await this.fortuneContentRepository.delete({ id: content.id });
+    await this.auditResource('content.delete', 'fortune_content', id);
     return this.buildDeletedEnvelope(id);
   }
 
@@ -190,6 +202,10 @@ export class AdminContentService {
 
     this.applyLifecycleStatus(item, dto.status);
     const saved = await this.luckyItemRepository.save(item);
+    await this.auditResource('content.create', 'lucky_item', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+    });
     return this.buildDetailEnvelope('item', this.serializeLuckyItem(saved));
   }
 
@@ -207,6 +223,10 @@ export class AdminContentService {
     this.applyLifecycleStatus(item, dto.status);
 
     const saved = await this.luckyItemRepository.save(item);
+    await this.auditResource('content.update', 'lucky_item', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+    });
     return this.buildDetailEnvelope('item', this.serializeLuckyItem(saved));
   }
 
@@ -214,12 +234,14 @@ export class AdminContentService {
     const item = await this.getLuckyItemOrThrow(id);
     this.applyLifecycleStatus(item, status);
     const saved = await this.luckyItemRepository.save(item);
+    await this.auditResource('content.status', 'lucky_item', saved.id, { status });
     return this.buildDetailEnvelope('item', this.serializeLuckyItem(saved));
   }
 
   async deleteLuckyItem(id: string) {
     const item = await this.getLuckyItemOrThrow(id);
     await this.luckyItemRepository.delete({ id: item.id });
+    await this.auditResource('content.delete', 'lucky_item', id);
     return this.buildDeletedEnvelope(id);
   }
 
@@ -252,12 +274,19 @@ export class AdminContentService {
       description: dto.description?.trim() || null,
       engine: dto.engine?.trim() || 'json',
       sortOrder: dto.sortOrder,
+      grayPercent: dto.grayPercent ?? 100,
+      releaseNote: dto.releaseNote?.trim() || null,
       payloadJson: dto.payloadJson,
     });
 
     this.applyLifecycleStatus(item, dto.status);
     const saved = await this.reportTemplateRepository.save(item);
-    await this.snapshotReportTemplate(saved, 'created');
+    const version = await this.snapshotReportTemplate(saved, 'created');
+    await this.auditResource('template.create', 'report_template', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+      versionNo: version.versionNo,
+    });
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
 
@@ -271,19 +300,34 @@ export class AdminContentService {
     item.description = dto.description?.trim() || null;
     item.engine = dto.engine?.trim() || 'json';
     item.sortOrder = dto.sortOrder;
+    item.grayPercent = dto.grayPercent ?? item.grayPercent ?? 100;
+    item.releaseNote = dto.releaseNote?.trim() || null;
     item.payloadJson = dto.payloadJson;
     this.applyLifecycleStatus(item, dto.status);
 
     const saved = await this.reportTemplateRepository.save(item);
-    await this.snapshotReportTemplate(saved, 'updated');
+    const version = await this.snapshotReportTemplate(saved, 'updated');
+    await this.auditResource('template.update', 'report_template', saved.id, {
+      status: saved.status,
+      bizCode: saved.bizCode,
+      versionNo: version.versionNo,
+    });
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
 
   async changeReportTemplateStatus(id: string, status: string) {
     const item = await this.getReportTemplateOrThrow(id);
     this.applyLifecycleStatus(item, status);
-    const saved = await this.reportTemplateRepository.save(item);
-    await this.snapshotReportTemplate(saved, `status:${status}`);
+    let saved = await this.reportTemplateRepository.save(item);
+    const version = await this.snapshotReportTemplate(saved, `status:${status}`);
+    if (status === 'published') {
+      saved.publishedVersionNo = version.versionNo;
+      saved = await this.reportTemplateRepository.save(saved);
+    }
+    await this.auditResource('template.status', 'report_template', saved.id, {
+      status,
+      versionNo: version.versionNo,
+    });
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
 
@@ -324,7 +368,11 @@ export class AdminContentService {
     item.engine = version.engine;
     item.payloadJson = version.payloadJson;
     const saved = await this.reportTemplateRepository.save(item);
-    await this.snapshotReportTemplate(saved, `rollback:${version.versionNo}`);
+    const snapshot = await this.snapshotReportTemplate(saved, `rollback:${version.versionNo}`);
+    await this.auditResource('template.rollback', 'report_template', saved.id, {
+      rollbackTo: version.versionNo,
+      versionNo: snapshot.versionNo,
+    });
 
     return this.buildDetailEnvelope('item', this.serializeReportTemplate(saved));
   }
@@ -373,6 +421,7 @@ export class AdminContentService {
   async deleteReportTemplate(id: string) {
     const item = await this.getReportTemplateOrThrow(id);
     await this.reportTemplateRepository.delete({ id: item.id });
+    await this.auditResource('template.delete', 'report_template', id);
     return this.buildDeletedEnvelope(id);
   }
 
@@ -409,6 +458,11 @@ export class AdminContentService {
 
     this.applyLifecycleStatus(item, dto.status);
     const saved = await this.appConfigRepository.save(item);
+    await this.auditResource('config.create', 'config', saved.id, {
+      namespace: saved.namespace,
+      configKey: saved.configKey,
+      status: saved.status,
+    });
     return this.buildDetailEnvelope('item', this.serializeConfig(saved));
   }
 
@@ -425,6 +479,11 @@ export class AdminContentService {
     this.applyLifecycleStatus(item, dto.status);
 
     const saved = await this.appConfigRepository.save(item);
+    await this.auditResource('config.update', 'config', saved.id, {
+      namespace: saved.namespace,
+      configKey: saved.configKey,
+      status: saved.status,
+    });
     return this.buildDetailEnvelope('item', this.serializeConfig(saved));
   }
 
@@ -432,12 +491,18 @@ export class AdminContentService {
     const item = await this.getConfigOrThrow(id);
     this.applyLifecycleStatus(item, status);
     const saved = await this.appConfigRepository.save(item);
+    await this.auditResource('config.status', 'config', saved.id, {
+      namespace: saved.namespace,
+      configKey: saved.configKey,
+      status,
+    });
     return this.buildDetailEnvelope('item', this.serializeConfig(saved));
   }
 
   async deleteConfig(id: string) {
     const item = await this.getConfigOrThrow(id);
     await this.appConfigRepository.delete({ id: item.id });
+    await this.auditResource('config.delete', 'config', id);
     return this.buildDeletedEnvelope(id);
   }
 
@@ -650,6 +715,9 @@ export class AdminContentService {
       description: item.description,
       engine: item.engine,
       sortOrder: item.sortOrder,
+      grayPercent: item.grayPercent,
+      releaseNote: item.releaseNote,
+      publishedVersionNo: item.publishedVersionNo,
       status: item.status,
       payloadJson: item.payloadJson,
       publishedAt: item.publishedAt?.toISOString() ?? null,
@@ -680,7 +748,7 @@ export class AdminContentService {
       order: { versionNo: 'DESC' },
     });
 
-    await this.reportTemplateVersionRepository.save(
+    return this.reportTemplateVersionRepository.save(
       this.reportTemplateVersionRepository.create({
         templateId: item.id,
         templateType: item.templateType,
@@ -693,6 +761,22 @@ export class AdminContentService {
         createdBy: null,
       }),
     );
+  }
+
+  private async auditResource(
+    action: string,
+    resourceType: string,
+    resourceId: string,
+    payload?: Record<string, unknown>,
+  ) {
+    await this.auditService.write({
+      actorType: 'admin',
+      actorId: null,
+      action,
+      resourceType,
+      resourceId,
+      payload: payload ?? null,
+    });
   }
 
   private renderTemplatePreview(

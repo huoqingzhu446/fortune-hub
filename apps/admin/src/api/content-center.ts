@@ -57,6 +57,9 @@ export interface ReportTemplateItem {
   description: string | null;
   engine: string;
   sortOrder: number;
+  grayPercent: number;
+  releaseNote: string | null;
+  publishedVersionNo: number | null;
   status: LifecycleStatus;
   payloadJson: Record<string, unknown>;
   publishedAt: string | null;
@@ -87,6 +90,20 @@ export interface UploadedAdminFile {
   relativePath: string;
 }
 
+export interface ReportTemplateVersionItem {
+  id: string;
+  templateId: string;
+  templateType: string;
+  bizCode: string;
+  versionNo: number;
+  title: string;
+  engine: string;
+  payloadJson: Record<string, unknown>;
+  status: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export interface SaveFortuneContentPayload {
   contentType: string;
   bizCode: string;
@@ -115,6 +132,8 @@ export interface SaveReportTemplatePayload {
   description?: string;
   engine?: string;
   sortOrder: number;
+  grayPercent?: number;
+  releaseNote?: string;
   status: LifecycleStatus;
   payloadJson: Record<string, unknown>;
 }
@@ -257,6 +276,36 @@ export async function updateReportTemplateStatus(
   const { data } = await http.post<DetailResponse<ReportTemplateItem>>(
     `/admin/report-templates/${id}/status`,
     { status },
+  );
+  return data;
+}
+
+export async function previewReportTemplate(id: string, sample?: Record<string, unknown>) {
+  const { data } = await http.post<{
+    code: number;
+    message: string;
+    data: {
+      preview: {
+        template: ReportTemplateItem;
+        sample: Record<string, unknown>;
+        rendered: unknown;
+      };
+    };
+    timestamp: string;
+  }>(`/admin/report-templates/${id}/preview`, { sample });
+  return data;
+}
+
+export async function fetchReportTemplateVersions(id: string) {
+  const { data } = await http.get<ListResponse<ReportTemplateVersionItem>>(
+    `/admin/report-templates/${id}/versions`,
+  );
+  return data;
+}
+
+export async function rollbackReportTemplate(id: string, versionId: string) {
+  const { data } = await http.post<DetailResponse<ReportTemplateItem>>(
+    `/admin/report-templates/${id}/rollback/${versionId}`,
   );
   return data;
 }

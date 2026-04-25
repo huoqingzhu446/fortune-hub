@@ -1,8 +1,11 @@
-import { Body, Controller, Get, Headers, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import type { AdminProfile } from '../admin-auth/admin-auth.service';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { AuthService } from '../auth/auth.service';
 import { RunNotificationDto } from './dto/run-notification.dto';
 import { SubscribeNotificationDto } from './dto/subscribe-notification.dto';
+import { UnsubscribeNotificationDto } from './dto/unsubscribe-notification.dto';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -26,6 +29,15 @@ export class NotificationsController {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.notificationsService.subscribe(user, dto);
   }
+
+  @Delete('subscribe')
+  async unsubscribe(
+    @Body() dto: UnsubscribeNotificationDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.notificationsService.unsubscribe(user, dto);
+  }
 }
 
 @Controller('admin/notifications')
@@ -47,7 +59,15 @@ export class AdminNotificationsController {
   }
 
   @Post('run')
-  run(@Body() dto: RunNotificationDto) {
+  async run(
+    @Body() dto: RunNotificationDto,
+    @Req() request: Request & { admin?: AdminProfile },
+  ) {
+    await this.notificationsService.auditAdminRun({
+      actorId: request.admin?.username ?? null,
+      action: dto.mode === 'send' ? 'notification.run_send' : 'notification.queue',
+      scene: dto.scene || 'daily_reminder',
+    });
     if (dto.mode === 'send') {
       return this.notificationsService.runNow(dto.scene || 'daily_reminder');
     }
@@ -56,7 +76,29 @@ export class AdminNotificationsController {
   }
 
   @Post('retry')
-  retry() {
+  async retry(@Req() request: Request & { admin?: AdminProfile }) {
+    await this.notificationsService.auditAdminRun({
+      actorId: request.admin?.username ?? null,
+      action: 'notification.retry',
+    });
     return this.notificationsService.processDueRetries();
+  }
+
+  @Post('cleanup-expired')
+  async cleanupExpired(@Req() request: Request & { admin?: AdminProfile }) {
+    await this.notificationsService.auditAdminRun({
+      actorId: request.admin?.username ?? null,
+      action: 'notification.cleanup_expired',
+    });
+    return this.notificationsService.cleanupExpiredSubscriptions();
+  }
+
+  @Post('run-scheduled')
+  async runScheduled(@Req() request: Request & { admin?: AdminProfile }) {
+    await this.notificationsService.auditAdminRun({
+      actorId: request.admin?.username ?? null,
+      action: 'notification.run_scheduled',
+    });
+    return this.notificationsService.runScheduledDaily();
   }
 }

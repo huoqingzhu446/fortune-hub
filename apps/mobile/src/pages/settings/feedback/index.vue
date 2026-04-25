@@ -20,9 +20,16 @@
       <text class="section-title">最近反馈</text>
       <view v-if="history.length" class="history-list">
         <view v-for="item in history" :key="item.id" class="history-card">
-          <text class="history-card__time">{{ formatDateTime(item.createdAt) }}</text>
+          <view class="history-card__head">
+            <text class="history-card__time">{{ formatDateTime(item.createdAt) }}</text>
+            <text class="history-card__status">{{ formatStatus(resolveFeedbackStatus(item)) }}</text>
+          </view>
           <text class="history-card__message">{{ item.message }}</text>
           <text v-if="item.contact" class="history-card__contact">联系方式：{{ item.contact }}</text>
+          <view v-if="'adminReply' in item && item.adminReply" class="reply-card">
+            <text class="reply-card__label">后台回复</text>
+            <text class="reply-card__text">{{ item.adminReply }}</text>
+          </view>
         </view>
       </view>
       <view v-else class="empty-card">
@@ -154,6 +161,21 @@ function formatDateTime(value: string) {
   return `${month}-${day} ${hour}:${minute}`;
 }
 
+function formatStatus(status: string) {
+  const labels: Record<string, string> = {
+    open: '待处理',
+    processing: '处理中',
+    resolved: '已处理',
+    closed: '已关闭',
+    local: '本地保存',
+  };
+  return labels[status] || status;
+}
+
+function resolveFeedbackStatus(item: FeedbackItem | ReturnType<typeof appendFeedbackEntry>) {
+  return 'status' in item ? item.status : 'local';
+}
+
 onShow(() => {
   void loadFeedbackContext();
 });
@@ -247,8 +269,42 @@ onShow(() => {
   background: rgba(246, 249, 252, 0.92);
 }
 
+.history-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
 .history-card__time {
   font-size: 22rpx;
   color: var(--apple-subtle);
+}
+
+.history-card__status {
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 125, 246, 0.1);
+  font-size: 22rpx;
+  color: var(--apple-blue);
+}
+
+.reply-card {
+  display: grid;
+  gap: 6rpx;
+  padding: 16rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.reply-card__label {
+  font-size: 22rpx;
+  color: var(--apple-subtle);
+}
+
+.reply-card__text {
+  font-size: 25rpx;
+  line-height: 1.7;
+  color: var(--apple-text);
 }
 </style>

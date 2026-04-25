@@ -120,6 +120,12 @@
           <el-table-column prop="title" label="标题" min-width="180" />
           <el-table-column prop="engine" label="引擎" min-width="110" />
           <el-table-column prop="sortOrder" label="排序" min-width="100" />
+          <el-table-column prop="grayPercent" label="灰度" min-width="90">
+            <template #default="{ row }">{{ row.grayPercent ?? 100 }}%</template>
+          </el-table-column>
+          <el-table-column prop="publishedVersionNo" label="发布版本" min-width="100">
+            <template #default="{ row }">v{{ row.publishedVersionNo || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="status" label="状态" min-width="110">
             <template #default="{ row }">
               <el-tag :type="statusTagType(row.status)">
@@ -162,6 +168,10 @@
         <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
             <el-button text type="primary" @click="openEditDialog(row)">编辑</el-button>
+            <template v-if="activeTab === 'templates'">
+              <el-button text type="primary" @click="openTemplatePreview(row)">预览</el-button>
+              <el-button text type="primary" @click="openTemplateVersions(row)">版本</el-button>
+            </template>
             <el-button
               v-if="row.status !== 'published'"
               text
@@ -288,6 +298,15 @@
             </el-form-item>
             <el-form-item label="排序">
               <el-input-number v-model="reportTemplateForm.sortOrder" :min="1" :max="9999" />
+            </el-form-item>
+          </div>
+
+          <div class="content-center__grid content-center__grid--two">
+            <el-form-item label="灰度比例">
+              <el-input-number v-model="reportTemplateForm.grayPercent" :min="0" :max="100" />
+            </el-form-item>
+            <el-form-item label="发布备注">
+              <el-input v-model="reportTemplateForm.releaseNote" placeholder="例如：小流量灰度 / 文案优化" />
             </el-form-item>
           </div>
 
@@ -439,6 +458,36 @@
         <el-button type="primary" :loading="saving" @click="saveItem">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="templatePreviewVisible" title="模板预览" width="760px">
+      <el-input
+        v-model="templatePreviewSampleText"
+        type="textarea"
+        :rows="8"
+        placeholder='{"name":"清浅"}'
+      />
+      <pre class="content-center__preview">{{ templatePreviewText }}</pre>
+      <template #footer>
+        <el-button @click="templatePreviewVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="templateVersionsVisible" title="模板版本" width="820px">
+      <el-table :data="templateVersions" stripe>
+        <el-table-column prop="versionNo" label="版本" width="90">
+          <template #default="{ row }">v{{ row.versionNo }}</template>
+        </el-table-column>
+        <el-table-column prop="status" label="来源" min-width="140" />
+        <el-table-column prop="createdAt" label="创建时间" min-width="180">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button text type="primary" @click="rollbackTemplateVersion(row.id)">回滚</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -455,10 +504,13 @@ import {
   deleteFortuneContent,
   deleteLuckyItem,
   deleteReportTemplate,
+  fetchReportTemplateVersions,
   fetchConfigEntries,
   fetchFortuneContents,
   fetchLuckyItems,
   fetchReportTemplates,
+  previewReportTemplate,
+  rollbackReportTemplate,
   updateConfigEntry,
   updateConfigEntryStatus,
   updateFortuneContent,
@@ -473,6 +525,7 @@ import {
   type LifecycleStatus,
   type LuckyItem,
   type ReportTemplateItem,
+  type ReportTemplateVersionItem,
 } from '../api/content-center';
 
 type ContentTab = 'fortune' | 'luckyItems' | 'templates' | 'configs';
@@ -502,6 +555,12 @@ const loading = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
 const editingId = ref('');
+const templatePreviewVisible = ref(false);
+const templatePreviewText = ref('');
+const templatePreviewSampleText = ref('{\n  "name": "清浅",\n  "score": "88"\n}');
+const templateVersionsVisible = ref(false);
+const templateVersions = ref<ReportTemplateVersionItem[]>([]);
+const activeTemplateId = ref('');
 
 const fortuneContents = ref<FortuneContentItem[]>([]);
 const luckyItems = ref<LuckyItem[]>([]);
@@ -561,6 +620,8 @@ const reportTemplateForm = reactive({
   description: '',
   engine: 'json',
   sortOrder: 100,
+  grayPercent: 100,
+  releaseNote: '',
   status: 'draft' as LifecycleStatus,
   payloadJsonText:
     '{\n  "baseTitle": "你的结果概览",\n  "shareTitle": "我的今日结果"\n}',
@@ -803,6 +864,8 @@ function openEditDialog(row: ContentRow) {
     reportTemplateForm.description = item.description || '';
     reportTemplateForm.engine = item.engine;
     reportTemplateForm.sortOrder = item.sortOrder;
+    reportTemplateForm.grayPercent = item.grayPercent ?? 100;
+    reportTemplateForm.releaseNote = item.releaseNote || '';
     reportTemplateForm.status = item.status;
     reportTemplateForm.payloadJsonText = JSON.stringify(item.payloadJson, null, 2);
   } else {
@@ -865,6 +928,8 @@ async function saveItem() {
         description: reportTemplateForm.description.trim(),
         engine: reportTemplateForm.engine.trim() || 'json',
         sortOrder: Number(reportTemplateForm.sortOrder) || 100,
+        grayPercent: Number(reportTemplateForm.grayPercent) || 0,
+        releaseNote: reportTemplateForm.releaseNote.trim(),
         status: reportTemplateForm.status,
         payloadJson: parseJsonText('模板载荷 JSON', reportTemplateForm.payloadJsonText),
       };
@@ -931,6 +996,52 @@ async function changeStatus(row: ContentRow, status: LifecycleStatus) {
   }
 }
 
+async function openTemplatePreview(row: ContentRow) {
+  if (activeTab.value !== 'templates') {
+    return;
+  }
+
+  try {
+    const sample = safeParseJsonText(templatePreviewSampleText.value);
+    const response = await previewReportTemplate(row.id, sample);
+    templatePreviewText.value = JSON.stringify(response.data.preview.rendered, null, 2);
+    templatePreviewVisible.value = true;
+  } catch (error) {
+    console.warn('preview report template failed', error);
+    ElMessage.error('模板预览失败');
+  }
+}
+
+async function openTemplateVersions(row: ContentRow) {
+  if (activeTab.value !== 'templates') {
+    return;
+  }
+
+  try {
+    activeTemplateId.value = row.id;
+    const response = await fetchReportTemplateVersions(row.id);
+    templateVersions.value = response.data.items;
+    templateVersionsVisible.value = true;
+  } catch (error) {
+    console.warn('load report template versions failed', error);
+    ElMessage.error('版本加载失败');
+  }
+}
+
+async function rollbackTemplateVersion(versionId: string) {
+  if (!activeTemplateId.value) {
+    return;
+  }
+
+  await ElMessageBox.confirm('确认回滚到这个模板版本吗？', '模板回滚', {
+    type: 'warning',
+  });
+  await rollbackReportTemplate(activeTemplateId.value, versionId);
+  ElMessage.success('模板已回滚');
+  templateVersionsVisible.value = false;
+  await loadCurrentTab();
+}
+
 async function removeItem(row: ContentRow) {
   try {
     await ElMessageBox.confirm(`确认删除 ${resolveRowTitle(row)} 吗？`, '删除内容', {
@@ -989,6 +1100,8 @@ function resetCurrentForm() {
     reportTemplateForm.description = '';
     reportTemplateForm.engine = 'json';
     reportTemplateForm.sortOrder = 100;
+    reportTemplateForm.grayPercent = 100;
+    reportTemplateForm.releaseNote = '';
     reportTemplateForm.status = 'draft';
     reportTemplateForm.payloadJsonText =
       '{\n  "baseTitle": "你的结果概览",\n  "shareTitle": "我的今日结果"\n}';
@@ -1283,6 +1396,18 @@ onMounted(() => {
 .content-center__audio-empty {
   color: #6b7280;
   font-size: 13px;
+}
+
+.content-center__preview {
+  max-height: 360px;
+  margin-top: 14px;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>
 

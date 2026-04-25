@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Max,
   Min,
 } from 'class-validator';
 
@@ -34,6 +35,17 @@ export class SaveReportTemplateDto {
   @IsInt()
   @Min(1)
   sortOrder!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  grayPercent?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  releaseNote?: string;
 
   @IsString()
   @IsIn(['draft', 'published', 'archived'])

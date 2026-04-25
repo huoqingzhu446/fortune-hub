@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ZhipuImageService } from '../common/zhipu-image.service';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
@@ -22,6 +23,7 @@ export class AdminOpsService {
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
     private readonly membershipService: MembershipService,
+    private readonly zhipuImageService: ZhipuImageService,
   ) {}
 
   async listUsers(query: { keyword?: string; vipStatus?: string; limit?: number }) {
@@ -53,6 +55,76 @@ export class AdminOpsService {
             : true,
         )
         .map((item) => this.serializeUser(item)),
+    });
+  }
+
+  async getUserDetail(id: string) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    const [orders, records] = await Promise.all([
+      this.orderRepository.find({
+        where: { userId: user.id },
+        order: { createdAt: 'DESC' },
+        take: 20,
+      }),
+      this.userRecordRepository.find({
+        where: { userId: user.id },
+        order: { createdAt: 'DESC' },
+        take: 20,
+      }),
+    ]);
+
+    return this.buildEnvelope({
+      user: this.serializeUser(user),
+      orders: orders.map((item) => this.serializeOrder(item)),
+      records: records.map((item) => ({
+        id: item.id,
+        recordType: item.recordType,
+        sourceCode: item.sourceCode,
+        resultTitle: item.resultTitle,
+        resultLevel: item.resultLevel,
+        score: item.score,
+        isFullReportUnlocked: item.isFullReportUnlocked,
+        unlockType: item.unlockType,
+        createdAt: item.createdAt.toISOString(),
+      })),
+    });
+  }
+
+  async updateUserMembership(
+    id: string,
+    dto: { vipStatus: string; vipExpiredAt?: string | null },
+    actorId: string | null,
+  ) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    user.vipStatus = dto.vipStatus === 'active' ? 'active' : 'inactive';
+    user.vipExpiredAt =
+      user.vipStatus === 'active' && dto.vipExpiredAt ? new Date(dto.vipExpiredAt) : null;
+    const saved = await this.userRepository.save(user);
+
+    await this.writeAudit({
+      actorType: 'admin',
+      actorId,
+      action: 'user.membership.update',
+      resourceType: 'user',
+      resourceId: saved.id,
+      payload: {
+        vipStatus: saved.vipStatus,
+        vipExpiredAt: saved.vipExpiredAt?.toISOString() ?? null,
+      },
+    });
+
+    return this.buildEnvelope({
+      item: this.serializeUser(saved),
     });
   }
 
@@ -155,6 +227,48 @@ export class AdminOpsService {
           payload: item.payloadJson ?? {},
           createdAt: item.createdAt.toISOString(),
         })),
+    });
+  }
+
+  getZhipuImageStatus() {
+    return this.buildEnvelope({
+      configured: this.zhipuImageService.isConfigured(),
+      modelEnv: 'ZHIPU_IMAGE_MODEL',
+      timeoutEnv: 'ZHIPU_IMAGE_TIMEOUT_MS',
+      fetchTimeoutEnv: 'ZHIPU_IMAGE_FETCH_TIMEOUT_MS',
+    });
+  }
+
+  async testZhipuImage(actorId: string | null, prompt?: string) {
+    const asset = await this.zhipuImageService.generateImage({
+      prompt:
+        prompt?.trim() ||
+        'fortune hub diagnostic image, soft gradient background, no text, no logo',
+      size: '1024x1024',
+      purpose: '诊断',
+    });
+
+    await this.writeAudit({
+      actorType: 'admin',
+      actorId,
+      action: 'zhipu_image.test',
+      resourceType: 'integration',
+      resourceId: 'zhipu-image',
+      payload: {
+        requestId: asset.requestId,
+        providerImageUrl: asset.providerImageUrl,
+      },
+    });
+
+    return this.buildEnvelope({
+      item: {
+        provider: asset.provider,
+        model: asset.model,
+        status: asset.status,
+        requestId: asset.requestId,
+        providerImageUrl: asset.providerImageUrl,
+        imageDataUrl: asset.imageDataUrl,
+      },
     });
   }
 

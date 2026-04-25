@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuditService } from '../common/audit.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FeedbackEntity } from '../database/entities/feedback.entity';
+import { UserConsentEntity } from '../database/entities/user-consent.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
+import { UpdateConsentDto } from './dto/update-consent.dto';
 
 const DEFAULT_SETTINGS_CONFIG = {
   privacyVersion: '2026-04-25',
@@ -28,6 +31,9 @@ export class SettingsService {
     private readonly appConfigRepository: Repository<AppConfigEntity>,
     @InjectRepository(FeedbackEntity)
     private readonly feedbackRepository: Repository<FeedbackEntity>,
+    @InjectRepository(UserConsentEntity)
+    private readonly userConsentRepository: Repository<UserConsentEntity>,
+    private readonly auditService: AuditService,
   ) {}
 
   async getSettings(user: UserEntity | null) {
@@ -42,6 +48,7 @@ export class SettingsService {
         ...settingsConfig,
       },
       compliance: complianceConfig,
+      consents: user ? await this.listLatestConsents(user) : [],
     });
   }
 
@@ -54,11 +61,28 @@ export class SettingsService {
         category: dto.category?.trim() || 'general',
         source: dto.source?.trim() || 'mobile',
         clientInfoJson: dto.clientInfo ?? null,
+        attachmentsJson: dto.attachments ?? null,
         status: 'open',
+        priority: 'normal',
+        assignee: null,
         adminNote: null,
+        adminReply: null,
+        repliedAt: null,
         resolvedAt: null,
       }),
     );
+
+    await this.auditService.write({
+      actorType: user ? 'user' : 'anonymous',
+      actorId: user?.id ?? null,
+      action: 'feedback.submit',
+      resourceType: 'feedback',
+      resourceId: saved.id,
+      payload: {
+        category: saved.category,
+        source: saved.source,
+      },
+    });
 
     return this.buildEnvelope({
       item: this.serializeFeedback(saved),
@@ -107,7 +131,14 @@ export class SettingsService {
 
   async updateFeedbackStatus(
     id: string,
-    input: { status: string; adminNote?: string },
+    input: {
+      status: string;
+      adminNote?: string;
+      adminReply?: string;
+      assignee?: string;
+      priority?: string;
+      actorId?: string | null;
+    },
   ) {
     const item = await this.feedbackRepository.findOne({ where: { id } });
 
@@ -117,13 +148,130 @@ export class SettingsService {
 
     item.status = input.status;
     item.adminNote = input.adminNote?.trim() || item.adminNote;
+    item.adminReply = input.adminReply?.trim() || item.adminReply;
+    item.assignee = input.assignee?.trim() || item.assignee;
+    item.priority = input.priority?.trim() || item.priority;
+    item.repliedAt = input.adminReply?.trim() ? new Date() : item.repliedAt;
     item.resolvedAt = ['resolved', 'closed'].includes(input.status)
       ? item.resolvedAt ?? new Date()
       : null;
 
     const saved = await this.feedbackRepository.save(item);
+    await this.auditService.write({
+      actorType: 'admin',
+      actorId: input.actorId ?? null,
+      action: 'feedback.update',
+      resourceType: 'feedback',
+      resourceId: saved.id,
+      payload: {
+        status: saved.status,
+        priority: saved.priority,
+        assignee: saved.assignee,
+        hasReply: Boolean(saved.adminReply),
+      },
+    });
     return this.buildEnvelope({
       item: this.serializeFeedback(saved),
+    });
+  }
+
+  async getFeedbackDetail(id: string) {
+    const item = await this.feedbackRepository.findOne({ where: { id } });
+
+    if (!item) {
+      throw new NotFoundException('反馈不存在');
+    }
+
+    return this.buildEnvelope({
+      item: this.serializeFeedback(item),
+    });
+  }
+
+  async listMyConsents(user: UserEntity) {
+    return this.buildEnvelope({
+      items: await this.listLatestConsents(user),
+    });
+  }
+
+  async agreeConsent(user: UserEntity, dto: UpdateConsentDto) {
+    const now = new Date();
+    let item = await this.userConsentRepository.findOne({
+      where: {
+        userId: user.id,
+        consentType: dto.consentType.trim(),
+        version: dto.version.trim(),
+      },
+      order: {
+        updatedAt: 'DESC',
+      },
+    });
+
+    item =
+      item ??
+      this.userConsentRepository.create({
+        userId: user.id,
+        consentType: dto.consentType.trim(),
+        version: dto.version.trim(),
+      });
+
+    item.status = 'agreed';
+    item.source = dto.source?.trim() || 'mobile';
+    item.clientInfoJson = dto.clientInfo ?? null;
+    item.agreedAt = now;
+    item.revokedAt = null;
+
+    const saved = await this.userConsentRepository.save(item);
+    await this.auditService.write({
+      actorType: 'user',
+      actorId: user.id,
+      action: 'consent.agree',
+      resourceType: 'user_consent',
+      resourceId: saved.id,
+      payload: {
+        consentType: saved.consentType,
+        version: saved.version,
+      },
+    });
+
+    return this.buildEnvelope({
+      item: this.serializeConsent(saved),
+    });
+  }
+
+  async revokeConsent(user: UserEntity, consentType: string) {
+    const item = await this.userConsentRepository.findOne({
+      where: {
+        userId: user.id,
+        consentType,
+        status: 'agreed',
+      },
+      order: {
+        updatedAt: 'DESC',
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('同意记录不存在');
+    }
+
+    item.status = 'revoked';
+    item.revokedAt = new Date();
+
+    const saved = await this.userConsentRepository.save(item);
+    await this.auditService.write({
+      actorType: 'user',
+      actorId: user.id,
+      action: 'consent.revoke',
+      resourceType: 'user_consent',
+      resourceId: saved.id,
+      payload: {
+        consentType: saved.consentType,
+        version: saved.version,
+      },
+    });
+
+    return this.buildEnvelope({
+      item: this.serializeConsent(saved),
     });
   }
 
@@ -152,9 +300,51 @@ export class SettingsService {
       category: item.category,
       source: item.source,
       status: item.status,
+      priority: item.priority,
+      assignee: item.assignee,
       adminNote: item.adminNote,
+      adminReply: item.adminReply,
+      attachments: item.attachmentsJson ?? [],
       clientInfo: item.clientInfoJson ?? {},
+      repliedAt: item.repliedAt?.toISOString() ?? null,
       resolvedAt: item.resolvedAt?.toISOString() ?? null,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    };
+  }
+
+  private async listLatestConsents(user: UserEntity) {
+    const items = await this.userConsentRepository.find({
+      where: { userId: user.id },
+      order: { updatedAt: 'DESC' },
+      take: 50,
+    });
+    const seenTypes = new Set<string>();
+    const latest = [];
+
+    for (const item of items) {
+      if (seenTypes.has(item.consentType)) {
+        continue;
+      }
+
+      seenTypes.add(item.consentType);
+      latest.push(this.serializeConsent(item));
+    }
+
+    return latest;
+  }
+
+  private serializeConsent(item: UserConsentEntity) {
+    return {
+      id: item.id,
+      userId: item.userId,
+      consentType: item.consentType,
+      version: item.version,
+      status: item.status,
+      source: item.source,
+      clientInfo: item.clientInfoJson ?? {},
+      agreedAt: item.agreedAt.toISOString(),
+      revokedAt: item.revokedAt?.toISOString() ?? null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };

@@ -29,14 +29,29 @@ export class FeedbackEntity {
   @Column({ type: 'varchar', length: 16, default: 'open' })
   status!: string;
 
+  @Column({ type: 'varchar', length: 16, default: 'normal' })
+  priority!: string;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  assignee!: string | null;
+
   @Column({ type: 'text' })
   message!: string;
 
   @Column({ type: 'text', nullable: true })
   adminNote!: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  adminReply!: string | null;
+
+  @Column({ type: 'json', nullable: true })
+  attachmentsJson!: Array<Record<string, unknown>> | null;
+
   @Column({ type: 'json', nullable: true })
   clientInfoJson!: Record<string, unknown> | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  repliedAt!: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
   resolvedAt!: Date | null;

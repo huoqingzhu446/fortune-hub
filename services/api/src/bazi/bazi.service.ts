@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Solar } from 'lunar-typescript';
 import { Repository } from 'typeorm';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
@@ -278,51 +279,110 @@ export class BaziService {
 
   private buildProfessionalResult(dto: AnalyzeBaziDto) {
     const adjusted = this.applyTrueSolarTime(dto);
-    const liteResult = this.buildResult({
-      ...dto,
-      birthday: adjusted.birthday,
-      birthTime: adjusted.birthTime,
-      mode: 'lite',
-    });
-    const [year, month] = adjusted.birthday.split('-').map((item) => Number(item));
-    const monthBranchIndex = this.resolveSolarTermMonthBranchIndex(adjusted.birthday);
-    const monthStemIndex = this.normalizeIndex((year - 1984) * 12 + monthBranchIndex + 1, 10);
-    const professionalMonthPillar = `${HEAVENLY_STEMS[monthStemIndex]}${EARTHLY_BRANCHES[monthBranchIndex]}`;
+    const [year, month, day] = adjusted.birthday.split('-').map((item) => Number(item));
+    const [hour, minute] = adjusted.birthTime.split(':').map((item) => Number(item));
+    const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    const lunar = solar.getLunar();
+    const eightChar = lunar.getEightChar();
+    const yearPillar = eightChar.getYear();
+    const monthPillar = eightChar.getMonth();
+    const dayPillar = eightChar.getDay();
+    const hourPillar = eightChar.getTime();
     const professionalElements = this.computeFiveElements([
-      liteResult.chart.yearPillar,
-      professionalMonthPillar,
-      liteResult.chart.dayPillar,
-      liteResult.chart.hourPillar,
+      yearPillar,
+      monthPillar,
+      dayPillar,
+      hourPillar,
     ]);
     const dominantElement = [...professionalElements].sort((left, right) => right.value - left.value)[0];
     const supportElement = [...professionalElements].sort((left, right) => left.value - right.value)[0];
+    const dayMaster = STEM_TO_ELEMENT[dayPillar[0]];
+    const birthMomentLabel = this.resolveBirthMomentLabel(hour, minute);
+    const keywords = ELEMENT_TO_KEYWORD[dominantElement.name].slice(0, 3);
 
     return {
-      ...liteResult,
       title: `${dominantElement.name}势专业校正版`,
-      subtitle: `已按节气换月与真太阳时近似校正，${professionalMonthPillar}月柱用于专业版参考。`,
+      subtitle: `已按节气换月、立春年界与真太阳时校正，${monthPillar}月柱用于专业版参考。`,
+      summary: `专业版使用农历/干支库重新排盘：日主为${dayMaster}，四柱呈现${dominantElement.name}势更明显。${supportElement.name}元素相对需要补位，适合在日常节奏里用方向、颜色和行动方式做轻量调和。`,
       chart: {
-        ...liteResult.chart,
-        monthPillar: professionalMonthPillar,
+        yearPillar,
+        monthPillar,
+        dayPillar,
+        hourPillar,
+      },
+      baseProfile: {
+        birthday: dto.birthday,
+        birthTime: dto.birthTime,
+        adjustedBirthday: adjusted.birthday,
+        adjustedBirthTime: adjusted.birthTime,
+        birthMomentLabel,
+        gender: dto.gender ?? 'unknown',
+        zodiac: lunar.getYearShengXiao(),
+        dayMaster,
       },
       dominantElement,
       supportElement,
       fiveElements: professionalElements,
+      keywords,
+      reading: {
+        career: `适合围绕“${keywords.join(' / ')}”安排推进方式。专业盘里${dominantElement.name}势较明显，先顺势启动，再用${supportElement.name}元素补足稳定性。`,
+        relationship: `关系里更适合把${dayMaster}日主的真实感受说清楚，避免只靠惯性回应。`,
+        rhythm: `可用“${dominantElement.name}主轴 + ${supportElement.name}补位”的方式做月度节奏规划。`,
+      },
+      practicalTips: {
+        favorableDirection: ELEMENT_TO_DIRECTION[dominantElement.name],
+        supportiveColor: ELEMENT_TO_COLOR[supportElement.name],
+        dailyFocus: `今天适合用${supportElement.name}元素做一点补位练习。`,
+      },
+      sharePoster: {
+        themeName: dominantElement.name === '水' ? 'mist-blue' : 'oriental-gold',
+        title: `${dominantElement.name}势专业校正版`,
+        subtitle: `${dayMaster}日主 · ${monthPillar}月令`,
+        accentText: `${dominantElement.name}主轴 · ${supportElement.name}补位`,
+        footerText: '专业版已纳入节气换月、立春年界与真太阳时。',
+      },
       professional: {
         mode: 'professional',
+        library: 'lunar-typescript',
         adjustedBirthday: adjusted.birthday,
         adjustedBirthTime: adjusted.birthTime,
         trueSolarOffsetMinutes: adjusted.offsetMinutes,
         longitude: dto.longitude ?? 120,
         timezoneOffset: dto.timezoneOffset ?? 8,
-        monthRule: '节气换月近似：按固定节气日切换月令，适合产品专业版首轮校准。',
+        monthRule: '由农历/干支库按节气换月计算，年柱按立春年界校正。',
+        lunar: {
+          year: lunar.getYear(),
+          month: lunar.getMonth(),
+          day: lunar.getDay(),
+          yearInChinese: lunar.getYearInChinese(),
+          monthInChinese: lunar.getMonthInChinese(),
+          dayInChinese: lunar.getDayInChinese(),
+        },
+        tenGods: {
+          year: eightChar.getYearShiShenGan(),
+          month: eightChar.getMonthShiShenGan(),
+          day: eightChar.getDayShiShenGan(),
+          time: eightChar.getTimeShiShenGan(),
+        },
+        hiddenStems: {
+          year: eightChar.getYearHideGan(),
+          month: eightChar.getMonthHideGan(),
+          day: eightChar.getDayHideGan(),
+          time: eightChar.getTimeHideGan(),
+        },
+        naYin: {
+          year: eightChar.getYearNaYin(),
+          month: eightChar.getMonthNaYin(),
+          day: eightChar.getDayNaYin(),
+          time: eightChar.getTimeNaYin(),
+        },
         regressionSamples: [
-          { birthday: '1984-02-04', expectedYearPillar: '甲子' },
-          { birthday: '1990-01-27', expectedZodiac: '蛇/马交界需按立春校验' },
+          { birthday: '1984-02-04 00:00', expectedYearPillar: '甲子' },
+          { birthday: '1990-01-27 12:00', expectedYearPillar: '己巳' },
         ],
       },
       complianceNotice:
-        '当前为专业版近似校准：已纳入节气换月和真太阳时修正，但未接入天文历表级精算，仅用于内容体验和自我观察。',
+        '当前为专业版排盘：已纳入农历/干支库、节气换月、立春年界和真太阳时修正，仅用于内容体验和自我观察。',
       generatedAt: new Date().toISOString(),
     };
   }

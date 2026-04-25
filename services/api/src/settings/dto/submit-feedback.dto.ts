@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsObject,
   IsOptional,
   IsString,
@@ -30,4 +32,9 @@ export class SubmitFeedbackDto {
   @IsOptional()
   @IsObject()
   clientInfo?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  attachments?: Array<Record<string, unknown>>;
 }

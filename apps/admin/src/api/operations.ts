@@ -29,6 +29,22 @@ export interface AdminUserItem {
   updatedAt: string;
 }
 
+export interface AdminUserDetailData {
+  user: AdminUserItem;
+  orders: AdminOrderItem[];
+  records: Array<{
+    id: string;
+    recordType: string;
+    sourceCode: string;
+    resultTitle: string;
+    resultLevel: string | null;
+    score: string | null;
+    isFullReportUnlocked: boolean;
+    unlockType: string | null;
+    createdAt: string;
+  }>;
+}
+
 export interface AdminOrderItem {
   id: string;
   userId: string;
@@ -48,7 +64,11 @@ export interface AdminFeedbackItem {
   contact: string | null;
   category: string;
   status: string;
+  priority: string;
+  assignee: string | null;
   adminNote: string | null;
+  adminReply: string | null;
+  repliedAt: string | null;
   createdAt: string;
 }
 
@@ -81,11 +101,41 @@ export interface AdminNotificationLogItem {
   createdAt: string;
 }
 
+export interface ZhipuImageStatus {
+  configured: boolean;
+  modelEnv: string;
+  timeoutEnv: string;
+  fetchTimeoutEnv: string;
+}
+
 export function fetchAdminUsers(params?: {
   keyword?: string;
   vipStatus?: string;
 }) {
   return http.get<ListResponse<AdminUserItem>>('/admin/ops/users', { params }).then((r) => r.data);
+}
+
+export function fetchAdminUserDetail(id: string) {
+  return http
+    .get<{
+      code: number;
+      message: string;
+      data: AdminUserDetailData;
+      timestamp: string;
+    }>(`/admin/ops/users/${id}`)
+    .then((r) => r.data);
+}
+
+export function updateAdminUserMembership(
+  id: string,
+  payload: {
+    vipStatus: string;
+    vipExpiredAt?: string | null;
+  },
+) {
+  return http
+    .put<DetailResponse<AdminUserItem>>(`/admin/ops/users/${id}/membership`, payload)
+    .then((r) => r.data);
 }
 
 export function fetchAdminOrders(params?: {
@@ -107,6 +157,9 @@ export function updateAdminFeedbackStatus(
   payload: {
     status: string;
     adminNote?: string;
+    adminReply?: string;
+    assignee?: string;
+    priority?: string;
   },
 ) {
   return http
@@ -125,5 +178,36 @@ export function fetchAdminAdUnlocks() {
 export function fetchAdminNotificationLogs() {
   return http
     .get<ListResponse<AdminNotificationLogItem>>('/admin/ops/notification-logs')
+    .then((r) => r.data);
+}
+
+export function fetchZhipuImageStatus() {
+  return http
+    .get<{
+      code: number;
+      message: string;
+      data: ZhipuImageStatus;
+      timestamp: string;
+    }>('/admin/ops/zhipu-image/status')
+    .then((r) => r.data);
+}
+
+export function testZhipuImage(prompt?: string) {
+  return http
+    .post<{
+      code: number;
+      message: string;
+      data: {
+        item: {
+          provider: string;
+          model: string;
+          status: string;
+          requestId: string | null;
+          providerImageUrl: string | null;
+          imageDataUrl: string;
+        };
+      };
+      timestamp: string;
+    }>('/admin/ops/zhipu-image/test', { prompt })
     .then((r) => r.data);
 }

@@ -21,6 +21,7 @@ import { PushSubscriptionEntity } from './entities/push-subscription.entity';
 import { ReportTemplateEntity } from './entities/report-template.entity';
 import { ReportTemplateVersionEntity } from './entities/report-template-version.entity';
 import { ShareRecordEntity } from './entities/share-record.entity';
+import { UserConsentEntity } from './entities/user-consent.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserRecordEntity } from './entities/user-record.entity';
 
@@ -41,6 +42,7 @@ export default new DataSource({
     FavoriteEntity,
     FeedbackEntity,
     UserEntity,
+    UserConsentEntity,
     UserRecordEntity,
     MoodRecordEntity,
     MeditationRecordEntity,

@@ -2,10 +2,12 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
+import { AuditService } from '../common/audit.service';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
 import { PushSubscriptionEntity } from '../database/entities/push-subscription.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { SubscribeNotificationDto } from './dto/subscribe-notification.dto';
+import { UnsubscribeNotificationDto } from './dto/unsubscribe-notification.dto';
 
 type UserPreferences = {
   dailyReminderEnabled?: boolean;
@@ -15,7 +17,8 @@ type UserPreferences = {
 
 @Injectable()
 export class NotificationsService implements OnModuleInit, OnModuleDestroy {
-  private workerTimer: NodeJS.Timeout | null = null;
+  private retryWorkerTimer: NodeJS.Timeout | null = null;
+  private dailyWorkerTimer: NodeJS.Timeout | null = null;
   private cachedWechatAccessToken: {
     token: string;
     expireAt: number;
@@ -29,6 +32,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
   ) {}
 
   onModuleInit() {
@@ -40,16 +44,32 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       60_000,
       Number(this.configService.get<string>('NOTIFICATION_WORKER_INTERVAL_MS', '300000')),
     );
-    this.workerTimer = setInterval(() => {
+    this.retryWorkerTimer = setInterval(() => {
       void this.processDueRetries().catch((error) => {
         console.warn('notification retry worker failed', error);
       });
     }, intervalMs);
+
+    if (this.configService.get<string>('NOTIFICATION_DAILY_WORKER_ENABLED', 'false') === 'true') {
+      const dailyIntervalMs = Math.max(
+        60_000,
+        Number(this.configService.get<string>('NOTIFICATION_DAILY_INTERVAL_MS', '86400000')),
+      );
+      this.dailyWorkerTimer = setInterval(() => {
+        void this.runScheduledDaily().catch((error) => {
+          console.warn('notification daily worker failed', error);
+        });
+      }, dailyIntervalMs);
+    }
   }
 
   onModuleDestroy() {
-    if (this.workerTimer) {
-      clearInterval(this.workerTimer);
+    if (this.retryWorkerTimer) {
+      clearInterval(this.retryWorkerTimer);
+    }
+
+    if (this.dailyWorkerTimer) {
+      clearInterval(this.dailyWorkerTimer);
     }
   }
 
@@ -79,12 +99,44 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       item.status = 'active';
       item.lastSubscribedAt = now;
       item.expireAt = expireAt;
+      item.cancelledAt = null;
       item.extraJson = dto.extra ?? null;
 
       items.push(await this.pushSubscriptionRepository.save(item));
     }
 
     return this.buildEnvelope({
+      items: items.map((item) => this.serializeSubscription(item)),
+    });
+  }
+
+  async unsubscribe(user: UserEntity, dto: UnsubscribeNotificationDto) {
+    const subscriptions = await this.pushSubscriptionRepository.find({
+      where: {
+        userId: user.id,
+      },
+      take: 100,
+    });
+    const templateIds = new Set((dto.templateIds ?? []).map((item) => item.trim()).filter(Boolean));
+    const now = new Date();
+    const items = [];
+
+    for (const item of subscriptions) {
+      if (dto.scene && item.scene !== dto.scene) {
+        continue;
+      }
+
+      if (templateIds.size && !templateIds.has(item.templateId)) {
+        continue;
+      }
+
+      item.status = 'cancelled';
+      item.cancelledAt = now;
+      items.push(await this.pushSubscriptionRepository.save(item));
+    }
+
+    return this.buildEnvelope({
+      cancelled: items.length,
       items: items.map((item) => this.serializeSubscription(item)),
     });
   }
@@ -106,6 +158,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async queueDailyNotifications(scene = 'daily_reminder') {
+    await this.cleanupExpiredSubscriptions();
     const subscriptions = await this.pushSubscriptionRepository.find({
       where: {
         scene,
@@ -122,8 +175,13 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       : [];
     const usersById = new Map(users.map((user) => [user.id, user]));
     const queued: PushDeliveryLogEntity[] = [];
+    const now = new Date();
 
     for (const subscription of subscriptions) {
+      if (subscription.expireAt && subscription.expireAt <= now) {
+        continue;
+      }
+
       const user = usersById.get(subscription.userId);
 
       if (!user || !this.shouldSendToUser(user, scene)) {
@@ -155,6 +213,40 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     return this.processDueRetries();
   }
 
+  async runScheduledDaily() {
+    const scenes = this.configService
+      .get<string>('NOTIFICATION_DAILY_SCENES', 'daily_reminder,lucky_push')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    for (const scene of scenes) {
+      await this.queueDailyNotifications(scene);
+    }
+
+    return this.processDueRetries();
+  }
+
+  async cleanupExpiredSubscriptions() {
+    const now = new Date();
+    const items = await this.pushSubscriptionRepository.find({
+      where: {
+        status: 'active',
+        expireAt: LessThanOrEqual(now),
+      },
+      take: 500,
+    });
+
+    for (const item of items) {
+      item.status = 'expired';
+      await this.pushSubscriptionRepository.save(item);
+    }
+
+    return this.buildEnvelope({
+      expired: items.length,
+    });
+  }
+
   async processDueRetries(limit = 100) {
     const now = new Date();
     const logs = await this.pushDeliveryLogRepository.find({
@@ -182,6 +274,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
 
     for (const log of logs) {
       try {
+        log.lastAttemptAt = new Date();
         await this.sendWechatSubscribeMessage(log);
         log.status = 'sent';
         log.errorMessage = null;
@@ -189,6 +282,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         log.nextRetryAt = null;
         sent.push(await this.pushDeliveryLogRepository.save(log));
       } catch (error) {
+        log.lastAttemptAt = new Date();
         log.retryCount += 1;
         log.status = log.retryCount >= 3 ? 'failed' : 'retry';
         log.errorMessage = error instanceof Error ? error.message : '订阅消息发送失败';
@@ -218,6 +312,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         .filter((item) => (!query.scene || query.scene === 'all' ? true : item.scene === query.scene))
         .filter((item) => (!query.status || query.status === 'all' ? true : item.status === query.status))
         .map((item) => this.serializeDeliveryLog(item)),
+    });
+  }
+
+  async auditAdminRun(input: { actorId?: string | null; action: string; scene?: string }) {
+    await this.auditService.write({
+      actorType: 'admin',
+      actorId: input.actorId ?? null,
+      action: input.action,
+      resourceType: 'notification',
+      resourceId: input.scene ?? null,
+      payload: {
+        scene: input.scene ?? null,
+      },
     });
   }
 
@@ -348,6 +455,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       extra: item.extraJson ?? {},
       lastSubscribedAt: item.lastSubscribedAt.toISOString(),
       expireAt: item.expireAt?.toISOString() ?? null,
+      cancelledAt: item.cancelledAt?.toISOString() ?? null,
     };
   }
 
@@ -362,6 +470,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       payload: item.payloadJson ?? {},
       retryCount: item.retryCount,
       nextRetryAt: item.nextRetryAt?.toISOString() ?? null,
+      lastAttemptAt: item.lastAttemptAt?.toISOString() ?? null,
       sentAt: item.sentAt?.toISOString() ?? null,
       createdAt: item.createdAt.toISOString(),
     };

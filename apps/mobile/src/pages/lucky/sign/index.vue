@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
-import { generateLuckySignPoster } from '../../../api/posters';
+import { generateLuckySignPosterAsync } from '../../../api/posters';
 import { fetchLuckySignDetail } from '../../../api/lucky';
 import { useFavoriteToggle } from '../../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../../composables/useThemePreference';
@@ -210,8 +210,7 @@ function copySharePoster() {
 async function generatePoster() {
   try {
     posterLoading.value = true;
-    const response = await generateLuckySignPoster(detail.value.sign.bizCode);
-    poster.value = response.data.poster;
+    poster.value = await generateLuckySignPosterAsync(detail.value.sign.bizCode);
     uni.showToast({
       title: '海报已生成',
       icon: 'success',

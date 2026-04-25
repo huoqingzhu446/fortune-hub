@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { CommonModule } from '../common/common.module';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
@@ -19,6 +20,7 @@ import { PostersService } from './posters.service';
       ReportTemplateEntity,
     ]),
     AuthModule,
+    CommonModule,
     ReportsModule,
     LuckyModule,
   ],

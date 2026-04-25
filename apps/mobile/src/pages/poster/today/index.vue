@@ -117,7 +117,7 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchMe } from '../../../api/auth';
-import { generateTodayIndexPoster } from '../../../api/posters';
+import { generateTodayIndexPosterAsync } from '../../../api/posters';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
 import {
@@ -267,8 +267,7 @@ async function handlePrimaryAction() {
 async function generatePoster() {
   try {
     loading.value = true;
-    const response = await generateTodayIndexPoster();
-    poster.value = response.data.poster;
+    poster.value = await generateTodayIndexPosterAsync();
     uni.showToast({
       title: '高清分享图已生成',
       icon: 'success',

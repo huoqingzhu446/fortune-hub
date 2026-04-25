@@ -29,6 +29,7 @@ import { PushSubscriptionEntity } from './database/entities/push-subscription.en
 import { ReportTemplateEntity } from './database/entities/report-template.entity';
 import { ReportTemplateVersionEntity } from './database/entities/report-template-version.entity';
 import { ShareRecordEntity } from './database/entities/share-record.entity';
+import { UserConsentEntity } from './database/entities/user-consent.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
@@ -66,15 +67,16 @@ import { ZodiacModule } from './zodiac/zodiac.module';
         entities: [
           AssessmentSessionEntity,
           AssessmentQuestionEntity,
-        AssessmentTestConfigEntity,
-        AssessmentTestGroupEntity,
-        FavoriteEntity,
-        FeedbackEntity,
-        UserEntity,
-        UserRecordEntity,
-        MoodRecordEntity,
-        MeditationRecordEntity,
-        FortuneContentEntity,
+          AssessmentTestConfigEntity,
+          AssessmentTestGroupEntity,
+          FavoriteEntity,
+          FeedbackEntity,
+          UserEntity,
+          UserConsentEntity,
+          UserRecordEntity,
+          MoodRecordEntity,
+          MeditationRecordEntity,
+          FortuneContentEntity,
           LuckyItemEntity,
           AppConfigEntity,
           ReportTemplateEntity,

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
+import { ZhipuImageService } from '../common/zhipu-image.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
@@ -150,6 +152,8 @@ export class LuckyService {
     private readonly userRecordRepository: Repository<UserRecordEntity>,
     @InjectRepository(PosterJobEntity)
     private readonly posterJobRepository: Repository<PosterJobEntity>,
+    private readonly configService: ConfigService,
+    private readonly zhipuImageService: ZhipuImageService,
   ) {}
 
   async getToday(user: UserEntity | null) {
@@ -378,6 +382,14 @@ export class LuckyService {
     const subtitle = this.buildWallpaperSubtitle(user, signals, dominantElement);
     const guidance = this.buildWallpaperGuidance(user, signals, sourceItem?.title ?? title);
     const chips = this.buildWallpaperChips(user, dominantElement, signals, mood);
+    const wallpaperPrompt = this.buildProviderWallpaperPrompt({
+      title,
+      prompt,
+      mood,
+      palette,
+      guidance,
+      chips,
+    });
     const svgMarkup = this.renderWallpaperSvg({
       width: layout.width,
       height: layout.height,
@@ -388,6 +400,7 @@ export class LuckyService {
       chips,
       palette,
     });
+    const providerAsset = await this.resolveWallpaperImage(wallpaperPrompt, layout, svgMarkup, title);
 
     return this.buildEnvelope({
       wallpaper: {
@@ -400,11 +413,17 @@ export class LuckyService {
         aspectRatio: layout.aspectRatio,
         width: layout.width,
         height: layout.height,
-        format: 'svg',
+        format: providerAsset.format,
+        provider: providerAsset.provider,
+        providerStatus: providerAsset.status,
+        providerImageUrl: providerAsset.providerImageUrl,
+        providerRequestId: providerAsset.providerRequestId,
+        providerError: providerAsset.providerError,
+        fileUrl: providerAsset.fileUrl,
         generatedAt: new Date().toISOString(),
-        downloadFileName: `fortune-hub-${this.slugify(title)}-wallpaper.svg`,
+        downloadFileName: `fortune-hub-${this.slugify(title)}-wallpaper.${providerAsset.extension}`,
         svgMarkup,
-        imageDataUrl: `data:image/svg+xml;base64,${Buffer.from(svgMarkup).toString('base64')}`,
+        imageDataUrl: providerAsset.imageDataUrl,
       },
     });
   }
@@ -461,6 +480,10 @@ export class LuckyService {
       const response = await this.generateWallpaper(job.requestJson as GenerateLuckyWallpaperDto, user);
       job.status = 'completed';
       job.resultJson = response.data.wallpaper as Record<string, unknown>;
+      job.fileUrl =
+        typeof response.data.wallpaper.fileUrl === 'string'
+          ? response.data.wallpaper.fileUrl
+          : null;
       job.finishedAt = new Date();
       job.errorMessage = null;
     } catch (error) {
@@ -470,6 +493,176 @@ export class LuckyService {
     }
 
     await this.posterJobRepository.save(job);
+  }
+
+  private buildProviderWallpaperPrompt(input: {
+    title: string;
+    prompt: string;
+    mood: string;
+    palette: string[];
+    guidance: string;
+    chips: string[];
+  }) {
+    return [
+      input.prompt,
+      `主题：${input.title}`,
+      `情绪：${input.mood}`,
+      `色彩：${input.palette.join(', ')}`,
+      `氛围：${input.guidance}`,
+      `关键词：${input.chips.join(', ')}`,
+      'mobile wallpaper, premium lifestyle still life, clean composition, soft daylight, no text, no logo, no people, high detail',
+    ]
+      .filter(Boolean)
+      .join('。');
+  }
+
+  private async resolveWallpaperImage(
+    prompt: string,
+    layout: LuckyWallpaperLayout,
+    svgMarkup: string,
+    title: string,
+  ) {
+    if (!this.zhipuImageService.isConfigured()) {
+      return this.buildFallbackWallpaperAsset(svgMarkup, '未配置 ZHIPU_API_KEY');
+    }
+
+    try {
+      const asset = await this.zhipuImageService.generateImage({
+        prompt,
+        size: this.resolveZhipuWallpaperSize(layout.aspectRatio),
+        purpose: '幸运壁纸',
+      });
+      const fileUrl = await this.persistWallpaperFile(
+        asset.imageBuffer,
+        `fortune-hub-${this.slugify(title)}-wallpaper.png`,
+      );
+
+      return {
+        provider: 'zhipu',
+        status: 'generated',
+        providerImageUrl: asset.providerImageUrl,
+        providerRequestId: asset.requestId,
+        providerError: null,
+        fileUrl,
+        format: 'png',
+        extension: 'png',
+        imageDataUrl: asset.imageDataUrl,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '智谱幸运壁纸生成失败';
+      console.warn('lucky wallpaper fallback to svg', errorMessage);
+      return this.buildFallbackWallpaperAsset(svgMarkup, errorMessage);
+    }
+  }
+
+  private buildFallbackWallpaperAsset(svgMarkup: string, providerError: string | null) {
+    return {
+      provider: 'builtin',
+      status: 'fallback',
+      providerImageUrl: null,
+      providerRequestId: null,
+      providerError,
+      fileUrl: null,
+      format: 'svg',
+      extension: 'svg',
+      imageDataUrl: `data:image/svg+xml;base64,${Buffer.from(svgMarkup).toString('base64')}`,
+    };
+  }
+
+  private resolveZhipuWallpaperSize(aspectRatio: LuckyWallpaperLayout['aspectRatio']) {
+    if (aspectRatio === '16:9') {
+      return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_16_9', '1344x768');
+    }
+
+    if (aspectRatio === '1:1') {
+      return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_1_1', '1024x1024');
+    }
+
+    return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_9_16', '768x1344');
+  }
+
+  private async persistWallpaperFile(imageBuffer: Buffer, fileName: string) {
+    const uploadUrl = this.resolveFileServiceUploadUrl();
+
+    if (!uploadUrl) {
+      return null;
+    }
+
+    const token = this.configService.get<string>('FILE_SERVICE_TOKEN');
+    const formData = new FormData();
+    const blob = new Blob([new Uint8Array(imageBuffer)], {
+      type: 'image/png',
+    });
+
+    formData.append('appCode', 'fortune-hub');
+    formData.append('bizType', 'lucky-wallpaper');
+    formData.append('visibility', 'public');
+    formData.append('file', blob, fileName);
+
+    try {
+      const response = await this.fetchWithTimeout(
+        uploadUrl,
+        {
+          method: 'POST',
+          headers: token ? { 'x-file-service-token': token } : undefined,
+          body: formData,
+        },
+        12_000,
+        '壁纸文件上传超时，已保留内联图片',
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            contentUrl?: string;
+            url?: string;
+          }
+        | null;
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return payload?.contentUrl ?? payload?.url ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveFileServiceUploadUrl() {
+    const baseUrl = this.configService.get<string>('FILE_SERVICE_BASE_URL');
+
+    if (!baseUrl) {
+      return null;
+    }
+
+    const normalized = baseUrl.replace(/\/$/, '');
+    return normalized.endsWith('/api')
+      ? `${normalized}/files/upload`
+      : `${normalized}/api/files/upload`;
+  }
+
+  private async fetchWithTimeout(
+    input: string,
+    init: RequestInit | undefined,
+    timeoutMs: number,
+    timeoutMessage: string,
+  ) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, {
+        ...(init ?? {}),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(timeoutMessage);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async ensureSeedData() {

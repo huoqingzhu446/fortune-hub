@@ -6,7 +6,7 @@
       <text class="eyebrow">lucky wallpaper</text>
       <text class="title">{{ wallpaper?.title || activeTheme?.title || '幸运壁纸生成' }}</text>
       <text class="summary">
-        {{ wallpaper?.guidance || '会根据当前幸运主题生成一张可预览的 SVG 壁纸。' }}
+        {{ wallpaper?.guidance || '会根据当前幸运主题生成一张可预览的高清壁纸。' }}
       </text>
 
       <view class="ratio-row">
@@ -77,6 +77,8 @@
       <text class="section-title">生成信息</text>
       <text class="body-text">{{ wallpaper.subtitle }}</text>
       <text class="body-text">Prompt：{{ wallpaper.prompt }}</text>
+      <text class="body-text">来源：{{ wallpaper.providerStatus === 'generated' ? '智谱生成' : '内建兜底' }}</text>
+      <text v-if="wallpaper.providerError" class="helper-text">兜底原因：{{ wallpaper.providerError }}</text>
       <text class="helper-text">生成时间：{{ formatDateTime(wallpaper.generatedAt) }}</text>
     </view>
   </view>
@@ -85,9 +87,10 @@
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
 import { ref } from 'vue';
-import { generateLuckyWallpaper } from '../../../api/lucky';
+import { generateLuckyWallpaperAsync } from '../../../api/lucky';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getLuckyWallpaperTheme } from '../../../services/lucky-wallpaper';
+import { previewPosterImage, savePosterImage } from '../../../services/poster-image';
 import type { LuckyWallpaperData, LuckyWallpaperTheme } from '../../../types/lucky';
 
 type AspectRatio = '9:16' | '16:9' | '1:1';
@@ -102,7 +105,7 @@ const activeTheme = ref<LuckyWallpaperTheme | null>(null);
 const wallpaper = ref<LuckyWallpaperData['wallpaper'] | null>(null);
 const loading = ref(false);
 const aspectRatio = ref<AspectRatio>('9:16');
-const downloadLabel = ref('下载 SVG 壁纸');
+const downloadLabel = ref('保存壁纸');
 const { themeVars } = useThemePreference();
 
 async function loadWallpaper() {
@@ -112,7 +115,7 @@ async function loadWallpaper() {
 
   try {
     loading.value = true;
-    const response = await generateLuckyWallpaper({
+    wallpaper.value = await generateLuckyWallpaperAsync({
       sourceBizCode: activeTheme.value.sourceBizCode,
       title: activeTheme.value.title,
       prompt: activeTheme.value.prompt,
@@ -120,7 +123,6 @@ async function loadWallpaper() {
       palette: activeTheme.value.palette,
       aspectRatio: aspectRatio.value,
     });
-    wallpaper.value = response.data.wallpaper;
   } catch (error) {
     console.warn('generate lucky wallpaper failed', error);
     uni.showToast({
@@ -161,46 +163,20 @@ function copyPrompt() {
   });
 }
 
-function previewWallpaper() {
+async function downloadWallpaper() {
   if (!wallpaper.value) {
     return;
   }
 
-  uni.previewImage({
-    urls: [wallpaper.value.imageDataUrl],
-    current: wallpaper.value.imageDataUrl,
-  });
+  await savePosterImage(wallpaper.value.fileUrl || wallpaper.value.imageDataUrl, wallpaper.value.downloadFileName);
 }
 
-function downloadWallpaper() {
+async function previewWallpaper() {
   if (!wallpaper.value) {
     return;
   }
 
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    const anchor = document.createElement('a');
-    anchor.href = wallpaper.value.imageDataUrl;
-    anchor.download = wallpaper.value.downloadFileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    uni.showToast({
-      title: '已开始下载',
-      icon: 'success',
-    });
-    return;
-  }
-
-  uni.setClipboardData({
-    data: wallpaper.value.svgMarkup,
-    success: () => {
-      downloadLabel.value = '已复制 SVG 源码';
-      uni.showToast({
-        title: '当前平台先支持复制 SVG',
-        icon: 'none',
-      });
-    },
-  });
+  await previewPosterImage(wallpaper.value.fileUrl || wallpaper.value.imageDataUrl, wallpaper.value.downloadFileName);
 }
 
 function goLucky() {

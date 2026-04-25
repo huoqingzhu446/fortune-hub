@@ -9,6 +9,8 @@ export interface GeneratedPoster {
   footerText: string;
   themeName: string;
   providerImageUrl: string | null;
+  providerRequestId?: string | null;
+  providerError?: string | null;
   providerPrompt: string;
   width: number;
   height: number;
@@ -18,8 +20,28 @@ export interface GeneratedPoster {
   format: 'png';
   svgMarkup: string;
   imageDataUrl: string;
+  fileUrl?: string | null;
 }
 
 export type PosterGenerateResponse = ApiEnvelope<{
   poster: GeneratedPoster;
+}>;
+
+export interface PosterJob {
+  jobId: string;
+  userId: string | null;
+  jobType: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  request: Record<string, unknown>;
+  result: GeneratedPoster | null;
+  fileUrl: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PosterJobResponse = ApiEnvelope<{
+  job: PosterJob;
 }>;

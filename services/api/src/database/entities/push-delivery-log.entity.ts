@@ -39,6 +39,9 @@ export class PushDeliveryLogEntity {
   nextRetryAt!: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
+  lastAttemptAt!: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
   sentAt!: Date | null;
 
   @CreateDateColumn({ type: 'datetime' })

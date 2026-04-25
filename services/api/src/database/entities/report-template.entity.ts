@@ -32,6 +32,15 @@ export class ReportTemplateEntity {
   @Column({ type: 'int', unsigned: true, default: 100 })
   sortOrder!: number;
 
+  @Column({ type: 'int', unsigned: true, default: 100 })
+  grayPercent!: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  releaseNote!: string | null;
+
+  @Column({ type: 'int', unsigned: true, nullable: true })
+  publishedVersionNo!: number | null;
+
   @Column({ type: 'json' })
   payloadJson!: Record<string, unknown>;
 

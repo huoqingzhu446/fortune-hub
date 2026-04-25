@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminAuthModule } from '../admin-auth/admin-auth.module';
+import { CommonModule } from '../common/common.module';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
@@ -21,6 +22,7 @@ import { AdminOpsService } from './admin-ops.service';
     ]),
     AdminAuthModule,
     MembershipModule,
+    CommonModule,
   ],
   controllers: [AdminOpsController],
   providers: [AdminOpsService],

@@ -1,4 +1,6 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import type { AdminProfile } from '../admin-auth/admin-auth.service';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { AdminOpsService } from './admin-ops.service';
 
@@ -18,6 +20,20 @@ export class AdminOpsController {
       vipStatus,
       limit: Number(limit) || undefined,
     });
+  }
+
+  @Get('users/:id')
+  getUserDetail(@Param('id') id: string) {
+    return this.adminOpsService.getUserDetail(id);
+  }
+
+  @Put('users/:id/membership')
+  updateUserMembership(
+    @Param('id') id: string,
+    @Body() dto: { vipStatus: string; vipExpiredAt?: string | null },
+    @Req() request: Request & { admin?: AdminProfile },
+  ) {
+    return this.adminOpsService.updateUserMembership(id, dto, request.admin?.username ?? null);
   }
 
   @Get('orders')
@@ -64,5 +80,18 @@ export class AdminOpsController {
       resourceType,
       limit: Number(limit) || undefined,
     });
+  }
+
+  @Get('zhipu-image/status')
+  getZhipuImageStatus() {
+    return this.adminOpsService.getZhipuImageStatus();
+  }
+
+  @Post('zhipu-image/test')
+  testZhipuImage(
+    @Body() dto: { prompt?: string },
+    @Req() request: Request & { admin?: AdminProfile },
+  ) {
+    return this.adminOpsService.testZhipuImage(request.admin?.username ?? null, dto.prompt);
   }
 }

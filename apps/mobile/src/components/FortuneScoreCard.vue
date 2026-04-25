@@ -73,10 +73,11 @@ defineEmits<{
 .fortune-card {
   position: relative;
   display: grid;
+  margin-top: 0rpx;
   gap: 30rpx;
   padding: 44rpx 40rpx 34rpx;
   overflow: hidden;
-  border-radius: 42rpx;
+  border-radius: 0rpx;
   background:
     radial-gradient(circle at 76% 36%, rgba(var(--theme-accent-rgb), 0.18), transparent 18%),
     radial-gradient(circle at 18% 18%, rgba(var(--theme-primary-rgb), 0.18), transparent 26%),

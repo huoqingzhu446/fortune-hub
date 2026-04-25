@@ -551,7 +551,7 @@ onPullDownRefresh(async () => {
 .home-page {
   position: relative;
   min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 26rpx) 24rpx 250rpx;
+  padding: calc(env(safe-area-inset-top) + 26rpx) 0rpx 250rpx;
   overflow: hidden;
 }
 
@@ -615,13 +615,13 @@ onPullDownRefresh(async () => {
 
 .hero {
   position: relative;
-  margin-bottom: 10rpx;
+  //margin-bottom: 10rpx;
 }
 
 .hero__scene {
   position: relative;
-  min-height: 276rpx;
-  padding: 20rpx 8rpx 0;
+  min-height: 214rpx;
+  padding: 10rpx 8rpx 0;
   overflow: hidden;
 }
 
@@ -635,23 +635,23 @@ onPullDownRefresh(async () => {
 
 .hero__scene::before {
   inset: 0 12rpx auto;
-  height: 136rpx;
-  background: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.62) 22%, rgba(255, 255, 255, 0) 76%);
+  height: 80rpx;
+  background: radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.5) 18%, rgba(255, 255, 255, 0) 72%);
 }
 
 .hero__scene::after {
   inset: auto 0 0;
-  height: 118rpx;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 44%, var(--theme-page-bottom) 100%);
+  height: 68rpx;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.16) 38%, var(--theme-page-bottom) 100%);
 }
 
 .hero__mountain-backdrop {
   position: absolute;
-  inset: 82rpx -42rpx 0;
+  inset: 42rpx -36rpx 0;
   background-position: center top;
   background-repeat: no-repeat;
-  background-size: 106% auto;
-  opacity: 0.74;
+  background-size: 104% auto;
+  opacity: 0.84;
   transform: translateY(0);
 }
 
@@ -659,6 +659,7 @@ onPullDownRefresh(async () => {
   position: relative;
   z-index: 1;
   display: flex;
+  margin-top: 20rpx;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
@@ -677,6 +678,7 @@ onPullDownRefresh(async () => {
   display: grid;
   gap: 10rpx;
   max-width: 430rpx;
+  margin-top: 20rpx;
 }
 
 .hero__title {
@@ -703,7 +705,7 @@ onPullDownRefresh(async () => {
   display: grid;
   justify-items: end;
   gap: 6rpx;
-  margin-top: 8rpx;
+  margin-top: 120rpx;
   flex: 0 0 auto;
 }
 
@@ -717,7 +719,7 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__main-card {
-  margin-top: -10rpx;
+  margin-top: -5rpx;
   margin-bottom: 26rpx;
 }
 

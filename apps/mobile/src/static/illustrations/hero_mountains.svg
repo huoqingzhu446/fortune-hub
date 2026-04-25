@@ -1,32 +1,34 @@
 <svg width="750" height="320" viewBox="0 0 750 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path
-    d="M0 185C42 166 66 138 103 143C142 149 155 101 195 115C235 129 252 165 294 151C339 135 357 98 404 107C448 116 466 153 505 148C554 141 578 96 627 110C676 124 701 159 750 147V320H0V185Z"
-    fill="currentColor"
-    fill-opacity="0.1"
-  />
-  <path
-    d="M0 210C52 188 82 158 128 169C172 180 191 124 241 142C292 161 311 201 361 181C414 160 437 116 492 132C542 147 565 194 612 181C665 166 702 138 750 151V320H0V210Z"
-    fill="currentColor"
-    fill-opacity="0.16"
-  />
-  <path
-    d="M0 242C58 218 93 200 139 208C185 216 205 168 254 179C306 191 329 229 380 211C433 192 456 153 505 169C558 186 586 225 635 210C688 194 719 180 750 190V320H0V242Z"
-    fill="currentColor"
-    fill-opacity="0.24"
-  />
-  <path
-    d="M0 230C44 211 76 194 115 201C158 209 185 156 232 168C279 180 305 217 352 199C406 178 433 141 483 155C533 169 559 210 604 199C656 186 701 168 750 181"
-    stroke="currentColor"
-    stroke-opacity="0.34"
-    stroke-width="1.6"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <path
-    d="M60 183C83 170 96 151 117 157C139 164 148 139 171 146M448 151C466 139 481 128 505 134C525 139 538 154 554 158M604 199C625 189 643 184 664 188"
-    stroke="currentColor"
-    stroke-opacity="0.22"
-    stroke-width="1.2"
-    stroke-linecap="round"
-  />
+  <g transform="translate(0 -72)">
+    <path
+      d="M0 185C42 166 66 138 103 143C142 149 155 101 195 115C235 129 252 165 294 151C339 135 357 98 404 107C448 116 466 153 505 148C554 141 578 96 627 110C676 124 701 159 750 147V320H0V185Z"
+      fill="currentColor"
+      fill-opacity="0.1"
+    />
+    <path
+      d="M0 210C52 188 82 158 128 169C172 180 191 124 241 142C292 161 311 201 361 181C414 160 437 116 492 132C542 147 565 194 612 181C665 166 702 138 750 151V320H0V210Z"
+      fill="currentColor"
+      fill-opacity="0.16"
+    />
+    <path
+      d="M0 242C58 218 93 200 139 208C185 216 205 168 254 179C306 191 329 229 380 211C433 192 456 153 505 169C558 186 586 225 635 210C688 194 719 180 750 190V320H0V242Z"
+      fill="currentColor"
+      fill-opacity="0.24"
+    />
+    <path
+      d="M0 230C44 211 76 194 115 201C158 209 185 156 232 168C279 180 305 217 352 199C406 178 433 141 483 155C533 169 559 210 604 199C656 186 701 168 750 181"
+      stroke="currentColor"
+      stroke-opacity="0.34"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M60 183C83 170 96 151 117 157C139 164 148 139 171 146M448 151C466 139 481 128 505 134C525 139 538 154 554 158M604 199C625 189 643 184 664 188"
+      stroke="currentColor"
+      stroke-opacity="0.22"
+      stroke-width="1.2"
+      stroke-linecap="round"
+    />
+  </g>
 </svg>

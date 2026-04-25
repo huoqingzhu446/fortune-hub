@@ -255,28 +255,35 @@ const orbitalStyle = computed(() => ({
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12rpx;
-  padding: 20rpx 2rpx;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr) minmax(0, 1.34fr);
+  gap: 8rpx;
+  padding: 12rpx 16rpx;
   border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.46);
   box-shadow: 0 0 0 1rpx rgba(255, 255, 255, 0.48) inset;
 }
 
 .fortune-card__tag {
-  display: grid;
-  gap: 8rpx;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6rpx;
+  min-width: 0;
+  line-height: 1.1;
+  white-space: nowrap;
   text-align: center;
 }
 
 .fortune-card__tag-label {
   letter-spacing: 0;
-  font-size: 20rpx;
-  color: var(--theme-text-tertiary);
+  font-size: 21rpx;
+  font-weight: 400;
+  color: var(--theme-accent);
 }
 
 .fortune-card__tag-value {
-  font-size: 24rpx;
-  color: var(--theme-text-primary);
+  font-size: 21rpx;
+  font-weight: 400;
+  color: var(--theme-primary);
 }
 </style>

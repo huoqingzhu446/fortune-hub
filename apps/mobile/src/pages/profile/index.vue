@@ -53,6 +53,96 @@
         <text class="profile-hero__helper">{{ sessionHint }}</text>
       </view>
 
+      <view v-if="isLoggedIn && showProfileEditor" id="profile-editor" class="section profile-editor-section">
+        <view class="section__head">
+          <text class="section__title">资料完善</text>
+          <text class="section__meta">{{ completionSummary }}</text>
+        </view>
+
+        <view class="editor-card">
+          <view class="completion-card">
+            <view class="completion-card__top">
+              <text class="completion-card__title">资料完整度</text>
+              <text class="completion-card__value">{{ completionPercent }}%</text>
+            </view>
+            <view class="completion-card__bar">
+              <view class="completion-card__fill" :style="{ width: `${completionPercent}%` }"></view>
+            </view>
+            <text class="completion-card__text">
+              {{ missingFields.length ? `还缺：${missingFields.join('、')}` : '资料已完整，首页和推荐会更贴近你。' }}
+            </text>
+          </view>
+
+          <view class="field">
+            <text class="field__label">昵称</text>
+            <input v-model="form.nickname" class="field__input" placeholder="请输入昵称" />
+          </view>
+
+          <view class="field">
+            <text class="field__label">生日</text>
+            <picker
+              mode="date"
+              :value="form.birthday || todayDate"
+              :start="birthdayStart"
+              :end="todayDate"
+              @change="handleBirthdayChange"
+            >
+              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthday }">
+                <text>{{ form.birthday || '请选择生日' }}</text>
+                <text>›</text>
+              </view>
+            </picker>
+          </view>
+
+          <view class="field">
+            <view class="field__head">
+              <text class="field__label">出生时间</text>
+              <text v-if="form.birthTime" class="field__action" @tap="clearBirthTime">清空</text>
+            </view>
+            <picker
+              mode="time"
+              :value="form.birthTime || defaultBirthTime"
+              @change="handleBirthTimeChange"
+            >
+              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthTime }">
+                <text>{{ form.birthTime || '请选择出生时间' }}</text>
+                <text>›</text>
+              </view>
+            </picker>
+          </view>
+
+          <view class="field">
+            <text class="field__label">性别</text>
+            <view class="gender-grid">
+              <view
+                v-for="item in genderOptions"
+                :key="item.value"
+                class="gender-chip"
+                :class="{ 'gender-chip--active': form.gender === item.value }"
+                @tap="form.gender = item.value"
+              >
+                <text>{{ item.label }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="preview-grid">
+            <view class="preview-card">
+              <text class="preview-card__label">当前星座</text>
+              <text class="preview-card__value">{{ profile.zodiac || pendingZodiac }}</text>
+            </view>
+            <view class="preview-card">
+              <text class="preview-card__label">出生时间</text>
+              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
+            </view>
+          </view>
+
+          <button class="save-button" :loading="submitting" @tap="saveProfile">
+            保存并更新资料
+          </button>
+        </view>
+      </view>
+
       <view class="vip-card" @tap="goMembership">
         <view class="vip-card__copy">
           <text class="vip-card__title">{{ profilePage.membershipCard.title }}</text>
@@ -162,96 +252,6 @@
         </view>
       </view>
 
-      <view v-if="isLoggedIn && showProfileEditor" class="section">
-        <view class="section__head">
-          <text class="section__title">资料完善</text>
-          <text class="section__meta">{{ completionSummary }}</text>
-        </view>
-
-        <view class="editor-card">
-          <view class="completion-card">
-            <view class="completion-card__top">
-              <text class="completion-card__title">资料完整度</text>
-              <text class="completion-card__value">{{ completionPercent }}%</text>
-            </view>
-            <view class="completion-card__bar">
-              <view class="completion-card__fill" :style="{ width: `${completionPercent}%` }"></view>
-            </view>
-            <text class="completion-card__text">
-              {{ missingFields.length ? `还缺：${missingFields.join('、')}` : '资料已完整，首页和推荐会更贴近你。' }}
-            </text>
-          </view>
-
-          <view class="field">
-            <text class="field__label">昵称</text>
-            <input v-model="form.nickname" class="field__input" placeholder="请输入昵称" />
-          </view>
-
-          <view class="field">
-            <text class="field__label">生日</text>
-            <picker
-              mode="date"
-              :value="form.birthday || todayDate"
-              :start="birthdayStart"
-              :end="todayDate"
-              @change="handleBirthdayChange"
-            >
-              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthday }">
-                <text>{{ form.birthday || '请选择生日' }}</text>
-                <text>›</text>
-              </view>
-            </picker>
-          </view>
-
-          <view class="field">
-            <view class="field__head">
-              <text class="field__label">出生时间</text>
-              <text v-if="form.birthTime" class="field__action" @tap="clearBirthTime">清空</text>
-            </view>
-            <picker
-              mode="time"
-              :value="form.birthTime || defaultBirthTime"
-              @change="handleBirthTimeChange"
-            >
-              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthTime }">
-                <text>{{ form.birthTime || '请选择出生时间' }}</text>
-                <text>›</text>
-              </view>
-            </picker>
-          </view>
-
-          <view class="field">
-            <text class="field__label">性别</text>
-            <view class="gender-grid">
-              <view
-                v-for="item in genderOptions"
-                :key="item.value"
-                class="gender-chip"
-                :class="{ 'gender-chip--active': form.gender === item.value }"
-                @tap="form.gender = item.value"
-              >
-                <text>{{ item.label }}</text>
-              </view>
-            </view>
-          </view>
-
-          <view class="preview-grid">
-            <view class="preview-card">
-              <text class="preview-card__label">当前星座</text>
-              <text class="preview-card__value">{{ profile.zodiac || pendingZodiac }}</text>
-            </view>
-            <view class="preview-card">
-              <text class="preview-card__label">出生时间</text>
-              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
-            </view>
-          </view>
-
-          <button class="save-button" :loading="submitting" @tap="saveProfile">
-            保存并更新资料
-          </button>
-        </view>
-      </view>
-
       <view v-if="isLoggedIn" class="bottom-actions">
         <button class="bottom-actions__button" @tap="logout">退出当前会话</button>
       </view>
@@ -263,7 +263,7 @@
 
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { loginWithCode, updateMyProfile } from '../../api/auth';
 import { fetchProfilePage } from '../../api/profile';
@@ -674,8 +674,22 @@ function logout() {
   });
 }
 
+function scrollToProfileEditor() {
+  nextTick(() => {
+    setTimeout(() => {
+      uni.pageScrollTo({
+        selector: '#profile-editor',
+        duration: 260,
+      });
+    }, 0);
+  });
+}
+
 function toggleProfileEditor() {
   showProfileEditor.value = !showProfileEditor.value;
+  if (showProfileEditor.value) {
+    scrollToProfileEditor();
+  }
 }
 
 function open(route: string) {

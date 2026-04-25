@@ -731,6 +731,8 @@ onPullDownRefresh(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
+  margin-left: 20rpx;
+  margin-right: 20rpx;
 }
 
 .insight-grid__item {

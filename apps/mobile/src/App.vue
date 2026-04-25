@@ -16,9 +16,9 @@ onHide(() => {
 
 <style lang="scss">
 page {
-  --theme-primary: #6f91b7;
+  --theme-primary: #5ea6e3;
   --theme-soft: #eef5fa;
-  --theme-accent: #afc8e5;
+  --theme-accent: #a9d4f7;
   --theme-page-top: #fbf9f5;
   --theme-page-bottom: #eef5fa;
   --theme-surface: rgba(255, 255, 255, 0.76);
@@ -29,7 +29,7 @@ page {
   --theme-text-tertiary: #aeb4bd;
   --theme-border: rgba(255, 255, 255, 0.82);
   --theme-tag-bg: rgba(238, 245, 250, 0.96);
-  --theme-glow: rgba(175, 200, 229, 0.42);
+  --theme-glow: rgba(169, 212, 247, 0.44);
   --theme-shadow: 0 16rpx 48rpx rgba(92, 112, 140, 0.12);
   --theme-shadow-soft: 0 8rpx 24rpx rgba(92, 112, 140, 0.12);
   --apple-bg-top: var(--theme-page-top);

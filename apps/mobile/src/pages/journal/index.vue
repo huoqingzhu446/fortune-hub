@@ -90,6 +90,7 @@ import { computed, reactive, ref } from 'vue';
 import { fetchMoodRecordDetail, saveMoodRecord } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
+import { usePageStateStore } from '../../stores/page-state';
 import type { MoodJournalItem } from '../../types/records';
 
 type MoodType = 'calm' | 'low' | 'anxious' | 'happy' | 'tired';
@@ -107,6 +108,7 @@ const saving = ref(false);
 const loadingDetail = ref(false);
 const currentRecordId = ref('');
 const recentItems = ref<MoodJournalItem[]>([]);
+const pageStateStore = usePageStateStore();
 
 const moods: Array<{ label: string; value: MoodType; score: number }> = [
   { label: '平静', value: 'calm', score: 78 },
@@ -162,6 +164,7 @@ async function submit() {
       emotionTags: form.emotionTags,
       content: form.content,
     });
+    pageStateStore.markDirty(['records', 'profile', 'home']);
     uni.showToast({
       title: '日记已保存',
       icon: 'success',

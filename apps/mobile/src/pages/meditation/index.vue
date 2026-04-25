@@ -44,6 +44,30 @@
       </view>
 
       <view class="card">
+        <text class="field__label">冥想音乐</text>
+        <view class="music-list">
+          <view
+            v-for="item in musicOptions"
+            :key="item.id"
+            class="music-card"
+            :class="{ 'music-card--active': selectedMusicId === item.id }"
+            @tap="selectMusic(item.id)"
+          >
+            <view>
+              <text class="music-card__title">{{ item.title }}</text>
+              <text class="music-card__text">{{ item.subtitle }}</text>
+            </view>
+            <view class="music-card__footer">
+              <text class="music-card__meta">{{ item.durationMinutes }} 分钟 · {{ item.atmosphere }}</text>
+              <button class="music-card__button" @tap.stop="togglePreview(item.id)">
+                {{ playingMusicId === item.id ? '暂停' : '试听' }}
+              </button>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="card">
         <text class="field__label">练习标题</text>
         <input v-model="form.title" class="picker" placeholder="例如：睡前呼吸练习" />
       </view>
@@ -109,11 +133,13 @@
 </template>
 
 <script setup lang="ts">
-import { onLoad } from '@dcloudio/uni-app';
+import { onHide, onLoad, onUnload } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
 import { fetchMeditationRecordDetail, saveMeditationRecord } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
+import { findMeditationMusic, meditationMusicLibrary } from '../../services/meditation-music';
+import { usePageStateStore } from '../../stores/page-state';
 import type { MeditationLogItem } from '../../types/records';
 
 function buildLocalDateString(date = new Date()) {
@@ -128,11 +154,16 @@ const todayDate = buildLocalDateString();
 const saving = ref(false);
 const loadingDetail = ref(false);
 const categories = ['meditation', 'sleep', 'breath', 'focus'];
+const musicOptions = meditationMusicLibrary;
+const selectedMusicId = ref('');
+const playingMusicId = ref('');
+const audioContext = uni.createInnerAudioContext();
 const completionOptions = [
   { label: '完整完成', value: 'completed' },
   { label: '完成一半', value: 'partial' },
   { label: '今天跳过', value: 'skipped' },
 ] as const;
+const pageStateStore = usePageStateStore();
 const sourceOptions = [
   { label: '探索推荐', value: 'explore' },
   { label: '情绪疗愈', value: 'emotion' },
@@ -166,18 +197,21 @@ function handleDurationChange(event: { detail: { value: number } }) {
 async function submit() {
   try {
     saving.value = true;
+    const selectedMusic = findMeditationMusic(selectedMusicId.value);
     await saveMeditationRecord({
       recordId: form.recordId || undefined,
       recordDate: form.recordDate,
       title: form.title,
       category: form.category,
       sourceType: form.sourceType,
-      sourceTitle: form.sourceTitle,
+      sourceTitle:
+        form.sourceTitle || (selectedMusic ? `${selectedMusic.title} · ${selectedMusic.atmosphere}` : ''),
       durationMinutes: form.durationMinutes,
       completed: completedValue.value,
       completionStatus: form.completionStatus,
       summary: form.summary,
     });
+    pageStateStore.markDirty(['records', 'profile', 'home']);
     uni.showToast({
       title: '练习已记录',
       icon: 'success',
@@ -208,7 +242,56 @@ function applyRecord(item: MeditationLogItem) {
   form.durationMinutes = item.durationMinutes;
   form.completionStatus = item.completionStatus || (item.completed ? 'completed' : 'partial');
   form.summary = item.summary;
+  selectedMusicId.value =
+    musicOptions.find((music) => music.title === item.title || item.sourceTitle.includes(music.title))?.id ||
+    '';
 }
+
+function selectMusic(id: string) {
+  selectedMusicId.value = id;
+  const selectedMusic = findMeditationMusic(id);
+
+  if (!selectedMusic) {
+    return;
+  }
+
+  form.title = selectedMusic.title;
+  form.category = selectedMusic.category;
+  form.durationMinutes = selectedMusic.durationMinutes;
+  form.sourceTitle = `${selectedMusic.title} · ${selectedMusic.atmosphere}`;
+}
+
+function togglePreview(id: string) {
+  const selectedMusic = findMeditationMusic(id);
+
+  if (!selectedMusic) {
+    return;
+  }
+
+  if (playingMusicId.value === id) {
+    audioContext.pause();
+    playingMusicId.value = '';
+    return;
+  }
+
+  audioContext.stop();
+  audioContext.src = selectedMusic.previewUrl;
+  audioContext.play();
+  playingMusicId.value = id;
+}
+
+audioContext.onEnded(() => {
+  playingMusicId.value = '';
+});
+
+onHide(() => {
+  audioContext.pause();
+  playingMusicId.value = '';
+});
+
+onUnload(() => {
+  audioContext.destroy();
+});
 
 async function loadDetail(recordId: string) {
   if (!recordId) {
@@ -298,6 +381,54 @@ onLoad((options) => {
   display: flex;
   flex-wrap: wrap;
   gap: 12rpx;
+}
+
+.music-list {
+  display: grid;
+  gap: 12rpx;
+}
+
+.music-card {
+  display: grid;
+  gap: 8rpx;
+  padding: 20rpx;
+  border-radius: 22rpx;
+  background: var(--theme-surface-muted);
+  border: 1rpx solid transparent;
+}
+
+.music-card--active {
+  border-color: rgba(var(--theme-primary-rgb), 0.2);
+  background: rgba(var(--theme-primary-rgb), 0.08);
+}
+
+.music-card__title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.music-card__text,
+.music-card__meta {
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
+.music-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.music-card__button {
+  min-height: 54rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
 }
 
 .tag-chip {

@@ -39,6 +39,16 @@ export interface LuckyWallpaperTheme {
   mood: string;
 }
 
+export interface MeditationMusicItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: 'sleep' | 'breath' | 'focus' | 'healing';
+  durationMinutes: number;
+  atmosphere: string;
+  previewUrl: string;
+}
+
 export interface LuckyTodayData {
   profile: {
     personalized: boolean;

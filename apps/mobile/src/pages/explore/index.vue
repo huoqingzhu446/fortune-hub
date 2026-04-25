@@ -230,6 +230,7 @@ import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
+import { usePageStateStore } from '../../stores/page-state';
 import type {
   ExploreContentItem,
   ExploreFeatureItem,
@@ -242,6 +243,8 @@ type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' 
 type SortType = ExploreIndexData['defaultSort'];
 
 const { themePalette, themeVars } = useThemePreference();
+const pageStateStore = usePageStateStore();
+let lastExploreVersion = pageStateStore.versionOf('explore');
 
 const keyword = ref('');
 const showFilter = ref(false);
@@ -382,6 +385,7 @@ async function loadExploreIndex() {
     const response = await fetchExploreIndex();
     exploreData.value = response.data;
     selectedSort.value = response.data.defaultSort || 'recommended';
+    lastExploreVersion = pageStateStore.versionOf('explore');
   } catch (error) {
     console.warn('load explore index failed', error);
     exploreData.value = fallbackExploreData;
@@ -615,6 +619,7 @@ async function toggleFavoriteEntry(input: {
     } else {
       favoriteKeys.value = favoriteKeys.value.filter((key) => key !== input.itemKey);
     }
+    pageStateStore.markDirty(['records', 'profile', 'favorites']);
 
     uni.showToast({
       title: response.data.active ? '已收藏' : '已取消',
@@ -635,8 +640,10 @@ onLoad(() => {
 });
 
 onShow(() => {
-  void loadExploreIndex();
-  void loadFavoritesState();
+  if (pageStateStore.versionOf('explore') !== lastExploreVersion) {
+    void loadExploreIndex();
+    void loadFavoritesState();
+  }
 });
 </script>
 

@@ -45,17 +45,21 @@ import { fetchFavorites } from '../../api/favorites';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { clearSession } from '../../services/session';
+import { usePageStateStore } from '../../stores/page-state';
 import type { FavoriteItem } from '../../types/favorite';
 
 const favorites = ref<FavoriteItem[]>([]);
 const loading = ref(false);
 const { themeVars } = useThemePreference();
+const pageStateStore = usePageStateStore();
+let lastFavoritesVersion = pageStateStore.versionOf('favorites');
 
 async function loadFavorites() {
   try {
     loading.value = true;
     const response = await fetchFavorites();
     favorites.value = response.data.items;
+    lastFavoritesVersion = pageStateStore.versionOf('favorites');
   } catch (error) {
     console.warn('load favorites failed', error);
     favorites.value = [];
@@ -82,7 +86,9 @@ onLoad(() => {
 });
 
 onShow(() => {
-  void loadFavorites();
+  if (pageStateStore.versionOf('favorites') !== lastFavoritesVersion) {
+    void loadFavorites();
+  }
 });
 </script>
 

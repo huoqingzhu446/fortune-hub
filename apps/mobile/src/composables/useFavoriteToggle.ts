@@ -2,11 +2,13 @@ import { ref } from 'vue';
 import { fetchFavorites, toggleFavorite } from '../api/favorites';
 import { getErrorMessage } from '../services/errors';
 import { getAuthToken } from '../services/session';
+import { usePageStateStore } from '../stores/page-state';
 import type { ToggleFavoritePayload } from '../types/favorite';
 
 export function useFavoriteToggle() {
   const favoriteActive = ref(false);
   const favoriteLoading = ref(false);
+  const pageStateStore = usePageStateStore();
 
   async function syncFavoriteState(itemKey?: string) {
     if (!itemKey || !getAuthToken()) {
@@ -35,6 +37,7 @@ export function useFavoriteToggle() {
       favoriteLoading.value = true;
       const response = await toggleFavorite(payload);
       favoriteActive.value = response.data.active;
+      pageStateStore.markDirty(['explore', 'records', 'profile', 'favorites']);
 
       uni.showToast({
         title: response.data.active ? '已收藏' : '已取消',

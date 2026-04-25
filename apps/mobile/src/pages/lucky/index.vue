@@ -167,6 +167,7 @@ import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { setLuckyWallpaperTheme } from '../../services/lucky-wallpaper';
 import { getAuthToken } from '../../services/session';
+import { usePageStateStore } from '../../stores/page-state';
 import type { LuckyTodayData, LuckyWallpaperTheme } from '../../types/lucky';
 
 const fallbackLucky: LuckyTodayData = {
@@ -205,6 +206,8 @@ const fallbackLucky: LuckyTodayData = {
   wallpaperThemes: [],
 };
 const { themeVars } = useThemePreference();
+const pageStateStore = usePageStateStore();
+let lastLuckyVersion = pageStateStore.versionOf('lucky');
 
 const luckyData = ref<LuckyTodayData>(fallbackLucky);
 const loading = ref(false);
@@ -217,6 +220,7 @@ async function loadLucky() {
     loading.value = true;
     const response = await fetchLuckyToday();
     luckyData.value = response.data;
+    lastLuckyVersion = pageStateStore.versionOf('lucky');
   } catch (error) {
     console.warn('load lucky failed', error);
     luckyData.value = fallbackLucky;
@@ -278,6 +282,10 @@ onShow(() => {
   const latestToken = getAuthToken();
   if (latestToken !== authToken.value) {
     authToken.value = latestToken;
+    pageStateStore.markDirty('lucky');
+  }
+
+  if (pageStateStore.versionOf('lucky') !== lastLuckyVersion) {
     void loadLucky();
   }
 });

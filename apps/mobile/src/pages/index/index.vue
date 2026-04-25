@@ -89,6 +89,7 @@ import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolSt
 import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
+import { usePageStateStore } from '../../stores/page-state';
 import type { DashboardStateFactor } from '../../types/dashboard';
 import type { ThemeKey } from '../../theme/tokens';
 
@@ -110,6 +111,8 @@ type InsightCard = {
 };
 
 const dashboardStore = useDashboardStore();
+const pageStateStore = usePageStateStore();
+let lastHomeVersion = pageStateStore.versionOf('home');
 const rootPageRoutes = new Set([
   '/pages/index/index',
   '/pages/explore/index',
@@ -329,6 +332,7 @@ let skipFirstShowRefresh = true;
 
 async function refreshDashboard() {
   await dashboardStore.loadDashboard();
+  lastHomeVersion = pageStateStore.versionOf('home');
 }
 
 function resetScrollTop() {
@@ -508,8 +512,9 @@ onShow(() => {
     return;
   }
 
-  resetScrollTop();
-  void refreshDashboard();
+  if (pageStateStore.versionOf('home') !== lastHomeVersion) {
+    void refreshDashboard();
+  }
 });
 
 onPullDownRefresh(async () => {

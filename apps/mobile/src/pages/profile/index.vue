@@ -165,10 +165,23 @@
       <view v-if="isLoggedIn && showProfileEditor" class="section">
         <view class="section__head">
           <text class="section__title">资料完善</text>
-          <text class="section__meta">{{ profileCompleted ? '已完善' : '待完善' }}</text>
+          <text class="section__meta">{{ completionSummary }}</text>
         </view>
 
         <view class="editor-card">
+          <view class="completion-card">
+            <view class="completion-card__top">
+              <text class="completion-card__title">资料完整度</text>
+              <text class="completion-card__value">{{ completionPercent }}%</text>
+            </view>
+            <view class="completion-card__bar">
+              <view class="completion-card__fill" :style="{ width: `${completionPercent}%` }"></view>
+            </view>
+            <text class="completion-card__text">
+              {{ missingFields.length ? `还缺：${missingFields.join('、')}` : '资料已完整，首页和推荐会更贴近你。' }}
+            </text>
+          </view>
+
           <view class="field">
             <text class="field__label">昵称</text>
             <input v-model="form.nickname" class="field__input" placeholder="请输入昵称" />
@@ -222,6 +235,17 @@
             </view>
           </view>
 
+          <view class="preview-grid">
+            <view class="preview-card">
+              <text class="preview-card__label">当前星座</text>
+              <text class="preview-card__value">{{ profile.zodiac || pendingZodiac }}</text>
+            </view>
+            <view class="preview-card">
+              <text class="preview-card__label">出生时间</text>
+              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
+            </view>
+          </view>
+
           <button class="save-button" :loading="submitting" @tap="saveProfile">
             保存并更新资料
           </button>
@@ -254,6 +278,7 @@ import {
   setAuthToken,
   setCachedUser,
 } from '../../services/session';
+import { usePageStateStore } from '../../stores/page-state';
 import type { UserProfile } from '../../types/auth';
 import type { ProfilePageData } from '../../types/profile';
 import type { UnifiedRecordItem } from '../../types/records';
@@ -308,6 +333,8 @@ const loginErrorMessage = ref('');
 const recentHistory = ref<UnifiedRecordItem[]>([]);
 const showProfileEditor = ref(false);
 const { themeVars } = useThemePreference();
+const pageStateStore = usePageStateStore();
+let lastProfileVersion = pageStateStore.versionOf('profile');
 const fallbackProfilePage: ProfilePageData = {
   isLoggedIn: false,
   user: null,
@@ -367,6 +394,55 @@ const sessionHint = computed(() => profilePage.value.hero.sessionHint);
 const dataCards = computed(() => profilePage.value.dataCards);
 const tools = computed(() => profilePage.value.tools);
 const services = computed(() => profilePage.value.services);
+const missingFields = computed(() => {
+  const result: string[] = [];
+
+  if (!form.nickname.trim()) {
+    result.push('昵称');
+  }
+  if (!form.birthday) {
+    result.push('生日');
+  }
+  if (!form.birthTime) {
+    result.push('出生时间');
+  }
+  if (!form.gender || form.gender === 'unknown') {
+    result.push('性别');
+  }
+
+  return result;
+});
+const completionPercent = computed(() => {
+  const total = 4;
+  return Math.round(((total - missingFields.value.length) / total) * 100);
+});
+const completionSummary = computed(() =>
+  profileCompleted.value ? '已完善' : `待完善 · ${missingFields.value.length} 项`,
+);
+const pendingZodiac = computed(() => {
+  if (!form.birthday) {
+    return '补生日后自动生成';
+  }
+
+  const date = form.birthday.slice(5, 10);
+  const rules = [
+    ['摩羯座', '01-01', '01-19'],
+    ['水瓶座', '01-20', '02-18'],
+    ['双鱼座', '02-19', '03-20'],
+    ['白羊座', '03-21', '04-19'],
+    ['金牛座', '04-20', '05-20'],
+    ['双子座', '05-21', '06-21'],
+    ['巨蟹座', '06-22', '07-22'],
+    ['狮子座', '07-23', '08-22'],
+    ['处女座', '08-23', '09-22'],
+    ['天秤座', '09-23', '10-23'],
+    ['天蝎座', '10-24', '11-22'],
+    ['射手座', '11-23', '12-21'],
+    ['摩羯座', '12-22', '12-31'],
+  ] as const;
+
+  return rules.find((item) => date >= item[1] && date <= item[2])?.[0] || '摩羯座';
+});
 
 function applyLoginResult(data: {
   token: string;
@@ -394,6 +470,8 @@ function applyLoginResult(data: {
   profile.value = data.user;
   profileCompleted.value = data.isProfileCompleted;
   loginErrorMessage.value = '';
+  pageStateStore.markCoreDirty();
+  showProfileEditor.value = !data.isProfileCompleted;
   syncForm();
 }
 
@@ -403,11 +481,13 @@ async function hydrateProfile() {
     profilePage.value = response.data;
     recentHistory.value = response.data.recentHistory;
     historyLoading.value = false;
+    lastProfileVersion = pageStateStore.versionOf('profile');
 
     if (response.data.user) {
       profile.value = response.data.user;
       profileCompleted.value = response.data.isProfileCompleted;
       setCachedUser(response.data.user);
+      showProfileEditor.value = !response.data.isProfileCompleted;
       syncForm();
     }
 
@@ -561,6 +641,7 @@ async function saveProfile() {
     profileCompleted.value = response.data.isProfileCompleted;
     setCachedUser(response.data.user);
     showProfileEditor.value = false;
+    pageStateStore.markCoreDirty();
     await hydrateProfile();
     uni.showToast({
       title: '资料已更新',
@@ -584,6 +665,7 @@ async function saveProfile() {
 
 function logout() {
   clearSession();
+  pageStateStore.markCoreDirty();
   resetSessionState();
   loginErrorMessage.value = '';
   uni.showToast({
@@ -640,10 +722,13 @@ onShow(() => {
   const latestToken = getAuthToken();
   if (latestToken !== authToken.value) {
     authToken.value = latestToken;
+    pageStateStore.markDirty('profile');
   }
   authMeta.value = getAuthSessionMeta();
-  historyLoading.value = true;
-  void hydrateProfile();
+  if (pageStateStore.versionOf('profile') !== lastProfileVersion) {
+    historyLoading.value = true;
+    void hydrateProfile();
+  }
 });
 </script>
 
@@ -1069,6 +1154,54 @@ onShow(() => {
   border-radius: 28rpx;
 }
 
+.completion-card,
+.preview-card {
+  display: grid;
+  gap: 10rpx;
+  padding: 22rpx;
+  border-radius: 24rpx;
+  background: var(--theme-surface-muted);
+}
+
+.completion-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.completion-card__title,
+.preview-card__label {
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.completion-card__value,
+.preview-card__value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.completion-card__bar {
+  height: 12rpx;
+  border-radius: 999rpx;
+  background: rgba(var(--theme-text-secondary-rgb), 0.14);
+  overflow: hidden;
+}
+
+.completion-card__fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+.completion-card__text {
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
 .field {
   display: grid;
   gap: 10rpx;
@@ -1101,6 +1234,12 @@ onShow(() => {
 
 .gender-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
 }
 
 .gender-chip {

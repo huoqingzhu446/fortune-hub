@@ -191,7 +191,10 @@
             v-for="option in currentQuestion.options"
             :key="option.key"
             class="option-card"
-            :class="{ 'option-card--active': answers[currentQuestion.id] === option.key }"
+            :class="{
+              'option-card--active': answers[currentQuestion.id] === option.key,
+              'option-card--locked': answering,
+            }"
             @tap="pickAnswer(option.key)"
           >
             <text class="option-card__key">{{ option.key }}</text>
@@ -204,23 +207,9 @@
         <button class="hero-button hero-button--secondary" @tap="backToList">
           返回列表
         </button>
-        <button
-          v-if="!isLastQuestion"
-          class="hero-button hero-button--primary"
-          :disabled="!answers[currentQuestion.id]"
-          @tap="nextQuestion"
-        >
-          下一题
-        </button>
-        <button
-          v-else
-          class="hero-button hero-button--primary"
-          :loading="submitting"
-          :disabled="!answers[currentQuestion.id]"
-          @tap="submitAssessment"
-        >
-          提交并生成结果
-        </button>
+        <text class="action-row__hint">
+          {{ submitting ? '正在生成结果...' : '点击选项后会自动进入下一题' }}
+        </text>
       </view>
 
       <button
@@ -346,6 +335,7 @@ const loadingTests = ref(false);
 const loadingHistory = ref(false);
 const loadingDetailCode = ref('');
 const submitting = ref(false);
+const answering = ref(false);
 const authToken = ref(getAuthToken());
 const { themeVars } = useThemePreference();
 
@@ -482,7 +472,7 @@ async function startAssessment(code: string) {
 }
 
 function pickAnswer(optionKey: string) {
-  if (!currentQuestion.value) {
+  if (!currentQuestion.value || answering.value || submitting.value) {
     return;
   }
 
@@ -490,14 +480,18 @@ function pickAnswer(optionKey: string) {
     ...answers.value,
     [currentQuestion.value.id]: optionKey,
   };
-}
+  answering.value = true;
 
-function nextQuestion() {
-  if (!activeTest.value || !currentQuestion.value || !answers.value[currentQuestion.value.id]) {
-    return;
-  }
+  setTimeout(() => {
+    if (isLastQuestion.value) {
+      answering.value = false;
+      void submitAssessment();
+      return;
+    }
 
-  currentQuestionIndex.value += 1;
+    currentQuestionIndex.value += 1;
+    answering.value = false;
+  }, 140);
 }
 
 function previousQuestion() {
@@ -826,6 +820,14 @@ onShow(() => {
   gap: 18rpx;
 }
 
+.action-row__hint {
+  flex: 1;
+  text-align: right;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--apple-subtle);
+}
+
 .section-header {
   margin-bottom: 18rpx;
 }
@@ -916,6 +918,10 @@ onShow(() => {
   border-radius: 24rpx;
   background: rgba(255, 255, 255, 0.92);
   border: 2rpx solid transparent;
+}
+
+.option-card--locked {
+  pointer-events: none;
 }
 
 .option-card--active {

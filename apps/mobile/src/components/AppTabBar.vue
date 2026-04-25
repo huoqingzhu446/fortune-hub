@@ -46,7 +46,23 @@ function handlePress(item: TabItem) {
     return;
   }
 
-  uni.redirectTo({
+  const pageStack = getCurrentPages();
+  const targetIndex = pageStack.findIndex(
+    (page) => `/${page.route}` === item.route,
+  );
+
+  if (targetIndex >= 0) {
+    const delta = pageStack.length - 1 - targetIndex;
+
+    if (delta > 0) {
+      uni.navigateBack({
+        delta,
+      });
+    }
+    return;
+  }
+
+  uni.navigateTo({
     url: item.route,
   });
 }

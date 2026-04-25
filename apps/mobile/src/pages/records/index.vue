@@ -229,6 +229,7 @@ import { fetchRecordOverview } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { clearSession, getAuthToken } from '../../services/session';
+import { usePageStateStore } from '../../stores/page-state';
 import type {
   MeditationLogItem,
   MoodJournalItem,
@@ -326,6 +327,8 @@ const favorites = computed(() => recordOverview.value.favorites);
 const growth = computed(() => recordOverview.value.growth);
 const overview = computed(() => recordOverview.value.overview);
 const currentMonthLabel = computed(() => recordOverview.value.calendar.monthLabel);
+const pageStateStore = usePageStateStore();
+let lastRecordsVersion = pageStateStore.versionOf('records');
 
 const moodRecords = computed(() => recordOverview.value.moodRecords);
 const testRecords = computed(() => recordOverview.value.testRecords);
@@ -442,6 +445,7 @@ async function loadRecordOverview() {
     loading.value = true;
     const response = await fetchRecordOverview();
     recordOverview.value = response.data;
+    lastRecordsVersion = pageStateStore.versionOf('records');
     if (!response.data.isLoggedIn && authToken.value) {
       clearSession();
       authToken.value = '';
@@ -560,8 +564,11 @@ onShow(() => {
   const latestToken = getAuthToken();
   if (latestToken !== authToken.value) {
     authToken.value = latestToken;
+    pageStateStore.markDirty('records');
   }
-  void loadRecordOverview();
+  if (pageStateStore.versionOf('records') !== lastRecordsVersion) {
+    void loadRecordOverview();
+  }
 });
 </script>
 

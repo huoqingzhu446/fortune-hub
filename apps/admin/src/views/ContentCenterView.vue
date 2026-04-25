@@ -405,6 +405,19 @@
                     </el-form-item>
                   </div>
 
+                  <el-form-item label="在线试听">
+                    <div class="content-center__audio-preview">
+                      <audio
+                        v-if="item.previewUrl"
+                        class="content-center__audio-player"
+                        :src="resolveMeditationPreviewUrl(item.previewUrl)"
+                        controls
+                        preload="none"
+                      />
+                      <span v-else class="content-center__audio-empty">上传后可直接试听</span>
+                    </div>
+                  </el-form-item>
+
                   <div class="content-center__music-actions">
                     <el-button text @click="duplicateMeditationMusicItem(index)">复制一条</el-button>
                     <el-button text type="danger" @click="removeMeditationMusicItem(index)">删除</el-button>
@@ -1095,6 +1108,28 @@ function removeMeditationMusicItem(index: number) {
   syncMeditationMusicToJson();
 }
 
+function resolveMeditationPreviewUrl(url: string) {
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  const fileIdMatch = trimmed.match(
+    /(?:^|\/)(?:api(?:\/v1)?\/)?files\/([^/?#]+)\/content(?:$|[/?#])/i,
+  );
+
+  if (
+    fileIdMatch?.[1] &&
+    (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal)(?::\d+)?\//i.test(trimmed) ||
+      trimmed.startsWith('/api/files/'))
+  ) {
+    return `/api/v1/files/${encodeURIComponent(fileIdMatch[1])}/content`;
+  }
+
+  return trimmed;
+}
+
 async function handleMeditationAudioUpload(index: number, file: File) {
   try {
     uploadingAudioIndex.value = index;
@@ -1235,6 +1270,19 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.content-center__audio-preview {
+  width: 100%;
+}
+
+.content-center__audio-player {
+  width: 100%;
+}
+
+.content-center__audio-empty {
+  color: #6b7280;
+  font-size: 13px;
 }
 </style>
 

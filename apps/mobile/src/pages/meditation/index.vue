@@ -140,6 +140,7 @@ import {
   fetchMeditationRecordDetail,
   saveMeditationRecord,
 } from '../../api/records';
+import { appEnv } from '../../config/env';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
 import { defaultMeditationMusicLibrary } from '../../services/meditation-music';
@@ -288,9 +289,49 @@ function togglePreview(id: string) {
   }
 
   audioContext.stop();
-  audioContext.src = selectedMusic.previewUrl;
+  audioContext.src = resolveMeditationPreviewUrl(selectedMusic.previewUrl);
   audioContext.play();
   playingMusicId.value = id;
+}
+
+function resolveMeditationPreviewUrl(url: string) {
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  const fileIdMatch = trimmed.match(
+    /(?:^|\/)(?:api(?:\/v1)?\/)?files\/([^/?#]+)\/content(?:$|[/?#])/i,
+  );
+
+  if (
+    fileIdMatch?.[1] &&
+    (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal)(?::\d+)?\//i.test(trimmed) ||
+      trimmed.startsWith('/api/files/'))
+  ) {
+    return buildApiFilePreviewUrl(fileIdMatch[1]);
+  }
+
+  if (trimmed.startsWith('/')) {
+    if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
+      return new URL(trimmed, appEnv.apiBaseUrl).toString();
+    }
+
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
+function buildApiFilePreviewUrl(fileId: string) {
+  const path = `/api/v1/files/${encodeURIComponent(fileId)}/content`;
+
+  if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
+    return new URL(path, appEnv.apiBaseUrl).toString();
+  }
+
+  return path;
 }
 
 function findMeditationMusic(id?: string) {

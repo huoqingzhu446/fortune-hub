@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
+import { normalizeFileServiceUrlToApiProxy } from '../common/file-url.util';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
@@ -104,6 +106,7 @@ export class UsersService {
     private readonly meditationRecordRepository: Repository<MeditationRecordEntity>,
     @InjectRepository(OrderEntity)
     private readonly orderRepository: Repository<OrderEntity>,
+    private readonly configService: ConfigService,
     private readonly authService: AuthService,
     private readonly favoritesService: FavoritesService,
     private readonly membershipService: MembershipService,
@@ -1086,7 +1089,13 @@ export class UsersService {
           : '轻环境音',
       previewUrl:
         typeof item.previewUrl === 'string' && item.previewUrl.trim()
-          ? item.previewUrl.trim()
+          ? normalizeFileServiceUrlToApiProxy(item.previewUrl.trim(), {
+              internalBaseUrl: this.configService.get<string>(
+                'FILE_SERVICE_BASE_URL',
+                'http://8.152.214.57:3000/api',
+              ),
+              publicApiBaseUrl: this.configService.get<string>('PUBLIC_API_BASE_URL'),
+            })
           : '',
     };
   }

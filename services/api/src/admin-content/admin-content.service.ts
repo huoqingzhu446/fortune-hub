@@ -11,6 +11,11 @@ import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
+import {
+  buildPublicApiFileContentUrl,
+  extractFileIdFromFileUrl,
+  normalizeFileServiceUrlToApiProxy,
+} from '../common/file-url.util';
 import { SaveFortuneContentDto } from './dto/save-fortune-content.dto';
 import { SaveLuckyItemDto } from './dto/save-lucky-item.dto';
 import { SaveReportTemplateDto } from './dto/save-report-template.dto';
@@ -40,6 +45,48 @@ export class AdminContentService {
     file: Express.Multer.File,
   ) {
     return this.forwardAudioToFileService(file);
+  }
+
+  async getFileContent(fileId: string) {
+    try {
+      const token = this.configService.get<string>('FILE_SERVICE_TOKEN');
+      const response = await fetch(this.resolveFileServiceContentUrl(fileId), {
+        headers: token
+          ? {
+              'x-file-service-token': token,
+            }
+          : undefined,
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundException('文件不存在');
+      }
+
+      if (!response.ok) {
+        throw new BadGatewayException('文件服务内容读取失败');
+      }
+
+      return {
+        body: Buffer.from(await response.arrayBuffer()),
+        contentType:
+          response.headers.get('content-type') || 'application/octet-stream',
+        contentLength: response.headers.get('content-length'),
+        cacheControl:
+          response.headers.get('cache-control') || 'public, max-age=3600',
+        contentDisposition: response.headers.get('content-disposition'),
+        etag: response.headers.get('etag'),
+        lastModified: response.headers.get('last-modified'),
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadGatewayException
+      ) {
+        throw error;
+      }
+
+      throw new BadGatewayException('连接 luckLink 文件服务失败，请检查 FILE_SERVICE_BASE_URL 或服务状态');
+    }
   }
 
   async listContents(contentType?: string, keyword?: string, status?: string) {
@@ -530,7 +577,7 @@ export class AdminContentService {
       title: item.title,
       description: item.description,
       valueType: item.valueType,
-      valueJson: item.valueJson,
+      valueJson: this.normalizeConfigValue(item),
       status: item.status,
       publishedAt: item.publishedAt?.toISOString() ?? null,
       archivedAt: item.archivedAt?.toISOString() ?? null,
@@ -592,7 +639,7 @@ export class AdminContentService {
         originalName: payload.originalName || file.originalname,
         mimeType: payload.mimeType || file.mimetype,
         size: payload.size || file.size,
-        url: payload.contentUrl,
+        url: this.resolveUploadedFileUrl(payload.contentUrl, payload.id),
         relativePath: payload.objectKey || '',
       });
     } catch (error) {
@@ -607,17 +654,87 @@ export class AdminContentService {
   }
 
   private resolveFileServiceUploadUrl() {
-    const configuredBaseUrl = this.configService.get<string>(
-      'FILE_SERVICE_BASE_URL',
-      'http://8.152.214.57:3000/api',
-    );
-
-    const normalized = configuredBaseUrl.replace(/\/$/, '');
+    const normalized = this.resolveFileServiceBaseUrl();
 
     if (normalized.endsWith('/api')) {
       return `${normalized}/files/upload`;
     }
 
     return `${normalized}/api/files/upload`;
+  }
+
+  private resolveFileServiceContentUrl(fileId: string) {
+    const normalized = this.resolveFileServiceBaseUrl();
+    const encodedId = encodeURIComponent(fileId);
+
+    if (normalized.endsWith('/api')) {
+      return `${normalized}/files/${encodedId}/content`;
+    }
+
+    return `${normalized}/api/files/${encodedId}/content`;
+  }
+
+  private resolveFileServiceBaseUrl() {
+    return this.configService
+      .get<string>('FILE_SERVICE_BASE_URL', 'http://8.152.214.57:3000/api')
+      .replace(/\/$/, '');
+  }
+
+  private resolveUploadedFileUrl(contentUrl?: string, fileId?: string) {
+    const publicApiBaseUrl = this.configService.get<string>('PUBLIC_API_BASE_URL');
+    const resolvedFileId =
+      fileId || (contentUrl ? extractFileIdFromFileUrl(contentUrl) : null);
+
+    if (resolvedFileId) {
+      return buildPublicApiFileContentUrl(resolvedFileId, publicApiBaseUrl);
+    }
+
+    if (!contentUrl) {
+      return '';
+    }
+
+    return normalizeFileServiceUrlToApiProxy(contentUrl, {
+      forceProxy: true,
+      internalBaseUrl: this.resolveFileServiceBaseUrl(),
+      publicApiBaseUrl,
+    });
+  }
+
+  private normalizeConfigValue(item: AppConfigEntity) {
+    if (item.namespace !== 'meditation' || item.configKey !== 'music_library') {
+      return item.valueJson;
+    }
+
+    const valueJson = item.valueJson;
+
+    if (!valueJson || typeof valueJson !== 'object' || Array.isArray(valueJson)) {
+      return valueJson;
+    }
+
+    const rawItems = Array.isArray((valueJson as { items?: unknown[] }).items)
+      ? ((valueJson as { items?: unknown[] }).items ?? [])
+      : [];
+
+    return {
+      ...valueJson,
+      items: rawItems.map((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+          return entry;
+        }
+
+        const record = entry as Record<string, unknown>;
+
+        return {
+          ...record,
+          previewUrl:
+            typeof record.previewUrl === 'string'
+              ? normalizeFileServiceUrlToApiProxy(record.previewUrl, {
+                  internalBaseUrl: this.resolveFileServiceBaseUrl(),
+                  publicApiBaseUrl: this.configService.get<string>('PUBLIC_API_BASE_URL'),
+                })
+              : record.previewUrl,
+        };
+      }),
+    };
   }
 }

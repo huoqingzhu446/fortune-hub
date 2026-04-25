@@ -33,7 +33,6 @@
     <view class="fortune-card__body">
       <text class="fortune-card__title">{{ title }}</text>
       <text class="fortune-card__summary">{{ summary }}</text>
-      <text class="fortune-card__status">{{ status }}</text>
     </view>
 
     <view class="fortune-card__footer">
@@ -75,7 +74,7 @@ defineEmits<{
   display: grid;
   margin-top: 0rpx;
   gap: 30rpx;
-  padding: 44rpx 40rpx 34rpx;
+  padding: 44rpx 30rpx 34rpx;
   overflow: hidden;
   border-radius: 0rpx;
   background:
@@ -369,7 +368,7 @@ defineEmits<{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12rpx;
-  padding: 20rpx 22rpx;
+  padding: 20rpx 2rpx;
   border-radius: 28rpx;
   background: rgba(255, 255, 255, 0.52);
   box-shadow: 0 0 0 1rpx rgba(255, 255, 255, 0.48) inset;

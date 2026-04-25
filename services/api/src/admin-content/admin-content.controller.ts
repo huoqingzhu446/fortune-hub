@@ -9,12 +9,14 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { SaveConfigEntryDto } from './dto/save-config-entry.dto';
 import { SaveFortuneContentDto } from './dto/save-fortune-content.dto';
@@ -232,5 +234,36 @@ export class AdminUploadsController {
     }
 
     return this.adminContentService.uploadAudio(file);
+  }
+}
+
+@Controller('files')
+export class PublicFilesController {
+  constructor(private readonly adminContentService: AdminContentService) {}
+
+  @Get(':id/content')
+  async getFileContent(@Param('id') id: string, @Res() response: Response) {
+    const file = await this.adminContentService.getFileContent(id);
+
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Cache-Control', file.cacheControl);
+
+    if (file.contentLength) {
+      response.setHeader('Content-Length', file.contentLength);
+    }
+
+    if (file.contentDisposition) {
+      response.setHeader('Content-Disposition', file.contentDisposition);
+    }
+
+    if (file.etag) {
+      response.setHeader('ETag', file.etag);
+    }
+
+    if (file.lastModified) {
+      response.setHeader('Last-Modified', file.lastModified);
+    }
+
+    response.send(file.body);
   }
 }

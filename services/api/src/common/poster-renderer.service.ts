@@ -238,9 +238,9 @@ export class PosterRendererService {
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
   <defs>
     <linearGradient id="today-overlay" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#07111d" stop-opacity="0.54" />
-      <stop offset="48%" stop-color="${colorB}" stop-opacity="0.1" />
-      <stop offset="100%" stop-color="#07111d" stop-opacity="0.68" />
+      <stop offset="0%" stop-color="#07111d" stop-opacity="0.42" />
+      <stop offset="48%" stop-color="${colorB}" stop-opacity="0.04" />
+      <stop offset="100%" stop-color="#07111d" stop-opacity="0.54" />
     </linearGradient>
     <linearGradient id="today-card" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#06111d" stop-opacity="0.34" />
@@ -253,23 +253,23 @@ export class PosterRendererService {
   ${backgroundLayer}
   <rect x="0" y="0" width="${layout.width}" height="${layout.height}" fill="url(#today-overlay)" />
   <path d="M108 336 C 248 250, 418 234, 592 306 S 894 408, 996 338" fill="none" stroke="#ffffff" stroke-opacity="0.24" stroke-width="4" />
-  <rect x="44" y="44" width="1000" height="1384" rx="58" ry="58" fill="none" stroke="#ffffff" stroke-opacity="0.34" />
+  <rect x="44" y="44" width="1000" height="1384" rx="58" ry="58" fill="none" stroke="#ffffff" stroke-opacity="0.24" />
   <text x="88" y="132" font-size="26" letter-spacing="6" fill="#f1f7ff" font-family="${POSTER_FONT_FAMILY}" filter="url(#soft-text-shadow)">${this.escapeXml(
     source.eyebrowText,
   )}</text>
   <text x="88" y="238" font-size="72" font-weight="760" fill="#ffffff" font-family="${POSTER_FONT_FAMILY}" filter="url(#soft-text-shadow)">${titleLines}</text>
   <text x="88" y="382" font-size="30" fill="#f8fbff" fill-opacity="0.96" font-family="${POSTER_FONT_FAMILY}" filter="url(#soft-text-shadow)">${subtitleLines}</text>
-  <rect x="88" y="434" width="912" height="74" rx="28" ry="28" fill="#06111d" fill-opacity="0.26" stroke="#ffffff" stroke-opacity="0.16" />
+  <rect x="88" y="434" width="912" height="74" rx="28" ry="28" fill="#06111d" fill-opacity="0.2" stroke="#ffffff" stroke-opacity="0.14" />
   <text x="118" y="482" font-size="28" fill="#ffffff" fill-opacity="0.98" font-family="${POSTER_FONT_FAMILY}">${accentLines}</text>
   ${chipBlocks}
   ${metricBlocks}
-  <rect x="120" y="862" width="848" height="204" rx="34" ry="34" fill="url(#today-card)" stroke="#ffffff" stroke-opacity="0.2" />
+  <rect x="120" y="862" width="848" height="204" rx="34" ry="34" fill="url(#today-card)" stroke="#ffffff" stroke-opacity="0.16" />
   <text x="120" y="924" font-size="26" letter-spacing="3" fill="#eaf4ff" font-family="${POSTER_FONT_FAMILY}">TODAY SUMMARY</text>
   <text x="120" y="984" font-size="32" fill="#ffffff" fill-opacity="0.98" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
-  <rect x="120" y="1098" width="848" height="216" rx="34" ry="34" fill="#06111d" fill-opacity="0.24" stroke="#ffffff" stroke-opacity="0.2" />
+  <rect x="120" y="1098" width="848" height="216" rx="34" ry="34" fill="#06111d" fill-opacity="0.2" stroke="#ffffff" stroke-opacity="0.16" />
   <text x="160" y="1160" font-size="28" fill="#fefefe" font-family="${POSTER_FONT_FAMILY}">${highlightTitle}</text>
   ${highlightBlocks}
-  <rect x="120" y="1332" width="848" height="80" rx="26" ry="26" fill="#06111d" fill-opacity="0.28" />
+  <rect x="120" y="1332" width="848" height="80" rx="26" ry="26" fill="#06111d" fill-opacity="0.24" />
   <text x="148" y="1384" font-size="24" fill="#f7fbff" fill-opacity="0.94" font-family="${POSTER_FONT_FAMILY}">${footerLines}</text>
 </svg>`.trim();
   }
@@ -350,7 +350,7 @@ export class PosterRendererService {
         const hint = this.renderTextTspans(metric.hint ?? '', 10, 0, 28, currentX + 24);
 
         return `
-  <rect x="${currentX}" y="${y}" width="${itemWidth}" height="${height}" rx="30" ry="30" fill="#06111d" fill-opacity="0.24" stroke="#ffffff" stroke-opacity="0.2" />
+  <rect x="${currentX}" y="${y}" width="${itemWidth}" height="${height}" rx="30" ry="30" fill="#06111d" fill-opacity="0.2" stroke="#ffffff" stroke-opacity="0.16" />
   <text x="${currentX + 24}" y="${y + 42}" font-size="22" letter-spacing="3" fill="#f0f7ff" font-family="${POSTER_FONT_FAMILY}">${label}</text>
   <text x="${currentX + 24}" y="${y + 110}" font-size="58" font-weight="700" fill="#ffffff" font-family="${POSTER_FONT_FAMILY}">${value}</text>
   <text x="${currentX + 24}" y="${y + 146}" font-size="20" fill="#ffffff" fill-opacity="0.9" font-family="${POSTER_FONT_FAMILY}">${hint}</text>`.trim();
@@ -379,7 +379,7 @@ export class PosterRendererService {
       }
 
       parts.push(`
-  <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="${lineHeight}" rx="20" ry="20" fill="#06111d" fill-opacity="0.22" stroke="#ffffff" stroke-opacity="0.18" />
+  <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="${lineHeight}" rx="20" ry="20" fill="#06111d" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.14" />
   <text x="${cursorX + 18}" y="${cursorY + 33}" font-size="22" fill="#ffffff" fill-opacity="0.96" font-family="${POSTER_FONT_FAMILY}">${label}</text>`.trim());
 
       cursorX += chipWidth + gap;

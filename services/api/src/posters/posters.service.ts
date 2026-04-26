@@ -418,17 +418,15 @@ export class PostersService {
         36,
       ),
       promptKeywords: [
-        user.zodiac ?? '',
-        dominantElement,
-        luckyData.sign.tag,
-        primaryRecommendation?.title ?? '',
-        primaryRecommendation?.category ?? '',
-        '星座气运',
-        '五行能量',
-        '社交分享海报',
+        this.resolveElementVisualKeyword(dominantElement),
+        'abstract eastern energy field',
+        'soft flowing light',
+        'mist and star dust',
+        'mineral texture',
+        'large clean negative space',
       ].filter(Boolean),
       themeName: this.resolveTodayIndexThemeName(dominantElement),
-      promptHint: `竖版社交分享图，现代东方气质，结合${user.zodiac}、${dominantElement}元素与轻灵能量流线，适合叠加指数卡片、标签和两到三条行动提示，画面丰富但不要拥挤。`,
+      promptHint: '竖版社交分享背景，现代东方气质，轻灵能量流线、柔和留白和层次光影，不能出现任何可读文字或卡片版式。',
       eyebrowText: 'TODAY FORTUNE INDEX',
       chips: [
         `${user.zodiac}运势`,
@@ -480,17 +478,16 @@ export class PostersService {
       footerText: this.truncateText(sharePoster.footerText, 42),
       summary: this.truncateText(data.theme.summary, 40),
       promptKeywords: [
-        data.zodiac,
-        data.profile.element,
-        data.profile.modality,
-        data.theme.title,
-        data.action.title,
-        data.lucky.color,
-        '星座今日气运',
-        '星轨',
+        ...this.resolveZodiacVisualKeywords(data.zodiac),
+        this.resolveElementVisualKeyword(data.profile.element),
+        'constellation arcs',
+        'misty mountains',
+        'soft celestial glow',
+        'mineral texture',
+        'large clean negative space',
       ],
       themeName: sharePoster.themeName,
-      promptHint: `竖版星座气运分享图，突出${data.zodiac}、今日指数${data.score.overall}和行动签，适合叠加四象限指数与时间节奏。`,
+      promptHint: '竖版无文字星象背景，只画星轨、山海、云雾、光线和抽象星座意象，避免标题牌、文字框、海报排版和数字。',
       eyebrowText: 'ZODIAC TODAY',
       chips: [
         `${data.zodiac}`,
@@ -517,18 +514,20 @@ export class PostersService {
   }
 
   private buildProviderPrompt(source: PosterSource) {
+    const visualKeywords = this.buildVisualPromptKeywords(source);
+
     if (source.sourceType === 'today_index' || source.sourceType === 'zodiac_today') {
       return [
-        '微信社交分享图背景插画，竖版海报，现代东方气质，通透高级，适合命理与运势产品分享，只生成背景，不生成成品海报。',
+        '竖版微信分享背景插画，现代东方气质，通透高级，适合命理与运势产品分享。只生成纯背景，不生成成品海报。',
         `主题：${source.themeName}。`,
-        `关键词：${source.promptKeywords.join('、')}。`,
+        `视觉元素：${visualKeywords.join('、')}。`,
         this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))
           ? `额外风格要求：${this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))}。`
           : '',
-        '画面层次需要丰富，包含星轨、流光、云雾、五行纹理或抽象山海意象，但不要杂乱。',
-        '中上部保留标题区，中部保留 3 个信息卡片位置，下半部保留行动建议区。',
-        '不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、边框、按钮、卡片文案和人物脸部特写。',
-        '整体偏封面感、治愈感、轻奢感，适合高清保存后分享给微信好友。',
+        '画面层次丰富但安静，包含星轨、流光、云雾、五行纹理或抽象山海意象，顶部和中下部有干净留白。',
+        '不要设计版式，不要出现标题栏、信息卡片、按钮、纸张、标签、边框、表格、对话框、印章或人物脸部特写。',
+        '绝对不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、签名和可读符号。',
+        '整体偏封面感、治愈感、轻奢感，高清细节，适合后期叠加中文信息。',
       ]
         .filter(Boolean)
         .join(' ');
@@ -537,18 +536,76 @@ export class PostersService {
     const templateHint = this.resolvePosterPromptHint(source.sourceType);
 
     return [
-      '微信分享海报背景插画，现代东方气质，清透高级，适合内容类产品分享，只生成背景，不生成成品海报。',
+      '微信分享背景插画，现代东方气质，清透高级，适合内容类产品分享，只生成纯背景，不生成成品海报。',
       `主题：${source.themeName}。`,
-      `关键词：${source.promptKeywords.join('、')}。`,
+      `视觉元素：${visualKeywords.join('、')}。`,
       this.pickString(source.promptHint, templateHint)
         ? `额外风格要求：${this.pickString(source.promptHint, templateHint)}。`
         : '',
-      '画面需要有大面积留白，适合后续叠加中文标题和说明文案。',
+      '画面需要有大面积留白，适合后续叠加中文标题和说明文案，但背景自身不能像海报模板。',
       '不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、边框、按钮、卡片文案和人物脸部特写。',
       '整体要有层次感、柔和渐变、半透明玻璃质感和轻微光晕。',
     ]
       .filter(Boolean)
       .join(' ');
+  }
+
+  private buildVisualPromptKeywords(source: PosterSource) {
+    const blockedPattern =
+      /[\u4e00-\u9fa5]{5,}|今日|气运|运势|指数|行动|建议|幸运|完成|目标|数字|分享|海报|卡片|标签|文案|标题/;
+    const keywords = source.promptKeywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .filter((keyword) => !blockedPattern.test(keyword));
+
+    if (keywords.length) {
+      return keywords.slice(0, 10);
+    }
+
+    return ['soft celestial glow', 'mist', 'flowing light', 'large clean negative space'];
+  }
+
+  private resolveElementVisualKeyword(element: string) {
+    if (element.includes('木')) {
+      return 'fresh green wood element texture';
+    }
+
+    if (element.includes('火')) {
+      return 'warm ember light texture';
+    }
+
+    if (element.includes('土')) {
+      return 'earth stone mountain texture';
+    }
+
+    if (element.includes('金')) {
+      return 'silver metal moonlight texture';
+    }
+
+    if (element.includes('水')) {
+      return 'deep water mist texture';
+    }
+
+    return 'balanced five element texture';
+  }
+
+  private resolveZodiacVisualKeywords(zodiac: string) {
+    const map: Record<string, string[]> = {
+      白羊座: ['aries constellation', 'ram horn silhouette', 'morning sparks'],
+      金牛座: ['taurus constellation', 'gentle bull silhouette', 'spring meadow light'],
+      双子座: ['gemini constellation', 'twin star ribbons', 'airy light trails'],
+      巨蟹座: ['cancer constellation', 'moonlit water', 'soft shell curve'],
+      狮子座: ['leo constellation', 'golden mane light', 'sun halo'],
+      处女座: ['virgo constellation', 'wheat and moonlight', 'quiet earth garden'],
+      天秤座: ['libra constellation', 'balanced moon arc', 'soft scales silhouette'],
+      天蝎座: ['scorpio constellation', 'deep night desert', 'mysterious red glow'],
+      射手座: ['sagittarius constellation', 'arrow star trail', 'wide sky horizon'],
+      摩羯座: ['capricorn constellation', 'mountain silhouette', 'quiet midnight stone'],
+      水瓶座: ['aquarius constellation', 'flowing water light', 'future glass texture'],
+      双鱼座: ['pisces constellation', 'two fish light trails', 'dreamy ocean mist'],
+    };
+
+    return map[zodiac] ?? ['constellation', 'soft star trail', 'misty sky'];
   }
 
   private resolvePosterPromptHint(sourceType: string) {

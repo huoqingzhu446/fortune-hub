@@ -11,7 +11,7 @@ RUN corepack enable && pnpm install --frozen-lockfile=false && pnpm build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache fontconfig font-noto-cjk
+RUN apk add --no-cache fontconfig font-wqy-zenhei
 COPY package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

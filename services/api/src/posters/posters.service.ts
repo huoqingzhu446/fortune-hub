@@ -515,11 +515,12 @@ export class PostersService {
 
   private buildProviderPrompt(source: PosterSource) {
     const visualKeywords = this.buildVisualPromptKeywords(source);
+    const colorMood = this.resolveProviderColorMood(source.themeName);
 
     if (source.sourceType === 'today_index' || source.sourceType === 'zodiac_today') {
       return [
         '竖版微信分享背景插画，现代东方气质，通透高级，适合命理与运势产品分享。只生成纯背景，不生成成品海报。',
-        `主题：${source.themeName}。`,
+        `色彩氛围：${colorMood}。`,
         `视觉元素：${visualKeywords.join('、')}。`,
         this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))
           ? `额外风格要求：${this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))}。`
@@ -537,7 +538,7 @@ export class PostersService {
 
     return [
       '微信分享背景插画，现代东方气质，清透高级，适合内容类产品分享，只生成纯背景，不生成成品海报。',
-      `主题：${source.themeName}。`,
+      `色彩氛围：${colorMood}。`,
       `视觉元素：${visualKeywords.join('、')}。`,
       this.pickString(source.promptHint, templateHint)
         ? `额外风格要求：${this.pickString(source.promptHint, templateHint)}。`
@@ -606,6 +607,38 @@ export class PostersService {
     };
 
     return map[zodiac] ?? ['constellation', 'soft star trail', 'misty sky'];
+  }
+
+  private resolveProviderColorMood(themeName: string) {
+    if (themeName.includes('sage') || themeName.includes('stone')) {
+      return '灰蓝夜空、岩石灰、低饱和绿色、柔和月光、安静高级';
+    }
+
+    if (themeName.includes('amber') || themeName.includes('gold')) {
+      return '暖金色、浅琥珀、柔和米白、晨光质感';
+    }
+
+    if (themeName.includes('sunset') || themeName.includes('ember')) {
+      return '落日橙、柔粉、深玫瑰暗部、温暖余晖';
+    }
+
+    if (themeName.includes('sand') || themeName.includes('earth')) {
+      return '大地色、岩层纹理、柔沙色、低饱和暖光';
+    }
+
+    if (themeName.includes('silver') || themeName.includes('metal')) {
+      return '银蓝月光、冷灰、细腻金属光泽、清透暗部';
+    }
+
+    if (themeName.includes('ocean') || themeName.includes('water')) {
+      return '深海蓝、雾白、水面微光、流动感';
+    }
+
+    if (themeName.includes('mint')) {
+      return '薄荷绿、浅青、柔白光、清新空气感';
+    }
+
+    return '深蓝灰、柔白光、低饱和渐变、安静留白';
   }
 
   private resolvePosterPromptHint(sourceType: string) {

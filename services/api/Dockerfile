@@ -1,12 +1,15 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json ./
+RUN corepack enable \
+  && pnpm config set registry https://registry.npmmirror.com \
+  && pnpm install --frozen-lockfile=false
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
 COPY eslint.config.mjs ./
 COPY src ./src
 COPY test ./test
-RUN corepack enable && pnpm install --frozen-lockfile=false && pnpm build
+RUN pnpm build
 
 FROM node:22-alpine
 WORKDIR /app

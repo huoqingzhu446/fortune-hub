@@ -151,9 +151,31 @@
           </template>
           <el-descriptions :column="1" border>
             <el-descriptions-item label="密钥">{{ zhipuStatus?.configured ? '已配置' : '未配置' }}</el-descriptions-item>
-            <el-descriptions-item label="模型环境变量">{{ zhipuStatus?.modelEnv }}</el-descriptions-item>
-            <el-descriptions-item label="生成超时变量">{{ zhipuStatus?.timeoutEnv }}</el-descriptions-item>
+            <el-descriptions-item label="生效密钥变量">{{ zhipuStatus?.configuredKeyEnv || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="当前模型">{{ zhipuStatus?.model || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="接口地址">{{ zhipuStatus?.endpoint || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="默认尺寸">
+              <div class="integration-tags">
+                <el-tag v-for="item in zhipuDefaultSizeTags" :key="item" effect="plain">{{ item }}</el-tag>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="支持尺寸">
+              <div class="integration-tags">
+                <el-tag v-for="item in zhipuStatus?.supportedSizes || []" :key="item" type="info" effect="plain">{{ item }}</el-tag>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="超时">
+              生成 {{ zhipuStatus?.timeoutMs || '-' }}ms / 下载 {{ zhipuStatus?.fetchTimeoutMs || '-' }}ms
+            </el-descriptions-item>
           </el-descriptions>
+          <el-alert
+            v-if="zhipuTestError"
+            class="integration-error"
+            type="error"
+            :title="zhipuTestError"
+            show-icon
+            :closable="false"
+          />
           <el-image v-if="zhipuPreview" class="zhipu-preview" :src="zhipuPreview" fit="cover" />
         </el-card>
       </el-tab-pane>
@@ -256,7 +278,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   fetchAdminAdUnlocks,
@@ -310,7 +332,25 @@ const feedbackForm = reactive({
 });
 const zhipuStatus = ref<ZhipuImageStatus | null>(null);
 const zhipuPreview = ref('');
+const zhipuTestError = ref('');
 const zhipuTesting = ref(false);
+
+const zhipuDefaultSizeTags = computed(() => {
+  const sizes = zhipuStatus.value?.defaultSizes;
+
+  if (!sizes) {
+    return [];
+  }
+
+  return [
+    `海报方图 ${sizes.posterSquare}`,
+    `海报竖图 ${sizes.posterPortrait}`,
+    `壁纸竖图 ${sizes.wallpaperPortrait}`,
+    `壁纸横图 ${sizes.wallpaperLandscape}`,
+    `壁纸方图 ${sizes.wallpaperSquare}`,
+    `诊断 ${sizes.diagnostic}`,
+  ];
+});
 
 function buildFeedbackFilterParams() {
   return {
@@ -458,15 +498,47 @@ async function toggleVip(row: AdminUserItem) {
 async function runZhipuTest() {
   try {
     zhipuTesting.value = true;
+    zhipuTestError.value = '';
     const response = await testZhipuImage();
     zhipuPreview.value = response.data.item.imageDataUrl;
     ElMessage.success('智谱生图测试成功');
   } catch (error) {
     console.warn('zhipu image test failed', error);
-    ElMessage.error('智谱生图测试失败，请检查 API Key / 模型 / 超时配置');
+    zhipuTestError.value = resolveZhipuTestError(error);
+    ElMessage.error(zhipuTestError.value);
   } finally {
     zhipuTesting.value = false;
   }
+}
+
+function resolveZhipuTestError(error: unknown) {
+  const payload = (
+    error as {
+      response?: {
+        data?: {
+          message?: string;
+          providerCode?: string | number | null;
+          providerMessage?: string;
+          providerStatusCode?: number;
+          requestId?: string | null;
+        };
+      };
+      message?: string;
+    }
+  ).response?.data;
+
+  if (payload) {
+    return [
+      payload.providerMessage || payload.message || '智谱生图测试失败',
+      payload.providerCode ? `code=${payload.providerCode}` : '',
+      payload.providerStatusCode ? `http=${payload.providerStatusCode}` : '',
+      payload.requestId ? `requestId=${payload.requestId}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  return (error as Error)?.message || '智谱生图测试失败，请检查 API Key / 模型 / 超时配置';
 }
 
 function formatDateTime(value: string | null) {
@@ -594,6 +666,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.integration-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.integration-error {
+  margin-top: 12px;
 }
 
 .zhipu-preview {

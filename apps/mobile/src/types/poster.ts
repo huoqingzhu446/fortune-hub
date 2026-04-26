@@ -18,8 +18,7 @@ export interface GeneratedPoster {
   downloadFileName: string;
   generatedAt: string;
   format: 'png';
-  svgMarkup: string;
-  imageDataUrl: string;
+  imageDataUrl?: string;
   fileUrl?: string | null;
 }
 

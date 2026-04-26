@@ -25,9 +25,6 @@
         <button class="hero-button hero-button--primary" :loading="loading" @tap="loadWallpaper">
           重新生成
         </button>
-        <button class="hero-button hero-button--secondary" @tap="copyPrompt">
-          复制提示词
-        </button>
       </view>
     </view>
 
@@ -38,7 +35,7 @@
 
     <view v-else-if="wallpaper" class="panel">
       <text class="section-title">壁纸预览</text>
-      <image class="wallpaper-preview" :src="wallpaper.imageDataUrl" mode="widthFix" />
+      <image class="wallpaper-preview" :src="wallpaperImageSource" mode="widthFix" />
 
       <view class="meta-grid">
         <view class="meta-card">
@@ -76,9 +73,6 @@
     <view v-if="wallpaper" class="panel panel--soft">
       <text class="section-title">生成信息</text>
       <text class="body-text">{{ wallpaper.subtitle }}</text>
-      <text class="body-text">Prompt：{{ wallpaper.prompt }}</text>
-      <text class="body-text">来源：{{ wallpaper.providerStatus === 'generated' ? '智谱生成' : '内建兜底' }}</text>
-      <text v-if="wallpaper.providerError" class="helper-text">兜底原因：{{ wallpaper.providerError }}</text>
       <text class="helper-text">生成时间：{{ formatDateTime(wallpaper.generatedAt) }}</text>
     </view>
   </view>
@@ -86,11 +80,16 @@
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { generateLuckyWallpaperAsync } from '../../../api/lucky';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getLuckyWallpaperTheme } from '../../../services/lucky-wallpaper';
-import { previewPosterImage, savePosterImage } from '../../../services/poster-image';
+import {
+  handlePosterImageError,
+  previewPosterImage,
+  resolvePreferredImageSource,
+  savePosterImage,
+} from '../../../services/poster-image';
 import type { LuckyWallpaperData, LuckyWallpaperTheme } from '../../../types/lucky';
 
 type AspectRatio = '9:16' | '16:9' | '1:1';
@@ -107,6 +106,9 @@ const loading = ref(false);
 const aspectRatio = ref<AspectRatio>('9:16');
 const downloadLabel = ref('保存壁纸');
 const { themeVars } = useThemePreference();
+const wallpaperImageSource = computed(() =>
+  wallpaper.value ? resolvePreferredImageSource(wallpaper.value) : '',
+);
 
 async function loadWallpaper() {
   if (!activeTheme.value) {
@@ -123,10 +125,14 @@ async function loadWallpaper() {
       palette: activeTheme.value.palette,
       aspectRatio: aspectRatio.value,
     });
+    uni.showToast({
+      title: '壁纸已生成',
+      icon: 'success',
+    });
   } catch (error) {
     console.warn('generate lucky wallpaper failed', error);
     uni.showToast({
-      title: '壁纸生成失败',
+      title: '壁纸生成失败，请稍后重试',
       icon: 'none',
     });
   } finally {
@@ -141,42 +147,38 @@ function switchAspectRatio(nextRatio: AspectRatio) {
   }
 }
 
-function copyPrompt() {
-  const prompt = wallpaper.value?.prompt || activeTheme.value?.prompt;
+async function downloadWallpaper() {
+  if (!wallpaper.value || !wallpaperImageSource.value) {
+    return;
+  }
 
-  if (!prompt) {
+  try {
+    await savePosterImage(wallpaperImageSource.value, wallpaper.value.downloadFileName);
     uni.showToast({
-      title: '还没有可复制的提示词',
+      title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
+      icon: 'success',
+    });
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '保存失败，请稍后重试'),
       icon: 'none',
     });
-    return;
   }
-
-  uni.setClipboardData({
-    data: prompt,
-    success: () => {
-      uni.showToast({
-        title: '提示词已复制',
-        icon: 'success',
-      });
-    },
-  });
-}
-
-async function downloadWallpaper() {
-  if (!wallpaper.value) {
-    return;
-  }
-
-  await savePosterImage(wallpaper.value.fileUrl || wallpaper.value.imageDataUrl, wallpaper.value.downloadFileName);
 }
 
 async function previewWallpaper() {
-  if (!wallpaper.value) {
+  if (!wallpaper.value || !wallpaperImageSource.value) {
     return;
   }
 
-  await previewPosterImage(wallpaper.value.fileUrl || wallpaper.value.imageDataUrl, wallpaper.value.downloadFileName);
+  try {
+    await previewPosterImage(wallpaperImageSource.value, wallpaper.value.downloadFileName);
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '预览失败，请稍后重试'),
+      icon: 'none',
+    });
+  }
 }
 
 function goLucky() {

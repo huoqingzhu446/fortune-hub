@@ -85,7 +85,7 @@
         <text class="section-side">{{ poster.width }} × {{ poster.height }}</text>
       </view>
 
-      <image class="poster-image" :src="poster.imageDataUrl" mode="widthFix" />
+      <image class="poster-image" :src="posterImageSource" mode="widthFix" />
 
       <view class="action-row action-row--triple">
         <button class="hero-button hero-button--secondary" @tap="previewGeneratedPoster">
@@ -123,6 +123,7 @@ import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
 import {
   handlePosterImageError,
   previewPosterImage,
+  resolvePreferredImageSource,
   savePosterImage,
   sharePosterImageToWechat,
 } from '../../../services/poster-image';
@@ -142,6 +143,9 @@ const { themeVars } = useThemePreference();
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
+const posterImageSource = computed(() =>
+  poster.value ? resolvePreferredImageSource(poster.value) : '',
+);
 
 const dashboard = computed(() => dashboardStore.dashboard);
 const isLoggedIn = computed(() => Boolean(authToken.value));
@@ -287,12 +291,12 @@ async function generatePoster() {
 }
 
 async function previewGeneratedPoster() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
-    await previewPosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
+    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '预览失败，请稍后再试'),
@@ -302,12 +306,12 @@ async function previewGeneratedPoster() {
 }
 
 async function saveGeneratedPoster() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
-    await savePosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
+    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
     uni.showToast({
       title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
       icon: 'success',
@@ -321,12 +325,12 @@ async function saveGeneratedPoster() {
 }
 
 async function shareGeneratedPoster() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
-    await sharePosterImageToWechat(poster.value.imageDataUrl, poster.value.downloadFileName);
+    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),

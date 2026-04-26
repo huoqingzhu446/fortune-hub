@@ -178,6 +178,13 @@ export async function sharePosterImageToWechat(imageSource: string, fileName: st
   });
 }
 
+export function resolvePreferredImageSource(input: {
+  fileUrl?: string | null;
+  imageDataUrl?: string | null;
+}) {
+  return input.fileUrl || input.imageDataUrl || '';
+}
+
 export function handlePosterImageError(error: unknown, fallback = '图片处理失败，请稍后再试') {
   const message = getErrorMessage(error, fallback);
 

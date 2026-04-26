@@ -7,9 +7,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
-import sharp from 'sharp';
 import { Repository } from 'typeorm';
-import { ZhipuImageService } from '../common/zhipu-image.service';
+import { ImageGenerationService } from '../common/image-generation.service';
+import {
+  PosterMetric,
+  PosterRendererService,
+} from '../common/poster-renderer.service';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { PosterJobEntity } from '../database/entities/poster-job.entity';
@@ -19,12 +22,6 @@ import { LuckyService } from '../lucky/lucky.service';
 import { ReportsService } from '../reports/reports.service';
 import { ZodiacService } from '../zodiac/zodiac.service';
 import { GeneratePosterDto } from './dto/generate-poster.dto';
-
-type PosterMetric = {
-  label: string;
-  value: string;
-  hint?: string;
-};
 
 type PosterSource = {
   sourceType: string;
@@ -54,13 +51,6 @@ type PosterBackgroundAsset = {
   providerError?: string | null;
 };
 
-type PosterLayout = {
-  size: '1280x1280' | '1088x1472';
-  width: number;
-  height: number;
-  kind: 'square' | 'portrait';
-};
-
 @Injectable()
 export class PostersService {
   constructor(
@@ -76,42 +66,34 @@ export class PostersService {
     private readonly luckyService: LuckyService,
     private readonly zodiacService: ZodiacService,
     private readonly configService: ConfigService,
-    private readonly zhipuImageService: ZhipuImageService,
+    private readonly imageGenerationService: ImageGenerationService,
+    private readonly posterRendererService: PosterRendererService,
   ) {}
 
   async generatePoster(dto: GeneratePosterDto, user: UserEntity | null) {
     const source = await this.resolvePosterSource(dto, user);
-    const zhipuKey = this.configService.get<string>('ZHIPU_API_KEY');
-    const layout = this.resolvePosterLayout(dto.size, source.sourceType);
+    const layout = this.posterRendererService.resolvePosterLayout(dto.size, source.sourceType);
     const providerPrompt = this.buildProviderPrompt(source);
     const backgroundAsset = await this.resolvePosterBackground(
-      zhipuKey,
       providerPrompt,
       layout.size,
     );
-    let svgMarkup =
-      layout.kind === 'portrait'
-        ? this.buildTodayIndexPosterSvg(
-            source,
-            backgroundAsset.backgroundImageDataUrl,
-            layout,
-          )
-        : this.buildPosterSvg(source, backgroundAsset.backgroundImageDataUrl);
-    let imageBuffer: Buffer;
-
-    try {
-      imageBuffer = await this.renderPosterPng(svgMarkup);
-    } catch (error) {
-      console.warn('poster png render fallback to builtin background', error);
-      svgMarkup =
-        layout.kind === 'portrait'
-          ? this.buildTodayIndexPosterSvg(source, null, layout)
-          : this.buildPosterSvg(source, null);
-      imageBuffer = await this.renderPosterPng(svgMarkup);
-    }
+    const rendered = await this.posterRendererService.renderPoster(
+      source,
+      backgroundAsset.backgroundImageDataUrl,
+      layout,
+    );
+    const provider =
+      backgroundAsset.provider === 'zhipu' && rendered.usedProviderBackground
+        ? 'zhipu'
+        : 'builtin';
+    const providerStatus =
+      backgroundAsset.provider === 'zhipu' && rendered.usedProviderBackground
+        ? 'generated'
+        : 'fallback';
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
     const fileUrl = await this.persistPosterFile(
-      imageBuffer,
+      rendered.imageBuffer,
       `fortune-hub-${this.slugify(source.title)}-poster.png`,
     );
     const payload = {
@@ -132,10 +114,10 @@ export class PostersService {
       downloadFileName: `fortune-hub-${this.slugify(source.title)}-poster.png`,
       generatedAt: new Date().toISOString(),
       format: 'png',
-      svgMarkup,
-      imageDataUrl: `data:image/png;base64,${imageBuffer.toString('base64')}`,
+      imageDataUrl: rendered.imageDataUrl,
       fileUrl,
     };
+    const storedPayload = this.buildStoredPayload(payload);
 
     await this.shareRecordRepository.save(
       this.shareRecordRepository.create({
@@ -145,10 +127,10 @@ export class PostersService {
         sourceType: source.sourceType,
         sourceCode: source.sourceCode,
         posterTitle: source.title,
-        provider: backgroundAsset.provider,
-        status: backgroundAsset.status,
+        provider,
+        status: providerStatus,
         prompt: providerPrompt,
-        payloadJson: payload,
+        payloadJson: storedPayload,
         fileUrl,
         storageProvider: fileUrl ? 'file-service' : 'inline',
       }),
@@ -183,7 +165,7 @@ export class PostersService {
       code: 0,
       message: 'ok',
       data: {
-        poster: poster.payloadJson,
+        poster: this.buildPublicImagePayload(poster.payloadJson ?? {}),
       },
       timestamp: new Date().toISOString(),
     };
@@ -253,7 +235,7 @@ export class PostersService {
       const response = await this.generatePoster(job.requestJson as GeneratePosterDto, user);
       const poster = response.data.poster as Record<string, unknown>;
       job.status = 'completed';
-      job.resultJson = poster;
+      job.resultJson = this.buildStoredPayload(poster);
       job.fileUrl = typeof poster.fileUrl === 'string' ? poster.fileUrl : null;
       job.finishedAt = new Date();
       job.errorMessage = null;
@@ -529,7 +511,7 @@ export class PostersService {
   private buildProviderPrompt(source: PosterSource) {
     if (source.sourceType === 'today_index' || source.sourceType === 'zodiac_today') {
       return [
-        '微信社交分享图背景插画，竖版海报，现代东方气质，通透高级，适合命理与运势产品分享。',
+        '微信社交分享图背景插画，竖版海报，现代东方气质，通透高级，适合命理与运势产品分享，只生成背景，不生成成品海报。',
         `主题：${source.themeName}。`,
         `关键词：${source.promptKeywords.join('、')}。`,
         this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))
@@ -537,7 +519,7 @@ export class PostersService {
           : '',
         '画面层次需要丰富，包含星轨、流光、云雾、五行纹理或抽象山海意象，但不要杂乱。',
         '中上部保留标题区，中部保留 3 个信息卡片位置，下半部保留行动建议区。',
-        '不要出现任何文字、logo、水印、二维码和人物脸部特写。',
+        '不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、边框、按钮、卡片文案和人物脸部特写。',
         '整体偏封面感、治愈感、轻奢感，适合高清保存后分享给微信好友。',
       ]
         .filter(Boolean)
@@ -547,14 +529,14 @@ export class PostersService {
     const templateHint = this.resolvePosterPromptHint(source.sourceType);
 
     return [
-      '微信分享海报背景插画，现代东方气质，清透高级，适合内容类产品分享。',
+      '微信分享海报背景插画，现代东方气质，清透高级，适合内容类产品分享，只生成背景，不生成成品海报。',
       `主题：${source.themeName}。`,
       `关键词：${source.promptKeywords.join('、')}。`,
       this.pickString(source.promptHint, templateHint)
         ? `额外风格要求：${this.pickString(source.promptHint, templateHint)}。`
         : '',
       '画面需要有大面积留白，适合后续叠加中文标题和说明文案。',
-      '不要出现任何文字、logo、水印、人物脸部特写。',
+      '不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、边框、按钮、卡片文案和人物脸部特写。',
       '整体要有层次感、柔和渐变、半透明玻璃质感和轻微光晕。',
     ]
       .filter(Boolean)
@@ -590,23 +572,22 @@ export class PostersService {
   }
 
   private async resolvePosterBackground(
-    apiKey: string | undefined,
     prompt: string,
     size: string,
   ): Promise<PosterBackgroundAsset> {
-    if (!apiKey) {
+    if (!this.imageGenerationService.isConfigured()) {
       return {
         provider: 'builtin',
         status: 'fallback',
         providerImageUrl: null,
         backgroundImageDataUrl: null,
         providerRequestId: null,
-        providerError: '未配置 ZHIPU_API_KEY',
+        providerError: '未配置 ZHIPU_API_KEY 或 BIGMODEL_API_KEY',
       };
     }
 
     try {
-      const providerImage = await this.zhipuImageService.generateImage({
+      const providerImage = await this.imageGenerationService.generate({
         prompt,
         size,
         purpose: '海报背景',
@@ -727,7 +708,7 @@ export class PostersService {
       jobType: job.jobType,
       status: job.status,
       request: job.requestJson ?? {},
-      result: job.resultJson ?? null,
+      result: job.resultJson ? this.buildPublicImagePayload(job.resultJson) : null,
       fileUrl: job.fileUrl,
       errorMessage: job.errorMessage,
       startedAt: job.startedAt?.toISOString() ?? null,
@@ -737,260 +718,42 @@ export class PostersService {
     };
   }
 
-  private buildPosterSvg(source: PosterSource, backgroundDataUrl: string | null) {
-    const palette = this.resolveThemePalette(source.themeName);
-    const [colorA, colorB, colorC] = palette;
-    const titleLines = this.renderTextTspans(source.title, 12, 0, 74, 640);
-    const subtitleLines = this.renderTextTspans(source.subtitle, 22, 0, 44, 520);
-    const accentLines = this.renderTextTspans(source.accentText, 26, 0, 38, 460);
-    const footerLines = this.renderTextTspans(source.footerText, 32, 0, 34, 540);
-    const backgroundLayer = backgroundDataUrl
-      ? `<image href="${backgroundDataUrl}" x="0" y="0" width="1280" height="1280" preserveAspectRatio="xMidYMid slice" />`
-      : `
-  <rect x="0" y="0" width="1280" height="1280" fill="${colorB}" />
-  <circle cx="192" cy="220" r="220" fill="${colorA}" fill-opacity="0.34" />
-  <circle cx="1100" cy="250" r="280" fill="${colorC}" fill-opacity="0.18" />
-  <circle cx="980" cy="1020" r="300" fill="${colorA}" fill-opacity="0.18" />
-  <circle cx="360" cy="980" r="240" fill="#ffffff" fill-opacity="0.12" />`.trim();
+  private buildStoredPayload(payload: Record<string, unknown>) {
+    const storedPayload = { ...payload };
+    const imageDataUrl = storedPayload.imageDataUrl;
+    delete storedPayload.svgMarkup;
+    delete storedPayload.imageDataUrl;
 
-    return `
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1280" viewBox="0 0 1280 1280">
-  <defs>
-    <linearGradient id="overlay" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="${colorA}" stop-opacity="0.82" />
-      <stop offset="55%" stop-color="${colorB}" stop-opacity="0.48" />
-      <stop offset="100%" stop-color="${colorC}" stop-opacity="0.72" />
-    </linearGradient>
-  </defs>
-  ${backgroundLayer}
-  <rect x="0" y="0" width="1280" height="1280" fill="url(#overlay)" />
-  <circle cx="190" cy="170" r="190" fill="#ffffff" fill-opacity="0.24" />
-  <circle cx="1060" cy="220" r="230" fill="#ffffff" fill-opacity="0.14" />
-  <circle cx="980" cy="1060" r="260" fill="#ffffff" fill-opacity="0.16" />
-  <rect x="84" y="84" width="1112" height="1112" rx="54" ry="54" fill="#0d1b27" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.38" />
-  <rect x="116" y="116" width="1048" height="1048" rx="44" ry="44" fill="#ffffff" fill-opacity="0.18" />
-  <text x="152" y="200" font-size="30" letter-spacing="7" fill="#eff5fb" font-family="SF Pro Display, PingFang SC, sans-serif">${this.escapeXml(
-    source.eyebrowText,
-  )}</text>
-  <text x="152" y="360" font-size="84" font-weight="700" fill="#ffffff" font-family="SF Pro Display, PingFang SC, sans-serif">${titleLines}</text>
-  <text x="152" y="560" font-size="34" fill="#ffffff" fill-opacity="0.94" font-family="SF Pro Text, PingFang SC, sans-serif">${subtitleLines}</text>
-  <rect x="152" y="658" width="976" height="186" rx="34" ry="34" fill="#ffffff" fill-opacity="0.24" stroke="#ffffff" stroke-opacity="0.22" />
-  <text x="188" y="724" font-size="30" fill="#fefefe" font-family="SF Pro Text, PingFang SC, sans-serif">${accentLines}</text>
-  <rect x="152" y="928" width="976" height="148" rx="30" ry="30" fill="#0a1019" fill-opacity="0.18" />
-  <text x="188" y="992" font-size="24" fill="#f7fbff" font-family="SF Pro Text, PingFang SC, sans-serif">${footerLines}</text>
-  <text x="152" y="1136" font-size="24" fill="#ffffff" fill-opacity="0.88" font-family="SF Pro Display, PingFang SC, sans-serif">Generated by Fortune Hub</text>
-</svg>`.trim();
-  }
-
-  private buildTodayIndexPosterSvg(
-    source: PosterSource,
-    backgroundDataUrl: string | null,
-    layout: PosterLayout,
-  ) {
-    const palette = this.resolveThemePalette(source.themeName);
-    const [colorA, colorB, colorC] = palette;
-    const titleLines = this.renderTextTspans(source.title, 10, 0, 78, 120);
-    const subtitleLines = this.renderTextTspans(source.subtitle, 18, 0, 42, 120);
-    const accentLines = this.renderTextTspans(source.accentText, 16, 0, 38, 120);
-    const summaryLines = this.renderTextTspans(source.summary, 17, 0, 36, 120);
-    const footerLines = this.renderTextTspans(source.footerText, 22, 0, 32, 120);
-    const highlightTitle = this.escapeXml(source.highlightTitle ?? '今日提示');
-    const metricBlocks = this.renderMetricBlocks(source.metrics, 120, 620, 848, 184);
-    const chipBlocks = this.renderChipBlocks(source.chips.slice(0, 5), 120, 530, 848);
-    const highlightBlocks = this.renderHighlightBlocks(
-      source.highlightLines,
-      160,
-      1140,
-      768,
-      58,
-    );
-    const backgroundLayer = backgroundDataUrl
-      ? `<image href="${backgroundDataUrl}" x="0" y="0" width="${layout.width}" height="${layout.height}" preserveAspectRatio="xMidYMid slice" />`
-      : `
-  <rect x="0" y="0" width="${layout.width}" height="${layout.height}" fill="${colorB}" />
-  <circle cx="180" cy="200" r="220" fill="${colorA}" fill-opacity="0.34" />
-  <circle cx="920" cy="250" r="260" fill="${colorC}" fill-opacity="0.18" />
-  <circle cx="860" cy="1280" r="320" fill="${colorA}" fill-opacity="0.18" />
-  <circle cx="240" cy="1210" r="250" fill="#ffffff" fill-opacity="0.11" />`.trim();
-
-    return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
-  <defs>
-    <linearGradient id="today-overlay" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="${colorA}" stop-opacity="0.88" />
-      <stop offset="56%" stop-color="${colorB}" stop-opacity="0.44" />
-      <stop offset="100%" stop-color="${colorC}" stop-opacity="0.78" />
-    </linearGradient>
-    <linearGradient id="today-card" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.14" />
-    </linearGradient>
-    <filter id="today-blur">
-      <feGaussianBlur stdDeviation="12" />
-    </filter>
-  </defs>
-  ${backgroundLayer}
-  <rect x="0" y="0" width="${layout.width}" height="${layout.height}" fill="url(#today-overlay)" />
-  <circle cx="164" cy="176" r="160" fill="#ffffff" fill-opacity="0.18" />
-  <circle cx="928" cy="144" r="168" fill="#ffffff" fill-opacity="0.14" />
-  <circle cx="984" cy="1320" r="210" fill="#ffffff" fill-opacity="0.12" />
-  <path d="M108 352 C 248 266, 418 250, 592 322 S 894 424, 996 354" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4" />
-  <rect x="56" y="56" width="976" height="1360" rx="52" ry="52" fill="#081320" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.34" />
-  <rect x="84" y="84" width="920" height="1304" rx="42" ry="42" fill="url(#today-card)" />
-  <text x="120" y="152" font-size="28" letter-spacing="6" fill="#f1f7ff" font-family="SF Pro Display, PingFang SC, sans-serif">${this.escapeXml(
-    source.eyebrowText,
-  )}</text>
-  <text x="120" y="270" font-size="72" font-weight="700" fill="#ffffff" font-family="SF Pro Display, PingFang SC, sans-serif">${titleLines}</text>
-  <text x="120" y="410" font-size="30" fill="#f8fbff" fill-opacity="0.96" font-family="SF Pro Text, PingFang SC, sans-serif">${subtitleLines}</text>
-  <rect x="120" y="438" width="848" height="70" rx="24" ry="24" fill="#09121c" fill-opacity="0.16" />
-  <text x="120" y="484" font-size="28" fill="#ffffff" fill-opacity="0.98" font-family="SF Pro Text, PingFang SC, sans-serif">${accentLines}</text>
-  ${chipBlocks}
-  ${metricBlocks}
-  <rect x="120" y="862" width="848" height="204" rx="34" ry="34" fill="#0c1724" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.18" />
-  <text x="120" y="924" font-size="26" letter-spacing="3" fill="#eaf4ff" font-family="SF Pro Display, PingFang SC, sans-serif">TODAY SUMMARY</text>
-  <text x="120" y="984" font-size="32" fill="#ffffff" fill-opacity="0.98" font-family="SF Pro Text, PingFang SC, sans-serif">${summaryLines}</text>
-  <rect x="120" y="1098" width="848" height="216" rx="34" ry="34" fill="#ffffff" fill-opacity="0.16" stroke="#ffffff" stroke-opacity="0.18" />
-  <text x="160" y="1160" font-size="28" fill="#fefefe" font-family="SF Pro Display, PingFang SC, sans-serif">${highlightTitle}</text>
-  ${highlightBlocks}
-  <rect x="120" y="1332" width="848" height="80" rx="26" ry="26" fill="#08111a" fill-opacity="0.18" />
-  <text x="120" y="1384" font-size="24" fill="#f7fbff" fill-opacity="0.94" font-family="SF Pro Text, PingFang SC, sans-serif">${footerLines}</text>
-</svg>`.trim();
-  }
-
-  private renderMetricBlocks(metrics: PosterMetric[], x: number, y: number, width: number, height: number) {
-    if (!metrics.length) {
-      return '';
-    }
-
-    const gap = 18;
-    const itemWidth = Math.floor((width - gap * (metrics.length - 1)) / metrics.length);
-
-    return metrics
-      .map((metric, index) => {
-        const currentX = x + index * (itemWidth + gap);
-        const label = this.escapeXml(metric.label);
-        const value = this.escapeXml(metric.value);
-        const hint = this.renderTextTspans(metric.hint ?? '', 10, 0, 28, currentX + 24);
-
-        return `
-  <rect x="${currentX}" y="${y}" width="${itemWidth}" height="${height}" rx="30" ry="30" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.18" />
-  <text x="${currentX + 24}" y="${y + 42}" font-size="22" letter-spacing="3" fill="#f0f7ff" font-family="SF Pro Display, PingFang SC, sans-serif">${label}</text>
-  <text x="${currentX + 24}" y="${y + 110}" font-size="58" font-weight="700" fill="#ffffff" font-family="SF Pro Display, PingFang SC, sans-serif">${value}</text>
-  <text x="${currentX + 24}" y="${y + 146}" font-size="20" fill="#ffffff" fill-opacity="0.9" font-family="SF Pro Text, PingFang SC, sans-serif">${hint}</text>`.trim();
-      })
-      .join('');
-  }
-
-  private renderChipBlocks(chips: string[], x: number, y: number, width: number) {
-    if (!chips.length) {
-      return '';
-    }
-
-    let cursorX = x;
-    let cursorY = y;
-    const lineHeight = 52;
-    const gap = 16;
-    const parts: string[] = [];
-
-    for (const chip of chips) {
-      const label = this.escapeXml(chip);
-      const chipWidth = Math.min(280, Math.max(112, chip.length * 26 + 36));
-
-      if (cursorX + chipWidth > x + width) {
-        cursorX = x;
-        cursorY += lineHeight + gap;
-      }
-
-      parts.push(`
-  <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="${lineHeight}" rx="20" ry="20" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.16" />
-  <text x="${cursorX + 18}" y="${cursorY + 33}" font-size="22" fill="#ffffff" fill-opacity="0.96" font-family="SF Pro Text, PingFang SC, sans-serif">${label}</text>`.trim());
-
-      cursorX += chipWidth + gap;
-    }
-
-    return parts.join('');
-  }
-
-  private renderHighlightBlocks(
-    lines: string[],
-    x: number,
-    y: number,
-    width: number,
-    rowHeight: number,
-  ) {
-    if (!lines.length) {
-      return '';
-    }
-
-    return lines
-      .map((line, index) => {
-        const currentY = y + index * rowHeight;
-        return `
-  <circle cx="${x + 10}" cy="${currentY - 8}" r="6" fill="#ffffff" fill-opacity="0.86" />
-  <text x="${x + 28}" y="${currentY}" font-size="28" fill="#ffffff" fill-opacity="0.98" font-family="SF Pro Text, PingFang SC, sans-serif">${this.escapeXml(
-    line,
-  )}</text>`.trim();
-      })
-      .join('');
-  }
-
-  private resolveThemePalette(themeName: string) {
-    if (themeName.includes('amber') || themeName.includes('gold')) {
-      return ['#e8b15b', '#f6d8a2', '#8b5f2a'];
-    }
-
-    if (themeName.includes('sunset') || themeName.includes('ember')) {
-      return ['#ff8c6a', '#ffe1c8', '#8c4258'];
-    }
-
-    if (themeName.includes('sand') || themeName.includes('earth')) {
-      return ['#c8a980', '#f4e3cc', '#7a5c44'];
-    }
-
-    if (themeName.includes('silver') || themeName.includes('metal')) {
-      return ['#bfd1e8', '#eef5ff', '#5b6b85'];
-    }
-
-    if (themeName.includes('ocean') || themeName.includes('water')) {
-      return ['#7bb9e8', '#dff2ff', '#2b5e8d'];
-    }
-
-    if (themeName.includes('mint')) {
-      return ['#8fd5bf', '#d6f5ee', '#4e8f7c'];
-    }
-
-    return ['#7aa8ff', '#dfe9ff', '#435c98'];
-  }
-
-  private resolvePosterLayout(
-    requestedSize: GeneratePosterDto['size'],
-    sourceType: string,
-  ): PosterLayout {
-    const size = requestedSize ?? (
-      sourceType === 'today_index' || sourceType === 'zodiac_today'
-        ? '1088x1472'
-        : '1280x1280'
-    );
-
-    if (size === '1088x1472') {
-      return {
-        size,
-        width: 1088,
-        height: 1472,
-        kind: 'portrait',
-      };
+    if (typeof payload.fileUrl === 'string' && payload.fileUrl) {
+      return storedPayload;
     }
 
     return {
-      size: '1280x1280',
-      width: 1280,
-      height: 1280,
-      kind: 'square',
+      ...storedPayload,
+      imageDataUrl,
     };
   }
 
-  private async renderPosterPng(svgMarkup: string) {
-    return sharp(Buffer.from(svgMarkup)).png({ compressionLevel: 9 }).toBuffer();
+  private buildPublicImagePayload(payload: Record<string, unknown>) {
+    const publicPayload = { ...payload };
+    delete publicPayload.svgMarkup;
+
+    if (
+      typeof publicPayload.imageDataUrl === 'string' &&
+      !publicPayload.imageDataUrl.startsWith('data:image/png;base64,')
+    ) {
+      delete publicPayload.imageDataUrl;
+    }
+
+    if (publicPayload.format === 'svg') {
+      publicPayload.format = 'png';
+    }
+
+    if (typeof publicPayload.downloadFileName === 'string') {
+      publicPayload.downloadFileName = publicPayload.downloadFileName.replace(/\.svg$/i, '.png');
+    }
+
+    return publicPayload;
   }
 
   private resolveTodayIndexThemeName(dominantElement: string) {
@@ -1017,57 +780,6 @@ export class PostersService {
 
   private getTodaySourceCode() {
     return new Date().toISOString().slice(0, 10);
-  }
-
-  private renderTextTspans(
-    text: string,
-    maxChars: number,
-    firstDy: number,
-    nextDy: number,
-    x: number,
-  ) {
-    return this.splitText(text, maxChars)
-      .map(
-        (line, index) =>
-          `<tspan x="${x}" dy="${index === 0 ? firstDy : nextDy}">${this.escapeXml(
-            line,
-          )}</tspan>`,
-      )
-      .join('');
-  }
-
-  private splitText(text: string, maxChars: number) {
-    const value = text.trim();
-
-    if (!value) {
-      return [''];
-    }
-
-    const lines: string[] = [];
-    let current = '';
-
-    for (const char of value) {
-      current += char;
-      if (current.length >= maxChars) {
-        lines.push(current);
-        current = '';
-      }
-    }
-
-    if (current) {
-      lines.push(current);
-    }
-
-    return lines;
-  }
-
-  private escapeXml(value: string) {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
   }
 
   private slugify(value: string) {

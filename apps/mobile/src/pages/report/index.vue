@@ -2,11 +2,13 @@
   <view class="page" :style="themeVars">
     <view class="hero-card">
       <text class="hero-card__eyebrow">full report</text>
-      <text class="hero-card__title">{{ report?.title || '完整版报告' }}</text>
+      <text class="hero-card__title">{{ report?.title || (recordId ? '完整版报告' : '选择一份报告') }}</text>
       <text class="hero-card__subtitle">
         {{
           report
             ? report.summary || '这里会展示基础版结果、完整版解读和海报能力。'
+            : recordId
+              ? '正在整理这份报告的基础结果、完整解读和分享海报能力。'
             : '登录后可以查看基础版结果、广告解锁入口、VIP 权益和分享海报。'
         }}
       </text>
@@ -44,6 +46,21 @@
       <text class="empty-card__title">先登录再查看完整报告</text>
       <text class="empty-card__text">历史记录、广告解锁、会员状态和海报生成都需要登录后使用。</text>
       <button class="hero-button hero-button--primary" @tap="goProfile">去个人中心</button>
+    </view>
+
+    <view v-else-if="!recordId" class="section-card empty-card">
+      <text class="empty-card__title">还没有选中报告</text>
+      <text class="empty-card__text">完整报告需要从一次已保存的测评或历史记录进入。你可以先做一次情绪自检，或回到记录里选择已有结果。</text>
+      <view class="action-row">
+        <button class="hero-button hero-button--primary" @tap="goEmotion">去情绪自检</button>
+        <button class="hero-button hero-button--secondary" @tap="goRecords">查看记录</button>
+      </view>
+    </view>
+
+    <view v-else-if="!report" class="section-card empty-card">
+      <text class="empty-card__title">这份报告暂时读不到</text>
+      <text class="empty-card__text">可能是记录已不存在，或当前账号没有访问权限。可以回到记录页重新选择一份结果。</text>
+      <button class="hero-button hero-button--primary" @tap="goRecords">查看记录</button>
     </view>
 
     <template v-else-if="report">
@@ -128,7 +145,7 @@
         </view>
 
         <view v-if="poster" class="poster-result">
-          <image class="poster-image" :src="poster.imageDataUrl" mode="widthFix" />
+          <image class="poster-image" :src="posterImageSource" mode="widthFix" />
 
           <view class="action-row">
             <button class="hero-button hero-button--secondary" @tap="previewPoster">
@@ -179,6 +196,7 @@ import { getErrorMessage } from '../../services/errors';
 import {
   handlePosterImageError,
   previewPosterImage,
+  resolvePreferredImageSource,
   savePosterImage,
   sharePosterImageToWechat,
 } from '../../services/poster-image';
@@ -205,6 +223,9 @@ const isMpWeixin = String(
 ).toLowerCase() === 'mp-weixin';
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
+const posterImageSource = computed(() =>
+  poster.value ? resolvePreferredImageSource(poster.value) : '',
+);
 const reportTypeLabel = computed(() => {
   const mapping: Record<string, string> = {
     personality: '性格测评',
@@ -305,12 +326,12 @@ async function generatePoster() {
 }
 
 async function previewPoster() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
-    await previewPosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
+    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '预览失败，请稍后再试'),
@@ -320,12 +341,12 @@ async function previewPoster() {
 }
 
 async function downloadPoster() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
-    await savePosterImage(poster.value.imageDataUrl, poster.value.downloadFileName);
+    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
     uni.showToast({
       title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
       icon: 'success',
@@ -339,13 +360,13 @@ async function downloadPoster() {
 }
 
 async function sharePosterToWechat() {
-  if (!poster.value) {
+  if (!poster.value || !posterImageSource.value) {
     return;
   }
 
   try {
     await sharePosterImageToWechat(
-      poster.value.imageDataUrl,
+      posterImageSource.value,
       poster.value.downloadFileName,
     );
   } catch (error) {
@@ -365,6 +386,18 @@ function goMembership() {
 function goProfile() {
   uni.navigateTo({
     url: '/pages/profile/index',
+  });
+}
+
+function goEmotion() {
+  uni.navigateTo({
+    url: '/pages/emotion/index',
+  });
+}
+
+function goRecords() {
+  uni.navigateTo({
+    url: '/pages/records/index',
   });
 }
 

@@ -216,12 +216,12 @@ const emotionScore = computed(() =>
 );
 
 const mentalScore = computed(() =>
-  resolveNumericFactor(['mental', 'completion'], resolveFallbackMentalScore()),
+  resolveNumericFactor(['mental'], resolveFallbackMentalScore()),
 );
 
 const homeCards = computed<InsightCard[]>(() => {
   const emotionFactor = findFactor('emotion');
-  const mentalFactor = findFactor('mental', 'completion');
+  const mentalFactor = findFactor('mental');
   const baziFactor = findFactor('bazi', 'personality');
   const zodiacFactor = findFactor('zodiac');
   const zodiacStars = resolveZodiacStars(zodiacFactor?.value, fortuneScore.value);
@@ -249,16 +249,16 @@ const homeCards = computed<InsightCard[]>(() => {
       variant: 'mind',
       iconColor: themePalette.value.primary,
       title: '心理健康',
-      subtitle: mentalFactor?.label || annualLuckyScore.value.label || '抑郁测试分数',
+      subtitle: mentalFactor?.label || resolveMentalSubtitle(),
       value: String(mentalScore.value),
       metricMode: 'score',
       suffix: '分',
       badge: resolveMentalBadge(mentalScore.value),
-      description: mentalFactor?.hint || annualLuckyScore.value.hint || '略有压力，注意休息。',
+      description: mentalFactor?.hint || todayLuckyScore.value.hint || '完成一次情绪自检后，会给出更贴近你的心理状态参考。',
       note: '适当放松，寻找支持',
       progress: mentalScore.value,
       stars: 0,
-      route: '/pages/report/index',
+      route: '/pages/emotion/index',
     },
     {
       id: 'bazi',
@@ -402,12 +402,29 @@ function resolveNumericFactor(ids: string[], fallback: number) {
 }
 
 function resolveFallbackMentalScore() {
-  const parsed = Number(annualLuckyScore.value.value);
-  if (Number.isFinite(parsed)) {
-    return clamp(Math.round(parsed), 0, 100);
+  const annualLabel = annualLuckyScore.value.label || '';
+  const annualParsed = Number(annualLuckyScore.value.value);
+
+  if (/心理|健康|压力|抑郁/.test(annualLabel) && Number.isFinite(annualParsed)) {
+    return clamp(Math.round(annualParsed), 0, 100);
+  }
+
+  const currentParsed = Number(todayLuckyScore.value.value);
+  if (Number.isFinite(currentParsed)) {
+    return clamp(Math.round(currentParsed), 0, 100);
   }
 
   return clamp(fortuneScore.value - 18, 48, 92);
+}
+
+function resolveMentalSubtitle() {
+  const annualLabel = annualLuckyScore.value.label || '';
+
+  if (/心理|健康|压力|抑郁/.test(annualLabel)) {
+    return annualLabel;
+  }
+
+  return '心理状态参考';
 }
 
 function resolveLuckyNumber(score: number) {

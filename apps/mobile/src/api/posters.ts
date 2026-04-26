@@ -1,44 +1,5 @@
 import { http } from '../services/request';
-import type { PosterGenerateResponse, PosterJob, PosterJobResponse } from '../types/poster';
-
-const POSTER_GENERATION_TIMEOUT = 60000;
-
-export function generateReportPoster(recordId: string) {
-  return http.post<PosterGenerateResponse, { recordId: string }>('/posters/generate', {
-    recordId,
-  }, undefined, POSTER_GENERATION_TIMEOUT);
-}
-
-export function generateLuckySignPoster(bizCode: string) {
-  return http.post<
-    PosterGenerateResponse,
-    { sourceType: 'lucky_sign'; bizCode: string }
-  >('/posters/generate', {
-    sourceType: 'lucky_sign',
-    bizCode,
-  }, undefined, POSTER_GENERATION_TIMEOUT);
-}
-
-export function generateTodayIndexPoster() {
-  return http.post<
-    PosterGenerateResponse,
-    { sourceType: 'today_index'; size: '1088x1472' }
-  >('/posters/generate', {
-    sourceType: 'today_index',
-    size: '1088x1472',
-  }, undefined, POSTER_GENERATION_TIMEOUT);
-}
-
-export function generateZodiacTodayPoster(zodiac: string) {
-  return http.post<
-    PosterGenerateResponse,
-    { sourceType: 'zodiac_today'; bizCode: string; size: '1088x1472' }
-  >('/posters/generate', {
-    sourceType: 'zodiac_today',
-    bizCode: zodiac,
-    size: '1088x1472',
-  }, undefined, POSTER_GENERATION_TIMEOUT);
-}
+import type { PosterJob, PosterJobResponse } from '../types/poster';
 
 export function createPosterJob(payload: {
   recordId?: string;

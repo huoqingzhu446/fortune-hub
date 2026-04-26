@@ -121,9 +121,27 @@ export interface AdminNotificationLogItem {
 
 export interface ZhipuImageStatus {
   configured: boolean;
+  configuredKeyEnv: string | null;
+  provider: string;
+  model: string;
+  endpoint: string;
   modelEnv: string;
+  endpointEnv: string;
+  apiKeyEnv: string;
+  fallbackApiKeyEnv: string;
   timeoutEnv: string;
   fetchTimeoutEnv: string;
+  timeoutMs: number;
+  fetchTimeoutMs: number;
+  defaultSizes: {
+    posterSquare: string;
+    posterPortrait: string;
+    wallpaperPortrait: string;
+    wallpaperLandscape: string;
+    wallpaperSquare: string;
+    diagnostic: string;
+  };
+  supportedSizes: string[];
 }
 
 export function fetchAdminUsers(params?: {

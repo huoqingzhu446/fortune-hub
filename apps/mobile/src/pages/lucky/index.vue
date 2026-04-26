@@ -124,7 +124,6 @@
         <view v-for="theme in luckyData.wallpaperThemes" :key="theme.id" class="wallpaper-card">
           <text class="wallpaper-card__mood">{{ theme.mood }}</text>
           <text class="wallpaper-card__title">{{ theme.title }}</text>
-          <text class="wallpaper-card__prompt">{{ theme.prompt }}</text>
 
           <view class="palette-row">
             <view
@@ -139,12 +138,9 @@
             <button class="hero-button hero-button--primary" @tap="openWallpaperGenerator(theme)">
               生成壁纸
             </button>
-            <button class="hero-button hero-button--secondary" @tap="copyWallpaperPrompt(theme.prompt)">
-              复制提示词
-            </button>
           </view>
           <text class="wallpaper-card__helper">
-            现在会生成一张可预览的 SVG 壁纸，H5 环境下可直接下载。
+            系统会生成一张可预览、可保存的高清壁纸。
           </text>
         </view>
       </view>
@@ -240,18 +236,6 @@ async function loadLucky() {
 function openSignDetail() {
   uni.navigateTo({
     url: `/pages/lucky/sign/index?bizCode=${encodeURIComponent(luckyData.value.sign.bizCode)}`,
-  });
-}
-
-function copyWallpaperPrompt(prompt: string) {
-  uni.setClipboardData({
-    data: prompt,
-    success: () => {
-      uni.showToast({
-        title: '提示词已复制',
-        icon: 'success',
-      });
-    },
   });
 }
 
@@ -367,7 +351,6 @@ onShow(() => {
 
 .hero-card__subtitle,
 .recommendation-card__summary,
-.wallpaper-card__prompt,
 .empty-card__text {
   font-size: 26rpx;
   line-height: 1.7;

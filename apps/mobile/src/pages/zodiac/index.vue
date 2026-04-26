@@ -10,9 +10,27 @@
           <text class="title">{{ selectedSign }}</text>
           <text class="hero-theme">{{ todayFortune.theme.title }}</text>
         </view>
-        <view class="score-orbit">
-          <text class="score-orbit__value">{{ todayFortune.score.overall }}</text>
-          <text class="score-orbit__label">今日</text>
+        <view class="zodiac-art" :style="zodiacArtStyle">
+          <view class="zodiac-art__constellation">
+            <view
+              v-for="line in constellationLines"
+              :key="line.id"
+              class="zodiac-art__line"
+              :style="line.style"
+            ></view>
+            <view
+              v-for="star in constellationStars"
+              :key="star.id"
+              class="zodiac-art__star"
+              :style="star.style"
+            ></view>
+          </view>
+          <text class="zodiac-art__glyph">{{ zodiacVisual.glyph }}</text>
+          <text class="zodiac-art__label">{{ zodiacVisual.label }}</text>
+          <view class="score-orbit">
+            <text class="score-orbit__value">{{ todayFortune.score.overall }}</text>
+            <text class="score-orbit__label">今日</text>
+          </view>
         </view>
       </view>
       <text class="summary">{{ heroSummary }}</text>
@@ -367,7 +385,11 @@ import {
 } from '../../api/zodiac';
 import { generateZodiacTodayPosterAsync } from '../../api/posters';
 import { useThemePreference } from '../../composables/useThemePreference';
-import { handlePosterImageError, previewPosterImage } from '../../services/poster-image';
+import {
+  handlePosterImageError,
+  previewPosterImage,
+  resolvePreferredImageSource,
+} from '../../services/poster-image';
 import { getCachedUser } from '../../services/session';
 import type {
   ZodiacCompatibilityData,
@@ -390,6 +412,213 @@ const viewOptions: Array<{ label: string; value: ZodiacViewMode }> = [
   { label: '配对', value: 'compatibility' },
   { label: '知识', value: 'knowledge' },
 ];
+
+type ZodiacVisualPoint = {
+  x: number;
+  y: number;
+  size?: number;
+};
+
+type ZodiacVisualConfig = {
+  glyph: string;
+  label: string;
+  accent: string;
+  deep: string;
+  wash: string;
+  points: ZodiacVisualPoint[];
+  links: Array<[number, number]>;
+};
+
+const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
+  白羊座: {
+    glyph: '♈',
+    label: 'Aries',
+    accent: '#f9735b',
+    deep: '#9f3d33',
+    wash: '#fff0eb',
+    points: [
+      { x: 28, y: 60, size: 8 },
+      { x: 38, y: 42, size: 12 },
+      { x: 50, y: 28, size: 9 },
+      { x: 62, y: 42, size: 12 },
+      { x: 72, y: 60, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+  金牛座: {
+    glyph: '♉',
+    label: 'Taurus',
+    accent: '#9ab56f',
+    deep: '#58703c',
+    wash: '#f1f7e9',
+    points: [
+      { x: 24, y: 36, size: 8 },
+      { x: 38, y: 25, size: 10 },
+      { x: 52, y: 38, size: 12 },
+      { x: 66, y: 28, size: 8 },
+      { x: 75, y: 52, size: 9 },
+      { x: 45, y: 68, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [2, 4], [2, 5]],
+  },
+  双子座: {
+    glyph: '♊',
+    label: 'Gemini',
+    accent: '#66a6d9',
+    deep: '#32658f',
+    wash: '#edf7ff',
+    points: [
+      { x: 32, y: 24, size: 9 },
+      { x: 66, y: 22, size: 9 },
+      { x: 36, y: 50, size: 11 },
+      { x: 64, y: 50, size: 11 },
+      { x: 30, y: 76, size: 9 },
+      { x: 68, y: 74, size: 9 },
+    ],
+    links: [[0, 2], [2, 4], [1, 3], [3, 5], [2, 3]],
+  },
+  巨蟹座: {
+    glyph: '♋',
+    label: 'Cancer',
+    accent: '#8eb8d8',
+    deep: '#496b87',
+    wash: '#edf6fb',
+    points: [
+      { x: 24, y: 58, size: 8 },
+      { x: 38, y: 44, size: 12 },
+      { x: 52, y: 50, size: 9 },
+      { x: 62, y: 34, size: 12 },
+      { x: 76, y: 44, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+  狮子座: {
+    glyph: '♌',
+    label: 'Leo',
+    accent: '#f2aa42',
+    deep: '#9b6420',
+    wash: '#fff6e8',
+    points: [
+      { x: 24, y: 62, size: 8 },
+      { x: 38, y: 42, size: 11 },
+      { x: 55, y: 30, size: 13 },
+      { x: 70, y: 43, size: 9 },
+      { x: 76, y: 66, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+  处女座: {
+    glyph: '♍',
+    label: 'Virgo',
+    accent: '#7fb58a',
+    deep: '#3f7251',
+    wash: '#edf8ef',
+    points: [
+      { x: 22, y: 48, size: 8 },
+      { x: 36, y: 34, size: 10 },
+      { x: 50, y: 42, size: 12 },
+      { x: 62, y: 30, size: 9 },
+      { x: 74, y: 50, size: 8 },
+      { x: 60, y: 70, size: 9 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4], [2, 5]],
+  },
+  天秤座: {
+    glyph: '♎',
+    label: 'Libra',
+    accent: '#8ca7e8',
+    deep: '#5267a3',
+    wash: '#f1f4ff',
+    points: [
+      { x: 20, y: 58, size: 8 },
+      { x: 36, y: 48, size: 9 },
+      { x: 50, y: 34, size: 12 },
+      { x: 64, y: 48, size: 9 },
+      { x: 80, y: 58, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+  },
+  天蝎座: {
+    glyph: '♏',
+    label: 'Scorpio',
+    accent: '#a678d6',
+    deep: '#6a428e',
+    wash: '#f6efff',
+    points: [
+      { x: 24, y: 30, size: 8 },
+      { x: 36, y: 48, size: 10 },
+      { x: 50, y: 36, size: 12 },
+      { x: 64, y: 54, size: 9 },
+      { x: 78, y: 42, size: 8 },
+      { x: 70, y: 72, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4], [3, 5]],
+  },
+  射手座: {
+    glyph: '♐',
+    label: 'Sagittarius',
+    accent: '#f0a653',
+    deep: '#97602d',
+    wash: '#fff5e8',
+    points: [
+      { x: 24, y: 74, size: 8 },
+      { x: 38, y: 58, size: 9 },
+      { x: 52, y: 42, size: 11 },
+      { x: 70, y: 24, size: 13 },
+      { x: 62, y: 62, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [2, 4]],
+  },
+  摩羯座: {
+    glyph: '♑',
+    label: 'Capricorn',
+    accent: '#7f8ea5',
+    deep: '#3c485c',
+    wash: '#eff3f8',
+    points: [
+      { x: 22, y: 42, size: 8 },
+      { x: 36, y: 28, size: 10 },
+      { x: 52, y: 40, size: 12 },
+      { x: 66, y: 58, size: 9 },
+      { x: 80, y: 50, size: 8 },
+      { x: 58, y: 76, size: 9 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4], [3, 5]],
+  },
+  水瓶座: {
+    glyph: '♒',
+    label: 'Aquarius',
+    accent: '#61b6c8',
+    deep: '#2f7382',
+    wash: '#eaf9fb',
+    points: [
+      { x: 18, y: 42, size: 8 },
+      { x: 34, y: 34, size: 10 },
+      { x: 50, y: 44, size: 8 },
+      { x: 66, y: 36, size: 10 },
+      { x: 82, y: 46, size: 8 },
+      { x: 34, y: 66, size: 8 },
+      { x: 66, y: 66, size: 8 },
+    ],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4], [5, 6]],
+  },
+  双鱼座: {
+    glyph: '♓',
+    label: 'Pisces',
+    accent: '#7da7dc',
+    deep: '#456696',
+    wash: '#eef6ff',
+    points: [
+      { x: 28, y: 30, size: 9 },
+      { x: 42, y: 48, size: 11 },
+      { x: 28, y: 68, size: 9 },
+      { x: 72, y: 30, size: 9 },
+      { x: 58, y: 48, size: 11 },
+      { x: 72, y: 68, size: 9 },
+    ],
+    links: [[0, 1], [1, 2], [3, 4], [4, 5], [1, 4]],
+  },
+};
 
 function getSignIndex(sign: string) {
   const index = zodiacSigns.indexOf(sign as ZodiacSign);
@@ -670,6 +899,76 @@ const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
 const compatibility = ref<ZodiacCompatibilityData>(buildCompatibilityFallback('狮子座', '白羊座'));
 const knowledge = ref<ZodiacKnowledgeData>(buildKnowledgeFallback('狮子座'));
 
+const zodiacVisual = computed(() => {
+  const sign = String(selectedSign.value) as ZodiacSign;
+  return zodiacVisualMap[sign] || zodiacVisualMap.狮子座;
+});
+
+const zodiacArtStyle = computed<Record<string, string>>(() => ({
+  '--zodiac-art-accent': zodiacVisual.value.accent,
+  '--zodiac-art-accent-rgb': hexToRgb(zodiacVisual.value.accent),
+  '--zodiac-art-deep': zodiacVisual.value.deep,
+  '--zodiac-art-wash': zodiacVisual.value.wash,
+}));
+
+const constellationStars = computed(() =>
+  zodiacVisual.value.points.map((point, index) => {
+    const size = point.size ?? 8;
+
+    return {
+      id: `${zodiacVisual.value.label}-star-${index}`,
+      style: {
+        left: `${point.x}%`,
+        top: `${point.y}%`,
+        width: `${size}rpx`,
+        height: `${size}rpx`,
+      },
+    };
+  }),
+);
+
+const constellationLines = computed(() =>
+  zodiacVisual.value.links.map(([fromIndex, toIndex], index) => {
+    const from = zodiacVisual.value.points[fromIndex];
+    const to = zodiacVisual.value.points[toIndex];
+
+    if (!from || !to) {
+      return {
+        id: `${zodiacVisual.value.label}-line-${index}`,
+        style: {},
+      };
+    }
+
+    const deltaX = to.x - from.x;
+    const deltaY = to.y - from.y;
+    const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+    return {
+      id: `${zodiacVisual.value.label}-line-${index}`,
+      style: {
+        left: `${from.x}%`,
+        top: `${from.y}%`,
+        width: `${length}%`,
+        transform: `rotate(${angle}deg)`,
+      },
+    };
+  }),
+);
+
+function hexToRgb(value: string) {
+  const normalized = value.replace('#', '');
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  if ([red, green, blue].some((item) => Number.isNaN(item))) {
+    return '122, 168, 255';
+  }
+
+  return `${red}, ${green}, ${blue}`;
+}
+
 const heroSummary = computed(() => {
   switch (activeView.value) {
     case 'weekly':
@@ -803,7 +1102,11 @@ async function generateZodiacPoster() {
   try {
     posterLoading.value = true;
     const poster = await generateZodiacTodayPosterAsync(String(selectedSign.value));
-    await previewPosterImage(poster.imageDataUrl, poster.downloadFileName);
+    const imageSource = resolvePreferredImageSource(poster);
+    if (!imageSource) {
+      throw new Error('星座分享图生成失败，请稍后再试');
+    }
+    await previewPosterImage(imageSource, poster.downloadFileName);
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '星座分享图生成失败'),
@@ -850,11 +1153,14 @@ onPullDownRefresh(async () => {
 }
 
 .hero-shell {
+  position: relative;
   display: grid;
   gap: 18rpx;
   padding: 32rpx 28rpx;
+  overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(245, 249, 255, 0.84) 100%),
+    radial-gradient(circle at 88% 18%, rgba(var(--theme-accent-rgb), 0.18), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(246, 249, 255, 0.86) 100%),
     rgba(255, 255, 255, 0.82);
 }
 
@@ -896,13 +1202,15 @@ onPullDownRefresh(async () => {
 }
 
 .hero-heading {
-  align-items: flex-end;
+  align-items: stretch;
 }
 
 .hero-copy {
   display: grid;
   gap: 8rpx;
+  align-content: start;
   min-width: 0;
+  padding-top: 10rpx;
 }
 
 .title,
@@ -945,20 +1253,25 @@ onPullDownRefresh(async () => {
 }
 
 .score-orbit {
+  position: absolute;
+  right: 16rpx;
+  bottom: 16rpx;
   display: grid;
+  align-content: center;
   place-items: center;
-  width: 156rpx;
-  height: 156rpx;
-  flex: 0 0 156rpx;
+  gap: 2rpx;
+  width: 112rpx;
+  height: 112rpx;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.62) 58%, transparent 60%),
-    conic-gradient(from 140deg, rgba(var(--theme-accent-rgb), 0.18), rgba(64, 120, 255, 0.44), rgba(var(--theme-accent-rgb), 0.18));
+    conic-gradient(from 140deg, rgba(255, 255, 255, 0.4), var(--zodiac-art-accent), rgba(255, 255, 255, 0.46));
+  box-shadow: 0 20rpx 44rpx rgba(57, 78, 116, 0.12);
 }
 
 .score-orbit__value {
   color: var(--apple-text);
-  font-size: 52rpx;
+  font-size: 40rpx;
   font-weight: 800;
   line-height: 1;
 }
@@ -966,6 +1279,76 @@ onPullDownRefresh(async () => {
 .score-orbit__label {
   color: var(--apple-subtle);
   font-size: 20rpx;
+}
+
+.zodiac-art {
+  position: relative;
+  width: 258rpx;
+  height: 258rpx;
+  flex: 0 0 258rpx;
+  overflow: hidden;
+  border-radius: 42rpx;
+  background:
+    radial-gradient(circle at 70% 24%, rgba(255, 255, 255, 0.84), transparent 28%),
+    radial-gradient(circle at 22% 78%, var(--zodiac-art-wash), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78), var(--zodiac-art-wash));
+  border: 1rpx solid rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.5);
+}
+
+.zodiac-art::before {
+  position: absolute;
+  inset: 20rpx;
+  content: '';
+  border: 1rpx solid rgba(var(--zodiac-art-accent-rgb), 0.28);
+  border-radius: 34rpx;
+}
+
+.zodiac-art__constellation {
+  position: absolute;
+  inset: 20rpx;
+}
+
+.zodiac-art__line {
+  position: absolute;
+  height: 2rpx;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(var(--zodiac-art-accent-rgb), 0.68), transparent);
+}
+
+.zodiac-art__star {
+  position: absolute;
+  margin-left: -4rpx;
+  margin-top: -4rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 3rpx rgba(var(--zodiac-art-accent-rgb), 0.22),
+    0 0 18rpx rgba(var(--zodiac-art-accent-rgb), 0.72);
+}
+
+.zodiac-art__glyph {
+  position: absolute;
+  left: 24rpx;
+  top: 18rpx;
+  color: var(--zodiac-art-deep);
+  font-size: 88rpx;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.zodiac-art__label {
+  position: absolute;
+  left: 28rpx;
+  bottom: 24rpx;
+  max-width: 120rpx;
+  color: var(--zodiac-art-deep);
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  opacity: 0.68;
+  text-transform: uppercase;
 }
 
 .summary,
@@ -980,6 +1363,7 @@ onPullDownRefresh(async () => {
 }
 
 .hero-glance,
+.sign-grid,
 .metrics-grid,
 .facts-grid,
 .partner-grid {
@@ -1245,19 +1629,30 @@ onPullDownRefresh(async () => {
 }
 
 @media (max-width: 480px) {
-  .hero-glance,
   .metrics-grid,
-  .facts-grid,
-  .dimension-grid,
-  .split-panel {
+  .facts-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .compatibility-panel,
-  .hero-heading,
   .hero-actions,
   .action-panel {
     display: grid;
+  }
+
+  .zodiac-art {
+    width: 238rpx;
+    height: 238rpx;
+    flex-basis: 238rpx;
+  }
+
+  .hero-glance {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dimension-grid,
+  .split-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .score-badge {

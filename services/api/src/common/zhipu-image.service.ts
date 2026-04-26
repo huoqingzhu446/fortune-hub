@@ -17,6 +17,32 @@ type ZhipuImagePayload = {
   request_id?: string;
 };
 
+export type ZhipuProviderError = {
+  provider: 'zhipu';
+  statusCode: number;
+  providerCode: string | number | null;
+  providerMessage: string;
+  requestId: string | null;
+};
+
+export class ZhipuImageException extends BadGatewayException {
+  readonly providerError: ZhipuProviderError;
+
+  constructor(providerError: ZhipuProviderError) {
+    super({
+      message: providerError.providerMessage,
+      error: 'ZhipuImageError',
+      provider: providerError.provider,
+      providerCode: providerError.providerCode,
+      providerMessage: providerError.providerMessage,
+      providerStatusCode: providerError.statusCode,
+      requestId: providerError.requestId,
+      statusCode: 502,
+    });
+    this.providerError = providerError;
+  }
+}
+
 export type GeneratedImageAsset = {
   provider: 'zhipu';
   model: string;
@@ -78,7 +104,7 @@ export class ZhipuImageService {
     const image = payload.data?.[0];
 
     if (!response.ok || !image) {
-      throw new BadGatewayException(this.resolveZhipuErrorMessage(payload));
+      throw new ZhipuImageException(this.resolveZhipuError(response.status, payload));
     }
 
     const resolved = await this.resolveImage(image);
@@ -127,7 +153,13 @@ export class ZhipuImageService {
     }
 
     if (!image.url) {
-      throw new BadGatewayException('智谱返回的图片地址为空');
+      throw new ZhipuImageException({
+        provider: 'zhipu',
+        statusCode: 502,
+        providerCode: 'EMPTY_IMAGE_URL',
+        providerMessage: '智谱返回的图片地址为空',
+        requestId: null,
+      });
     }
 
     const response = await this.fetchWithTimeout(
@@ -138,7 +170,13 @@ export class ZhipuImageService {
     );
 
     if (!response.ok) {
-      throw new BadGatewayException(`智谱生成图片下载失败：HTTP ${response.status}`);
+      throw new ZhipuImageException({
+        provider: 'zhipu',
+        statusCode: response.status,
+        providerCode: `IMAGE_DOWNLOAD_HTTP_${response.status}`,
+        providerMessage: `智谱生成图片下载失败：HTTP ${response.status}`,
+        requestId: null,
+      });
     }
 
     const mimeType = response.headers.get('content-type') || 'image/png';
@@ -167,13 +205,20 @@ export class ZhipuImageService {
     }
   }
 
-  private resolveZhipuErrorMessage(payload: ZhipuImagePayload) {
-    return (
+  private resolveZhipuError(statusCode: number, payload: ZhipuImagePayload): ZhipuProviderError {
+    const providerMessage =
       payload.error?.message ||
       payload.message ||
       (payload.code ? `智谱生图失败：${payload.code}` : '') ||
-      '智谱生图失败，请检查 ZHIPU_API_KEY、模型名和图片尺寸配置'
-    );
+      '智谱生图失败，请检查 ZHIPU_API_KEY、BIGMODEL_API_KEY、模型名和图片尺寸配置';
+
+    return {
+      provider: 'zhipu',
+      statusCode,
+      providerCode: payload.error?.code ?? payload.code ?? null,
+      providerMessage,
+      requestId: payload.request_id ?? null,
+    };
   }
 
   private readPositiveInt(key: string, fallback: number) {

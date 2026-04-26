@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ZhipuImageService } from '../common/zhipu-image.service';
+import { ImageGenerationService } from '../common/image-generation.service';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
@@ -23,7 +23,7 @@ export class AdminOpsService {
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
     private readonly membershipService: MembershipService,
-    private readonly zhipuImageService: ZhipuImageService,
+    private readonly imageGenerationService: ImageGenerationService,
   ) {}
 
   async listUsers(query: { keyword?: string; vipStatus?: string; limit?: number }) {
@@ -231,20 +231,15 @@ export class AdminOpsService {
   }
 
   getZhipuImageStatus() {
-    return this.buildEnvelope({
-      configured: this.zhipuImageService.isConfigured(),
-      modelEnv: 'ZHIPU_IMAGE_MODEL',
-      timeoutEnv: 'ZHIPU_IMAGE_TIMEOUT_MS',
-      fetchTimeoutEnv: 'ZHIPU_IMAGE_FETCH_TIMEOUT_MS',
-    });
+    return this.buildEnvelope(this.imageGenerationService.getDiagnosticStatus());
   }
 
   async testZhipuImage(actorId: string | null, prompt?: string) {
-    const asset = await this.zhipuImageService.generateImage({
+    const asset = await this.imageGenerationService.generate({
       prompt:
         prompt?.trim() ||
         'fortune hub diagnostic image, soft gradient background, no text, no logo',
-      size: '1024x1024',
+      size: this.imageGenerationService.getDiagnosticStatus().defaultSizes.diagnostic,
       purpose: '诊断',
     });
 

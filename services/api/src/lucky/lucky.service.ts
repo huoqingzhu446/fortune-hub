@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
-import { ZhipuImageService } from '../common/zhipu-image.service';
+import { ImageGenerationService } from '../common/image-generation.service';
+import { PosterRendererService, WallpaperLayout } from '../common/poster-renderer.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
@@ -52,12 +53,6 @@ type LuckyRecentSignals = {
     title: string;
     completedAt: string;
   };
-};
-
-type LuckyWallpaperLayout = {
-  aspectRatio: '9:16' | '16:9' | '1:1';
-  width: number;
-  height: number;
 };
 
 type LuckyRecommendationRule = {
@@ -153,7 +148,8 @@ export class LuckyService {
     @InjectRepository(PosterJobEntity)
     private readonly posterJobRepository: Repository<PosterJobEntity>,
     private readonly configService: ConfigService,
-    private readonly zhipuImageService: ZhipuImageService,
+    private readonly imageGenerationService: ImageGenerationService,
+    private readonly posterRendererService: PosterRendererService,
   ) {}
 
   async getToday(user: UserEntity | null) {
@@ -378,7 +374,7 @@ export class LuckyService {
     );
     const palette = this.normalizePalette(input.palette ?? sourceContent?.palette ?? DEFAULT_PALETTE);
     const mood = this.pickString(input.mood, '主推');
-    const layout = this.resolveWallpaperLayout(input.aspectRatio);
+    const layout = this.posterRendererService.resolveWallpaperLayout(input.aspectRatio);
     const subtitle = this.buildWallpaperSubtitle(user, signals, dominantElement);
     const guidance = this.buildWallpaperGuidance(user, signals, sourceItem?.title ?? title);
     const chips = this.buildWallpaperChips(user, dominantElement, signals, mood);
@@ -390,41 +386,42 @@ export class LuckyService {
       guidance,
       chips,
     });
-    const svgMarkup = this.renderWallpaperSvg({
-      width: layout.width,
-      height: layout.height,
+    const providerAsset = await this.resolveWallpaperImage(
+      wallpaperPrompt,
+      {
+        layout,
+        title,
+        subtitle,
+        guidance,
+        chips,
+        palette,
+      },
+      title,
+    );
+    const payload = {
       title,
       subtitle,
       guidance,
       prompt,
-      chips,
       palette,
-    });
-    const providerAsset = await this.resolveWallpaperImage(wallpaperPrompt, layout, svgMarkup, title);
+      mood,
+      aspectRatio: layout.aspectRatio,
+      width: layout.width,
+      height: layout.height,
+      format: providerAsset.format,
+      provider: providerAsset.provider,
+      providerStatus: providerAsset.status,
+      providerImageUrl: providerAsset.providerImageUrl,
+      providerRequestId: providerAsset.providerRequestId,
+      providerError: providerAsset.providerError,
+      fileUrl: providerAsset.fileUrl,
+      generatedAt: new Date().toISOString(),
+      downloadFileName: `fortune-hub-${this.slugify(title)}-wallpaper.${providerAsset.extension}`,
+      imageDataUrl: providerAsset.imageDataUrl,
+    };
 
     return this.buildEnvelope({
-      wallpaper: {
-        title,
-        subtitle,
-        guidance,
-        prompt,
-        palette,
-        mood,
-        aspectRatio: layout.aspectRatio,
-        width: layout.width,
-        height: layout.height,
-        format: providerAsset.format,
-        provider: providerAsset.provider,
-        providerStatus: providerAsset.status,
-        providerImageUrl: providerAsset.providerImageUrl,
-        providerRequestId: providerAsset.providerRequestId,
-        providerError: providerAsset.providerError,
-        fileUrl: providerAsset.fileUrl,
-        generatedAt: new Date().toISOString(),
-        downloadFileName: `fortune-hub-${this.slugify(title)}-wallpaper.${providerAsset.extension}`,
-        svgMarkup,
-        imageDataUrl: providerAsset.imageDataUrl,
-      },
+      wallpaper: this.buildPublicImagePayload(payload),
     });
   }
 
@@ -479,7 +476,9 @@ export class LuckyService {
     try {
       const response = await this.generateWallpaper(job.requestJson as GenerateLuckyWallpaperDto, user);
       job.status = 'completed';
-      job.resultJson = response.data.wallpaper as Record<string, unknown>;
+      job.resultJson = this.buildStoredWallpaperPayload(
+        response.data.wallpaper as Record<string, unknown>,
+      );
       job.fileUrl =
         typeof response.data.wallpaper.fileUrl === 'string'
           ? response.data.wallpaper.fileUrl
@@ -510,7 +509,7 @@ export class LuckyService {
       `色彩：${input.palette.join(', ')}`,
       `氛围：${input.guidance}`,
       `关键词：${input.chips.join(', ')}`,
-      'mobile wallpaper, premium lifestyle still life, clean composition, soft daylight, no text, no logo, no people, high detail',
+      'mobile wallpaper background illustration only, premium lifestyle still life, clean composition, soft daylight, no text, no letters, no numbers, no logo, no watermark, no people, no UI cards, high detail',
     ]
       .filter(Boolean)
       .join('。');
@@ -518,67 +517,82 @@ export class LuckyService {
 
   private async resolveWallpaperImage(
     prompt: string,
-    layout: LuckyWallpaperLayout,
-    svgMarkup: string,
+    renderInput: {
+      layout: WallpaperLayout;
+      title: string;
+      subtitle: string;
+      guidance: string;
+      chips: string[];
+      palette: string[];
+    },
     title: string,
   ) {
-    if (!this.zhipuImageService.isConfigured()) {
-      return this.buildFallbackWallpaperAsset(svgMarkup, '未配置 ZHIPU_API_KEY');
+    if (!this.imageGenerationService.isConfigured()) {
+      return this.buildFallbackWallpaperAsset(renderInput, title, '未配置 ZHIPU_API_KEY 或 BIGMODEL_API_KEY');
     }
 
     try {
-      const asset = await this.zhipuImageService.generateImage({
+      const asset = await this.imageGenerationService.generate({
         prompt,
-        size: this.resolveZhipuWallpaperSize(layout.aspectRatio),
-        purpose: '幸运壁纸',
+        size: this.imageGenerationService.getWallpaperSize(renderInput.layout.aspectRatio),
+        purpose: '幸运壁纸背景',
+      });
+      const rendered = await this.posterRendererService.renderWallpaper({
+        ...renderInput,
+        backgroundDataUrl: asset.imageDataUrl,
       });
       const fileUrl = await this.persistWallpaperFile(
-        asset.imageBuffer,
+        rendered.imageBuffer,
         `fortune-hub-${this.slugify(title)}-wallpaper.png`,
       );
 
       return {
-        provider: 'zhipu',
-        status: 'generated',
+        provider: rendered.usedProviderBackground ? 'zhipu' : 'builtin',
+        status: rendered.usedProviderBackground ? 'generated' : 'fallback',
         providerImageUrl: asset.providerImageUrl,
         providerRequestId: asset.requestId,
-        providerError: null,
+        providerError: rendered.usedProviderBackground ? null : '智谱背景渲染失败，已使用内建模板',
         fileUrl,
         format: 'png',
         extension: 'png',
-        imageDataUrl: asset.imageDataUrl,
+        imageDataUrl: rendered.imageDataUrl,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '智谱幸运壁纸生成失败';
-      console.warn('lucky wallpaper fallback to svg', errorMessage);
-      return this.buildFallbackWallpaperAsset(svgMarkup, errorMessage);
+      console.warn('lucky wallpaper fallback to builtin', errorMessage);
+      return this.buildFallbackWallpaperAsset(renderInput, title, errorMessage);
     }
   }
 
-  private buildFallbackWallpaperAsset(svgMarkup: string, providerError: string | null) {
+  private async buildFallbackWallpaperAsset(
+    renderInput: {
+      layout: WallpaperLayout;
+      title: string;
+      subtitle: string;
+      guidance: string;
+      chips: string[];
+      palette: string[];
+    },
+    title: string,
+    providerError: string | null,
+  ) {
+    const rendered = await this.posterRendererService.renderWallpaper(renderInput);
+    const fileUrl = await this.persistWallpaperFile(
+      rendered.imageBuffer,
+      `fortune-hub-${this.slugify(title)}-wallpaper.png`,
+    );
+
     return {
       provider: 'builtin',
       status: 'fallback',
       providerImageUrl: null,
       providerRequestId: null,
       providerError,
-      fileUrl: null,
-      format: 'svg',
-      extension: 'svg',
-      imageDataUrl: `data:image/svg+xml;base64,${Buffer.from(svgMarkup).toString('base64')}`,
+      fileUrl,
+      format: 'png',
+      extension: 'png',
+      imageDataUrl: rendered.imageDataUrl,
     };
-  }
-
-  private resolveZhipuWallpaperSize(aspectRatio: LuckyWallpaperLayout['aspectRatio']) {
-    if (aspectRatio === '16:9') {
-      return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_16_9', '1344x768');
-    }
-
-    if (aspectRatio === '1:1') {
-      return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_1_1', '1024x1024');
-    }
-
-    return this.configService.get<string>('ZHIPU_WALLPAPER_SIZE_9_16', '768x1344');
   }
 
   private async persistWallpaperFile(imageBuffer: Buffer, fileName: string) {
@@ -1200,122 +1214,6 @@ export class LuckyService {
     return '今日状态联动';
   }
 
-  private resolveWallpaperLayout(aspectRatio?: string): LuckyWallpaperLayout {
-    if (aspectRatio === '16:9') {
-      return {
-        aspectRatio: '16:9',
-        width: 1600,
-        height: 900,
-      };
-    }
-
-    if (aspectRatio === '1:1') {
-      return {
-        aspectRatio: '1:1',
-        width: 1200,
-        height: 1200,
-      };
-    }
-
-    return {
-      aspectRatio: '9:16',
-      width: 1080,
-      height: 1920,
-    };
-  }
-
-  private renderWallpaperSvg(input: {
-    width: number;
-    height: number;
-    title: string;
-    subtitle: string;
-    guidance: string;
-    prompt: string;
-    chips: string[];
-    palette: string[];
-  }) {
-    const { width, height, palette } = input;
-    const [colorA, colorB, colorC] = palette;
-    const chipMarkup = input.chips
-      .map((chip, index) => {
-        const x = 92 + index * 210;
-        return `
-          <rect x="${x}" y="118" rx="32" ry="32" width="180" height="56" fill="rgba(255,255,255,0.44)" />
-          <text x="${x + 90}" y="154" text-anchor="middle" font-size="24" fill="#1d2a36" font-family="SF Pro Display, PingFang SC, sans-serif">${this.escapeXml(chip)}</text>
-        `;
-      })
-      .join('');
-
-    const titleTspans = this.renderTextTspans(input.title, 20, 0, 66);
-    const subtitleTspans = this.renderTextTspans(input.subtitle, 28, 0, 46);
-    const guidanceTspans = this.renderTextTspans(input.guidance, 30, 0, 42);
-    const promptTspans = this.renderTextTspans(`Prompt: ${input.prompt}`, 48, 0, 30);
-
-    return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs>
-    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="${colorA}" />
-      <stop offset="55%" stop-color="${colorB}" />
-      <stop offset="100%" stop-color="${colorC}" />
-    </linearGradient>
-    <radialGradient id="orbA" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
-    </radialGradient>
-  </defs>
-  <rect width="${width}" height="${height}" fill="url(#bg)" />
-  <circle cx="${Math.round(width * 0.16)}" cy="${Math.round(height * 0.14)}" r="${Math.round(width * 0.22)}" fill="url(#orbA)" />
-  <circle cx="${Math.round(width * 0.86)}" cy="${Math.round(height * 0.22)}" r="${Math.round(width * 0.26)}" fill="rgba(255,255,255,0.18)" />
-  <circle cx="${Math.round(width * 0.78)}" cy="${Math.round(height * 0.82)}" r="${Math.round(width * 0.3)}" fill="rgba(255,255,255,0.16)" />
-  <rect x="64" y="72" width="${width - 128}" height="${height - 144}" rx="48" ry="48" fill="rgba(255,255,255,0.16)" stroke="rgba(255,255,255,0.28)" />
-  ${chipMarkup}
-  <text x="92" y="252" font-size="28" letter-spacing="7" fill="#34505a" font-family="SF Pro Display, PingFang SC, sans-serif">FORTUNE HUB WALLPAPER</text>
-  <text x="92" y="358" font-size="72" font-weight="700" fill="#10202c" font-family="SF Pro Display, PingFang SC, sans-serif">${titleTspans}</text>
-  <text x="92" y="560" font-size="36" fill="#1f3947" font-family="SF Pro Display, PingFang SC, sans-serif">${subtitleTspans}</text>
-  <rect x="92" y="${Math.round(height * 0.46)}" width="${width - 184}" height="${Math.round(height * 0.22)}" rx="40" ry="40" fill="rgba(255,255,255,0.34)" />
-  <text x="128" y="${Math.round(height * 0.52)}" font-size="34" fill="#142634" font-family="SF Pro Text, PingFang SC, sans-serif">${guidanceTspans}</text>
-  <rect x="92" y="${Math.round(height * 0.79)}" width="${width - 184}" height="${Math.round(height * 0.12)}" rx="32" ry="32" fill="rgba(255,255,255,0.24)" />
-  <text x="128" y="${Math.round(height * 0.84)}" font-size="22" fill="#284151" font-family="SF Pro Text, PingFang SC, sans-serif">${promptTspans}</text>
-  <text x="92" y="${height - 88}" font-size="28" fill="#284151" font-family="SF Pro Display, PingFang SC, sans-serif">Generated at ${this.escapeXml(new Date().toLocaleDateString('zh-CN'))}</text>
-</svg>`.trim();
-  }
-
-  private renderTextTspans(text: string, maxChars: number, firstDy: number, nextDy: number) {
-    return this.splitText(text, maxChars)
-      .map(
-        (line, index) =>
-          `<tspan x="92" dy="${index === 0 ? firstDy : nextDy}">${this.escapeXml(line)}</tspan>`,
-      )
-      .join('');
-  }
-
-  private splitText(text: string, maxChars: number) {
-    const normalized = text.trim();
-
-    if (!normalized) {
-      return [''];
-    }
-
-    const lines: string[] = [];
-    let current = '';
-
-    for (const char of normalized) {
-      current += char;
-
-      if (current.length >= maxChars) {
-        lines.push(current);
-        current = '';
-      }
-    }
-
-    if (current) {
-      lines.push(current);
-    }
-
-    return lines.slice(0, 4);
-  }
-
   private pickString(...values: unknown[]) {
     for (const value of values) {
       if (typeof value === 'string' && value.trim()) {
@@ -1348,13 +1246,52 @@ export class LuckyService {
       userId: job.userId,
       status: job.status,
       request: job.requestJson ?? {},
-      result: job.resultJson ?? null,
+      result: job.resultJson ? this.buildPublicImagePayload(job.resultJson) : null,
+      fileUrl: job.fileUrl,
       errorMessage: job.errorMessage,
       startedAt: job.startedAt?.toISOString() ?? null,
       finishedAt: job.finishedAt?.toISOString() ?? null,
       createdAt: job.createdAt.toISOString(),
       updatedAt: job.updatedAt.toISOString(),
     };
+  }
+
+  private buildStoredWallpaperPayload(payload: Record<string, unknown>) {
+    const storedPayload = { ...payload };
+    const imageDataUrl = storedPayload.imageDataUrl;
+    delete storedPayload.svgMarkup;
+    delete storedPayload.imageDataUrl;
+
+    if (typeof payload.fileUrl === 'string' && payload.fileUrl) {
+      return storedPayload;
+    }
+
+    return {
+      ...storedPayload,
+      imageDataUrl,
+    };
+  }
+
+  private buildPublicImagePayload(payload: Record<string, unknown>) {
+    const publicPayload = { ...payload };
+    delete publicPayload.svgMarkup;
+
+    if (
+      typeof publicPayload.imageDataUrl === 'string' &&
+      !publicPayload.imageDataUrl.startsWith('data:image/png;base64,')
+    ) {
+      delete publicPayload.imageDataUrl;
+    }
+
+    if (publicPayload.format === 'svg') {
+      publicPayload.format = 'png';
+    }
+
+    if (typeof publicPayload.downloadFileName === 'string') {
+      publicPayload.downloadFileName = publicPayload.downloadFileName.replace(/\.svg$/i, '.png');
+    }
+
+    return publicPayload;
   }
 
   private slugify(input: string) {
@@ -1364,15 +1301,6 @@ export class LuckyService {
       .replace(/^-+|-+$/g, '');
 
     return normalized || 'lucky';
-  }
-
-  private escapeXml(input: string) {
-    return input
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
   }
 
   private readSignContent(content: FortuneContentEntity) {

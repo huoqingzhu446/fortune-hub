@@ -6,7 +6,6 @@ import type {
   LuckyTodayResponse,
   LuckyYearlyResponse,
   LuckyWallpaperJobResponse,
-  LuckyWallpaperResponse,
 } from '../types/lucky';
 
 export function fetchLuckyToday() {
@@ -24,13 +23,6 @@ export function fetchLuckyYearly(year?: number) {
 
 export function fetchLuckyRecommendations() {
   return http.get<LuckyRecommendationsResponse>('/lucky/recommendations');
-}
-
-export function generateLuckyWallpaper(payload: GenerateLuckyWallpaperPayload) {
-  return http.post<LuckyWallpaperResponse, GenerateLuckyWallpaperPayload>(
-    '/lucky/wallpaper/generate',
-    payload,
-  );
 }
 
 export function createLuckyWallpaperJob(payload: GenerateLuckyWallpaperPayload) {

@@ -152,7 +152,7 @@ export interface LuckyWallpaperData {
     aspectRatio: '9:16' | '16:9' | '1:1';
     width: number;
     height: number;
-    format: 'svg' | 'png';
+    format: 'png';
     provider: string;
     providerStatus: string;
     providerImageUrl: string | null;
@@ -161,8 +161,7 @@ export interface LuckyWallpaperData {
     fileUrl: string | null;
     generatedAt: string;
     downloadFileName: string;
-    svgMarkup: string;
-    imageDataUrl: string;
+    imageDataUrl?: string;
   };
 }
 

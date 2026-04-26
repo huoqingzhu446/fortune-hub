@@ -26,6 +26,12 @@
       }
     },
     {
+      "path": "pages/bazi/professional/index",
+      "style": {
+        "navigationBarTitleText": "八字专业详情"
+      }
+    },
+    {
       "path": "pages/personality/index",
       "style": {
         "navigationBarTitleText": "性格测评"

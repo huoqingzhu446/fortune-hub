@@ -4,6 +4,7 @@ import type {
   BaziAnalyzeResponse,
   BaziBirthPlaceSearchResponse,
   BaziHistoryResponse,
+  BaziProfessionalDetailResponse,
 } from '../types/bazi';
 
 export function analyzeBazi(payload: BaziAnalyzePayload) {
@@ -22,6 +23,12 @@ export function analyzeProfessionalBazi(payload: BaziAnalyzePayload) {
 
 export function fetchBaziHistory() {
   return http.get<BaziHistoryResponse>('/bazi/history');
+}
+
+export function fetchProfessionalBaziDetail(recordId: string) {
+  return http.get<BaziProfessionalDetailResponse>(
+    `/bazi/professional/records/${encodeURIComponent(recordId)}/detail`,
+  );
 }
 
 export function searchBaziBirthPlaces(keyword: string, limit = 10) {

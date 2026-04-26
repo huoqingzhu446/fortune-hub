@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { AnalyzeBaziDto } from './dto/analyze-bazi.dto';
 import { BaziService } from './bazi.service';
@@ -32,6 +32,15 @@ export class BaziController {
   async getHistory(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.baziService.getHistory(user);
+  }
+
+  @Get('professional/records/:recordId/detail')
+  async getProfessionalDetail(
+    @Param('recordId') recordId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.baziService.getProfessionalDetail(recordId, user);
   }
 
   @Get('birth-places')

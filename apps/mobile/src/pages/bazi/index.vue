@@ -210,6 +210,57 @@
             </text>
           </view>
         </view>
+
+        <view class="reading-sheet">
+          <text class="reading-sheet__title">日主强弱</text>
+          <text class="reading-sheet__text">{{ professionalDayMasterSummary }}</text>
+        </view>
+
+        <view class="professional-grid professional-grid--two">
+          <view class="professional-group">
+            <text class="professional-group__title">喜用参考</text>
+            <text
+              v-for="item in professionalUsefulElements"
+              :key="`useful-${item.name}`"
+              class="professional-group__row"
+            >
+              {{ item.name }}：{{ item.reason }}
+            </text>
+          </view>
+          <view class="professional-group">
+            <text class="professional-group__title">忌神提示</text>
+            <text
+              v-for="item in professionalAvoidElements"
+              :key="`avoid-${item.name}`"
+              class="professional-group__row"
+            >
+              {{ item.name }}：{{ item.reason }}
+            </text>
+          </view>
+        </view>
+
+        <view class="reading-sheet">
+          <text class="reading-sheet__title">大运起运</text>
+          <text v-if="!latestResult.professional.majorLuck.available" class="reading-sheet__text">
+            {{ latestResult.professional.majorLuck.reason }}
+          </text>
+          <view v-else class="fortune-list">
+            <view v-for="item in professionalMajorLuckRows" :key="item.key" class="fortune-row">
+              <text class="fortune-row__title">{{ item.title }}</text>
+              <text class="fortune-row__meta">{{ item.meta }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="reading-sheet">
+          <text class="reading-sheet__title">近年流年</text>
+          <view class="fortune-list">
+            <view v-for="item in professionalAnnualFortuneRows" :key="item.key" class="fortune-row">
+              <text class="fortune-row__title">{{ item.title }}</text>
+              <text class="fortune-row__meta">{{ item.meta }}</text>
+            </view>
+          </view>
+        </view>
       </view>
 
       <view class="base-row">
@@ -278,6 +329,14 @@
         </text>
       </view>
 
+      <button
+        v-if="latestResult.professional"
+        class="secondary-button"
+        @tap="openProfessionalDetail"
+      >
+        {{ latestRecordId ? '查看专业详情' : '登录后查看专业详情' }}
+      </button>
+
       <button class="primary-button" @tap="openFullReport">
         {{ latestRecordId ? '查看完整版 / 生成海报' : '登录后查看完整版' }}
       </button>
@@ -303,10 +362,19 @@
       </view>
 
       <view v-else-if="historyItems.length" class="history-list">
-        <view v-for="item in historyItems" :key="item.id" class="history-item">
+        <view
+          v-for="item in historyItems"
+          :key="item.id"
+          class="history-item"
+          :class="{ 'history-item--actionable': item.isProfessional }"
+          @tap="openHistoryItem(item)"
+        >
           <view class="history-item__top">
             <view>
-              <text class="history-item__title">{{ item.title }}</text>
+              <view class="history-item__title-row">
+                <text class="history-item__title">{{ item.title }}</text>
+                <text v-if="item.isProfessional" class="history-item__badge">专业</text>
+              </view>
               <text class="history-item__subtitle">{{ item.yearPillar }} · {{ item.dayPillar }} · {{ item.dominantElementName }}</text>
             </view>
             <text class="history-item__time">{{ formatDateTime(item.createdAt) }}</text>
@@ -550,6 +618,41 @@ const professionalProfileRows = computed(() => {
     },
   ];
 });
+const professionalDayMasterSummary = computed(() => {
+  const analysis = latestResult.value?.professional?.dayMasterAnalysis;
+
+  if (!analysis) {
+    return '';
+  }
+
+  return `${analysis.dayStem}${analysis.dayElement}日主 · ${formatStrengthLevel(analysis.strengthLevel)} · 支持 ${analysis.supportScore} / 压力 ${analysis.pressureScore} / 平衡 ${analysis.balanceScore}`;
+});
+const professionalUsefulElements = computed(
+  () => latestResult.value?.professional?.dayMasterAnalysis.usefulElements ?? [],
+);
+const professionalAvoidElements = computed(
+  () => latestResult.value?.professional?.dayMasterAnalysis.avoidElements ?? [],
+);
+const professionalMajorLuckRows = computed(() => {
+  const majorLuck = latestResult.value?.professional?.majorLuck;
+
+  if (!majorLuck?.available) {
+    return [];
+  }
+
+  return majorLuck.cycles.slice(0, 4).map((item) => ({
+    key: `${item.index}-${item.ganZhi}`,
+    title: `${item.ganZhi}运 · ${item.tenGod}`,
+    meta: `${item.startAge}-${item.endAge}岁 · ${item.startYear}-${item.endYear}`,
+  }));
+});
+const professionalAnnualFortuneRows = computed(() =>
+  (latestResult.value?.professional?.annualFortunes ?? []).slice(0, 5).map((item) => ({
+    key: `${item.year}-${item.ganZhi}`,
+    title: `${item.year} ${item.ganZhi} · ${item.tenGod}`,
+    meta: `${item.nominalAge}岁 · ${formatAnnualRelation(item.relation)} · ${item.element}势`,
+  })),
+);
 
 function selectMode(mode: AnalyzeMode) {
   activeMode.value = mode;
@@ -857,6 +960,28 @@ function formatCoordinate(value: number, positiveSuffix: string, negativeSuffix:
   return `${Math.abs(value).toFixed(2)}${value >= 0 ? positiveSuffix : negativeSuffix}`;
 }
 
+function formatStrengthLevel(value: 'strong' | 'weak' | 'balanced') {
+  const labels = {
+    strong: '日主偏强',
+    weak: '日主偏弱',
+    balanced: '日主中和',
+  };
+
+  return labels[value];
+}
+
+function formatAnnualRelation(value: 'support' | 'drain' | 'wealth' | 'officer' | 'peer') {
+  const labels = {
+    support: '生扶',
+    drain: '泄秀',
+    wealth: '财星',
+    officer: '官杀',
+    peer: '同类',
+  };
+
+  return labels[value];
+}
+
 function openFullReport() {
   if (!latestRecordId.value) {
     uni.showToast({
@@ -868,6 +993,30 @@ function openFullReport() {
 
   uni.navigateTo({
     url: `/pages/report/index?recordId=${latestRecordId.value}`,
+  });
+}
+
+function openProfessionalDetail() {
+  if (!latestRecordId.value) {
+    uni.showToast({
+      title: '请先登录并保存结果',
+      icon: 'none',
+    });
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/bazi/professional/index?recordId=${encodeURIComponent(latestRecordId.value)}`,
+  });
+}
+
+function openHistoryItem(item: BaziHistoryItem) {
+  if (!item.isProfessional) {
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/bazi/professional/index?recordId=${encodeURIComponent(item.id)}`,
   });
 }
 
@@ -1077,7 +1226,8 @@ onShow(() => {
 }
 
 .ghost-button::after,
-.primary-button::after {
+.primary-button::after,
+.secondary-button::after {
   border: none;
 }
 
@@ -1223,6 +1373,17 @@ onShow(() => {
   font-size: 26rpx;
 }
 
+.secondary-button {
+  min-height: 84rpx;
+  margin: 18rpx 0 12rpx;
+  border-radius: 999rpx;
+  background: rgba(244, 236, 220, 0.94);
+  color: #735b36;
+  line-height: 84rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
 .pillar-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1266,6 +1427,10 @@ onShow(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.professional-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .professional-meta__item,
 .professional-group {
   display: grid;
@@ -1287,6 +1452,31 @@ onShow(() => {
   font-size: 25rpx;
   font-weight: 700;
   color: #312618;
+}
+
+.fortune-list {
+  display: grid;
+  gap: 10rpx;
+}
+
+.fortune-row {
+  display: grid;
+  gap: 6rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.fortune-row__title {
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #312618;
+}
+
+.fortune-row__meta {
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: #8c7959;
 }
 
 .base-row {
@@ -1345,6 +1535,26 @@ onShow(() => {
 .history-empty,
 .history-item {
   background: rgba(248, 243, 233, 0.92);
+}
+
+.history-item--actionable {
+  background: rgba(244, 237, 222, 0.96);
+}
+
+.history-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.history-item__badge {
+  flex: 0 0 auto;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(127, 155, 132, 0.18);
+  color: #5c7d64;
+  font-size: 20rpx;
+  font-weight: 700;
 }
 
 @media (max-width: 380px) {

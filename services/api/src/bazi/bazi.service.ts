@@ -1,44 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Solar } from 'lunar-typescript';
 import { Repository } from 'typeorm';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { BaziEngine, BaziEngineResult } from './bazi-engine';
 import { searchBirthPlaceCatalog } from './birth-place.catalog';
 import { AnalyzeBaziDto } from './dto/analyze-bazi.dto';
-
-const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
-const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
-const CHINESE_ZODIACS = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'] as const;
-const FIVE_ELEMENTS = ['木', '火', '土', '金', '水'] as const;
-
-const STEM_TO_ELEMENT: Record<string, string> = {
-  甲: '木',
-  乙: '木',
-  丙: '火',
-  丁: '火',
-  戊: '土',
-  己: '土',
-  庚: '金',
-  辛: '金',
-  壬: '水',
-  癸: '水',
-};
-
-const BRANCH_TO_ELEMENT: Record<string, string> = {
-  子: '水',
-  丑: '土',
-  寅: '木',
-  卯: '木',
-  辰: '土',
-  巳: '火',
-  午: '火',
-  未: '土',
-  申: '金',
-  酉: '金',
-  戌: '土',
-  亥: '水',
-};
 
 const ELEMENT_TO_COLOR: Record<string, string> = {
   木: '青绿色',
@@ -65,25 +32,26 @@ const ELEMENT_TO_KEYWORD: Record<string, string[]> = {
 };
 
 const COMPLIANCE_NOTICE =
-  '当前结果为简化版四柱体验，未结合节气换月、真太阳时与专业命理校准，仅用于内容体验和自我观察。';
+  '当前结果为轻解读四柱体验，已统一使用农历/干支库排盘，但未启用真太阳时和专业命理校准，仅用于内容体验和自我观察。';
 
 @Injectable()
 export class BaziService {
   constructor(
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    private readonly baziEngine: BaziEngine,
   ) {}
 
   async analyze(dto: AnalyzeBaziDto, user: UserEntity | null) {
-    const result =
-      dto.mode === 'professional' ? this.buildProfessionalResult(dto) : this.buildResult(dto);
+    const isProfessionalMode = dto.mode === 'professional';
+    const result = isProfessionalMode ? this.buildProfessionalResult(dto) : this.buildResult(dto);
     let recordId: string | null = null;
 
     if (user) {
       const record = this.userRecordRepository.create({
         userId: user.id,
         recordType: 'bazi',
-        sourceCode: 'lite-bazi-chart',
+        sourceCode: isProfessionalMode ? 'professional-bazi-chart' : 'lite-bazi-chart',
         resultTitle: result.title,
         score: result.dominantElement.value.toFixed(2),
         resultLevel: result.dominantElement.name,
@@ -167,12 +135,16 @@ export class BaziService {
             summary?: string;
             chart?: { yearPillar?: string; dayPillar?: string };
             dominantElement?: { name?: string };
+            professional?: unknown;
             generatedAt?: string;
           };
 
           return {
             id: record.id,
             title: record.resultTitle,
+            sourceCode: record.sourceCode ?? '',
+            isProfessional:
+              record.sourceCode === 'professional-bazi-chart' || Boolean(result.professional),
             subtitle: result.subtitle ?? '',
             summary: result.summary ?? '',
             dominantElementName: result.dominantElement?.name ?? '',
@@ -181,6 +153,56 @@ export class BaziService {
             createdAt: result.generatedAt ?? record.createdAt.toISOString(),
           };
         }),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getProfessionalDetail(recordId: string, user: UserEntity) {
+    const record = await this.userRecordRepository.findOne({
+      where: {
+        id: recordId,
+        userId: user.id,
+        recordType: 'bazi',
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundException('专业排盘不存在或无权访问');
+    }
+
+    const result = this.resolveProfessionalDetailResult(record.resultData);
+
+    if (!result.professional) {
+      throw new NotFoundException('该记录不是专业排盘');
+    }
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        detail: {
+          recordId: record.id,
+          title: result.title,
+          subtitle: result.subtitle,
+          summary: result.summary,
+          algorithmVersion: result.algorithmVersion,
+          inputSnapshot: result.inputSnapshot,
+          correctionSnapshot: result.correctionSnapshot,
+          chart: result.chart,
+          baseProfile: result.baseProfile,
+          dominantElement: result.dominantElement,
+          supportElement: result.supportElement,
+          fiveElements: result.fiveElements,
+          dayMasterAnalysis: result.dayMasterAnalysis,
+          professional: result.professional,
+          annualFortunes: result.professional.annualFortunes,
+          majorLuck: result.professional.majorLuck,
+          reading: result.reading,
+          practicalTips: result.practicalTips,
+          complianceNotice: result.complianceNotice,
+          generatedAt: result.generatedAt ?? record.createdAt.toISOString(),
+        },
       },
       timestamp: new Date().toISOString(),
     };
@@ -197,56 +219,122 @@ export class BaziService {
     };
   }
 
+  private resolveProfessionalDetailResult(rawResult: unknown) {
+    const result = this.asRecord(rawResult);
+    const professional = this.asRecord(result.professional);
+
+    if (professional.majorLuck && result.dayMasterAnalysis && result.inputSnapshot) {
+      return result as Record<string, any>;
+    }
+
+    if (!professional.mode) {
+      return result as Record<string, any>;
+    }
+
+    const baseProfile = this.asRecord(result.baseProfile);
+    const inputSnapshot = this.asRecord(result.inputSnapshot);
+    const birthday = this.pickString(
+      baseProfile.birthday,
+      this.pickString(inputSnapshot.birthday, ''),
+    );
+    const birthTime = this.pickString(
+      baseProfile.birthTime,
+      this.pickString(inputSnapshot.birthTime, ''),
+    );
+
+    if (!birthday || !birthTime) {
+      throw new NotFoundException('专业排盘缺少出生时间，无法生成详情');
+    }
+
+    const rebuilt = this.buildProfessionalResult({
+      birthday,
+      birthTime,
+      gender: this.pickGender(baseProfile.gender),
+      birthPlace: this.pickString(professional.birthPlace, '杭州'),
+      longitude: Number(professional.longitude ?? 120),
+      latitude: Number(professional.latitude ?? 30.25),
+      timezoneOffset: Number(professional.timezoneOffset ?? 8),
+      mode: 'professional',
+    });
+
+    return {
+      ...result,
+      ...rebuilt,
+      generatedAt: this.pickString(result.generatedAt, rebuilt.generatedAt),
+    };
+  }
+
+  private asRecord(value: unknown) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, any>)
+      : {};
+  }
+
+  private pickString(value: unknown, fallback: string) {
+    return typeof value === 'string' && value.trim() ? value : fallback;
+  }
+
+  private pickGender(value: unknown): 'male' | 'female' | 'unknown' {
+    return value === 'male' || value === 'female' || value === 'unknown' ? value : 'unknown';
+  }
+
   private buildResult(dto: AnalyzeBaziDto) {
-    const [year, month, day] = dto.birthday.split('-').map((item) => Number(item));
-    const hour = Number.parseInt(dto.birthTime.slice(0, 2), 10);
-    const minute = Number.parseInt(dto.birthTime.slice(3, 5), 10);
+    const engineResult = this.baziEngine.build(dto, {
+      mode: 'lite',
+      applyTrueSolarTime: false,
+    });
 
-    const yearIndex = this.normalizeIndex(year - 1984, 60);
-    const monthIndex = this.normalizeIndex((year - 1984) * 12 + month + 15, 60);
-    const dayIndex = this.computeDayIndex(dto.birthday);
-    const hourBranchIndex = this.computeHourBranchIndex(hour);
-    const hourIndex = this.normalizeIndex(dayIndex * 12 + hourBranchIndex + 3, 60);
+    return this.buildInterpretedResult(engineResult, false);
+  }
 
-    const yearPillar = this.getPillar(yearIndex);
-    const monthPillar = this.getPillar(monthIndex);
-    const dayPillar = this.getPillar(dayIndex);
-    const hourPillar = this.getPillar(hourIndex);
-    const zodiac = CHINESE_ZODIACS[yearIndex % 12];
+  private buildProfessionalResult(dto: AnalyzeBaziDto) {
+    const engineResult = this.baziEngine.build(
+      {
+        ...dto,
+        mode: 'professional',
+      },
+      {
+        mode: 'professional',
+        applyTrueSolarTime: true,
+      },
+    );
 
-    const fiveElements = this.computeFiveElements([
-      yearPillar,
-      monthPillar,
-      dayPillar,
-      hourPillar,
-    ]);
-    const dominantElement = [...fiveElements].sort((left, right) => right.value - left.value)[0];
-    const supportElement = [...fiveElements].sort((left, right) => left.value - right.value)[0];
-    const dayMaster = STEM_TO_ELEMENT[dayPillar[0]];
-    const birthMomentLabel = this.resolveBirthMomentLabel(hour, minute);
+    return this.buildInterpretedResult(engineResult, true);
+  }
+
+  private buildInterpretedResult(engineResult: BaziEngineResult, isProfessional: boolean) {
+    const { dominantElement, supportElement } = engineResult;
+    const { dayMaster } = engineResult.baseProfile;
     const keywords = ELEMENT_TO_KEYWORD[dominantElement.name].slice(0, 3);
 
     return {
-      title: `${dominantElement.name}势偏旺型`,
-      subtitle: `${dayMaster}日主气质更明显，当前命盘更偏向${dominantElement.name}的表达方式。`,
-      summary: `这份简化排盘显示，你的节奏更适合先稳住内在状态，再把力量放到真正重要的方向上。${supportElement.name}元素偏弱，意味着你在压力大的时候更需要有意识地补足对应节奏。`,
-      chart: {
-        yearPillar,
-        monthPillar,
-        dayPillar,
-        hourPillar,
-      },
-      baseProfile: {
-        birthday: dto.birthday,
-        birthTime: dto.birthTime,
-        birthMomentLabel,
-        gender: dto.gender ?? 'unknown',
-        zodiac,
-        dayMaster,
-      },
+      algorithmVersion: engineResult.algorithmVersion,
+      inputSnapshot: engineResult.inputSnapshot,
+      correctionSnapshot: engineResult.correctionSnapshot,
+      title: isProfessional
+        ? `${dominantElement.name}势专业校正版`
+        : `${dominantElement.name}势偏旺型`,
+      subtitle: isProfessional
+        ? `已按节气换月、立春年界与真太阳时校正，${engineResult.chart.monthPillar}月柱用于专业版参考。`
+        : `${dayMaster}日主气质更明显，当前命盘更偏向${dominantElement.name}的表达方式。`,
+      summary: isProfessional
+        ? `专业版使用农历/干支库重新排盘：日主为${dayMaster}，四柱呈现${dominantElement.name}势更明显。${supportElement.name}元素相对需要补位，适合在日常节奏里用方向、颜色和行动方式做轻量调和。`
+        : `这份轻解读也已统一使用农历/干支库排盘。你的节奏更适合先稳住内在状态，再把力量放到真正重要的方向上。${supportElement.name}元素偏弱，意味着你在压力大的时候更需要有意识地补足对应节奏。`,
+      chart: engineResult.chart,
+      baseProfile: isProfessional
+        ? engineResult.baseProfile
+        : {
+            birthday: engineResult.baseProfile.birthday,
+            birthTime: engineResult.baseProfile.birthTime,
+            birthMomentLabel: engineResult.baseProfile.birthMomentLabel,
+            gender: engineResult.baseProfile.gender,
+            zodiac: engineResult.baseProfile.zodiac,
+            dayMaster: engineResult.baseProfile.dayMaster,
+          },
       dominantElement,
       supportElement,
-      fiveElements,
+      fiveElements: engineResult.fiveElements,
+      dayMasterAnalysis: engineResult.dayMasterAnalysis,
       keywords,
       reading: {
         career:
@@ -279,236 +367,49 @@ export class BaziService {
       },
       sharePoster: {
         themeName: dominantElement.name === '火' ? 'warm-amber' : 'oriental-gold',
-        title: `${dominantElement.name}势偏旺型`,
-        subtitle: `${dayMaster}日主更突出，当前更适合顺势安排节奏。`,
+        title: isProfessional
+          ? `${dominantElement.name}势专业校正版`
+          : `${dominantElement.name}势偏旺型`,
+        subtitle: isProfessional
+          ? `${dayMaster}日主 · ${engineResult.chart.monthPillar}月令`
+          : `${dayMaster}日主更突出，当前更适合顺势安排节奏。`,
         accentText: `${dominantElement.name}主轴 · ${supportElement.name}补位`,
-        footerText: '简化排盘仅用于内容体验与自我观察。',
+        footerText: isProfessional
+          ? '专业版已纳入节气换月、立春年界与真太阳时。'
+          : '轻解读已统一使用农历/干支库排盘。',
       },
-      complianceNotice: COMPLIANCE_NOTICE,
+      ...(isProfessional
+        ? {
+            professional: {
+              mode: 'professional',
+              library: engineResult.library,
+              algorithmVersion: engineResult.algorithmVersion,
+              adjustedBirthday: engineResult.correctionSnapshot.adjustedBirthday,
+              adjustedBirthTime: engineResult.correctionSnapshot.adjustedBirthTime,
+              birthPlace: engineResult.inputSnapshot.birthPlace,
+              trueSolarOffsetMinutes: engineResult.correctionSnapshot.offsetMinutes,
+              longitude: engineResult.inputSnapshot.longitude,
+              latitude: engineResult.inputSnapshot.latitude,
+              timezoneOffset: engineResult.inputSnapshot.timezoneOffset,
+              monthRule: '由农历/干支库按节气换月计算，年柱按立春年界校正。',
+              lunar: engineResult.lunar,
+              tenGods: engineResult.tenGods,
+              hiddenStems: engineResult.hiddenStems,
+              naYin: engineResult.naYin,
+              dayMasterAnalysis: engineResult.dayMasterAnalysis,
+              majorLuck: engineResult.majorLuck,
+              annualFortunes: engineResult.annualFortunes,
+              regressionSamples: [
+                { birthday: '1984-02-04 00:00', expectedYearPillar: '甲子' },
+                { birthday: '1990-01-27 12:00', expectedYearPillar: '己巳' },
+              ],
+            },
+          }
+        : {}),
+      complianceNotice: isProfessional
+        ? '当前为专业版排盘：已纳入农历/干支库、节气换月、立春年界和真太阳时修正，仅用于内容体验和自我观察。'
+        : COMPLIANCE_NOTICE,
       generatedAt: new Date().toISOString(),
     };
-  }
-
-  private buildProfessionalResult(dto: AnalyzeBaziDto) {
-    const adjusted = this.applyTrueSolarTime(dto);
-    const [year, month, day] = adjusted.birthday.split('-').map((item) => Number(item));
-    const [hour, minute] = adjusted.birthTime.split(':').map((item) => Number(item));
-    const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
-    const lunar = solar.getLunar();
-    const eightChar = lunar.getEightChar();
-    const yearPillar = eightChar.getYear();
-    const monthPillar = eightChar.getMonth();
-    const dayPillar = eightChar.getDay();
-    const hourPillar = eightChar.getTime();
-    const professionalElements = this.computeFiveElements([
-      yearPillar,
-      monthPillar,
-      dayPillar,
-      hourPillar,
-    ]);
-    const dominantElement = [...professionalElements].sort((left, right) => right.value - left.value)[0];
-    const supportElement = [...professionalElements].sort((left, right) => left.value - right.value)[0];
-    const dayMaster = STEM_TO_ELEMENT[dayPillar[0]];
-    const birthMomentLabel = this.resolveBirthMomentLabel(hour, minute);
-    const keywords = ELEMENT_TO_KEYWORD[dominantElement.name].slice(0, 3);
-
-    return {
-      title: `${dominantElement.name}势专业校正版`,
-      subtitle: `已按节气换月、立春年界与真太阳时校正，${monthPillar}月柱用于专业版参考。`,
-      summary: `专业版使用农历/干支库重新排盘：日主为${dayMaster}，四柱呈现${dominantElement.name}势更明显。${supportElement.name}元素相对需要补位，适合在日常节奏里用方向、颜色和行动方式做轻量调和。`,
-      chart: {
-        yearPillar,
-        monthPillar,
-        dayPillar,
-        hourPillar,
-      },
-      baseProfile: {
-        birthday: dto.birthday,
-        birthTime: dto.birthTime,
-        adjustedBirthday: adjusted.birthday,
-        adjustedBirthTime: adjusted.birthTime,
-        birthPlace: dto.birthPlace?.trim() || '杭州',
-        longitude: dto.longitude ?? 120,
-        latitude: dto.latitude ?? 30.25,
-        birthMomentLabel,
-        gender: dto.gender ?? 'unknown',
-        zodiac: lunar.getYearShengXiao(),
-        dayMaster,
-      },
-      dominantElement,
-      supportElement,
-      fiveElements: professionalElements,
-      keywords,
-      reading: {
-        career: `适合围绕“${keywords.join(' / ')}”安排推进方式。专业盘里${dominantElement.name}势较明显，先顺势启动，再用${supportElement.name}元素补足稳定性。`,
-        relationship: `关系里更适合把${dayMaster}日主的真实感受说清楚，避免只靠惯性回应。`,
-        rhythm: `可用“${dominantElement.name}主轴 + ${supportElement.name}补位”的方式做月度节奏规划。`,
-      },
-      practicalTips: {
-        favorableDirection: ELEMENT_TO_DIRECTION[dominantElement.name],
-        supportiveColor: ELEMENT_TO_COLOR[supportElement.name],
-        dailyFocus: `今天适合用${supportElement.name}元素做一点补位练习。`,
-      },
-      sharePoster: {
-        themeName: dominantElement.name === '水' ? 'mist-blue' : 'oriental-gold',
-        title: `${dominantElement.name}势专业校正版`,
-        subtitle: `${dayMaster}日主 · ${monthPillar}月令`,
-        accentText: `${dominantElement.name}主轴 · ${supportElement.name}补位`,
-        footerText: '专业版已纳入节气换月、立春年界与真太阳时。',
-      },
-      professional: {
-        mode: 'professional',
-        library: 'lunar-typescript',
-        adjustedBirthday: adjusted.birthday,
-        adjustedBirthTime: adjusted.birthTime,
-        birthPlace: dto.birthPlace?.trim() || '杭州',
-        trueSolarOffsetMinutes: adjusted.offsetMinutes,
-        longitude: dto.longitude ?? 120,
-        latitude: dto.latitude ?? 30.25,
-        timezoneOffset: dto.timezoneOffset ?? 8,
-        monthRule: '由农历/干支库按节气换月计算，年柱按立春年界校正。',
-        lunar: {
-          year: lunar.getYear(),
-          month: lunar.getMonth(),
-          day: lunar.getDay(),
-          yearInChinese: lunar.getYearInChinese(),
-          monthInChinese: lunar.getMonthInChinese(),
-          dayInChinese: lunar.getDayInChinese(),
-        },
-        tenGods: {
-          year: eightChar.getYearShiShenGan(),
-          month: eightChar.getMonthShiShenGan(),
-          day: eightChar.getDayShiShenGan(),
-          time: eightChar.getTimeShiShenGan(),
-        },
-        hiddenStems: {
-          year: eightChar.getYearHideGan(),
-          month: eightChar.getMonthHideGan(),
-          day: eightChar.getDayHideGan(),
-          time: eightChar.getTimeHideGan(),
-        },
-        naYin: {
-          year: eightChar.getYearNaYin(),
-          month: eightChar.getMonthNaYin(),
-          day: eightChar.getDayNaYin(),
-          time: eightChar.getTimeNaYin(),
-        },
-        regressionSamples: [
-          { birthday: '1984-02-04 00:00', expectedYearPillar: '甲子' },
-          { birthday: '1990-01-27 12:00', expectedYearPillar: '己巳' },
-        ],
-      },
-      complianceNotice:
-        '当前为专业版排盘：已纳入农历/干支库、节气换月、立春年界和真太阳时修正，仅用于内容体验和自我观察。',
-      generatedAt: new Date().toISOString(),
-    };
-  }
-
-  private applyTrueSolarTime(dto: AnalyzeBaziDto) {
-    const longitude = dto.longitude ?? 120;
-    const timezoneOffset = dto.timezoneOffset ?? 8;
-    const standardLongitude = timezoneOffset * 15;
-    const offsetMinutes = Math.round((longitude - standardLongitude) * 4);
-    const [hour, minute] = dto.birthTime.split(':').map((item) => Number(item));
-    const date = new Date(`${dto.birthday}T00:00:00Z`);
-    date.setUTCMinutes(hour * 60 + minute + offsetMinutes);
-
-    const yyyy = date.getUTCFullYear();
-    const mm = `${date.getUTCMonth() + 1}`.padStart(2, '0');
-    const dd = `${date.getUTCDate()}`.padStart(2, '0');
-    const hh = `${date.getUTCHours()}`.padStart(2, '0');
-    const mi = `${date.getUTCMinutes()}`.padStart(2, '0');
-
-    return {
-      birthday: `${yyyy}-${mm}-${dd}`,
-      birthTime: `${hh}:${mi}`,
-      offsetMinutes,
-    };
-  }
-
-  private resolveSolarTermMonthBranchIndex(birthday: string) {
-    const monthDay = birthday.slice(5, 10);
-    const boundaries = [
-      { start: '02-04', branchIndex: 2 },
-      { start: '03-06', branchIndex: 3 },
-      { start: '04-05', branchIndex: 4 },
-      { start: '05-06', branchIndex: 5 },
-      { start: '06-06', branchIndex: 6 },
-      { start: '07-07', branchIndex: 7 },
-      { start: '08-08', branchIndex: 8 },
-      { start: '09-08', branchIndex: 9 },
-      { start: '10-08', branchIndex: 10 },
-      { start: '11-07', branchIndex: 11 },
-      { start: '12-07', branchIndex: 0 },
-      { start: '01-06', branchIndex: 1 },
-    ];
-
-    const matched = [...boundaries]
-      .sort((left, right) => right.start.localeCompare(left.start))
-      .find((item) => monthDay >= item.start);
-
-    return matched?.branchIndex ?? 1;
-  }
-
-  private computeFiveElements(pillars: string[]) {
-    const counters = FIVE_ELEMENTS.reduce<Array<{ name: string; value: number }>>(
-      (result, name) => [...result, { name, value: 0 }],
-      [],
-    );
-
-    for (const pillar of pillars) {
-      const stemElement = STEM_TO_ELEMENT[pillar[0]];
-      const branchElement = BRANCH_TO_ELEMENT[pillar[1]];
-      const stemTarget = counters.find((item) => item.name === stemElement);
-      const branchTarget = counters.find((item) => item.name === branchElement);
-
-      if (stemTarget) {
-        stemTarget.value += 2;
-      }
-
-      if (branchTarget) {
-        branchTarget.value += 1;
-      }
-    }
-
-    return counters;
-  }
-
-  private getPillar(index: number) {
-    return `${HEAVENLY_STEMS[index % 10]}${EARTHLY_BRANCHES[index % 12]}`;
-  }
-
-  private computeDayIndex(birthday: string) {
-    const baseDate = Date.UTC(1984, 1, 2);
-    const currentDate = Date.parse(`${birthday}T00:00:00Z`);
-    const diffDays = Math.floor((currentDate - baseDate) / (24 * 60 * 60 * 1000));
-
-    return this.normalizeIndex(diffDays, 60);
-  }
-
-  private computeHourBranchIndex(hour: number) {
-    return Math.floor(((hour + 1) % 24) / 2);
-  }
-
-  private resolveBirthMomentLabel(hour: number, minute: number) {
-    const totalMinutes = hour * 60 + minute;
-
-    if (totalMinutes < 300) {
-      return '夜深偏静';
-    }
-
-    if (totalMinutes < 720) {
-      return '晨间初升';
-    }
-
-    if (totalMinutes < 1020) {
-      return '日间外放';
-    }
-
-    return '夜幕收束';
-  }
-
-  private normalizeIndex(value: number, modulo: number) {
-    return ((value % modulo) + modulo) % modulo;
   }
 }

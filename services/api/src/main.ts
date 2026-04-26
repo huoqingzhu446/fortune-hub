@@ -25,6 +25,7 @@ async function bootstrap() {
         .filter(Boolean),
     ),
   );
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
 
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
@@ -41,7 +42,7 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || (!isProduction && isLocalDevOrigin(origin))) {
         callback(null, true);
         return;
       }
@@ -54,6 +55,15 @@ async function bootstrap() {
   });
   await app.listen(port);
   Logger.log(`Fortune Hub API listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+}
+
+function isLocalDevOrigin(origin: string) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
 }
 
 void bootstrap();

@@ -5,8 +5,21 @@ export interface BaziAnalyzePayload {
   birthTime: string;
   gender?: 'male' | 'female' | 'unknown';
   mode?: 'lite' | 'professional';
+  birthPlace?: string;
   longitude?: number;
+  latitude?: number;
   timezoneOffset?: number;
+}
+
+export interface BaziBirthPlace {
+  code: string;
+  label: string;
+  province: string;
+  country: string;
+  longitude: number;
+  latitude: number;
+  timezoneOffset: number;
+  keywords: string[];
 }
 
 export interface BaziElementItem {
@@ -31,6 +44,9 @@ export interface BaziResult {
     gender: string;
     zodiac: string;
     dayMaster: string;
+    birthPlace?: string;
+    longitude?: number;
+    latitude?: number;
   };
   dominantElement: BaziElementItem;
   supportElement: BaziElementItem;
@@ -52,8 +68,10 @@ export interface BaziResult {
     library: string;
     adjustedBirthday: string;
     adjustedBirthTime: string;
+    birthPlace: string;
     trueSolarOffsetMinutes: number;
     longitude: number;
+    latitude: number;
     timezoneOffset: number;
     monthRule: string;
     lunar: {
@@ -71,10 +89,10 @@ export interface BaziResult {
       time: string;
     };
     hiddenStems: {
-      year: string;
-      month: string;
-      day: string;
-      time: string;
+      year: string[];
+      month: string[];
+      day: string[];
+      time: string[];
     };
     naYin: {
       year: string;
@@ -108,5 +126,10 @@ export interface BaziHistoryData {
   items: BaziHistoryItem[];
 }
 
+export interface BaziBirthPlaceSearchData {
+  items: BaziBirthPlace[];
+}
+
 export type BaziAnalyzeResponse = ApiEnvelope<BaziAnalyzeData>;
 export type BaziHistoryResponse = ApiEnvelope<BaziHistoryData>;
+export type BaziBirthPlaceSearchResponse = ApiEnvelope<BaziBirthPlaceSearchData>;

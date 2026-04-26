@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { AnalyzeBaziDto } from './dto/analyze-bazi.dto';
 import { BaziService } from './bazi.service';
@@ -32,5 +32,13 @@ export class BaziController {
   async getHistory(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.baziService.getHistory(user);
+  }
+
+  @Get('birth-places')
+  searchBirthPlaces(
+    @Query('keyword') keyword?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.baziService.searchBirthPlaces(keyword, Number(limit));
   }
 }

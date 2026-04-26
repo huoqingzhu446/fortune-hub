@@ -4,6 +4,7 @@ import { Solar } from 'lunar-typescript';
 import { Repository } from 'typeorm';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { searchBirthPlaceCatalog } from './birth-place.catalog';
 import { AnalyzeBaziDto } from './dto/analyze-bazi.dto';
 
 const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
@@ -185,6 +186,17 @@ export class BaziService {
     };
   }
 
+  searchBirthPlaces(keyword = '', limit = 10) {
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        items: searchBirthPlaceCatalog(keyword, limit),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   private buildResult(dto: AnalyzeBaziDto) {
     const [year, month, day] = dto.birthday.split('-').map((item) => Number(item));
     const hour = Number.parseInt(dto.birthTime.slice(0, 2), 10);
@@ -315,6 +327,9 @@ export class BaziService {
         birthTime: dto.birthTime,
         adjustedBirthday: adjusted.birthday,
         adjustedBirthTime: adjusted.birthTime,
+        birthPlace: dto.birthPlace?.trim() || '杭州',
+        longitude: dto.longitude ?? 120,
+        latitude: dto.latitude ?? 30.25,
         birthMomentLabel,
         gender: dto.gender ?? 'unknown',
         zodiac: lunar.getYearShengXiao(),
@@ -346,8 +361,10 @@ export class BaziService {
         library: 'lunar-typescript',
         adjustedBirthday: adjusted.birthday,
         adjustedBirthTime: adjusted.birthTime,
+        birthPlace: dto.birthPlace?.trim() || '杭州',
         trueSolarOffsetMinutes: adjusted.offsetMinutes,
         longitude: dto.longitude ?? 120,
+        latitude: dto.latitude ?? 30.25,
         timezoneOffset: dto.timezoneOffset ?? 8,
         monthRule: '由农历/干支库按节气换月计算，年柱按立春年界校正。',
         lunar: {

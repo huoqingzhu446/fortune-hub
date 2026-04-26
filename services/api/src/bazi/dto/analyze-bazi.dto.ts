@@ -6,6 +6,7 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -28,10 +29,21 @@ export class AnalyzeBaziDto {
   mode?: 'lite' | 'professional';
 
   @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  birthPlace?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
   longitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
 
   @IsOptional()
   @IsNumber()

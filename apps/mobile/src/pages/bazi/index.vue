@@ -87,26 +87,32 @@
             <text class="sheet-header__eyebrow">true solar time</text>
             <text class="sheet-header__title">专业校正</text>
           </view>
-          <button class="ghost-button" @tap="applyCurrentLocation">
-            取当前位置
-          </button>
         </view>
-        <view class="field-grid">
-          <view class="field-block">
-            <text class="field-block__label">出生地经度</text>
-            <input
-              v-model="form.longitude"
-              class="field-block__input"
-              placeholder="例如 120.00"
-            />
-          </view>
-          <view class="field-block">
-            <text class="field-block__label">时区 UTC</text>
-            <input
-              v-model="form.timezoneOffset"
-              class="field-block__input"
-              placeholder="中国大陆填 8"
-            />
+        <view class="field-block">
+          <text class="field-block__label">出生地</text>
+          <input
+            v-model="citySearch"
+            class="field-block__input"
+            placeholder="搜索城市，如杭州 / hangzhou"
+            @input="handleBirthPlaceSearchInput"
+          />
+          <view class="city-result-list">
+            <view
+              v-for="option in filteredBirthPlaces"
+              :key="option.value"
+              class="city-result"
+              :class="{ 'city-result--active': option.value === selectedBirthPlace.value }"
+              @tap="selectBirthPlace(option)"
+            >
+              <text class="city-result__name">{{ option.label }}</text>
+              <text class="city-result__meta">{{ formatBirthPlaceMeta(option) }}</text>
+            </view>
+            <view v-if="loadingBirthPlaces" class="city-result city-result--empty">
+              <text class="city-result__name">正在搜索出生地...</text>
+            </view>
+            <view v-else-if="!filteredBirthPlaces.length" class="city-result city-result--empty">
+              <text class="city-result__name">未找到匹配城市</text>
+            </view>
           </view>
         </view>
       </view>
@@ -320,20 +326,38 @@
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
-import { analyzeBazi, analyzeProfessionalBazi, fetchBaziHistory } from '../../api/bazi';
+import {
+  analyzeBazi,
+  analyzeProfessionalBazi,
+  fetchBaziHistory,
+  searchBaziBirthPlaces,
+} from '../../api/bazi';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken, getCachedUser } from '../../services/session';
-import type { BaziHistoryItem, BaziResult } from '../../types/bazi';
+import type { BaziBirthPlace, BaziHistoryItem, BaziResult } from '../../types/bazi';
 
 type GenderValue = 'male' | 'female' | 'unknown';
 type AnalyzeMode = 'lite' | 'professional';
 
 type PillarMeta = {
-  year: string;
-  month: string;
-  day: string;
-  time: string;
+  year: string | string[];
+  month: string | string[];
+  day: string | string[];
+  time: string | string[];
 };
+
+type BirthPlaceOption = {
+  label: string;
+  value: string;
+  province?: string;
+  country?: string;
+  longitude: number;
+  latitude?: number;
+  timezoneOffset: number;
+  keywords?: string[];
+};
+
+const BIRTH_PLACE_RESULT_LIMIT = 8;
 
 const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '男', value: 'male' },
@@ -354,18 +378,88 @@ const modeOptions: Array<{ label: string; value: AnalyzeMode; description: strin
   },
 ];
 
+const DEFAULT_BIRTH_PLACE_OPTIONS: BirthPlaceOption[] = [
+  { label: '杭州', value: 'hangzhou', longitude: 120.16, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '北京', value: 'beijing', longitude: 116.4, timezoneOffset: 8, keywords: ['bj'] },
+  { label: '上海', value: 'shanghai', longitude: 121.47, timezoneOffset: 8, keywords: ['sh'] },
+  { label: '广州', value: 'guangzhou', longitude: 113.26, timezoneOffset: 8, keywords: ['广东'] },
+  { label: '深圳', value: 'shenzhen', longitude: 114.06, timezoneOffset: 8, keywords: ['广东'] },
+  { label: '南京', value: 'nanjing', longitude: 118.78, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '徐州', value: 'xuzhou', longitude: 117.18, timezoneOffset: 8, keywords: ['江苏', 'xz'] },
+  { label: '无锡', value: 'wuxi', longitude: 120.31, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '常州', value: 'changzhou', longitude: 119.95, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '苏州', value: 'suzhou', longitude: 120.58, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '南通', value: 'nantong', longitude: 120.89, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '连云港', value: 'lianyungang', longitude: 119.22, timezoneOffset: 8, keywords: ['江苏', 'lyg'] },
+  { label: '淮安', value: 'huaian', longitude: 119.02, timezoneOffset: 8, keywords: ['江苏', 'huai an'] },
+  { label: '盐城', value: 'yancheng', longitude: 120.16, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '扬州', value: 'yangzhou', longitude: 119.41, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '镇江', value: 'zhenjiang', longitude: 119.45, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '泰州', value: 'taizhou-jiangsu', longitude: 119.92, timezoneOffset: 8, keywords: ['江苏', 'taizhou'] },
+  { label: '宿迁', value: 'suqian', longitude: 118.28, timezoneOffset: 8, keywords: ['江苏'] },
+  { label: '天津', value: 'tianjin', longitude: 117.2, timezoneOffset: 8, keywords: ['tj'] },
+  { label: '石家庄', value: 'shijiazhuang', longitude: 114.51, timezoneOffset: 8, keywords: ['河北', 'sjz'] },
+  { label: '太原', value: 'taiyuan', longitude: 112.55, timezoneOffset: 8, keywords: ['山西'] },
+  { label: '呼和浩特', value: 'hohhot', longitude: 111.75, timezoneOffset: 8, keywords: ['内蒙古', 'huhehaote'] },
+  { label: '成都', value: 'chengdu', longitude: 104.06, timezoneOffset: 8, keywords: ['四川'] },
+  { label: '重庆', value: 'chongqing', longitude: 106.55, timezoneOffset: 8, keywords: ['cq'] },
+  { label: '西安', value: 'xian', longitude: 108.94, timezoneOffset: 8, keywords: ['陕西', 'xi an'] },
+  { label: '武汉', value: 'wuhan', longitude: 114.31, timezoneOffset: 8, keywords: ['湖北'] },
+  { label: '长沙', value: 'changsha', longitude: 112.94, timezoneOffset: 8, keywords: ['湖南'] },
+  { label: '郑州', value: 'zhengzhou', longitude: 113.62, timezoneOffset: 8, keywords: ['河南'] },
+  { label: '济南', value: 'jinan', longitude: 117.12, timezoneOffset: 8, keywords: ['山东', 'ji nan'] },
+  { label: '青岛', value: 'qingdao', longitude: 120.38, timezoneOffset: 8, keywords: ['山东'] },
+  { label: '烟台', value: 'yantai', longitude: 121.45, timezoneOffset: 8, keywords: ['山东'] },
+  { label: '潍坊', value: 'weifang', longitude: 119.16, timezoneOffset: 8, keywords: ['山东'] },
+  { label: '临沂', value: 'linyi', longitude: 118.36, timezoneOffset: 8, keywords: ['山东'] },
+  { label: '沈阳', value: 'shenyang', longitude: 123.43, timezoneOffset: 8, keywords: ['辽宁'] },
+  { label: '大连', value: 'dalian', longitude: 121.61, timezoneOffset: 8, keywords: ['辽宁'] },
+  { label: '长春', value: 'changchun', longitude: 125.32, timezoneOffset: 8, keywords: ['吉林'] },
+  { label: '哈尔滨', value: 'harbin', longitude: 126.64, timezoneOffset: 8, keywords: ['黑龙江'] },
+  { label: '合肥', value: 'hefei', longitude: 117.23, timezoneOffset: 8, keywords: ['安徽'] },
+  { label: '芜湖', value: 'wuhu', longitude: 118.38, timezoneOffset: 8, keywords: ['安徽'] },
+  { label: '宁波', value: 'ningbo', longitude: 121.55, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '温州', value: 'wenzhou', longitude: 120.7, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '嘉兴', value: 'jiaxing', longitude: 120.76, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '绍兴', value: 'shaoxing', longitude: 120.58, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '金华', value: 'jinhua', longitude: 119.65, timezoneOffset: 8, keywords: ['浙江'] },
+  { label: '台州', value: 'taizhou-zhejiang', longitude: 121.42, timezoneOffset: 8, keywords: ['浙江', 'taizhou'] },
+  { label: '福州', value: 'fuzhou', longitude: 119.3, timezoneOffset: 8, keywords: ['福建'] },
+  { label: '厦门', value: 'xiamen', longitude: 118.09, timezoneOffset: 8, keywords: ['福建'] },
+  { label: '泉州', value: 'quanzhou', longitude: 118.68, timezoneOffset: 8, keywords: ['福建'] },
+  { label: '南昌', value: 'nanchang', longitude: 115.86, timezoneOffset: 8, keywords: ['江西'] },
+  { label: '昆明', value: 'kunming', longitude: 102.83, timezoneOffset: 8, keywords: ['云南'] },
+  { label: '贵阳', value: 'guiyang', longitude: 106.63, timezoneOffset: 8, keywords: ['贵州'] },
+  { label: '南宁', value: 'nanning', longitude: 108.37, timezoneOffset: 8, keywords: ['广西'] },
+  { label: '海口', value: 'haikou', longitude: 110.2, timezoneOffset: 8, keywords: ['海南'] },
+  { label: '三亚', value: 'sanya', longitude: 109.51, timezoneOffset: 8, keywords: ['海南'] },
+  { label: '兰州', value: 'lanzhou', longitude: 103.84, timezoneOffset: 8, keywords: ['甘肃'] },
+  { label: '西宁', value: 'xining', longitude: 101.78, timezoneOffset: 8, keywords: ['青海'] },
+  { label: '银川', value: 'yinchuan', longitude: 106.23, timezoneOffset: 8, keywords: ['宁夏'] },
+  { label: '拉萨', value: 'lhasa', longitude: 91.13, timezoneOffset: 8, keywords: ['西藏'] },
+  { label: '乌鲁木齐', value: 'urumqi', longitude: 87.62, timezoneOffset: 8, keywords: ['新疆', 'wulumuqi'] },
+  { label: '香港', value: 'hongkong', longitude: 114.17, timezoneOffset: 8, keywords: ['hong kong', 'hk'] },
+  { label: '澳门', value: 'macau', longitude: 113.54, timezoneOffset: 8, keywords: ['aomen', 'macao'] },
+  { label: '台北', value: 'taipei', longitude: 121.56, timezoneOffset: 8, keywords: ['台湾'] },
+  { label: '新加坡', value: 'singapore', longitude: 103.85, timezoneOffset: 8, keywords: ['sg'] },
+  { label: '东京', value: 'tokyo', longitude: 139.69, timezoneOffset: 9, keywords: ['日本'] },
+  { label: '首尔', value: 'seoul', longitude: 126.98, timezoneOffset: 9, keywords: ['韩国'] },
+  { label: '伦敦', value: 'london', longitude: -0.13, timezoneOffset: 0, keywords: ['英国'] },
+  { label: '纽约', value: 'new-york', longitude: -74.01, timezoneOffset: -5, keywords: ['new york', 'newyork'] },
+  { label: '洛杉矶', value: 'los-angeles', longitude: -118.24, timezoneOffset: -8, keywords: ['los angeles', 'la'] },
+  { label: '悉尼', value: 'sydney', longitude: 151.21, timezoneOffset: 10, keywords: ['澳大利亚'] },
+];
+
 const form = reactive<{
   birthday: string;
   birthTime: string;
   gender: GenderValue;
-  longitude: string;
-  timezoneOffset: string;
+  birthPlaceCode: string;
 }>({
   birthday: '',
   birthTime: '',
   gender: 'unknown',
-  longitude: '120',
-  timezoneOffset: '8',
+  birthPlaceCode: 'hangzhou',
 });
 
 const latestResult = ref<BaziResult | null>(null);
@@ -377,12 +471,38 @@ const loadingHistory = ref(false);
 const submitting = ref(false);
 const authToken = ref(getAuthToken());
 const activeMode = ref<AnalyzeMode>('lite');
+const citySearch = ref('杭州');
+const birthPlaceOptions = ref<BirthPlaceOption[]>(
+  DEFAULT_BIRTH_PLACE_OPTIONS.slice(0, BIRTH_PLACE_RESULT_LIMIT),
+);
+const loadingBirthPlaces = ref(false);
+let birthPlaceSearchTimer: ReturnType<typeof setTimeout> | null = null;
+let birthPlaceSearchSequence = 0;
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const isProfessionalMode = computed(() => activeMode.value === 'professional');
 const loginStatusLabel = computed(() => (isLoggedIn.value ? '当前状态' : '保存历史'));
 const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需登录'));
 const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
+const selectedBirthPlace = computed(
+  () =>
+    birthPlaceOptions.value.find((item) => item.value === form.birthPlaceCode) ??
+    DEFAULT_BIRTH_PLACE_OPTIONS.find((item) => item.value === form.birthPlaceCode) ??
+    DEFAULT_BIRTH_PLACE_OPTIONS[0],
+);
+const filteredBirthPlaces = computed(() => {
+  const keyword = normalizeCityKeyword(citySearch.value);
+  const matches = keyword
+    ? birthPlaceOptions.value.filter((option) => matchesBirthPlace(option, keyword))
+    : birthPlaceOptions.value;
+  const selected = selectedBirthPlace.value;
+  const shouldPinSelected = !keyword || matches.some((option) => option.value === selected.value);
+  const rankedMatches = shouldPinSelected
+    ? [selected, ...matches.filter((option) => option.value !== selected.value)]
+    : matches;
+
+  return rankedMatches.slice(0, 6);
+});
 const heroEyebrow = computed(() => (isProfessionalMode.value ? 'professional bazi chart' : 'lite bazi chart'));
 const heroTitle = computed(() => (isProfessionalMode.value ? '八字专业版' : '八字解读'));
 const heroSubtitle = computed(() =>
@@ -392,7 +512,7 @@ const heroSubtitle = computed(() =>
 );
 const modeNotice = computed(() =>
   isProfessionalMode.value
-    ? '专业版说明：出生地经度用于真太阳时校正；中国大陆时区通常填写 8。结果仍仅用于内容体验和自我观察。'
+    ? '专业版说明：出生地用于真太阳时校正，会按所选城市和当地时区推算。结果仍仅用于内容体验和自我观察。'
     : '轻解读说明：当前会直接使用公历日期与时辰做快速推演，不包含节气换月与真太阳时校正。',
 );
 const submitButtonLabel = computed(() => (isProfessionalMode.value ? '生成专业排盘' : '生成轻解读'));
@@ -413,8 +533,12 @@ const professionalProfileRows = computed(() => {
       value: `${professional.trueSolarOffsetMinutes >= 0 ? '+' : ''}${professional.trueSolarOffsetMinutes} 分钟`,
     },
     {
-      label: '出生地经度',
-      value: `${professional.longitude}°`,
+      label: '出生地',
+      value: professional.birthPlace || selectedBirthPlace.value.label,
+    },
+    {
+      label: '经纬度',
+      value: `${formatCoordinate(professional.longitude, 'E', 'W')} ${formatCoordinate(professional.latitude, 'N', 'S')}`,
     },
     {
       label: '时区',
@@ -429,6 +553,10 @@ const professionalProfileRows = computed(() => {
 
 function selectMode(mode: AnalyzeMode) {
   activeMode.value = mode;
+
+  if (mode === 'professional') {
+    void searchBirthPlaces(citySearch.value);
+  }
 }
 
 function applyProfileDefaults() {
@@ -472,33 +600,150 @@ function handleBirthTimeChange(event: { detail: { value: string } }) {
   form.birthTime = event.detail.value;
 }
 
-async function applyCurrentLocation() {
+function handleBirthPlaceSearchInput(event: InputEvent) {
+  const keyword = getInputEventValue(event) ?? citySearch.value;
+
+  citySearch.value = keyword;
+
+  const exactMatch = findBirthPlaceOption(keyword, birthPlaceOptions.value);
+
+  if (exactMatch) {
+    form.birthPlaceCode = exactMatch.value;
+  }
+
+  scheduleBirthPlaceSearch(keyword);
+}
+
+function selectBirthPlace(option: BirthPlaceOption) {
+  form.birthPlaceCode = option.value;
+  citySearch.value = option.label;
+  birthPlaceOptions.value = mergeBirthPlaceOptions([option], birthPlaceOptions.value);
+}
+
+function hasExactBirthPlaceMatch(option: BirthPlaceOption, keyword: string) {
+  const normalizedKeyword = normalizeCityKeyword(keyword);
+
+  return getBirthPlaceSearchTexts(option).some((text) => normalizeCityKeyword(text) === normalizedKeyword);
+}
+
+function matchesBirthPlace(option: BirthPlaceOption, keyword: string) {
+  return getBirthPlaceSearchTexts(option).some((text) => normalizeCityKeyword(text).includes(keyword));
+}
+
+function getBirthPlaceSearchTexts(option: BirthPlaceOption) {
+  return [
+    option.label,
+    option.value,
+    option.province ?? '',
+    option.country ?? '',
+    ...(option.keywords ?? []),
+  ].filter(Boolean);
+}
+
+function normalizeCityKeyword(value: string) {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '');
+}
+
+function getInputEventValue(event: InputEvent) {
+  const detail = (event as unknown as { detail?: { value?: unknown } }).detail;
+
+  if (detail && typeof detail === 'object' && 'value' in detail) {
+    return String(detail.value ?? '');
+  }
+
+  const target = (event as unknown as { target?: { value?: unknown } }).target;
+
+  if (target && 'value' in target) {
+    return String(target.value ?? '');
+  }
+
+  return null;
+}
+
+function scheduleBirthPlaceSearch(keyword: string) {
+  if (birthPlaceSearchTimer) {
+    clearTimeout(birthPlaceSearchTimer);
+  }
+
+  birthPlaceSearchTimer = setTimeout(() => {
+    void searchBirthPlaces(keyword);
+  }, 220);
+}
+
+async function searchBirthPlaces(keyword: string) {
+  const requestId = ++birthPlaceSearchSequence;
+  loadingBirthPlaces.value = true;
+
   try {
-    const location = await getCurrentLocation();
-    form.longitude = location.longitude.toFixed(2);
-    uni.showToast({
-      title: '已带入当前位置经度',
-      icon: 'success',
-    });
+    const response = await searchBaziBirthPlaces(keyword, BIRTH_PLACE_RESULT_LIMIT);
+
+    if (requestId !== birthPlaceSearchSequence) {
+      return;
+    }
+
+    const places = response.data.items.map(mapBirthPlaceFromApi);
+    birthPlaceOptions.value = mergeBirthPlaceOptions(
+      selectedBirthPlace.value ? [selectedBirthPlace.value] : [],
+      places,
+    ).slice(0, BIRTH_PLACE_RESULT_LIMIT);
   } catch (error) {
-    console.warn('get location failed', error);
-    uni.showToast({
-      title: '定位失败，可手动填写经度',
-      icon: 'none',
-    });
+    console.warn('search bazi birth places failed', error);
+
+    if (requestId !== birthPlaceSearchSequence) {
+      return;
+    }
+
+    birthPlaceOptions.value = searchDefaultBirthPlaces(keyword);
+  } finally {
+    if (requestId === birthPlaceSearchSequence) {
+      loadingBirthPlaces.value = false;
+    }
   }
 }
 
-function getCurrentLocation() {
-  return new Promise<{ longitude: number }>((resolve, reject) => {
-    uni.getLocation({
-      type: 'wgs84',
-      success: (response) => {
-        resolve({ longitude: Number(response.longitude) });
-      },
-      fail: reject,
-    });
-  });
+function mapBirthPlaceFromApi(place: BaziBirthPlace): BirthPlaceOption {
+  return {
+    label: place.label,
+    value: place.code,
+    province: place.province,
+    country: place.country,
+    longitude: place.longitude,
+    latitude: place.latitude,
+    timezoneOffset: place.timezoneOffset,
+    keywords: place.keywords,
+  };
+}
+
+function searchDefaultBirthPlaces(keyword: string) {
+  const normalizedKeyword = normalizeCityKeyword(keyword);
+  const matches = normalizedKeyword
+    ? DEFAULT_BIRTH_PLACE_OPTIONS.filter((option) => matchesBirthPlace(option, normalizedKeyword))
+    : DEFAULT_BIRTH_PLACE_OPTIONS;
+
+  return matches.slice(0, BIRTH_PLACE_RESULT_LIMIT);
+}
+
+function findBirthPlaceOption(keyword: string, options: BirthPlaceOption[]) {
+  return options.find((option) => hasExactBirthPlaceMatch(option, keyword));
+}
+
+function mergeBirthPlaceOptions(
+  pinnedOptions: BirthPlaceOption[],
+  options: BirthPlaceOption[],
+) {
+  const result: BirthPlaceOption[] = [];
+  const seen = new Set<string>();
+
+  for (const option of [...pinnedOptions, ...options]) {
+    if (seen.has(option.value)) {
+      continue;
+    }
+
+    seen.add(option.value);
+    result.push(option);
+  }
+
+  return result;
 }
 
 async function submitAnalyze() {
@@ -510,7 +755,7 @@ async function submitAnalyze() {
     return;
   }
 
-  const professionalPayload = isProfessionalMode.value ? buildProfessionalPayload() : null;
+  const professionalPayload = isProfessionalMode.value ? await buildProfessionalPayload() : null;
 
   if (isProfessionalMode.value && !professionalPayload) {
     return;
@@ -555,30 +800,61 @@ async function submitAnalyze() {
   }
 }
 
-function buildProfessionalPayload() {
-  const longitude = Number(form.longitude);
-  const timezoneOffset = Number(form.timezoneOffset);
+async function buildProfessionalPayload() {
+  const birthPlace = await resolveBirthPlaceForSubmit();
 
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-    uni.showToast({
-      title: '经度需在 -180 到 180 之间',
-      icon: 'none',
-    });
-    return null;
-  }
-
-  if (!Number.isFinite(timezoneOffset) || timezoneOffset < -12 || timezoneOffset > 14) {
-    uni.showToast({
-      title: '时区需在 -12 到 14 之间',
-      icon: 'none',
-    });
+  if (!birthPlace) {
     return null;
   }
 
   return {
-    longitude,
-    timezoneOffset,
+    birthPlace: birthPlace.label,
+    longitude: birthPlace.longitude,
+    ...(typeof birthPlace.latitude === 'number' ? { latitude: birthPlace.latitude } : {}),
+    timezoneOffset: birthPlace.timezoneOffset,
   };
+}
+
+async function resolveBirthPlaceForSubmit() {
+  const keyword = normalizeCityKeyword(citySearch.value);
+  const selected = selectedBirthPlace.value;
+
+  if (!keyword || matchesBirthPlace(selected, keyword)) {
+    return selected;
+  }
+
+  let firstMatch = birthPlaceOptions.value.find((option) => matchesBirthPlace(option, keyword));
+
+  if (!firstMatch) {
+    await searchBirthPlaces(citySearch.value);
+    firstMatch = birthPlaceOptions.value.find((option) => matchesBirthPlace(option, keyword));
+  }
+
+  if (firstMatch) {
+    selectBirthPlace(firstMatch);
+    return firstMatch;
+  }
+
+  uni.showToast({
+    title: '请从城市列表选择出生地',
+    icon: 'none',
+  });
+
+  return null;
+}
+
+function formatBirthPlaceMeta(option: BirthPlaceOption) {
+  const region = option.province || option.country || `UTC${option.timezoneOffset >= 0 ? '+' : ''}${option.timezoneOffset}`;
+
+  if (typeof option.latitude !== 'number') {
+    return `${region} · UTC${option.timezoneOffset >= 0 ? '+' : ''}${option.timezoneOffset}`;
+  }
+
+  return `${region} · ${formatCoordinate(option.longitude, 'E', 'W')} ${formatCoordinate(option.latitude, 'N', 'S')}`;
+}
+
+function formatCoordinate(value: number, positiveSuffix: string, negativeSuffix: string) {
+  return `${Math.abs(value).toFixed(2)}${value >= 0 ? positiveSuffix : negativeSuffix}`;
 }
 
 function openFullReport() {
@@ -611,11 +887,15 @@ function formatDateTime(value: string) {
 
 function formatPillarMetaRows(meta: PillarMeta) {
   return [
-    { label: '年柱', value: meta.year },
-    { label: '月柱', value: meta.month },
-    { label: '日柱', value: meta.day },
-    { label: '时柱', value: meta.time },
+    { label: '年柱', value: formatPillarMetaValue(meta.year) },
+    { label: '月柱', value: formatPillarMetaValue(meta.month) },
+    { label: '日柱', value: formatPillarMetaValue(meta.day) },
+    { label: '时柱', value: formatPillarMetaValue(meta.time) },
   ];
+}
+
+function formatPillarMetaValue(value: string | string[]) {
+  return Array.isArray(value) ? value.join('、') : value;
 }
 
 onLoad((options) => {
@@ -624,6 +904,7 @@ onLoad((options) => {
   }
 
   applyProfileDefaults();
+  void searchBirthPlaces(citySearch.value);
   void loadHistory();
 });
 
@@ -854,6 +1135,49 @@ onShow(() => {
   display: grid;
   gap: 14rpx;
   margin-top: 18rpx;
+}
+
+.city-result-list {
+  display: grid;
+  gap: 10rpx;
+}
+
+.city-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-height: 72rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid rgba(208, 190, 156, 0.46);
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.city-result--active {
+  border-color: rgba(143, 107, 61, 0.72);
+  background: rgba(244, 230, 201, 0.95);
+}
+
+.city-result--empty {
+  justify-content: center;
+  color: #9e8a62;
+}
+
+.city-result__name {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 25rpx;
+  font-weight: 600;
+  color: #312618;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.city-result__meta {
+  flex: 0 0 auto;
+  font-size: 22rpx;
+  color: #9e8a62;
 }
 
 .gender-row,

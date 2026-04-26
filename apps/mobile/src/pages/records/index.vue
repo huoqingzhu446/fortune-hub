@@ -54,6 +54,32 @@
         <button class="login-card__button" @tap="goProfile">去我的</button>
       </view>
 
+      <view v-if="activeTab === 'meditation'" class="section">
+        <view class="section__head">
+          <text class="section__title">冥想洞察</text>
+          <text class="section__meta">{{ meditationStats.insight }}</text>
+        </view>
+
+        <view class="meditation-insight">
+          <view class="meditation-insight__primary">
+            <text class="meditation-insight__label">本周练习</text>
+            <text class="meditation-insight__value">{{ meditationStats.weeklyCount }}次</text>
+            <text class="meditation-insight__text">{{ meditationStats.weeklyMinutes }} 分钟</text>
+          </view>
+
+          <view class="meditation-insight__grid">
+            <view
+              v-for="item in meditationStatCards"
+              :key="item.label"
+              class="meditation-insight__item"
+            >
+              <text class="meditation-insight__item-value">{{ item.value }}</text>
+              <text class="meditation-insight__item-label">{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <view class="section">
         <view class="section__head">
           <text class="section__title">心情打卡</text>
@@ -284,6 +310,18 @@ const fallbackOverviewData: RecordOverviewData = {
   moodRecords: [],
   testRecords: [],
   meditationRecords: [],
+  meditationStats: {
+    weeklyCount: 0,
+    weeklyMinutes: 0,
+    totalCount: 0,
+    totalMinutes: 0,
+    favoriteCategory: '暂无',
+    favoriteCategoryCount: 0,
+    improvementRate: 0,
+    improvedCount: 0,
+    bestAfterState: '暂无',
+    insight: '登录后会根据冥想记录生成练习洞察。',
+  },
   growth: {
     continuousDays: 0,
     monthKeywords: '放松 · 接纳 · 修复',
@@ -333,6 +371,27 @@ let lastRecordsVersion = pageStateStore.versionOf('records');
 const moodRecords = computed(() => recordOverview.value.moodRecords);
 const testRecords = computed(() => recordOverview.value.testRecords);
 const meditationRecords = computed(() => recordOverview.value.meditationRecords);
+const meditationStats = computed(
+  () => recordOverview.value.meditationStats ?? fallbackOverviewData.meditationStats,
+);
+const meditationStatCards = computed(() => [
+  {
+    label: '累计练习',
+    value: `${meditationStats.value.totalMinutes}分钟`,
+  },
+  {
+    label: '常用分类',
+    value: meditationStats.value.favoriteCategory,
+  },
+  {
+    label: '状态改善',
+    value: `${meditationStats.value.improvementRate}%`,
+  },
+  {
+    label: '常见练后',
+    value: meditationStats.value.bestAfterState,
+  },
+]);
 
 const visibleRecentRecords = computed<RecentDisplayItem[]>(() => {
   if (activeTab.value === 'emotion') {
@@ -363,8 +422,8 @@ const visibleRecentRecords = computed<RecentDisplayItem[]>(() => {
     id: item.id,
     icon: '静',
     title: item.title,
-    tag: `${item.durationMinutes} 分钟 · ${meditationStatusLabel(item.completionStatus)}`,
-    summary: item.summary || `${item.sourceTitle || item.category} 练习`,
+    tag: `${meditationCategoryLabel(item)} · ${item.durationMinutes} 分钟 · ${meditationStatusLabel(item.completionStatus)}`,
+    summary: buildMeditationSummary(item),
     time: formatTime(item.updatedAt),
     route: item.route,
   }));
@@ -535,6 +594,55 @@ function meditationStatusLabel(status: string) {
   };
 
   return mapping[status] || '已记录';
+}
+
+function meditationCategoryLabel(item: MeditationLogItem) {
+  const mapping: Record<string, string> = {
+    meditation: '基础静心',
+    sleep: '睡前安睡',
+    breath: '呼吸减压',
+    focus: '专注启动',
+    healing: '情绪修复',
+    body: '身体扫描',
+  };
+
+  return item.categoryLabel || mapping[item.category] || '冥想练习';
+}
+
+function meditationMoodLabel(value: string) {
+  const mapping: Record<string, string> = {
+    tense: '紧绷',
+    tired: '疲惫',
+    anxious: '焦虑',
+    scattered: '分心',
+    calm: '平稳',
+    settled: '更平静',
+    clear: '更清晰',
+    relaxed: '放松了',
+    sleepy: '有点困',
+    unchanged: '变化不大',
+  };
+
+  return mapping[value] || value;
+}
+
+function buildMeditationSummary(item: MeditationLogItem) {
+  const leadingParts = [
+    item.intention ? `目标：${item.intention}` : '',
+    item.moodAfter ? `练后：${meditationMoodLabel(item.moodAfter)}` : '',
+    item.focusScore ? `专注 ${item.focusScore}/5` : '',
+  ].filter(Boolean);
+  const detail = item.insight || item.summary || item.bodySignal || item.nextAction;
+
+  if (leadingParts.length && detail) {
+    return `${leadingParts.slice(0, 2).join(' · ')} · ${detail}`;
+  }
+
+  if (leadingParts.length) {
+    return leadingParts.join(' · ');
+  }
+
+  return detail || `${item.sourceTitle || meditationCategoryLabel(item)} 练习`;
 }
 
 function formatTime(value: string) {
@@ -827,6 +935,67 @@ onShow(() => {
 .favorite-card__text {
   font-size: 24rpx;
   line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.meditation-insight {
+  display: grid;
+  grid-template-columns: 210rpx minmax(0, 1fr);
+  gap: 16rpx;
+  padding: 22rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid var(--theme-border);
+  background: var(--theme-surface);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.meditation-insight__primary {
+  display: grid;
+  align-content: center;
+  gap: 8rpx;
+  min-height: 184rpx;
+  padding: 22rpx;
+  border-radius: 24rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+}
+
+.meditation-insight__label,
+.meditation-insight__text {
+  font-size: 22rpx;
+  line-height: 1.5;
+  opacity: 0.86;
+}
+
+.meditation-insight__value {
+  font-size: 48rpx;
+  font-weight: 600;
+}
+
+.meditation-insight__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.meditation-insight__item {
+  display: grid;
+  align-content: center;
+  gap: 6rpx;
+  min-height: 86rpx;
+  padding: 16rpx;
+  border-radius: 20rpx;
+  background: var(--theme-surface-muted);
+}
+
+.meditation-insight__item-value {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.meditation-insight__item-label {
+  font-size: 21rpx;
   color: var(--theme-text-secondary);
 }
 

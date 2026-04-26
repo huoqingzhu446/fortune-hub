@@ -43,42 +43,132 @@ const RECORD_LEGEND = [
   { type: 'tired', label: '疲惫' },
 ] as const;
 
+const MEDITATION_CATEGORY_META: Record<
+  string,
+  {
+    label: string;
+    defaultTitle: string;
+    summary: string;
+  }
+> = {
+  meditation: {
+    label: '基础静心',
+    defaultTitle: '基础静心练习',
+    summary: '适合晨间、午休或任何想重新安定下来的时刻。',
+  },
+  sleep: {
+    label: '睡前安睡',
+    defaultTitle: '睡前安睡练习',
+    summary: '适合入睡前关掉白天的紧绷，给身体一个下线信号。',
+  },
+  breath: {
+    label: '呼吸减压',
+    defaultTitle: '呼吸减压练习',
+    summary: '适合焦虑、烦躁或节奏过快时，用呼吸把注意力带回当下。',
+  },
+  focus: {
+    label: '专注启动',
+    defaultTitle: '专注启动练习',
+    summary: '适合开始工作或学习前，先确认优先级并降低分心。',
+  },
+  healing: {
+    label: '情绪修复',
+    defaultTitle: '情绪修复练习',
+    summary: '适合情绪起伏后，允许感受存在，同时重新稳定身体。',
+  },
+  body: {
+    label: '身体扫描',
+    defaultTitle: '身体扫描练习',
+    summary: '适合久坐、疲惫或身体紧绷时，逐段观察并松开压力。',
+  },
+};
+
+const MEDITATION_SOURCE_LABELS: Record<string, string> = {
+  explore: '探索推荐',
+  emotion: '情绪疗愈',
+  sleep: '睡眠放松',
+  music: '冥想音乐',
+  custom: '自定义练习',
+};
+
 const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
   {
-    id: 'moon-breath',
-    title: '月光呼吸',
-    subtitle: '适合睡前放松，呼吸节奏更慢一点。',
+    id: 'evening-body-scan',
+    title: '睡前身体扫描',
+    subtitle: '从脚到头慢慢放松，适合睡前 15 分钟关闭白天的紧绷。',
     category: 'sleep',
+    categoryLabel: '睡前安睡',
     durationMinutes: 12,
-    atmosphere: '柔和白噪',
+    atmosphere: '低频环境音',
+    scene: '入睡困难、身体紧绷、脑内还在复盘白天时使用。',
+    guide: ['调暗灯光，放下手机', '从脚趾开始逐段放松', '结束后不再处理复杂信息'],
+    tags: ['安睡', '身体放松', '晚间'],
     previewUrl: 'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
   },
   {
+    id: 'box-breath-reset',
+    title: '四拍呼吸复位',
+    subtitle: '吸气、停顿、呼气、停顿各四拍，快速把注意力带回身体。',
+    category: 'breath',
+    categoryLabel: '呼吸减压',
+    durationMinutes: 5,
+    atmosphere: '极简提示音',
+    scene: '焦虑上头、会议前、通勤中或需要马上降速时使用。',
+    guide: ['吸气 4 拍', '停顿 4 拍', '呼气 4 拍，再停顿 4 拍'],
+    tags: ['急救', '短练习', '呼吸'],
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/woodland_night.ogg',
+  },
+  {
     id: 'forest-focus',
-    title: '林间专注',
-    subtitle: '适合工作前整理心绪，安静进入状态。',
+    title: '林间专注启动',
+    subtitle: '先稳定呼吸，再给今天最重要的一件事留出清晰入口。',
     category: 'focus',
+    categoryLabel: '专注启动',
     durationMinutes: 10,
     atmosphere: '自然环境音',
+    scene: '开始工作、学习前，或注意力碎片化时使用。',
+    guide: ['写下一个任务', '跟随 10 次自然呼吸', '结束后立刻开始第一步'],
+    tags: ['专注', '工作前', '清晰'],
     previewUrl: 'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
   },
   {
-    id: 'tidal-reset',
-    title: '潮汐复位',
-    subtitle: '适合情绪起伏后，重新稳定身体节奏。',
+    id: 'tidal-emotion-reset',
+    title: '潮汐情绪复位',
+    subtitle: '允许情绪像潮水一样来去，练习不评判地观察和安放。',
     category: 'healing',
+    categoryLabel: '情绪修复',
     durationMinutes: 8,
     atmosphere: '海浪与低频铺底',
+    scene: '情绪起伏、委屈、烦躁或需要重新稳定身体节奏时使用。',
+    guide: ['给情绪命名', '把注意力放到胸口或腹部', '用一句温柔的话收束'],
+    tags: ['情绪', '接纳', '复位'],
     previewUrl: 'https://actions.google.com/sounds/v1/water/dripping_water.ogg',
   },
   {
-    id: 'silent-count',
-    title: '静数呼吸',
-    subtitle: '适合短时间呼吸练习，轻量不打扰。',
-    category: 'breath',
-    durationMinutes: 5,
-    atmosphere: '极简提示音',
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/woodland_night.ogg',
+    id: 'morning-grounding',
+    title: '晨间安定练习',
+    subtitle: '用 7 分钟确认身体、环境和今天的优先级，让一天不被推着走。',
+    category: 'meditation',
+    categoryLabel: '基础静心',
+    durationMinutes: 7,
+    atmosphere: '清晨轻环境音',
+    scene: '起床后、出门前，或想给一天定一个稳定基调时使用。',
+    guide: ['感受双脚和坐骨', '观察三处环境声音', '确认今天只先做好一件事'],
+    tags: ['晨间', '安定', '意图'],
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
+  },
+  {
+    id: 'shoulder-release',
+    title: '肩颈松开练习',
+    subtitle: '把注意力放到肩颈、下颌和眼周，适合久坐后的身体修复。',
+    category: 'body',
+    categoryLabel: '身体扫描',
+    durationMinutes: 9,
+    atmosphere: '柔和白噪',
+    scene: '久坐、肩颈紧、头脑疲惫但又不想睡觉时使用。',
+    guide: ['觉察肩膀高度', '放松下颌和眼周', '缓慢转动肩颈后记录身体变化'],
+    tags: ['肩颈', '久坐', '身体觉察'],
+    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
   },
 ] as const;
 
@@ -456,15 +546,25 @@ export class UsersService {
         userId: user.id,
       });
 
+    const category = this.normalizeMeditationCategory(dto.category);
+    const categoryMeta = this.resolveMeditationCategoryMeta(category);
+
     record.recordDate = dto.recordDate;
-    record.title = dto.title.trim();
-    record.category = dto.category?.trim() || 'meditation';
+    record.title = dto.title.trim() || categoryMeta.defaultTitle;
+    record.category = category;
     record.sourceType = dto.sourceType?.trim() || 'custom';
     record.sourceTitle = dto.sourceTitle?.trim() || null;
     record.durationMinutes = dto.durationMinutes;
     record.completed = completionStatus === 'completed';
     record.completionStatus = completionStatus;
     record.summary = dto.summary?.trim() || null;
+    record.intention = dto.intention?.trim() || null;
+    record.moodBefore = dto.moodBefore?.trim() || null;
+    record.moodAfter = dto.moodAfter?.trim() || null;
+    record.focusScore = dto.focusScore ?? null;
+    record.bodySignal = dto.bodySignal?.trim() || null;
+    record.insight = dto.insight?.trim() || null;
+    record.nextAction = dto.nextAction?.trim() || null;
 
     const saved = await this.meditationRecordRepository.save(record);
 
@@ -504,10 +604,13 @@ export class UsersService {
               recordDate: 'DESC',
               updatedAt: 'DESC',
             },
-            take: 20,
+            take: 60,
           }),
         ])
       : [[], [], []];
+    const meditationAggregate = user
+      ? await this.loadMeditationAggregate(user.id)
+      : { totalCount: 0, totalMinutes: 0 };
 
     const latestMoodScore =
       moodRecords[0]?.moodScore ??
@@ -574,6 +677,11 @@ export class UsersService {
       meditationRecords: meditationRecords
         .slice(0, 12)
         .map((record) => this.serializeMeditationRecord(record)),
+      meditationStats: this.buildMeditationStats(
+        meditationRecords,
+        meditationAggregate,
+        isLoggedIn,
+      ),
       growth: {
         continuousDays: this.calculateContinuousDays(
           [
@@ -671,17 +779,29 @@ export class UsersService {
   }
 
   private serializeMeditationRecord(record: MeditationRecordEntity) {
+    const categoryMeta = this.resolveMeditationCategoryMeta(record.category);
+
     return {
       id: record.id,
       recordDate: record.recordDate,
       title: record.title,
       category: record.category,
+      categoryLabel: categoryMeta.label,
+      categorySummary: categoryMeta.summary,
       sourceType: record.sourceType,
+      sourceTypeLabel: MEDITATION_SOURCE_LABELS[record.sourceType] ?? '自定义练习',
       sourceTitle: record.sourceTitle ?? '',
       durationMinutes: record.durationMinutes,
       completed: record.completed,
       completionStatus: record.completionStatus,
-      summary: record.summary ?? '',
+      summary: record.summary ?? record.insight ?? record.nextAction ?? '',
+      intention: record.intention ?? '',
+      moodBefore: record.moodBefore ?? '',
+      moodAfter: record.moodAfter ?? '',
+      focusScore: record.focusScore ?? null,
+      bodySignal: record.bodySignal ?? '',
+      insight: record.insight ?? '',
+      nextAction: record.nextAction ?? '',
       updatedAt: record.updatedAt.toISOString(),
       route: `/pages/meditation/index?recordId=${encodeURIComponent(record.id)}`,
     };
@@ -820,6 +940,138 @@ export class UsersService {
     }
 
     return Math.max(count, recordDates.length ? 1 : 0);
+  }
+
+  private async loadMeditationAggregate(userId: string) {
+    const raw = await this.meditationRecordRepository
+      .createQueryBuilder('record')
+      .select('COUNT(record.id)', 'totalCount')
+      .addSelect('COALESCE(SUM(record.durationMinutes), 0)', 'totalMinutes')
+      .where('record.userId = :userId', { userId })
+      .getRawOne<{ totalCount?: string | number; totalMinutes?: string | number }>();
+
+    return {
+      totalCount: Number(raw?.totalCount ?? 0),
+      totalMinutes: Number(raw?.totalMinutes ?? 0),
+    };
+  }
+
+  private buildMeditationStats(
+    records: MeditationRecordEntity[],
+    aggregate: { totalCount: number; totalMinutes: number },
+    isLoggedIn: boolean,
+  ) {
+    if (!isLoggedIn) {
+      return {
+        weeklyCount: 0,
+        weeklyMinutes: 0,
+        totalCount: 0,
+        totalMinutes: 0,
+        favoriteCategory: '暂无',
+        favoriteCategoryCount: 0,
+        improvementRate: 0,
+        improvedCount: 0,
+        bestAfterState: '暂无',
+        insight: '登录后会根据冥想记录生成练习洞察。',
+      };
+    }
+
+    const today = new Date();
+    const todayKey = this.toDateKey(today);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 6);
+    const weekStartKey = this.toDateKey(weekStart);
+    const weeklyRecords = records.filter(
+      (record) => record.recordDate >= weekStartKey && record.recordDate <= todayKey,
+    );
+    const completedRecords = records.filter(
+      (record) => record.completionStatus !== 'skipped',
+    );
+    const categoryCounts = new Map<string, number>();
+    const afterStateCounts = new Map<string, number>();
+
+    for (const record of completedRecords) {
+      categoryCounts.set(record.category, (categoryCounts.get(record.category) ?? 0) + 1);
+
+      if (record.moodAfter) {
+        afterStateCounts.set(record.moodAfter, (afterStateCounts.get(record.moodAfter) ?? 0) + 1);
+      }
+    }
+
+    const [favoriteCategoryCode = '', favoriteCategoryCount = 0] =
+      Array.from(categoryCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? [];
+    const [bestAfterStateCode = ''] =
+      Array.from(afterStateCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? [];
+    const improvedAfterStates = new Set(['settled', 'clear', 'relaxed', 'sleepy']);
+    const afterStateRecords = records.filter((record) => Boolean(record.moodAfter));
+    const improvedCount = afterStateRecords.filter((record) =>
+      improvedAfterStates.has(record.moodAfter ?? ''),
+    ).length;
+    const improvementRate = afterStateRecords.length
+      ? Math.round((improvedCount / afterStateRecords.length) * 100)
+      : 0;
+    const favoriteCategory = favoriteCategoryCode
+      ? this.resolveMeditationCategoryMeta(favoriteCategoryCode).label
+      : '暂无';
+    const bestAfterState = this.resolveMeditationMoodLabel(bestAfterStateCode);
+
+    return {
+      weeklyCount: weeklyRecords.length,
+      weeklyMinutes: weeklyRecords.reduce((sum, record) => sum + record.durationMinutes, 0),
+      totalCount: aggregate.totalCount,
+      totalMinutes: aggregate.totalMinutes,
+      favoriteCategory,
+      favoriteCategoryCount,
+      improvementRate,
+      improvedCount,
+      bestAfterState,
+      insight: this.buildMeditationInsightText({
+        weeklyCount: weeklyRecords.length,
+        weeklyMinutes: weeklyRecords.reduce((sum, record) => sum + record.durationMinutes, 0),
+        favoriteCategory,
+        improvementRate,
+        totalCount: aggregate.totalCount,
+      }),
+    };
+  }
+
+  private buildMeditationInsightText(input: {
+    weeklyCount: number;
+    weeklyMinutes: number;
+    favoriteCategory: string;
+    improvementRate: number;
+    totalCount: number;
+  }) {
+    if (!input.totalCount) {
+      return '完成 3 次以上练习后，会开始生成更贴近你的冥想洞察。';
+    }
+
+    if (input.improvementRate >= 60 && input.favoriteCategory !== '暂无') {
+      return `最近更适合${input.favoriteCategory}，${input.improvementRate}% 的记录显示练后状态有改善。`;
+    }
+
+    if (input.weeklyCount > 0) {
+      return `本周已练习 ${input.weeklyCount} 次，共 ${input.weeklyMinutes} 分钟，继续记录会让偏好更清楚。`;
+    }
+
+    return '这周还没有冥想记录，可以从一次 5 分钟呼吸练习开始。';
+  }
+
+  private resolveMeditationMoodLabel(value?: string | null) {
+    const mapping: Record<string, string> = {
+      tense: '紧绷',
+      tired: '疲惫',
+      anxious: '焦虑',
+      scattered: '分心',
+      calm: '平稳',
+      settled: '更平静',
+      clear: '更清晰',
+      relaxed: '放松了',
+      sleepy: '有点困',
+      unchanged: '变化不大',
+    };
+
+    return value ? mapping[value] ?? value : '暂无';
   }
 
   private async countDistinctMoodDays(userId: string) {
@@ -1043,6 +1295,30 @@ export class UsersService {
     );
   }
 
+  private normalizeMeditationCategory(category?: string | null) {
+    const value = category?.trim();
+
+    if (!value) {
+      return 'meditation';
+    }
+
+    const matchedEntry = Object.entries(MEDITATION_CATEGORY_META).find(
+      ([code, meta]) => code === value || meta.label === value,
+    );
+
+    return matchedEntry?.[0] ?? value;
+  }
+
+  private resolveMeditationCategoryMeta(category: string) {
+    return (
+      MEDITATION_CATEGORY_META[category] ?? {
+        label: category || '冥想练习',
+        defaultTitle: '冥想练习',
+        summary: '适合按自己的节奏完成一次安静练习。',
+      }
+    );
+  }
+
   private normalizeMeditationMusicItem(input: unknown, index: number) {
     if (!input || typeof input !== 'object') {
       return null;
@@ -1068,6 +1344,13 @@ export class UsersService {
       return null;
     }
 
+    const category = this.normalizeMeditationCategory(
+      typeof item.category === 'string' && item.category.trim()
+        ? item.category.trim()
+        : 'healing',
+    );
+    const categoryMeta = this.resolveMeditationCategoryMeta(category);
+
     return {
       id,
       title,
@@ -1075,10 +1358,11 @@ export class UsersService {
         typeof item.subtitle === 'string' && item.subtitle.trim()
           ? item.subtitle.trim()
           : '冥想音乐',
-      category:
-        typeof item.category === 'string' && item.category.trim()
-          ? item.category.trim()
-          : 'healing',
+      category,
+      categoryLabel:
+        typeof item.categoryLabel === 'string' && item.categoryLabel.trim()
+          ? item.categoryLabel.trim()
+          : categoryMeta.label,
       durationMinutes: Math.max(
         1,
         Math.min(180, Number(item.durationMinutes) || 5),
@@ -1087,6 +1371,22 @@ export class UsersService {
         typeof item.atmosphere === 'string' && item.atmosphere.trim()
           ? item.atmosphere.trim()
           : '轻环境音',
+      scene:
+        typeof item.scene === 'string' && item.scene.trim()
+          ? item.scene.trim()
+          : categoryMeta.summary,
+      guide: Array.isArray(item.guide)
+        ? item.guide
+            .filter((step): step is string => typeof step === 'string' && Boolean(step.trim()))
+            .slice(0, 4)
+            .map((step) => step.trim())
+        : [],
+      tags: Array.isArray(item.tags)
+        ? item.tags
+            .filter((tag): tag is string => typeof tag === 'string' && Boolean(tag.trim()))
+            .slice(0, 4)
+            .map((tag) => tag.trim())
+        : [],
       previewUrl:
         typeof item.previewUrl === 'string' && item.previewUrl.trim()
           ? normalizeFileServiceUrlToApiProxy(item.previewUrl.trim(), {

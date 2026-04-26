@@ -44,6 +44,27 @@ export class MeditationRecordEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   summary!: string | null;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  intention!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  moodBefore!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  moodAfter!: string | null;
+
+  @Column({ type: 'tinyint', unsigned: true, nullable: true })
+  focusScore!: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  bodySignal!: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  insight!: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  nextAction!: string | null;
+
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 

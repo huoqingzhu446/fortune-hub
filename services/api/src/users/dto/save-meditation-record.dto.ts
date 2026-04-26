@@ -56,4 +56,40 @@ export class SaveMeditationRecordDto {
   @IsString()
   @MaxLength(255)
   summary?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  intention?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  moodBefore?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  moodAfter?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  focusScore?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bodySignal?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  insight?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  nextAction?: string;
 }

@@ -46,12 +46,22 @@ export interface MeditationLogItem {
   recordDate: string;
   title: string;
   category: string;
+  categoryLabel: string;
+  categorySummary: string;
   sourceType: string;
+  sourceTypeLabel: string;
   sourceTitle: string;
   durationMinutes: number;
   completed: boolean;
   completionStatus: 'completed' | 'partial' | 'skipped';
   summary: string;
+  intention: string;
+  moodBefore: string;
+  moodAfter: string;
+  focusScore: number | null;
+  bodySignal: string;
+  insight: string;
+  nextAction: string;
   updatedAt: string;
   route: string;
 }
@@ -85,6 +95,18 @@ export interface RecordOverviewData {
   moodRecords: MoodJournalItem[];
   testRecords: UnifiedRecordItem[];
   meditationRecords: MeditationLogItem[];
+  meditationStats: {
+    weeklyCount: number;
+    weeklyMinutes: number;
+    totalCount: number;
+    totalMinutes: number;
+    favoriteCategory: string;
+    favoriteCategoryCount: number;
+    improvementRate: number;
+    improvedCount: number;
+    bestAfterState: string;
+    insight: string;
+  };
   growth: {
     continuousDays: number;
     monthKeywords: string;
@@ -129,6 +151,13 @@ export interface SaveMeditationRecordPayload {
   completed?: boolean;
   completionStatus?: 'completed' | 'partial' | 'skipped';
   summary?: string;
+  intention?: string;
+  moodBefore?: string;
+  moodAfter?: string;
+  focusScore?: number;
+  bodySignal?: string;
+  insight?: string;
+  nextAction?: string;
 }
 
 export type MoodRecordListResponse = ApiEnvelope<MoodRecordListData>;

@@ -213,6 +213,56 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     return this.processDueRetries();
   }
 
+  async queueFeedbackReplyNotification(userId: string, feedbackId: string, reply: string | null) {
+    await this.cleanupExpiredSubscriptions();
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user || !this.shouldSendToUser(user, 'feedback_reply')) {
+      return this.buildEnvelope({
+        queued: 0,
+        items: [],
+      });
+    }
+
+    const subscriptions = await this.pushSubscriptionRepository.find({
+      where: {
+        userId,
+        scene: 'feedback_reply',
+        status: 'active',
+      },
+      order: {
+        lastSubscribedAt: 'DESC',
+      },
+      take: 20,
+    });
+    const queued: PushDeliveryLogEntity[] = [];
+    const now = new Date();
+
+    for (const subscription of subscriptions) {
+      if (subscription.expireAt && subscription.expireAt <= now) {
+        continue;
+      }
+
+      const log = await this.pushDeliveryLogRepository.save(
+        this.pushDeliveryLogRepository.create({
+          userId,
+          scene: 'feedback_reply',
+          templateId: subscription.templateId,
+          status: 'queued',
+          payloadJson: this.buildFeedbackReplyPayload(user, feedbackId, reply),
+          retryCount: 0,
+          nextRetryAt: new Date(),
+        }),
+      );
+      queued.push(log);
+    }
+
+    return this.buildEnvelope({
+      queued: queued.length,
+      items: queued.map((item) => this.serializeDeliveryLog(item)),
+    });
+  }
+
   async runScheduledDaily() {
     const scenes = this.configService
       .get<string>('NOTIFICATION_DAILY_SCENES', 'daily_reminder,lucky_push')
@@ -368,6 +418,21 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       data: {
         thing1: { value: title.slice(0, 20) },
         thing2: { value: guidance.slice(0, 20) },
+        time3: { value: this.formatTemplateTime(new Date()) },
+      },
+    };
+  }
+
+  private buildFeedbackReplyPayload(user: UserEntity, feedbackId: string, reply: string | null) {
+    const replyPreview = reply?.trim() || '请回到反馈页查看处理进度。';
+
+    return {
+      touser: user.openid,
+      page: `/pages/settings/feedback/index?feedbackId=${encodeURIComponent(feedbackId)}`,
+      miniprogram_state: this.configService.get<string>('WECHAT_SUBSCRIBE_STATE', 'formal'),
+      data: {
+        thing1: { value: '反馈已有新回复' },
+        thing2: { value: replyPreview.slice(0, 20) },
         time3: { value: this.formatTemplateTime(new Date()) },
       },
     };

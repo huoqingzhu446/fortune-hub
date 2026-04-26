@@ -63,13 +63,31 @@ export interface AdminFeedbackItem {
   message: string;
   contact: string | null;
   category: string;
+  source: string;
   status: string;
   priority: string;
   assignee: string | null;
   adminNote: string | null;
   adminReply: string | null;
+  attachments: AdminFeedbackAttachment[];
+  clientInfo: Record<string, unknown>;
   repliedAt: string | null;
+  slaDueAt: string | null;
+  slaStatus: string;
+  slaHoursRemaining: number | null;
+  resolvedAt: string | null;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminFeedbackAttachment {
+  fileId: string | null;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  relativePath: string;
 }
 
 export interface AdminAuditLogItem {
@@ -148,8 +166,17 @@ export function fetchAdminOrders(params?: {
 export function fetchAdminFeedback(params?: {
   keyword?: string;
   status?: string;
+  category?: string;
+  priority?: string;
+  slaStatus?: string;
 }) {
   return http.get<ListResponse<AdminFeedbackItem>>('/admin/feedback', { params }).then((r) => r.data);
+}
+
+export function fetchAdminFeedbackDetail(id: string) {
+  return http
+    .get<DetailResponse<AdminFeedbackItem>>(`/admin/feedback/${id}`)
+    .then((r) => r.data);
 }
 
 export function updateAdminFeedbackStatus(

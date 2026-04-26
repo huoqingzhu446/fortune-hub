@@ -4,10 +4,10 @@
     <view class="page-orb page-orb--gold"></view>
 
     <view class="hero-sheet">
-      <text class="hero-sheet__eyebrow">lite bazi chart</text>
-      <text class="hero-sheet__title">八字解读</text>
+      <text class="hero-sheet__eyebrow">{{ heroEyebrow }}</text>
+      <text class="hero-sheet__title">{{ heroTitle }}</text>
       <text class="hero-sheet__subtitle">
-        这是第一版简化排盘体验，会根据生日、时辰和性别生成一份可读的四柱概要、五行倾向与日常建议。
+        {{ heroSubtitle }}
       </text>
 
       <view class="hero-sheet__meta">
@@ -31,6 +31,19 @@
         <button class="ghost-button" @tap="applyProfileDefaults">
           带入我的资料
         </button>
+      </view>
+
+      <view class="mode-switch">
+        <view
+          v-for="option in modeOptions"
+          :key="option.value"
+          class="mode-switch__option"
+          :class="{ 'mode-switch__option--active': activeMode === option.value }"
+          @tap="selectMode(option.value)"
+        >
+          <text class="mode-switch__title">{{ option.label }}</text>
+          <text class="mode-switch__desc">{{ option.description }}</text>
+        </view>
       </view>
 
       <view class="field-grid">
@@ -68,12 +81,42 @@
         </view>
       </view>
 
+      <view v-if="isProfessionalMode" class="professional-inputs">
+        <view class="sheet-header sheet-header--compact">
+          <view>
+            <text class="sheet-header__eyebrow">true solar time</text>
+            <text class="sheet-header__title">专业校正</text>
+          </view>
+          <button class="ghost-button" @tap="applyCurrentLocation">
+            取当前位置
+          </button>
+        </view>
+        <view class="field-grid">
+          <view class="field-block">
+            <text class="field-block__label">出生地经度</text>
+            <input
+              v-model="form.longitude"
+              class="field-block__input"
+              placeholder="例如 120.00"
+            />
+          </view>
+          <view class="field-block">
+            <text class="field-block__label">时区 UTC</text>
+            <input
+              v-model="form.timezoneOffset"
+              class="field-block__input"
+              placeholder="中国大陆填 8"
+            />
+          </view>
+        </view>
+      </view>
+
       <view class="field-note">
-        <text>体验版说明：当前为简化排盘，会直接使用公历日期与时辰做推演，不包含节气换月与真太阳时校正。</text>
+        <text>{{ modeNotice }}</text>
       </view>
 
       <button class="primary-button" :loading="submitting" @tap="submitAnalyze">
-        生成简化排盘
+        {{ submitButtonLabel }}
       </button>
     </view>
 
@@ -105,6 +148,61 @@
         <view class="pillar-cell">
           <text class="pillar-cell__label">时柱</text>
           <text class="pillar-cell__value">{{ latestResult.chart.hourPillar }}</text>
+        </view>
+      </view>
+
+      <view v-if="latestResult.professional" class="professional-sheet">
+        <view class="sheet-header sheet-header--compact">
+          <view>
+            <text class="sheet-header__eyebrow">professional details</text>
+            <text class="sheet-header__title">专业排盘信息</text>
+          </view>
+          <text class="sheet-header__side">{{ latestResult.professional.library }}</text>
+        </view>
+
+        <view class="professional-meta">
+          <view v-for="item in professionalProfileRows" :key="item.label" class="professional-meta__item">
+            <text class="professional-meta__label">{{ item.label }}</text>
+            <text class="professional-meta__value">{{ item.value }}</text>
+          </view>
+        </view>
+
+        <view class="reading-sheet">
+          <text class="reading-sheet__title">节气规则</text>
+          <text class="reading-sheet__text">{{ latestResult.professional.monthRule }}</text>
+        </view>
+
+        <view class="professional-grid">
+          <view class="professional-group">
+            <text class="professional-group__title">十神</text>
+            <text
+              v-for="item in formatPillarMetaRows(latestResult.professional.tenGods)"
+              :key="`ten-${item.label}`"
+              class="professional-group__row"
+            >
+              {{ item.label }}：{{ item.value || '-' }}
+            </text>
+          </view>
+          <view class="professional-group">
+            <text class="professional-group__title">藏干</text>
+            <text
+              v-for="item in formatPillarMetaRows(latestResult.professional.hiddenStems)"
+              :key="`hide-${item.label}`"
+              class="professional-group__row"
+            >
+              {{ item.label }}：{{ item.value || '-' }}
+            </text>
+          </view>
+          <view class="professional-group">
+            <text class="professional-group__title">纳音</text>
+            <text
+              v-for="item in formatPillarMetaRows(latestResult.professional.naYin)"
+              :key="`nayin-${item.label}`"
+              class="professional-group__row"
+            >
+              {{ item.label }}：{{ item.value || '-' }}
+            </text>
+          </view>
         </view>
       </view>
 
@@ -222,12 +320,20 @@
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, reactive, ref } from 'vue';
-import { analyzeBazi, fetchBaziHistory } from '../../api/bazi';
+import { analyzeBazi, analyzeProfessionalBazi, fetchBaziHistory } from '../../api/bazi';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken, getCachedUser } from '../../services/session';
 import type { BaziHistoryItem, BaziResult } from '../../types/bazi';
 
 type GenderValue = 'male' | 'female' | 'unknown';
+type AnalyzeMode = 'lite' | 'professional';
+
+type PillarMeta = {
+  year: string;
+  month: string;
+  day: string;
+  time: string;
+};
 
 const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '男', value: 'male' },
@@ -235,14 +341,31 @@ const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '保密', value: 'unknown' },
 ];
 
+const modeOptions: Array<{ label: string; value: AnalyzeMode; description: string }> = [
+  {
+    label: '轻解读',
+    value: 'lite',
+    description: '快速生成四柱概要、五行倾向和日常建议。',
+  },
+  {
+    label: '专业解读',
+    value: 'professional',
+    description: '按节气换月、立春年界和真太阳时校正。',
+  },
+];
+
 const form = reactive<{
   birthday: string;
   birthTime: string;
   gender: GenderValue;
+  longitude: string;
+  timezoneOffset: string;
 }>({
   birthday: '',
   birthTime: '',
   gender: 'unknown',
+  longitude: '120',
+  timezoneOffset: '8',
 });
 
 const latestResult = ref<BaziResult | null>(null);
@@ -253,11 +376,60 @@ const { themeVars } = useThemePreference();
 const loadingHistory = ref(false);
 const submitting = ref(false);
 const authToken = ref(getAuthToken());
+const activeMode = ref<AnalyzeMode>('lite');
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
+const isProfessionalMode = computed(() => activeMode.value === 'professional');
 const loginStatusLabel = computed(() => (isLoggedIn.value ? '当前状态' : '保存历史'));
 const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需登录'));
 const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
+const heroEyebrow = computed(() => (isProfessionalMode.value ? 'professional bazi chart' : 'lite bazi chart'));
+const heroTitle = computed(() => (isProfessionalMode.value ? '八字专业版' : '八字解读'));
+const heroSubtitle = computed(() =>
+  isProfessionalMode.value
+    ? '专业版会使用农历/干支库，纳入节气换月、立春年界与真太阳时校正，并展示十神、藏干、纳音等专业信息。'
+    : '轻解读会根据生日、时辰和性别生成一份可读的四柱概要、五行倾向与日常建议。',
+);
+const modeNotice = computed(() =>
+  isProfessionalMode.value
+    ? '专业版说明：出生地经度用于真太阳时校正；中国大陆时区通常填写 8。结果仍仅用于内容体验和自我观察。'
+    : '轻解读说明：当前会直接使用公历日期与时辰做快速推演，不包含节气换月与真太阳时校正。',
+);
+const submitButtonLabel = computed(() => (isProfessionalMode.value ? '生成专业排盘' : '生成轻解读'));
+const professionalProfileRows = computed(() => {
+  const professional = latestResult.value?.professional;
+
+  if (!professional) {
+    return [];
+  }
+
+  return [
+    {
+      label: '校正时间',
+      value: `${professional.adjustedBirthday} ${professional.adjustedBirthTime}`,
+    },
+    {
+      label: '真太阳时偏移',
+      value: `${professional.trueSolarOffsetMinutes >= 0 ? '+' : ''}${professional.trueSolarOffsetMinutes} 分钟`,
+    },
+    {
+      label: '出生地经度',
+      value: `${professional.longitude}°`,
+    },
+    {
+      label: '时区',
+      value: `UTC${professional.timezoneOffset >= 0 ? '+' : ''}${professional.timezoneOffset}`,
+    },
+    {
+      label: '农历',
+      value: `${professional.lunar.yearInChinese}年${professional.lunar.monthInChinese}月${professional.lunar.dayInChinese}`,
+    },
+  ];
+});
+
+function selectMode(mode: AnalyzeMode) {
+  activeMode.value = mode;
+}
 
 function applyProfileDefaults() {
   const cachedUser = getCachedUser();
@@ -300,6 +472,35 @@ function handleBirthTimeChange(event: { detail: { value: string } }) {
   form.birthTime = event.detail.value;
 }
 
+async function applyCurrentLocation() {
+  try {
+    const location = await getCurrentLocation();
+    form.longitude = location.longitude.toFixed(2);
+    uni.showToast({
+      title: '已带入当前位置经度',
+      icon: 'success',
+    });
+  } catch (error) {
+    console.warn('get location failed', error);
+    uni.showToast({
+      title: '定位失败，可手动填写经度',
+      icon: 'none',
+    });
+  }
+}
+
+function getCurrentLocation() {
+  return new Promise<{ longitude: number }>((resolve, reject) => {
+    uni.getLocation({
+      type: 'wgs84',
+      success: (response) => {
+        resolve({ longitude: Number(response.longitude) });
+      },
+      fail: reject,
+    });
+  });
+}
+
 async function submitAnalyze() {
   if (!form.birthday || !form.birthTime) {
     uni.showToast({
@@ -309,13 +510,23 @@ async function submitAnalyze() {
     return;
   }
 
+  const professionalPayload = isProfessionalMode.value ? buildProfessionalPayload() : null;
+
+  if (isProfessionalMode.value && !professionalPayload) {
+    return;
+  }
+
   try {
     submitting.value = true;
-    const response = await analyzeBazi({
+    const payload = {
       birthday: form.birthday,
       birthTime: form.birthTime,
       gender: form.gender,
-    });
+      ...(professionalPayload ?? {}),
+    };
+    const response = isProfessionalMode.value
+      ? await analyzeProfessionalBazi(payload)
+      : await analyzeBazi(payload);
     latestResult.value = response.data.result;
     latestSubmitSaved.value = response.data.isSaved;
     latestRecordId.value = response.data.recordId;
@@ -342,6 +553,32 @@ async function submitAnalyze() {
   } finally {
     submitting.value = false;
   }
+}
+
+function buildProfessionalPayload() {
+  const longitude = Number(form.longitude);
+  const timezoneOffset = Number(form.timezoneOffset);
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    uni.showToast({
+      title: '经度需在 -180 到 180 之间',
+      icon: 'none',
+    });
+    return null;
+  }
+
+  if (!Number.isFinite(timezoneOffset) || timezoneOffset < -12 || timezoneOffset > 14) {
+    uni.showToast({
+      title: '时区需在 -12 到 14 之间',
+      icon: 'none',
+    });
+    return null;
+  }
+
+  return {
+    longitude,
+    timezoneOffset,
+  };
 }
 
 function openFullReport() {
@@ -372,7 +609,20 @@ function formatDateTime(value: string) {
   return `${month}-${day} ${hours}:${minutes}`;
 }
 
-onLoad(() => {
+function formatPillarMetaRows(meta: PillarMeta) {
+  return [
+    { label: '年柱', value: meta.year },
+    { label: '月柱', value: meta.month },
+    { label: '日柱', value: meta.day },
+    { label: '时柱', value: meta.time },
+  ];
+}
+
+onLoad((options) => {
+  if ((options as { mode?: string } | undefined)?.mode === 'professional') {
+    activeMode.value = 'professional';
+  }
+
   applyProfileDefaults();
   void loadHistory();
 });
@@ -531,6 +781,10 @@ onShow(() => {
   margin-bottom: 18rpx;
 }
 
+.sheet-header--compact {
+  margin-bottom: 12rpx;
+}
+
 .ghost-button {
   padding: 0 24rpx;
   min-height: 72rpx;
@@ -546,13 +800,60 @@ onShow(() => {
   border: none;
 }
 
-.field-block__picker {
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+}
+
+.mode-switch__option {
+  display: grid;
+  gap: 8rpx;
+  min-height: 132rpx;
+  padding: 20rpx;
+  border: 2rpx solid rgba(208, 190, 156, 0.42);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.mode-switch__option--active {
+  border-color: rgba(143, 107, 61, 0.72);
+  background: linear-gradient(180deg, rgba(253, 246, 232, 0.98) 0%, rgba(242, 229, 205, 0.98) 100%);
+}
+
+.mode-switch__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #312618;
+}
+
+.mode-switch__desc {
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: #7b6746;
+}
+
+.field-block__picker,
+.field-block__input {
   min-height: 84rpx;
   padding: 0 24rpx;
   display: flex;
   align-items: center;
   border-radius: 22rpx;
   background: rgba(255, 255, 255, 0.82);
+}
+
+.field-block__input {
+  box-sizing: border-box;
+  width: 100%;
+  font-size: 28rpx;
+}
+
+.professional-inputs {
+  display: grid;
+  gap: 14rpx;
+  margin-top: 18rpx;
 }
 
 .gender-row,
@@ -618,6 +919,52 @@ onShow(() => {
   font-size: 34rpx;
 }
 
+.professional-sheet {
+  display: grid;
+  gap: 16rpx;
+  margin: 0 0 18rpx;
+  padding: 22rpx;
+  border-radius: 26rpx;
+  background: rgba(247, 240, 225, 0.88);
+}
+
+.professional-meta,
+.professional-grid {
+  display: grid;
+  gap: 14rpx;
+}
+
+.professional-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.professional-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.professional-meta__item,
+.professional-group {
+  display: grid;
+  gap: 8rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.professional-meta__label,
+.professional-group__row {
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: #8c7959;
+}
+
+.professional-meta__value,
+.professional-group__title {
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #312618;
+}
+
 .base-row {
   margin-bottom: 16rpx;
   flex-wrap: wrap;
@@ -674,5 +1021,13 @@ onShow(() => {
 .history-empty,
 .history-item {
   background: rgba(248, 243, 233, 0.92);
+}
+
+@media (max-width: 380px) {
+  .mode-switch,
+  .professional-meta,
+  .professional-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

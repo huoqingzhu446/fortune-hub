@@ -49,12 +49,39 @@ export interface BaziResult {
   complianceNotice: string;
   professional?: {
     mode: 'professional';
+    library: string;
     adjustedBirthday: string;
     adjustedBirthTime: string;
     trueSolarOffsetMinutes: number;
     longitude: number;
     timezoneOffset: number;
     monthRule: string;
+    lunar: {
+      year: number;
+      month: number;
+      day: number;
+      yearInChinese: string;
+      monthInChinese: string;
+      dayInChinese: string;
+    };
+    tenGods: {
+      year: string;
+      month: string;
+      day: string;
+      time: string;
+    };
+    hiddenStems: {
+      year: string;
+      month: string;
+      day: string;
+      time: string;
+    };
+    naYin: {
+      year: string;
+      month: string;
+      day: string;
+      time: string;
+    };
     regressionSamples: Array<Record<string, string>>;
   };
   generatedAt: string;

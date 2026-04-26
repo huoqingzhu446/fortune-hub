@@ -36,14 +36,75 @@
       </el-tab-pane>
 
       <el-tab-pane label="反馈" name="feedback">
+        <div class="feedback-toolbar">
+          <el-input
+            v-model="feedbackFilters.keyword"
+            clearable
+            placeholder="搜索内容 / 联系方式"
+            @keyup.enter="loadFeedback"
+          />
+          <el-select v-model="feedbackFilters.status" placeholder="状态" @change="loadFeedback">
+            <el-option label="全部状态" value="all" />
+            <el-option label="待处理" value="open" />
+            <el-option label="处理中" value="processing" />
+            <el-option label="已处理" value="resolved" />
+            <el-option label="已关闭" value="closed" />
+          </el-select>
+          <el-select v-model="feedbackFilters.category" placeholder="分类" @change="loadFeedback">
+            <el-option label="全部分类" value="all" />
+            <el-option label="功能建议" value="feature" />
+            <el-option label="问题反馈" value="bug" />
+            <el-option label="内容纠错" value="content" />
+            <el-option label="其他" value="general" />
+          </el-select>
+          <el-select v-model="feedbackFilters.priority" placeholder="优先级" @change="loadFeedback">
+            <el-option label="全部优先级" value="all" />
+            <el-option label="紧急" value="urgent" />
+            <el-option label="高" value="high" />
+            <el-option label="普通" value="normal" />
+            <el-option label="低" value="low" />
+          </el-select>
+          <el-select v-model="feedbackFilters.slaStatus" placeholder="SLA" @change="loadFeedback">
+            <el-option label="全部 SLA" value="all" />
+            <el-option label="已超时" value="overdue" />
+            <el-option label="临近超时" value="risk" />
+            <el-option label="正常" value="ok" />
+            <el-option label="已完成" value="done" />
+          </el-select>
+          <el-button :loading="loading" @click="loadFeedback">筛选</el-button>
+        </div>
         <el-table :data="feedback" stripe v-loading="loading">
           <el-table-column prop="category" label="分类" width="110" />
-          <el-table-column prop="message" label="内容" min-width="300" />
+          <el-table-column prop="message" label="内容" min-width="280" show-overflow-tooltip />
           <el-table-column prop="contact" label="联系方式" min-width="140" />
-          <el-table-column prop="status" label="状态" width="120" />
-          <el-table-column prop="adminReply" label="回复" min-width="220" />
-          <el-table-column label="操作" width="220">
+          <el-table-column label="状态" width="110">
             <template #default="{ row }">
+              <el-tag :type="feedbackStatusTagType(row.status)" effect="plain">
+                {{ formatFeedbackStatus(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="优先级" width="100">
+            <template #default="{ row }">
+              <el-tag :type="feedbackPriorityTagType(row.priority)" effect="plain">
+                {{ formatFeedbackPriority(row.priority) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="SLA" width="120">
+            <template #default="{ row }">
+              <el-tag :type="feedbackSlaTagType(row.slaStatus)" effect="dark">
+                {{ formatFeedbackSla(row.slaStatus) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="到期" min-width="150">
+            <template #default="{ row }">{{ formatDateTime(row.slaDueAt) }}</template>
+          </el-table-column>
+          <el-table-column prop="adminReply" label="回复" min-width="200" show-overflow-tooltip />
+          <el-table-column label="操作" width="260" fixed="right">
+            <template #default="{ row }">
+              <el-button text type="primary" @click="openFeedbackDetail(row.id)">详情</el-button>
               <el-button text type="primary" @click="markFeedbackResolved(row.id)">标记已处理</el-button>
               <el-button text type="primary" @click="replyFeedback(row.id)">回复</el-button>
             </template>
@@ -118,16 +179,90 @@
         </el-table>
       </template>
     </el-drawer>
+
+    <el-drawer v-model="feedbackDrawerVisible" title="反馈详情" size="620px">
+      <template v-if="feedbackDetail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="反馈 ID">{{ feedbackDetail.id }}</el-descriptions-item>
+          <el-descriptions-item label="用户 ID">{{ feedbackDetail.userId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="分类">{{ feedbackDetail.category }}</el-descriptions-item>
+          <el-descriptions-item label="来源">{{ feedbackDetail.source }}</el-descriptions-item>
+          <el-descriptions-item label="联系方式">{{ feedbackDetail.contact || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ formatDateTime(feedbackDetail.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="SLA">
+            <el-tag :type="feedbackSlaTagType(feedbackDetail.slaStatus)" effect="dark">
+              {{ formatFeedbackSla(feedbackDetail.slaStatus) }}
+            </el-tag>
+            <span class="sla-due">到期：{{ formatDateTime(feedbackDetail.slaDueAt) }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <h3 class="drawer-title">反馈内容</h3>
+        <p class="feedback-message">{{ feedbackDetail.message }}</p>
+
+        <h3 class="drawer-title">附件</h3>
+        <div v-if="feedbackDetail.attachments.length" class="attachment-links">
+          <el-link
+            v-for="attachment in feedbackDetail.attachments"
+            :key="attachment.url"
+            type="primary"
+            :href="attachment.url"
+            target="_blank"
+          >
+            {{ attachment.originalName || attachment.fileName }}
+          </el-link>
+        </div>
+        <el-empty v-else description="暂无附件" :image-size="72" />
+
+        <h3 class="drawer-title">处理</h3>
+        <el-form label-position="top" class="feedback-form">
+          <el-form-item label="状态">
+            <el-select v-model="feedbackForm.status">
+              <el-option label="待处理" value="open" />
+              <el-option label="处理中" value="processing" />
+              <el-option label="已处理" value="resolved" />
+              <el-option label="已关闭" value="closed" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="优先级">
+            <el-select v-model="feedbackForm.priority">
+              <el-option label="紧急" value="urgent" />
+              <el-option label="高" value="high" />
+              <el-option label="普通" value="normal" />
+              <el-option label="低" value="low" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="处理人">
+            <el-input v-model="feedbackForm.assignee" placeholder="例如：客服 A" />
+          </el-form-item>
+          <el-form-item label="用户可见回复">
+            <el-input
+              v-model="feedbackForm.adminReply"
+              type="textarea"
+              :rows="4"
+              placeholder="回复后会向已授权订阅消息的用户发送反馈处理通知"
+            />
+          </el-form-item>
+          <el-form-item label="内部备注">
+            <el-input v-model="feedbackForm.adminNote" type="textarea" :rows="3" />
+          </el-form-item>
+          <el-button type="primary" :loading="feedbackSaving" @click="saveFeedbackDetail">
+            保存处理
+          </el-button>
+        </el-form>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   fetchAdminAdUnlocks,
   fetchAdminAuditLogs,
   fetchAdminFeedback,
+  fetchAdminFeedbackDetail,
   fetchAdminNotificationLogs,
   fetchAdminOrders,
   fetchAdminUserDetail,
@@ -156,9 +291,36 @@ const notificationLogs = ref<AdminNotificationLogItem[]>([]);
 const auditLogs = ref<AdminAuditLogItem[]>([]);
 const userDrawerVisible = ref(false);
 const userDetail = ref<AdminUserDetailData | null>(null);
+const feedbackDrawerVisible = ref(false);
+const feedbackDetail = ref<AdminFeedbackItem | null>(null);
+const feedbackSaving = ref(false);
+const feedbackFilters = reactive({
+  keyword: '',
+  status: 'all',
+  category: 'all',
+  priority: 'all',
+  slaStatus: 'all',
+});
+const feedbackForm = reactive({
+  status: 'open',
+  priority: 'normal',
+  assignee: '',
+  adminReply: '',
+  adminNote: '',
+});
 const zhipuStatus = ref<ZhipuImageStatus | null>(null);
 const zhipuPreview = ref('');
 const zhipuTesting = ref(false);
+
+function buildFeedbackFilterParams() {
+  return {
+    keyword: feedbackFilters.keyword.trim() || undefined,
+    status: feedbackFilters.status,
+    category: feedbackFilters.category,
+    priority: feedbackFilters.priority,
+    slaStatus: feedbackFilters.slaStatus,
+  };
+}
 
 async function loadAll() {
   try {
@@ -174,7 +336,7 @@ async function loadAll() {
     ] = await Promise.all([
       fetchAdminUsers(),
       fetchAdminOrders(),
-      fetchAdminFeedback(),
+      fetchAdminFeedback(buildFeedbackFilterParams()),
       fetchAdminAdUnlocks(),
       fetchAdminNotificationLogs(),
       fetchAdminAuditLogs(),
@@ -196,13 +358,26 @@ async function loadAll() {
   }
 }
 
+async function loadFeedback() {
+  try {
+    loading.value = true;
+    const response = await fetchAdminFeedback(buildFeedbackFilterParams());
+    feedback.value = response.data.items;
+  } catch (error) {
+    console.warn('load feedback failed', error);
+    ElMessage.error('反馈数据加载失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function markFeedbackResolved(id: string) {
   await updateAdminFeedbackStatus(id, {
     status: 'resolved',
     adminNote: '后台已标记处理',
   });
   ElMessage.success('已标记处理');
-  await loadAll();
+  await loadFeedback();
 }
 
 async function replyFeedback(id: string) {
@@ -216,7 +391,48 @@ async function replyFeedback(id: string) {
     adminNote: '已回复用户',
   });
   ElMessage.success('已回复反馈');
-  await loadAll();
+  await loadFeedback();
+}
+
+async function openFeedbackDetail(id: string) {
+  const response = await fetchAdminFeedbackDetail(id);
+  feedbackDetail.value = response.data.item;
+  fillFeedbackForm(response.data.item);
+  feedbackDrawerVisible.value = true;
+}
+
+function fillFeedbackForm(item: AdminFeedbackItem) {
+  feedbackForm.status = item.status || 'open';
+  feedbackForm.priority = item.priority || 'normal';
+  feedbackForm.assignee = item.assignee || '';
+  feedbackForm.adminReply = item.adminReply || '';
+  feedbackForm.adminNote = item.adminNote || '';
+}
+
+async function saveFeedbackDetail() {
+  if (!feedbackDetail.value) {
+    return;
+  }
+
+  try {
+    feedbackSaving.value = true;
+    const response = await updateAdminFeedbackStatus(feedbackDetail.value.id, {
+      status: feedbackForm.status,
+      priority: feedbackForm.priority,
+      assignee: feedbackForm.assignee.trim() || undefined,
+      adminReply: feedbackForm.adminReply.trim() || undefined,
+      adminNote: feedbackForm.adminNote.trim() || undefined,
+    });
+    feedbackDetail.value = response.data.item;
+    fillFeedbackForm(response.data.item);
+    ElMessage.success('反馈处理已保存');
+    await loadFeedback();
+  } catch (error) {
+    console.warn('save feedback failed', error);
+    ElMessage.error('反馈处理保存失败');
+  } finally {
+    feedbackSaving.value = false;
+  }
 }
 
 async function openUserDetail(id: string) {
@@ -253,6 +469,84 @@ async function runZhipuTest() {
   }
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString('zh-CN', {
+    hour12: false,
+  });
+}
+
+function formatFeedbackStatus(status: string) {
+  const labels: Record<string, string> = {
+    open: '待处理',
+    processing: '处理中',
+    resolved: '已处理',
+    closed: '已关闭',
+  };
+  return labels[status] || status;
+}
+
+function feedbackStatusTagType(status: string) {
+  const types: Record<string, string> = {
+    open: 'warning',
+    processing: 'primary',
+    resolved: 'success',
+    closed: 'info',
+  };
+  return types[status] || 'info';
+}
+
+function formatFeedbackPriority(priority: string) {
+  const labels: Record<string, string> = {
+    urgent: '紧急',
+    high: '高',
+    normal: '普通',
+    low: '低',
+  };
+  return labels[priority] || priority;
+}
+
+function feedbackPriorityTagType(priority: string) {
+  const types: Record<string, string> = {
+    urgent: 'danger',
+    high: 'warning',
+    normal: 'info',
+    low: 'info',
+  };
+  return types[priority] || 'info';
+}
+
+function formatFeedbackSla(status: string) {
+  const labels: Record<string, string> = {
+    overdue: '已超时',
+    risk: '临近',
+    ok: '正常',
+    done: '完成',
+    unset: '未设置',
+  };
+  return labels[status] || status;
+}
+
+function feedbackSlaTagType(status: string) {
+  const types: Record<string, string> = {
+    overdue: 'danger',
+    risk: 'warning',
+    ok: 'success',
+    done: 'info',
+    unset: 'info',
+  };
+  return types[status] || 'info';
+}
+
 onMounted(() => {
   void loadAll();
 });
@@ -262,6 +556,38 @@ onMounted(() => {
 .drawer-title {
   margin: 20px 0 10px;
   font-size: 15px;
+}
+
+.feedback-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(120px, 0.8fr)) auto;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.feedback-message {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  background: #f6f8fb;
+}
+
+.attachment-links {
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-form {
+  display: grid;
+  gap: 4px;
+}
+
+.sla-due {
+  margin-left: 10px;
+  color: #667085;
 }
 
 .integration-head {

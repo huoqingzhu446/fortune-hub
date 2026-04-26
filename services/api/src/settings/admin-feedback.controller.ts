@@ -15,12 +15,16 @@ export class AdminFeedbackController {
     @Query('status') status?: string,
     @Query('keyword') keyword?: string,
     @Query('category') category?: string,
+    @Query('priority') priority?: string,
+    @Query('slaStatus') slaStatus?: string,
     @Query('limit') limit?: string,
   ) {
     return this.settingsService.listFeedback({
       status,
       keyword,
       category,
+      priority,
+      slaStatus,
       limit: Number(limit) || undefined,
     });
   }

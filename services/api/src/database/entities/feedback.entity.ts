@@ -54,6 +54,9 @@ export class FeedbackEntity {
   repliedAt!: Date | null;
 
   @Column({ type: 'datetime', nullable: true })
+  slaDueAt!: Date | null;
+
+  @Column({ type: 'datetime', nullable: true })
   resolvedAt!: Date | null;
 
   @CreateDateColumn({ type: 'datetime' })

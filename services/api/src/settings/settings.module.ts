@@ -6,6 +6,7 @@ import { CommonModule } from '../common/common.module';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FeedbackEntity } from '../database/entities/feedback.entity';
 import { UserConsentEntity } from '../database/entities/user-consent.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminFeedbackController } from './admin-feedback.controller';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
@@ -16,6 +17,7 @@ import { SettingsService } from './settings.service';
     AuthModule,
     AdminAuthModule,
     CommonModule,
+    NotificationsModule,
   ],
   controllers: [SettingsController, AdminFeedbackController],
   providers: [SettingsService],

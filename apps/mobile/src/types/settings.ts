@@ -1,5 +1,15 @@
 import type { ApiEnvelope } from './auth';
 
+export interface FeedbackAttachment {
+  fileId: string | null;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  relativePath: string;
+}
+
 export interface FeedbackItem {
   id: string;
   userId: string | null;
@@ -12,7 +22,10 @@ export interface FeedbackItem {
   assignee: string | null;
   adminNote: string | null;
   adminReply: string | null;
-  attachments: Array<Record<string, unknown>>;
+  attachments: FeedbackAttachment[];
+  slaDueAt: string | null;
+  slaStatus: 'ok' | 'risk' | 'overdue' | 'done' | 'unset';
+  slaHoursRemaining: number | null;
   repliedAt: string | null;
   resolvedAt: string | null;
   createdAt: string;
@@ -51,6 +64,7 @@ export interface SubmitFeedbackPayload {
   category?: string;
   source?: string;
   clientInfo?: Record<string, unknown>;
+  attachments?: FeedbackAttachment[];
 }
 
 export interface SubscribeNotificationPayload {
@@ -61,6 +75,7 @@ export interface SubscribeNotificationPayload {
 
 export type SettingsResponse = ApiEnvelope<SettingsData>;
 export type FeedbackResponse = ApiEnvelope<{ item: FeedbackItem }>;
+export type FeedbackAttachmentResponse = ApiEnvelope<{ item: FeedbackAttachment }>;
 export type FeedbackListResponse = ApiEnvelope<{ items: FeedbackItem[] }>;
 export type UserConsentResponse = ApiEnvelope<{ item: UserConsentItem }>;
 export type UserConsentListResponse = ApiEnvelope<{ items: UserConsentItem[] }>;

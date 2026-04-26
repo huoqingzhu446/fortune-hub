@@ -13,6 +13,36 @@
       </picker>
       <textarea v-model="message" class="textarea" placeholder="例如：幸运壁纸想增加更多主题，或者某个页面在 H5 下报错。" />
       <input v-model="contact" class="input" placeholder="联系方式（可选）" />
+      <view class="attachment-section">
+        <view class="attachment-head">
+          <text class="attachment-title">附件（可选）</text>
+          <button
+            class="attachment-button"
+            size="mini"
+            :loading="uploadingAttachment"
+            :disabled="uploadingAttachment || attachments.length >= 5"
+            @tap="chooseAttachments"
+          >
+            添加图片
+          </button>
+        </view>
+        <view v-if="attachments.length" class="attachment-list">
+          <view v-for="(item, index) in attachments" :key="item.url" class="attachment-item">
+            <image
+              v-if="isImageAttachment(item)"
+              class="attachment-image"
+              :src="item.url"
+              mode="aspectFill"
+              @tap="previewAttachment(index)"
+            />
+            <view v-else class="attachment-file">
+              <text class="attachment-file__name">{{ item.originalName || item.fileName }}</text>
+            </view>
+            <button class="attachment-remove" size="mini" @tap="removeAttachment(index)">移除</button>
+          </view>
+        </view>
+        <text class="attachment-hint">最多 5 张截图，提交后客服可在后台查看。</text>
+      </view>
       <button class="hero-button hero-button--primary" :loading="submitting" @tap="submitFeedbackForm">提交反馈</button>
     </view>
 
@@ -26,6 +56,9 @@
           </view>
           <text class="history-card__message">{{ item.message }}</text>
           <text v-if="item.contact" class="history-card__contact">联系方式：{{ item.contact }}</text>
+          <text v-if="resolveAttachmentCount(item)" class="history-card__contact">
+            附件：{{ resolveAttachmentCount(item) }} 个
+          </text>
           <view v-if="'adminReply' in item && item.adminReply" class="reply-card">
             <text class="reply-card__label">后台回复</text>
             <text class="reply-card__text">{{ item.adminReply }}</text>
@@ -46,15 +79,18 @@ import {
   fetchMyFeedback,
   fetchSettings,
   submitFeedback,
+  uploadFeedbackAttachment,
 } from '../../../api/settings';
+import { subscribeNotification } from '../../../api/notifications';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
 import { appendFeedbackEntry, getFeedbackHistory } from '../../../services/preferences';
 import { getAuthToken } from '../../../services/session';
-import type { FeedbackItem } from '../../../types/settings';
+import type { FeedbackAttachment, FeedbackItem } from '../../../types/settings';
 
 const message = ref('');
 const contact = ref('');
+const attachments = ref<FeedbackAttachment[]>([]);
 const history = ref<Array<FeedbackItem | ReturnType<typeof appendFeedbackEntry>>>(getFeedbackHistory());
 const categories = ref([
   { label: '功能建议', value: 'feature' },
@@ -64,6 +100,7 @@ const categories = ref([
 ]);
 const categoryIndex = ref(0);
 const submitting = ref(false);
+const uploadingAttachment = ref(false);
 const { themeVars } = useThemePreference();
 
 const categoryLabels = computed(() => categories.value.map((item) => item.label));
@@ -112,21 +149,25 @@ async function submitFeedbackForm() {
 
   try {
     submitting.value = true;
+    const subscriptionPromise = requestFeedbackReplySubscription();
     const systemInfo = uni.getSystemInfoSync() as unknown as Record<string, unknown>;
     const response = await submitFeedback({
       message: message.value.trim(),
       contact: contact.value.trim(),
       category: activeCategory.value.value,
       source: 'mobile',
+      attachments: attachments.value.length ? attachments.value : undefined,
       clientInfo: {
         platform: systemInfo.platform,
         system: systemInfo.system,
         uniPlatform: systemInfo.uniPlatform,
       },
     });
+    void subscriptionPromise;
     history.value = [response.data.item, ...history.value].slice(0, 20);
     message.value = '';
     contact.value = '';
+    attachments.value = [];
     uni.showToast({
       title: '反馈已提交',
       icon: 'success',
@@ -144,6 +185,117 @@ async function submitFeedbackForm() {
     });
   } finally {
     submitting.value = false;
+  }
+}
+
+async function chooseAttachments() {
+  const remaining = 5 - attachments.value.length;
+
+  if (remaining <= 0) {
+    uni.showToast({
+      title: '最多上传 5 个附件',
+      icon: 'none',
+    });
+    return;
+  }
+
+  try {
+    uploadingAttachment.value = true;
+    const filePaths = await chooseImagePaths(remaining);
+
+    for (const filePath of filePaths) {
+      const response = await uploadFeedbackAttachment(filePath);
+      attachments.value = [...attachments.value, response.data.item].slice(0, 5);
+    }
+
+    if (filePaths.length) {
+      uni.showToast({
+        title: '附件已添加',
+        icon: 'success',
+      });
+    }
+  } catch (error) {
+    const messageText = getErrorMessage(error, '附件上传失败');
+
+    if (!messageText.includes('cancel')) {
+      uni.showToast({
+        title: messageText,
+        icon: 'none',
+      });
+    }
+  } finally {
+    uploadingAttachment.value = false;
+  }
+}
+
+function chooseImagePaths(count: number) {
+  return new Promise<string[]>((resolve, reject) => {
+    uni.chooseImage({
+      count,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (response) => {
+        const rawPaths = response.tempFilePaths;
+        const paths = Array.isArray(rawPaths) ? rawPaths : rawPaths ? [rawPaths] : [];
+        resolve(paths.map((item) => String(item)));
+      },
+      fail: reject,
+    });
+  });
+}
+
+function removeAttachment(index: number) {
+  attachments.value = attachments.value.filter((_, currentIndex) => currentIndex !== index);
+}
+
+function previewAttachment(index: number) {
+  const urls = attachments.value
+    .filter((item) => isImageAttachment(item))
+    .map((item) => item.url)
+    .filter(Boolean);
+  const current = attachments.value[index]?.url;
+
+  if (!current || !urls.includes(current)) {
+    return;
+  }
+
+  uni.previewImage({
+    urls,
+    current,
+  });
+}
+
+function isImageAttachment(item: FeedbackAttachment) {
+  return item.mimeType.startsWith('image/');
+}
+
+async function requestFeedbackReplySubscription() {
+  const templateId = import.meta.env.VITE_WECHAT_FEEDBACK_REPLY_TEMPLATE_ID || '';
+
+  if (!templateId || !getAuthToken()) {
+    return;
+  }
+
+  try {
+    if (typeof uni.requestSubscribeMessage === 'function') {
+      await new Promise<void>((resolve, reject) => {
+        uni.requestSubscribeMessage({
+          tmplIds: [templateId],
+          success: () => resolve(),
+          fail: reject,
+        });
+      });
+    }
+
+    await subscribeNotification({
+      scene: 'feedback_reply',
+      templateIds: [templateId],
+      extra: {
+        source: 'feedback',
+      },
+    });
+  } catch (error) {
+    console.warn('request feedback reply subscription failed', error);
   }
 }
 
@@ -174,6 +326,10 @@ function formatStatus(status: string) {
 
 function resolveFeedbackStatus(item: FeedbackItem | ReturnType<typeof appendFeedbackEntry>) {
   return 'status' in item ? item.status : 'local';
+}
+
+function resolveAttachmentCount(item: FeedbackItem | ReturnType<typeof appendFeedbackEntry>) {
+  return 'attachments' in item && Array.isArray(item.attachments) ? item.attachments.length : 0;
 }
 
 onShow(() => {
@@ -240,6 +396,88 @@ onShow(() => {
 .input--picker {
   min-height: 88rpx;
   line-height: 44rpx;
+}
+
+.attachment-section {
+  display: grid;
+  gap: 14rpx;
+}
+
+.attachment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.attachment-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--apple-text);
+}
+
+.attachment-button,
+.attachment-remove {
+  margin: 0;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: var(--apple-blue);
+  background: rgba(46, 125, 246, 0.1);
+}
+
+.attachment-button::after,
+.attachment-remove::after {
+  border: none;
+}
+
+.attachment-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.attachment-item {
+  position: relative;
+  min-height: 160rpx;
+  overflow: hidden;
+  border-radius: 22rpx;
+  background: rgba(246, 249, 252, 0.92);
+}
+
+.attachment-image,
+.attachment-file {
+  width: 100%;
+  height: 160rpx;
+}
+
+.attachment-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx;
+}
+
+.attachment-file__name {
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: var(--apple-muted);
+  word-break: break-all;
+}
+
+.attachment-remove {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  min-width: 84rpx;
+  min-height: 44rpx;
+  line-height: 44rpx;
+  color: #ffffff;
+  background: rgba(20, 27, 45, 0.72);
+}
+
+.attachment-hint {
+  font-size: 22rpx;
+  color: var(--apple-subtle);
 }
 
 .hero-button {

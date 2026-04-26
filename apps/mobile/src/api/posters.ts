@@ -29,9 +29,20 @@ export function generateTodayIndexPoster() {
   }, undefined, POSTER_GENERATION_TIMEOUT);
 }
 
+export function generateZodiacTodayPoster(zodiac: string) {
+  return http.post<
+    PosterGenerateResponse,
+    { sourceType: 'zodiac_today'; bizCode: string; size: '1088x1472' }
+  >('/posters/generate', {
+    sourceType: 'zodiac_today',
+    bizCode: zodiac,
+    size: '1088x1472',
+  }, undefined, POSTER_GENERATION_TIMEOUT);
+}
+
 export function createPosterJob(payload: {
   recordId?: string;
-  sourceType?: 'lucky_sign' | 'today_index';
+  sourceType?: 'lucky_sign' | 'today_index' | 'zodiac_today';
   bizCode?: string;
   size?: '1280x1280' | '1088x1472';
 }) {
@@ -87,6 +98,19 @@ export async function generateLuckySignPosterAsync(bizCode: string) {
 
 export async function generateTodayIndexPosterAsync() {
   const response = await createPosterJob({ sourceType: 'today_index', size: '1088x1472' });
+  const job = await waitPosterJob(response.data.job.jobId);
+  if (!job.result) {
+    throw new Error('海报任务没有返回结果');
+  }
+  return job.result;
+}
+
+export async function generateZodiacTodayPosterAsync(zodiac: string) {
+  const response = await createPosterJob({
+    sourceType: 'zodiac_today',
+    bizCode: zodiac,
+    size: '1088x1472',
+  });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {
     throw new Error('海报任务没有返回结果');

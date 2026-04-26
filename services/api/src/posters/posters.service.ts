@@ -17,6 +17,7 @@ import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { LuckyService } from '../lucky/lucky.service';
 import { ReportsService } from '../reports/reports.service';
+import { ZodiacService } from '../zodiac/zodiac.service';
 import { GeneratePosterDto } from './dto/generate-poster.dto';
 
 type PosterMetric = {
@@ -73,6 +74,7 @@ export class PostersService {
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     private readonly reportsService: ReportsService,
     private readonly luckyService: LuckyService,
+    private readonly zodiacService: ZodiacService,
     private readonly configService: ConfigService,
     private readonly zhipuImageService: ZhipuImageService,
   ) {}
@@ -309,6 +311,16 @@ export class PostersService {
       return this.buildTodayIndexPosterSource(user);
     }
 
+    if (dto.sourceType === 'zodiac_today') {
+      const zodiac = this.pickString(dto.bizCode, user?.zodiac ?? '');
+
+      if (!zodiac) {
+        throw new BadRequestException('请先选择星座后再生成星座分享图');
+      }
+
+      return this.buildZodiacTodayPosterSource(zodiac);
+    }
+
     if (dto.sourceType === 'lucky_sign' && dto.bizCode) {
       const sign = await this.fortuneContentRepository.findOne({
         where: {
@@ -460,8 +472,62 @@ export class PostersService {
     };
   }
 
+  private async buildZodiacTodayPosterSource(zodiac: string): Promise<PosterSource> {
+    const response = await this.zodiacService.getTodayFortune(zodiac);
+    const data = response.data;
+    const topDimensions = [...data.dimensions]
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 3);
+    const sharePoster = data.sharePoster;
+
+    return {
+      sourceType: 'zodiac_today',
+      sourceCode: data.zodiac,
+      recordId: null,
+      title: this.truncateText(sharePoster.title, 18),
+      subtitle: this.truncateText(sharePoster.subtitle, 42),
+      accentText: this.truncateText(sharePoster.accentText, 24),
+      footerText: this.truncateText(sharePoster.footerText, 42),
+      summary: this.truncateText(data.theme.summary, 40),
+      promptKeywords: [
+        data.zodiac,
+        data.profile.element,
+        data.profile.modality,
+        data.theme.title,
+        data.action.title,
+        data.lucky.color,
+        '星座今日气运',
+        '星轨',
+      ],
+      themeName: sharePoster.themeName,
+      promptHint: `竖版星座气运分享图，突出${data.zodiac}、今日指数${data.score.overall}和行动签，适合叠加四象限指数与时间节奏。`,
+      eyebrowText: 'ZODIAC TODAY',
+      chips: [
+        `${data.zodiac}`,
+        `今日 ${data.score.overall}`,
+        data.lucky.color,
+        data.lucky.item,
+        data.compatibility.bestMatch,
+      ],
+      metrics: topDimensions.map((item) => ({
+        label: item.label,
+        value: String(item.score),
+        hint: this.truncateText(item.title, 12),
+      })),
+      highlightTitle: '今日行动签',
+      highlightLines: [
+        data.action.title,
+        data.action.description,
+        data.dayparts[0]?.hint ?? '',
+      ]
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((item) => this.truncateText(item, 28)),
+    };
+  }
+
   private buildProviderPrompt(source: PosterSource) {
-    if (source.sourceType === 'today_index') {
+    if (source.sourceType === 'today_index' || source.sourceType === 'zodiac_today') {
       return [
         '微信社交分享图背景插画，竖版海报，现代东方气质，通透高级，适合命理与运势产品分享。',
         `主题：${source.themeName}。`,
@@ -498,6 +564,10 @@ export class PostersService {
   private resolvePosterPromptHint(sourceType: string) {
     if (sourceType === 'today_index') {
       return '竖版分享图，画面要有星轨、流光、轻雾与东方能量纹理，兼顾高级感和社交传播质感。';
+    }
+
+    if (sourceType === 'zodiac_today') {
+      return '竖版星座分享图，画面要有清晰星轨、星象符号感、透明能量流线和安静留白，适合叠加今日气运指数。';
     }
 
     return '';
@@ -896,7 +966,11 @@ export class PostersService {
     requestedSize: GeneratePosterDto['size'],
     sourceType: string,
   ): PosterLayout {
-    const size = requestedSize ?? (sourceType === 'today_index' ? '1088x1472' : '1280x1280');
+    const size = requestedSize ?? (
+      sourceType === 'today_index' || sourceType === 'zodiac_today'
+        ? '1088x1472'
+        : '1280x1280'
+    );
 
     if (size === '1088x1472') {
       return {

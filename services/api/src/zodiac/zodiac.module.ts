@@ -8,5 +8,6 @@ import { ZodiacService } from './zodiac.service';
   imports: [TypeOrmModule.forFeature([FortuneContentEntity])],
   controllers: [ZodiacController],
   providers: [ZodiacService],
+  exports: [ZodiacService],
 })
 export class ZodiacModule {}

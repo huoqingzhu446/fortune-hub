@@ -1,30 +1,42 @@
 <template>
   <view class="page" :style="themeVars">
     <view class="hero-shell">
-      <text class="eyebrow">zodiac center</text>
+      <view class="hero-topline">
+        <text class="eyebrow">zodiac today</text>
+        <text class="hero-note">{{ todayFortune.profile.element }} · {{ todayFortune.profile.modality }}</text>
+      </view>
       <view class="hero-heading">
-        <text class="title">{{ selectedSign }}</text>
-        <text class="hero-note">{{ dailyFortune.profile.element }} · {{ dailyFortune.profile.modality }}</text>
+        <view class="hero-copy">
+          <text class="title">{{ selectedSign }}</text>
+          <text class="hero-theme">{{ todayFortune.theme.title }}</text>
+        </view>
+        <view class="score-orbit">
+          <text class="score-orbit__value">{{ todayFortune.score.overall }}</text>
+          <text class="score-orbit__label">今日</text>
+        </view>
       </view>
       <text class="summary">{{ heroSummary }}</text>
 
       <view class="hero-glance">
         <view class="glance-item">
           <text class="glance-label">幸运色</text>
-          <text class="glance-value">{{ dailyFortune.lucky.color }}</text>
+          <text class="glance-value">{{ todayFortune.lucky.color }}</text>
         </view>
         <view class="glance-item">
-          <text class="glance-label">幸运数字</text>
-          <text class="glance-value">{{ dailyFortune.lucky.number }}</text>
+          <text class="glance-label">幸运物</text>
+          <text class="glance-value">{{ todayFortune.lucky.item }}</text>
         </view>
         <view class="glance-item">
-          <text class="glance-label">幸运方位</text>
-          <text class="glance-value">{{ dailyFortune.lucky.direction }}</text>
+          <text class="glance-label">行动签</text>
+          <text class="glance-value">{{ todayFortune.action.title }}</text>
         </view>
       </view>
 
-      <view class="tag-row">
-        <text v-for="keyword in heroKeywords" :key="keyword" class="tag-chip">{{ keyword }}</text>
+      <view class="hero-actions">
+        <view class="tag-row">
+          <text v-for="keyword in heroKeywords" :key="keyword" class="tag-chip">{{ keyword }}</text>
+        </view>
+        <button class="share-button" :loading="posterLoading" @tap="generateZodiacPoster">生成分享图</button>
       </view>
     </view>
 
@@ -58,34 +70,58 @@
     </scroll-view>
 
     <view v-if="loading" class="panel state-panel">
-      <text class="state-title">正在刷新 {{ selectedSign }} 的完整星座模块...</text>
-      <text class="state-copy">今日、本周、年度、配对和知识内容会一起更新。</text>
+      <text class="state-title">正在刷新 {{ selectedSign }} 的今日气运...</text>
+      <text class="state-copy">聚合页、行动签、四象限、月运和配对内容会一起更新。</text>
     </view>
 
     <template v-else>
       <view v-if="activeView === 'daily'" class="content-stack">
-        <view class="panel section-panel">
-          <text class="section-kicker">今日概览</text>
-          <text class="section-title">把今天的好运落到现实安排里</text>
-          <text class="body-copy">{{ dailyFortune.summary }}</text>
+        <view class="panel action-panel">
+          <view class="action-panel__copy">
+            <text class="section-kicker">今日行动签</text>
+            <text class="section-title">{{ todayFortune.action.title }}</text>
+            <text class="body-copy">{{ todayFortune.action.description }}</text>
+          </view>
+          <button class="check-button" :class="{ 'check-button--done': actionChecked }" @tap="toggleActionCheck">
+            {{ actionChecked ? '已完成' : todayFortune.action.checkInText }}
+          </button>
         </view>
 
-        <view class="metrics-grid">
-          <view v-for="metric in dailyMetrics" :key="metric.label" class="metric-card">
-            <text class="metric-label">{{ metric.label }}</text>
-            <text class="metric-copy">{{ metric.value }}</text>
+        <view class="dimension-grid">
+          <view v-for="item in todayFortune.dimensions" :key="item.key" class="dimension-card">
+            <view class="dimension-card__head">
+              <text class="metric-label">{{ item.label }}</text>
+              <text class="dimension-score">{{ item.score }}</text>
+            </view>
+            <text class="dimension-title">{{ item.title }}</text>
+            <text class="metric-copy">{{ item.summary }}</text>
+            <text class="dimension-action">{{ item.action }}</text>
           </view>
         </view>
 
         <view class="panel section-panel">
-          <text class="section-kicker">今日配对</text>
-          <text class="section-title">{{ dailyFortune.compatibility.bestMatch }}</text>
-          <text class="body-copy">{{ dailyFortune.compatibility.message }}</text>
+          <text class="section-kicker">今日时间节奏</text>
+          <view class="daypart-list">
+            <view v-for="item in todayFortune.dayparts" :key="item.label" class="daypart-item">
+              <text class="timeline-label">{{ item.label }}</text>
+              <text class="timeline-copy">适合：{{ item.suitable }}</text>
+              <text class="timeline-copy">避免：{{ item.avoid }}</text>
+              <text class="daypart-hint">{{ item.hint }}</text>
+            </view>
+          </view>
         </view>
 
-        <view class="panel section-panel">
-          <text class="section-kicker">今日建议</text>
-          <text class="body-copy">{{ dailyFortune.suggestion }}</text>
+        <view class="panel split-panel">
+          <view class="split-block">
+            <text class="section-kicker">今日配对</text>
+            <text class="split-copy">{{ todayFortune.compatibility.bestMatch }}</text>
+            <text class="mini-copy">{{ todayFortune.compatibility.message }}</text>
+          </view>
+          <view class="split-block">
+            <text class="section-kicker">幸运方位</text>
+            <text class="split-copy">{{ todayFortune.lucky.direction }}</text>
+            <text class="mini-copy">数字 {{ todayFortune.lucky.number }}</text>
+          </view>
         </view>
       </view>
 
@@ -133,6 +169,50 @@
         <view class="panel section-panel">
           <text class="section-kicker">需要留意</text>
           <text class="body-copy">{{ weeklyFortune.caution }}</text>
+        </view>
+      </view>
+
+      <view v-else-if="activeView === 'monthly'" class="content-stack">
+        <view class="panel section-panel">
+          <text class="section-kicker">{{ monthlyFortune.month }} 月运</text>
+          <text class="section-title">{{ monthlyFortune.theme.title }}</text>
+          <text class="body-copy">{{ monthlyFortune.theme.summary }}</text>
+        </view>
+
+        <view class="panel section-panel">
+          <text class="section-kicker">月内节奏</text>
+          <view class="timeline-list">
+            <view v-for="item in monthlyFortune.rhythm" :key="item.label" class="timeline-item">
+              <text class="timeline-label">{{ item.label }}</text>
+              <text class="timeline-copy">{{ item.summary }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="metrics-grid">
+          <view v-for="metric in monthlyMetrics" :key="metric.label" class="metric-card">
+            <text class="metric-label">{{ metric.label }}</text>
+            <text class="metric-copy">{{ metric.value }}</text>
+          </view>
+        </view>
+
+        <view class="panel section-panel">
+          <text class="section-kicker">机会窗口</text>
+          <view class="bullet-list">
+            <text v-for="item in monthlyFortune.opportunities" :key="item" class="bullet-item">· {{ item }}</text>
+          </view>
+        </view>
+
+        <view class="panel section-panel">
+          <text class="section-kicker">关键日期</text>
+          <view class="tag-row">
+            <text v-for="item in monthlyFortune.keyDays" :key="item" class="tag-chip tag-chip--soft">{{ item }}</text>
+          </view>
+        </view>
+
+        <view class="panel section-panel">
+          <text class="section-kicker">本月行动</text>
+          <text class="body-copy">{{ monthlyFortune.action }}</text>
         </view>
       </view>
 
@@ -279,18 +359,23 @@ import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import {
   fetchZodiacCompatibility,
-  fetchZodiacDaily,
   fetchZodiacKnowledge,
+  fetchZodiacMonthly,
+  fetchZodiacToday,
   fetchZodiacWeekly,
   fetchZodiacYearly,
 } from '../../api/zodiac';
+import { generateZodiacTodayPosterAsync } from '../../api/posters';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { handlePosterImageError, previewPosterImage } from '../../services/poster-image';
 import { getCachedUser } from '../../services/session';
 import type {
   ZodiacCompatibilityData,
   ZodiacDailyData,
   ZodiacKnowledgeData,
+  ZodiacMonthlyData,
   ZodiacSign,
+  ZodiacTodayData,
   ZodiacViewMode,
   ZodiacWeeklyData,
   ZodiacYearlyData,
@@ -300,6 +385,7 @@ import { zodiacSigns } from '../../types/zodiac';
 const viewOptions: Array<{ label: string; value: ZodiacViewMode }> = [
   { label: '今日', value: 'daily' },
   { label: '本周', value: 'weekly' },
+  { label: '月运', value: 'monthly' },
   { label: '年度', value: 'yearly' },
   { label: '配对', value: 'compatibility' },
   { label: '知识', value: 'knowledge' },
@@ -349,6 +435,103 @@ function buildDailyFallback(sign: string): ZodiacDailyData {
   };
 }
 
+function buildTodayFallback(sign: string): ZodiacTodayData {
+  const base = buildDailyFallback(sign);
+  const index = getSignIndex(sign);
+  const dimensions: ZodiacTodayData['dimensions'] = [
+    {
+      key: 'love',
+      label: '关系',
+      score: 76 + (index % 9),
+      title: '先让表达变轻一点',
+      summary: base.metrics.love,
+      action: '把在意说清楚，不用反复试探。',
+    },
+    {
+      key: 'career',
+      label: '事业',
+      score: 80 + (index % 8),
+      title: '抓住主线推进',
+      summary: base.metrics.career,
+      action: '先完成最关键的一件事，再处理分支。',
+    },
+    {
+      key: 'wealth',
+      label: '财富',
+      score: 70 + (index % 10),
+      title: '把预算放回现实',
+      summary: base.metrics.wealth,
+      action: '延迟冲动消费，把钱留给真正重要的安排。',
+    },
+    {
+      key: 'wellbeing',
+      label: '身心',
+      score: 74 + (index % 7),
+      title: '给状态留缓冲',
+      summary: base.metrics.health,
+      action: '安排一次短休息，别用硬撑换效率。',
+    },
+  ];
+
+  return {
+    zodiac: sign,
+    date: base.date,
+    profile: base.profile,
+    score: {
+      overall: Math.round(dimensions.reduce((total, item) => total + item.score, 0) / dimensions.length),
+      love: dimensions[0].score,
+      career: dimensions[1].score,
+      wealth: dimensions[2].score,
+      wellbeing: dimensions[3].score,
+    },
+    theme: {
+      title: `${sign}今日气运`,
+      summary: base.summary,
+      keywords: base.profile.keywords,
+    },
+    dimensions,
+    dayparts: [
+      {
+        label: '上午',
+        suitable: '定目标、处理主线',
+        avoid: '临时答应太多事',
+        hint: '先推进一个最小动作，今天的节奏会更稳。',
+      },
+      {
+        label: '下午',
+        suitable: '沟通、协作、确认资源',
+        avoid: '信息不完整时做决定',
+        hint: '把需求和边界讲清楚，会比反复猜测有效。',
+      },
+      {
+        label: '晚上',
+        suitable: '复盘、放松、整理关系',
+        avoid: '带着疲惫继续硬撑',
+        hint: '留一点安静时间，给明天一个清爽起点。',
+      },
+    ],
+    lucky: {
+      ...base.lucky,
+      item: '透明水杯',
+    },
+    action: {
+      id: `${sign}-today-fallback`,
+      title: '完成一个小而确定的行动',
+      description: '今天只选一件能让你更接近目标的小事，完成后就停下来确认状态。',
+      difficulty: 'normal',
+      checkInText: '我做到了',
+    },
+    compatibility: base.compatibility,
+    sharePoster: {
+      title: `${sign}今日气运`,
+      subtitle: `${base.profile.element} · 今日指数`,
+      accentText: '完成一个小而确定的行动',
+      footerText: `幸运色 ${base.lucky.color} · 数字 ${base.lucky.number}`,
+      themeName: 'sky-current',
+    },
+  };
+}
+
 function buildWeeklyFallback(sign: string): ZodiacWeeklyData {
   return {
     zodiac: sign,
@@ -371,6 +554,36 @@ function buildWeeklyFallback(sign: string): ZodiacWeeklyData {
     bestMatch: getOffsetSign(sign, 2),
     action: '先完成一件最重要的事，再处理其他分支任务。',
     caution: '不要因为一时情绪或冲动改变整周计划。',
+  };
+}
+
+function buildMonthlyFallback(sign: string): ZodiacMonthlyData {
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  return {
+    zodiac: sign,
+    month,
+    profile: buildProfileSummary(sign),
+    theme: {
+      title: `${sign}的月度节奏`,
+      summary: `这个月适合${sign}把分散的想法收束成少数稳定行动。`,
+    },
+    rhythm: [
+      { label: '上旬', summary: '先定方向，把本月最重要的事项排到前面。' },
+      { label: '中旬', summary: '沟通与协作会变多，适合处理关键关系和资源。' },
+      { label: '下旬', summary: '复盘成果，减少无效消耗，为下个月留余地。' },
+    ],
+    focus: {
+      relationship: '关系里需要清晰表达，不用靠猜测维持默契。',
+      career: '事业上适合围绕核心任务持续推进。',
+      money: '财务上先稳住预算，再考虑额外投入。',
+      wellbeing: '作息和情绪恢复会影响整个月的发挥。',
+    },
+    opportunities: ['开启一个可持续的小计划。', '把擅长的事变成可见成果。'],
+    cautions: ['不要同时推进太多方向。', '重要决定先等状态稳定后再确认。'],
+    keyDays: [`${month}-06`, `${month}-15`, `${month}-24`],
+    action: '每周固定一次复盘，把计划变成真实进度。',
   };
 }
 
@@ -447,9 +660,12 @@ const selectedPartner = ref<ZodiacSign | string>('白羊座');
 const activeView = ref<ZodiacViewMode>('daily');
 const loading = ref(false);
 const compatibilityLoading = ref(false);
+const posterLoading = ref(false);
+const actionChecked = ref(false);
 const { themeVars } = useThemePreference();
-const dailyFortune = ref<ZodiacDailyData>(buildDailyFallback('狮子座'));
+const todayFortune = ref<ZodiacTodayData>(buildTodayFallback('狮子座'));
 const weeklyFortune = ref<ZodiacWeeklyData>(buildWeeklyFallback('狮子座'));
+const monthlyFortune = ref<ZodiacMonthlyData>(buildMonthlyFallback('狮子座'));
 const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
 const compatibility = ref<ZodiacCompatibilityData>(buildCompatibilityFallback('狮子座', '白羊座'));
 const knowledge = ref<ZodiacKnowledgeData>(buildKnowledgeFallback('狮子座'));
@@ -458,6 +674,8 @@ const heroSummary = computed(() => {
   switch (activeView.value) {
     case 'weekly':
       return weeklyFortune.value.overview;
+    case 'monthly':
+      return monthlyFortune.value.theme.summary;
     case 'yearly':
       return yearlyFortune.value.theme.summary;
     case 'compatibility':
@@ -465,30 +683,30 @@ const heroSummary = computed(() => {
     case 'knowledge':
       return knowledge.value.overview;
     default:
-      return dailyFortune.value.summary;
+      return todayFortune.value.theme.summary;
   }
 });
 
 const heroKeywords = computed(() => {
-  if (dailyFortune.value.profile.keywords?.length) {
-    return dailyFortune.value.profile.keywords.slice(0, 3);
+  if (todayFortune.value.theme.keywords?.length) {
+    return todayFortune.value.theme.keywords.slice(0, 4);
   }
 
   return knowledge.value.keywords.slice(0, 3);
 });
-
-const dailyMetrics = computed(() => [
-  { label: '爱情', value: dailyFortune.value.metrics.love },
-  { label: '事业', value: dailyFortune.value.metrics.career },
-  { label: '财运', value: dailyFortune.value.metrics.wealth },
-  { label: '健康', value: dailyFortune.value.metrics.health },
-]);
 
 const weeklyMetrics = computed(() => [
   { label: '关系', value: weeklyFortune.value.focus.love },
   { label: '工作', value: weeklyFortune.value.focus.career },
   { label: '财务', value: weeklyFortune.value.focus.wealth },
   { label: '身心', value: weeklyFortune.value.focus.health },
+]);
+
+const monthlyMetrics = computed(() => [
+  { label: '关系', value: monthlyFortune.value.focus.relationship },
+  { label: '事业', value: monthlyFortune.value.focus.career },
+  { label: '财务', value: monthlyFortune.value.focus.money },
+  { label: '身心', value: monthlyFortune.value.focus.wellbeing },
 ]);
 
 const yearlyMetrics = computed(() => [
@@ -521,20 +739,24 @@ async function loadCompatibility(sign: string, partner?: string) {
 
 async function loadModule(sign: string) {
   loading.value = true;
+  actionChecked.value = false;
 
-  const [dailyResult, weeklyResult, yearlyResult, compatibilityResult, knowledgeResult] =
+  const [todayResult, weeklyResult, monthlyResult, yearlyResult, compatibilityResult, knowledgeResult] =
     await Promise.allSettled([
-      fetchZodiacDaily(sign),
+      fetchZodiacToday(sign),
       fetchZodiacWeekly(sign),
+      fetchZodiacMonthly(sign),
       fetchZodiacYearly(sign),
       fetchZodiacCompatibility(sign),
       fetchZodiacKnowledge(sign),
     ]);
 
-  dailyFortune.value =
-    dailyResult.status === 'fulfilled' ? dailyResult.value.data : buildDailyFallback(sign);
+  todayFortune.value =
+    todayResult.status === 'fulfilled' ? todayResult.value.data : buildTodayFallback(sign);
   weeklyFortune.value =
     weeklyResult.status === 'fulfilled' ? weeklyResult.value.data : buildWeeklyFallback(sign);
+  monthlyFortune.value =
+    monthlyResult.status === 'fulfilled' ? monthlyResult.value.data : buildMonthlyFallback(sign);
   yearlyFortune.value =
     yearlyResult.status === 'fulfilled' ? yearlyResult.value.data : buildYearlyFallback(sign);
   compatibility.value =
@@ -563,6 +785,33 @@ async function selectPartner(sign: string) {
 
   selectedPartner.value = sign;
   await loadCompatibility(String(selectedSign.value), sign);
+}
+
+function toggleActionCheck() {
+  actionChecked.value = !actionChecked.value;
+  uni.showToast({
+    title: actionChecked.value ? '今日行动已记录' : '已取消完成状态',
+    icon: 'none',
+  });
+}
+
+async function generateZodiacPoster() {
+  if (posterLoading.value) {
+    return;
+  }
+
+  try {
+    posterLoading.value = true;
+    const poster = await generateZodiacTodayPosterAsync(String(selectedSign.value));
+    await previewPosterImage(poster.imageDataUrl, poster.downloadFileName);
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '星座分享图生成失败'),
+      icon: 'none',
+    });
+  } finally {
+    posterLoading.value = false;
+  }
 }
 
 onLoad((query) => {
@@ -609,6 +858,14 @@ onPullDownRefresh(async () => {
     rgba(255, 255, 255, 0.82);
 }
 
+.hero-topline,
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
 .panel {
   margin-top: 20rpx;
   padding: 26rpx;
@@ -642,6 +899,12 @@ onPullDownRefresh(async () => {
   align-items: flex-end;
 }
 
+.hero-copy {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+}
+
 .title,
 .section-title {
   color: var(--apple-text);
@@ -655,6 +918,13 @@ onPullDownRefresh(async () => {
 .section-title {
   font-size: 34rpx;
   line-height: 1.4;
+}
+
+.hero-theme {
+  color: var(--apple-text);
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .hero-note,
@@ -672,6 +942,30 @@ onPullDownRefresh(async () => {
 .fact-value,
 .split-copy {
   font-size: 24rpx;
+}
+
+.score-orbit {
+  display: grid;
+  place-items: center;
+  width: 156rpx;
+  height: 156rpx;
+  flex: 0 0 156rpx;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.62) 58%, transparent 60%),
+    conic-gradient(from 140deg, rgba(var(--theme-accent-rgb), 0.18), rgba(64, 120, 255, 0.44), rgba(var(--theme-accent-rgb), 0.18));
+}
+
+.score-orbit__value {
+  color: var(--apple-text);
+  font-size: 52rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.score-orbit__label {
+  color: var(--apple-subtle);
+  font-size: 20rpx;
 }
 
 .summary,
@@ -724,6 +1018,33 @@ onPullDownRefresh(async () => {
 .tag-chip--soft {
   background: rgba(64, 120, 255, 0.08);
   color: var(--apple-muted);
+}
+
+.share-button,
+.check-button {
+  min-width: 176rpx;
+  min-height: 72rpx;
+  margin: 0;
+  border-radius: 999rpx;
+  background: var(--apple-blue);
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+}
+
+.share-button::after,
+.check-button::after {
+  border: 0;
+}
+
+.check-button {
+  align-self: end;
+  background: linear-gradient(135deg, var(--apple-blue) 0%, #78a4ff 100%);
+}
+
+.check-button--done {
+  background: linear-gradient(135deg, #4fbd93 0%, #7bd7b4 100%);
 }
 
 .sign-grid,
@@ -783,6 +1104,78 @@ onPullDownRefresh(async () => {
 .metrics-grid,
 .facts-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.dimension-card {
+  display: grid;
+  gap: 10rpx;
+  min-height: 264rpx;
+  padding: 24rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid rgba(255, 255, 255, 0.8);
+}
+
+.dimension-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.dimension-score {
+  color: var(--apple-text);
+  font-size: 40rpx;
+  font-weight: 800;
+}
+
+.dimension-title {
+  color: var(--apple-text);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dimension-action,
+.mini-copy,
+.daypart-hint {
+  color: var(--apple-subtle);
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.action-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20rpx;
+}
+
+.action-panel__copy {
+  display: grid;
+  gap: 12rpx;
+}
+
+.daypart-list {
+  display: grid;
+  gap: 16rpx;
+}
+
+.daypart-item {
+  display: grid;
+  gap: 8rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid rgba(132, 151, 176, 0.12);
+}
+
+.daypart-item:last-child {
+  border-bottom: 0;
 }
 
 .timeline-list,
@@ -855,12 +1248,15 @@ onPullDownRefresh(async () => {
   .hero-glance,
   .metrics-grid,
   .facts-grid,
+  .dimension-grid,
   .split-panel {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .compatibility-panel,
-  .hero-heading {
+  .hero-heading,
+  .hero-actions,
+  .action-panel {
     display: grid;
   }
 

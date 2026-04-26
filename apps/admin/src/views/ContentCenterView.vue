@@ -211,10 +211,19 @@
         <template v-if="activeTab === 'fortune'">
           <div class="content-center__grid content-center__grid--four">
             <el-form-item label="内容类型">
-              <el-input
+              <el-select
                 v-model="fortuneForm.contentType"
+                allow-create
+                filterable
                 placeholder="例如 lucky_sign / zodiac_daily"
-              />
+              >
+                <el-option
+                  v-for="item in contentTypeOptions"
+                  :key="item"
+                  :label="item"
+                  :value="item"
+                />
+              </el-select>
             </el-form-item>
             <el-form-item label="bizCode">
               <el-input v-model="fortuneForm.bizCode" />
@@ -239,6 +248,19 @@
           </el-form-item>
           <el-form-item label="摘要">
             <el-input v-model="fortuneForm.summary" type="textarea" :rows="2" />
+          </el-form-item>
+          <el-form-item label="星座内容模板">
+            <div class="content-center__template-row">
+              <el-select v-model="selectedFortuneTemplate" placeholder="选择模板后可套用">
+                <el-option
+                  v-for="item in fortuneTemplateOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-button plain @click="applyFortuneTemplate">套用模板</el-button>
+            </div>
           </el-form-item>
           <el-form-item label="内容 JSON">
             <el-input v-model="fortuneForm.contentJsonText" type="textarea" :rows="16" />
@@ -533,11 +555,23 @@ type ContentRow = FortuneContentItem | LuckyItem | ReportTemplateItem | ConfigEn
 
 const contentTypeOptions = [
   'lucky_sign',
+  'zodiac_today',
   'zodiac_daily',
+  'zodiac_dimension_daily',
   'zodiac_weekly',
+  'zodiac_monthly',
   'zodiac_yearly',
   'zodiac_knowledge',
   'zodiac_compatibility',
+  'zodiac_share_poster',
+];
+
+const fortuneTemplateOptions = [
+  { label: '幸运签', value: 'lucky_sign' },
+  { label: '星座今日聚合页', value: 'zodiac_today' },
+  { label: '星座四象限指数', value: 'zodiac_dimension_daily' },
+  { label: '星座月运', value: 'zodiac_monthly' },
+  { label: '星座分享海报', value: 'zodiac_share_poster' },
 ];
 
 const templateTypeOptions = ['report_result', 'share_poster'];
@@ -561,6 +595,7 @@ const templatePreviewSampleText = ref('{\n  "name": "清浅",\n  "score": "88"\n
 const templateVersionsVisible = ref(false);
 const templateVersions = ref<ReportTemplateVersionItem[]>([]);
 const activeTemplateId = ref('');
+const selectedFortuneTemplate = ref('zodiac_today');
 
 const fortuneContents = ref<FortuneContentItem[]>([]);
 const luckyItems = ref<LuckyItem[]>([]);
@@ -840,6 +875,7 @@ function openEditDialog(row: ContentRow) {
   if (activeTab.value === 'fortune') {
     const item = row as FortuneContentItem;
     fortuneForm.contentType = item.contentType;
+    selectedFortuneTemplate.value = resolveFortuneTemplateKey(item.contentType);
     fortuneForm.bizCode = item.bizCode;
     fortuneForm.publishDate = item.publishDate || '';
     fortuneForm.title = item.title;
@@ -1067,16 +1103,200 @@ async function removeItem(row: ContentRow) {
   }
 }
 
+function resolveFortuneTemplateKey(contentType: string) {
+  return fortuneTemplateOptions.some((item) => item.value === contentType)
+    ? contentType
+    : 'zodiac_today';
+}
+
+function applyFortuneTemplate() {
+  fortuneForm.contentType = selectedFortuneTemplate.value;
+
+  if (!fortuneForm.title) {
+    fortuneForm.title = resolveFortuneTemplateTitle(selectedFortuneTemplate.value);
+  }
+
+  if (!fortuneForm.summary) {
+    fortuneForm.summary = resolveFortuneTemplateSummary(selectedFortuneTemplate.value);
+  }
+
+  fortuneForm.contentJsonText = buildFortuneContentTemplate(selectedFortuneTemplate.value);
+}
+
+function resolveFortuneTemplateTitle(contentType: string) {
+  const mapping: Record<string, string> = {
+    lucky_sign: '今日幸运签',
+    zodiac_today: '星座今日气运',
+    zodiac_dimension_daily: '星座四象限指数',
+    zodiac_monthly: '星座月运',
+    zodiac_share_poster: '星座今日分享图',
+  };
+
+  return mapping[contentType] || '运势内容';
+}
+
+function resolveFortuneTemplateSummary(contentType: string) {
+  const mapping: Record<string, string> = {
+    lucky_sign: '今日签语、行动提示和分享图文案。',
+    zodiac_today: '今日主题、四象限指数、时间节奏和行动签。',
+    zodiac_dimension_daily: '爱情、事业、财富、身心四个维度的指数解释。',
+    zodiac_monthly: '月度主题、上中下旬节奏、机会窗口和关键日期。',
+    zodiac_share_poster: '星座今日气运分享图标题、强调语和视觉主题。',
+  };
+
+  return mapping[contentType] || '可运营的运势内容 JSON。';
+}
+
+function buildFortuneContentTemplate(contentType: string) {
+  const templates: Record<string, Record<string, unknown>> = {
+    lucky_sign: {
+      tag: '今日吉签',
+      mantra: '先稳住节奏，再顺势推进。',
+      sharePoster: {
+        title: '今日幸运签',
+        accentText: '先稳住节奏',
+        themeName: 'fresh-mint',
+      },
+    },
+    zodiac_today: {
+      themeTitle: '主动表达，但不急着证明自己',
+      themeSummary: '今天适合把状态落到一个清晰动作里，先推进主线，再回应外界期待。',
+      keywords: ['主动', '边界', '复盘', '轻表达'],
+      score: {
+        overall: 86,
+        love: 82,
+        career: 88,
+        wealth: 76,
+        wellbeing: 80,
+      },
+      dimensions: {
+        love: {
+          title: '让表达更轻',
+          summary: '关系里适合主动开口，但不要把每次回应都看成评价。',
+          action: '给一个重要的人明确回应。',
+        },
+        career: {
+          title: '先抓主线',
+          summary: '工作与学习适合集中处理一件最关键的事。',
+          action: '把待办缩到三个以内。',
+        },
+        wealth: {
+          title: '预算先稳住',
+          summary: '今天不适合被短期愉悦带着消费。',
+          action: '把想买的东西延迟 24 小时。',
+        },
+        wellbeing: {
+          title: '留出恢复时间',
+          summary: '身体和情绪需要一点缓冲，不必一直高强度输出。',
+          action: '安排一次 10 分钟放空。',
+        },
+      },
+      dayparts: [
+        {
+          label: '上午',
+          suitable: '定目标、处理主线',
+          avoid: '临时答应过多请求',
+          hint: '把今天最重要的一件事写下来。',
+        },
+        {
+          label: '下午',
+          suitable: '沟通、协作、确认资源',
+          avoid: '信息不完整时做结论',
+          hint: '先对齐优先级，再推动下一步。',
+        },
+        {
+          label: '晚上',
+          suitable: '复盘、放松、整理关系',
+          avoid: '带着疲惫继续硬撑',
+          hint: '给明天留一个清爽起点。',
+        },
+      ],
+      luckyItem: '透明水杯',
+      action: {
+        id: 'daily-action',
+        title: '完成一个小而确定的行动',
+        description: '今天只选一件能让你更接近目标的小事，完成后就停下来确认状态。',
+        difficulty: 'normal',
+        checkInText: '我做到了',
+      },
+      sharePoster: {
+        title: '今日星座气运',
+        subtitle: '把好运落到一个清晰行动里',
+        accentText: '完成一个小而确定的行动',
+        footerText: 'Fortune Hub · 星座气运',
+        themeName: 'sky-current',
+      },
+    },
+    zodiac_dimension_daily: {
+      score: {
+        love: 82,
+        career: 88,
+        wealth: 76,
+        wellbeing: 80,
+      },
+      dimensions: {
+        love: {
+          title: '关系表达',
+          summary: '适合主动表达真实想法。',
+          action: '先说感受，再说期待。',
+        },
+        career: {
+          title: '事业推进',
+          summary: '适合集中处理核心任务。',
+          action: '保留一个深度工作时段。',
+        },
+        wealth: {
+          title: '财富管理',
+          summary: '适合复盘预算。',
+          action: '检查一笔不必要的支出。',
+        },
+        wellbeing: {
+          title: '身心状态',
+          summary: '适合降低消耗。',
+          action: '晚上提前 20 分钟休息。',
+        },
+      },
+    },
+    zodiac_monthly: {
+      themeTitle: '把分散灵感聚成稳定成果',
+      themeSummary: '这个月适合围绕一个核心方向持续推进，减少临时切换。',
+      rhythm: [
+        { label: '上旬', summary: '先定方向，把最重要的事排到前面。' },
+        { label: '中旬', summary: '适合沟通、协作和确认资源。' },
+        { label: '下旬', summary: '复盘成果，减少无效消耗。' },
+      ],
+      relationship: '关系里需要更清晰的表达和边界。',
+      career: '事业上适合围绕核心能力持续打磨。',
+      money: '财务上先稳住预算，再考虑额外投入。',
+      wellbeing: '作息和情绪恢复会影响整个月的发挥。',
+      opportunities: ['开启一个可持续的小计划。', '把擅长的事变成可见成果。'],
+      cautions: ['不要同时推进太多方向。', '重要决定先等状态稳定后再确认。'],
+      keyDays: ['2026-04-06', '2026-04-15', '2026-04-24'],
+      action: '每周固定一次复盘，把计划变成真实进度。',
+    },
+    zodiac_share_poster: {
+      title: '今日星座气运',
+      subtitle: '把好运落到一个清晰行动里',
+      accentText: '完成一个小而确定的行动',
+      footerText: 'Fortune Hub · 星座气运',
+      themeName: 'sky-current',
+      backgroundHint: '清晰星轨、透明能量流线、安静留白，适合叠加指数和行动签。',
+    },
+  };
+
+  return JSON.stringify(templates[contentType] || templates.zodiac_today, null, 2);
+}
+
 function resetCurrentForm() {
   if (activeTab.value === 'fortune') {
-    fortuneForm.contentType = 'lucky_sign';
+    selectedFortuneTemplate.value = 'zodiac_today';
+    fortuneForm.contentType = 'zodiac_today';
     fortuneForm.bizCode = '';
     fortuneForm.publishDate = '';
-    fortuneForm.title = '';
-    fortuneForm.summary = '';
+    fortuneForm.title = '星座今日气运';
+    fortuneForm.summary = '今日主题、四象限指数、时间节奏和行动签。';
     fortuneForm.status = 'draft';
-    fortuneForm.contentJsonText =
-      '{\n  "tag": "今日吉签",\n  "mantra": "先稳住节奏，再顺势推进。"\n}';
+    fortuneForm.contentJsonText = buildFortuneContentTemplate('zodiac_today');
     return;
   }
 
@@ -1383,6 +1603,13 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.content-center__template-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  width: 100%;
 }
 
 .content-center__audio-preview {

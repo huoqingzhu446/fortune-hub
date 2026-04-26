@@ -17,7 +17,13 @@ export const zodiacSigns = [
 
 export type ZodiacSign = (typeof zodiacSigns)[number];
 
-export type ZodiacViewMode = 'daily' | 'weekly' | 'yearly' | 'compatibility' | 'knowledge';
+export type ZodiacViewMode =
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | 'compatibility'
+  | 'knowledge';
 
 export interface ZodiacProfileSummary {
   element: string;
@@ -49,6 +55,62 @@ export interface ZodiacDailyData {
   suggestion: string;
 }
 
+export interface ZodiacTodayData {
+  zodiac: ZodiacSign | string;
+  date: string;
+  profile: ZodiacProfileSummary;
+  score: {
+    overall: number;
+    love: number;
+    career: number;
+    wealth: number;
+    wellbeing: number;
+  };
+  theme: {
+    title: string;
+    summary: string;
+    keywords: string[];
+  };
+  dimensions: Array<{
+    key: 'love' | 'career' | 'wealth' | 'wellbeing';
+    label: string;
+    score: number;
+    title: string;
+    summary: string;
+    action: string;
+  }>;
+  dayparts: Array<{
+    label: string;
+    suitable: string;
+    avoid: string;
+    hint: string;
+  }>;
+  lucky: {
+    color: string;
+    number: string;
+    direction: string;
+    item: string;
+  };
+  action: {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: string;
+    checkInText: string;
+  };
+  compatibility: {
+    bestMatch: string;
+    message: string;
+  };
+  sharePoster: {
+    title: string;
+    subtitle: string;
+    accentText: string;
+    footerText: string;
+    themeName: string;
+  };
+}
+
 export interface ZodiacWeeklyData {
   zodiac: ZodiacSign | string;
   weekRange: string;
@@ -69,6 +131,30 @@ export interface ZodiacWeeklyData {
   bestMatch: string;
   action: string;
   caution: string;
+}
+
+export interface ZodiacMonthlyData {
+  zodiac: ZodiacSign | string;
+  month: string;
+  profile: ZodiacProfileSummary;
+  theme: {
+    title: string;
+    summary: string;
+  };
+  rhythm: Array<{
+    label: string;
+    summary: string;
+  }>;
+  focus: {
+    relationship: string;
+    career: string;
+    money: string;
+    wellbeing: string;
+  };
+  opportunities: string[];
+  cautions: string[];
+  keyDays: string[];
+  action: string;
 }
 
 export interface ZodiacYearlyData {
@@ -126,7 +212,9 @@ export interface ZodiacKnowledgeData {
 }
 
 export type ZodiacDailyResponse = ApiEnvelope<ZodiacDailyData>;
+export type ZodiacTodayResponse = ApiEnvelope<ZodiacTodayData>;
 export type ZodiacWeeklyResponse = ApiEnvelope<ZodiacWeeklyData>;
+export type ZodiacMonthlyResponse = ApiEnvelope<ZodiacMonthlyData>;
 export type ZodiacYearlyResponse = ApiEnvelope<ZodiacYearlyData>;
 export type ZodiacCompatibilityResponse = ApiEnvelope<ZodiacCompatibilityData>;
 export type ZodiacKnowledgeResponse = ApiEnvelope<ZodiacKnowledgeData>;

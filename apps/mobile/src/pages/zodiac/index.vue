@@ -58,6 +58,34 @@
       </view>
     </view>
 
+    <view v-if="poster" class="panel poster-preview-panel">
+      <view class="section-head">
+        <view class="section-head__copy">
+          <text class="section-kicker">分享图预览</text>
+          <text class="section-title">{{ poster.title }}</text>
+        </view>
+        <text class="section-note">{{ poster.width }} × {{ poster.height }}</text>
+      </view>
+
+      <image class="poster-image" :src="posterImageSource" mode="widthFix" @tap="previewGeneratedPoster" />
+
+      <view class="poster-actions">
+        <button class="poster-button poster-button--secondary" @tap="previewGeneratedPoster">
+          大图预览
+        </button>
+        <button class="poster-button poster-button--primary" @tap="saveGeneratedPoster">
+          保存到手机
+        </button>
+        <button
+          v-if="isMpWeixin"
+          class="poster-button poster-button--ghost"
+          @tap="shareGeneratedPoster"
+        >
+          微信发好友
+        </button>
+      </view>
+    </view>
+
     <view class="panel">
       <text class="section-kicker">选择星座</text>
       <view class="sign-grid">
@@ -389,8 +417,11 @@ import {
   handlePosterImageError,
   previewPosterImage,
   resolvePreferredImageSource,
+  savePosterImage,
+  sharePosterImageToWechat,
 } from '../../services/poster-image';
 import { getCachedUser } from '../../services/session';
+import type { GeneratedPoster } from '../../types/poster';
 import type {
   ZodiacCompatibilityData,
   ZodiacDailyData,
@@ -890,14 +921,21 @@ const activeView = ref<ZodiacViewMode>('daily');
 const loading = ref(false);
 const compatibilityLoading = ref(false);
 const posterLoading = ref(false);
+const poster = ref<GeneratedPoster | null>(null);
 const actionChecked = ref(false);
 const { themeVars } = useThemePreference();
+const isMpWeixin = String(
+  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
+).toLowerCase() === 'mp-weixin';
 const todayFortune = ref<ZodiacTodayData>(buildTodayFallback('狮子座'));
 const weeklyFortune = ref<ZodiacWeeklyData>(buildWeeklyFallback('狮子座'));
 const monthlyFortune = ref<ZodiacMonthlyData>(buildMonthlyFallback('狮子座'));
 const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
 const compatibility = ref<ZodiacCompatibilityData>(buildCompatibilityFallback('狮子座', '白羊座'));
 const knowledge = ref<ZodiacKnowledgeData>(buildKnowledgeFallback('狮子座'));
+const posterImageSource = computed(() =>
+  poster.value ? resolvePreferredImageSource(poster.value) : '',
+);
 
 const zodiacVisual = computed(() => {
   const sign = String(selectedSign.value) as ZodiacSign;
@@ -1074,6 +1112,7 @@ async function selectSign(sign: string) {
   }
 
   selectedSign.value = sign;
+  poster.value = null;
   await loadModule(sign);
 }
 
@@ -1101,12 +1140,14 @@ async function generateZodiacPoster() {
 
   try {
     posterLoading.value = true;
-    const poster = await generateZodiacTodayPosterAsync(String(selectedSign.value));
-    const imageSource = resolvePreferredImageSource(poster);
-    if (!imageSource) {
+    poster.value = await generateZodiacTodayPosterAsync(String(selectedSign.value));
+    if (!posterImageSource.value) {
       throw new Error('星座分享图生成失败，请稍后再试');
     }
-    await previewPosterImage(imageSource, poster.downloadFileName);
+    uni.showToast({
+      title: '分享图已生成',
+      icon: 'success',
+    });
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '星座分享图生成失败'),
@@ -1114,6 +1155,55 @@ async function generateZodiacPoster() {
     });
   } finally {
     posterLoading.value = false;
+  }
+}
+
+async function previewGeneratedPoster() {
+  if (!poster.value || !posterImageSource.value) {
+    return;
+  }
+
+  try {
+    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '预览失败，请稍后再试'),
+      icon: 'none',
+    });
+  }
+}
+
+async function saveGeneratedPoster() {
+  if (!poster.value || !posterImageSource.value) {
+    return;
+  }
+
+  try {
+    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
+    uni.showToast({
+      title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
+      icon: 'success',
+    });
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '保存失败，请稍后再试'),
+      icon: 'none',
+    });
+  }
+}
+
+async function shareGeneratedPoster() {
+  if (!poster.value || !posterImageSource.value) {
+    return;
+  }
+
+  try {
+    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
+  } catch (error) {
+    uni.showToast({
+      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
+      icon: 'none',
+    });
   }
 }
 
@@ -1176,6 +1266,37 @@ onPullDownRefresh(async () => {
   margin-top: 20rpx;
   padding: 26rpx;
   background: rgba(255, 255, 255, 0.88);
+}
+
+.poster-preview-panel {
+  display: grid;
+  gap: 20rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.section-head__copy {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.poster-image {
+  width: 100%;
+  border-radius: 28rpx;
+  background: rgba(245, 249, 255, 0.92);
+  box-shadow: 0 18rpx 46rpx rgba(57, 78, 116, 0.12);
+}
+
+.poster-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
 }
 
 .eyebrow,
@@ -1405,6 +1526,7 @@ onPullDownRefresh(async () => {
 }
 
 .share-button,
+.poster-button,
 .check-button {
   min-width: 176rpx;
   min-height: 72rpx;
@@ -1418,8 +1540,23 @@ onPullDownRefresh(async () => {
 }
 
 .share-button::after,
+.poster-button::after,
 .check-button::after {
   border: 0;
+}
+
+.poster-button {
+  min-width: 0;
+}
+
+.poster-button--primary {
+  background: linear-gradient(135deg, var(--apple-blue) 0%, #78a4ff 100%);
+}
+
+.poster-button--secondary,
+.poster-button--ghost {
+  color: var(--apple-text);
+  background: rgba(244, 247, 250, 0.94);
 }
 
 .check-button {

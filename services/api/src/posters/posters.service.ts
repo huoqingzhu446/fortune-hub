@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -88,22 +89,24 @@ export class PostersService {
       backgroundAsset.backgroundImageDataUrl,
       layout,
     );
-    const provider =
-      backgroundAsset.provider === 'zhipu' && rendered.usedProviderBackground
-        ? 'zhipu'
-        : 'builtin';
-    const providerStatus =
-      backgroundAsset.provider === 'zhipu' && rendered.usedProviderBackground
-        ? 'generated'
-        : 'fallback';
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
+    const provider = 'zhipu';
+    const providerStatus = 'generated';
+    const downloadFileName = `fortune-hub-${source.sourceType}-${posterId}.png`;
+
+    if (!rendered.usedProviderBackground) {
+      throw new BadGatewayException('智谱背景没有参与海报渲染，请稍后重试');
+    }
+
     const fileUrl = await this.persistPosterFile(
       rendered.imageBuffer,
-      `fortune-hub-${this.slugify(source.title)}-poster.png`,
+      downloadFileName,
     );
     const payload = {
       posterId,
       sourceType: source.sourceType,
+      provider,
+      providerStatus,
       title: source.title,
       subtitle: source.subtitle,
       accentText: source.accentText,
@@ -116,7 +119,7 @@ export class PostersService {
       width: layout.width,
       height: layout.height,
       size: layout.size,
-      downloadFileName: `fortune-hub-${this.slugify(source.title)}-poster.png`,
+      downloadFileName,
       generatedAt: new Date().toISOString(),
       format: 'png',
       imageDataUrl: rendered.imageDataUrl,
@@ -246,7 +249,7 @@ export class PostersService {
       job.errorMessage = null;
     } catch (error) {
       job.status = 'failed';
-      job.errorMessage = error instanceof Error ? error.message : '海报生成失败';
+      job.errorMessage = this.buildPublicJobErrorMessage(error);
       job.finishedAt = new Date();
     }
 
@@ -581,14 +584,7 @@ export class PostersService {
     size: string,
   ): Promise<PosterBackgroundAsset> {
     if (!this.imageGenerationService.isConfigured()) {
-      return {
-        provider: 'builtin',
-        status: 'fallback',
-        providerImageUrl: null,
-        backgroundImageDataUrl: null,
-        providerRequestId: null,
-        providerError: '未配置 ZHIPU_API_KEY 或 BIGMODEL_API_KEY',
-      };
+      throw new BadGatewayException('图片生成服务未配置，请稍后重试');
     }
 
     try {
@@ -607,17 +603,18 @@ export class PostersService {
         providerError: null,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '智谱海报背景生成失败';
-      console.warn('poster background fallback to builtin', errorMessage);
+      const diagnostic = this.extractProviderDiagnostic(error);
+      console.warn('poster zhipu background failed', diagnostic);
 
-      return {
-        provider: 'builtin',
-        status: 'fallback',
-        providerImageUrl: null,
-        backgroundImageDataUrl: null,
-        providerRequestId: null,
-        providerError: errorMessage,
-      };
+      throw new BadGatewayException({
+        message: '智谱海报背景生成失败，请稍后重试',
+        error: 'ZhipuPosterBackgroundFailed',
+        provider: 'zhipu',
+        providerCode: diagnostic.providerCode,
+        providerMessage: diagnostic.providerMessage,
+        providerStatusCode: diagnostic.providerStatusCode,
+        requestId: diagnostic.requestId,
+      });
     }
   }
 
@@ -762,6 +759,110 @@ export class PostersService {
     }
 
     return publicPayload;
+  }
+
+  private buildPublicJobErrorMessage(error: unknown) {
+    if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      return this.extractErrorMessage(error, '海报生成失败');
+    }
+
+    return '图片生成失败，请稍后重试';
+  }
+
+  private extractProviderDiagnostic(error: unknown) {
+    const providerError =
+      error && typeof error === 'object'
+        ? (error as { providerError?: unknown }).providerError
+        : null;
+
+    if (providerError && typeof providerError === 'object') {
+      const payload = providerError as Record<string, unknown>;
+
+      return {
+        providerCode: this.pickDiagnosticValue(payload.providerCode),
+        providerMessage: this.pickString(
+          payload.providerMessage,
+          this.extractErrorMessage(error, '智谱海报背景生成失败'),
+        ),
+        providerStatusCode: this.pickDiagnosticValue(payload.statusCode),
+        requestId: this.pickDiagnosticValue(payload.requestId),
+      };
+    }
+
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+      const payload =
+        response && typeof response === 'object'
+          ? (response as Record<string, unknown>)
+          : {};
+
+      return {
+        providerCode: this.pickDiagnosticValue(payload.providerCode),
+        providerMessage: this.pickString(
+          payload.providerMessage,
+          this.extractErrorMessage(error, '智谱海报背景生成失败'),
+        ),
+        providerStatusCode: this.pickDiagnosticValue(payload.providerStatusCode),
+        requestId: this.pickDiagnosticValue(payload.requestId),
+      };
+    }
+
+    return {
+      providerCode: null,
+      providerMessage: this.extractErrorMessage(error, '智谱海报背景生成失败'),
+      providerStatusCode: null,
+      requestId: null,
+    };
+  }
+
+  private extractErrorMessage(error: unknown, fallback: string) {
+    if (typeof error === 'string' && error.trim()) {
+      return error.trim();
+    }
+
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+
+      if (typeof response === 'string' && response.trim()) {
+        return response.trim();
+      }
+
+      if (response && typeof response === 'object') {
+        const message = (response as { message?: unknown }).message;
+
+        if (typeof message === 'string' && message.trim()) {
+          return message.trim();
+        }
+
+        if (Array.isArray(message)) {
+          const firstMessage = message.find(
+            (item) => typeof item === 'string' && item.trim(),
+          );
+
+          if (typeof firstMessage === 'string') {
+            return firstMessage.trim();
+          }
+        }
+      }
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+
+    return fallback;
+  }
+
+  private pickDiagnosticValue(value: unknown) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    return null;
   }
 
   private resolveFileServiceBaseUrl() {

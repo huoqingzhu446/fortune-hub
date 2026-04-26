@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { IsNull, Repository } from 'typeorm';
+import {
+  buildPublicApiFileContentUrl,
+  extractFileIdFromFileUrl,
+  normalizeFileServiceUrlToApiProxy,
+} from '../common/file-url.util';
 import { ImageGenerationService } from '../common/image-generation.service';
 import { PosterRendererService, WallpaperLayout } from '../common/poster-renderer.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
@@ -626,6 +631,7 @@ export class LuckyService {
       );
       const payload = (await response.json().catch(() => null)) as
         | {
+            id?: string;
             contentUrl?: string;
             url?: string;
           }
@@ -635,23 +641,22 @@ export class LuckyService {
         return null;
       }
 
-      return payload?.contentUrl ?? payload?.url ?? null;
+      return this.resolveUploadedFileUrl(payload?.contentUrl ?? payload?.url, payload?.id);
     } catch {
       return null;
     }
   }
 
   private resolveFileServiceUploadUrl() {
-    const baseUrl = this.configService.get<string>('FILE_SERVICE_BASE_URL');
+    const baseUrl = this.resolveFileServiceBaseUrl();
 
     if (!baseUrl) {
       return null;
     }
 
-    const normalized = baseUrl.replace(/\/$/, '');
-    return normalized.endsWith('/api')
-      ? `${normalized}/files/upload`
-      : `${normalized}/api/files/upload`;
+    return baseUrl.endsWith('/api')
+      ? `${baseUrl}/files/upload`
+      : `${baseUrl}/api/files/upload`;
   }
 
   private async fetchWithTimeout(
@@ -1276,6 +1281,10 @@ export class LuckyService {
     const publicPayload = { ...payload };
     delete publicPayload.svgMarkup;
 
+    if (typeof publicPayload.fileUrl === 'string') {
+      publicPayload.fileUrl = this.resolveUploadedFileUrl(publicPayload.fileUrl);
+    }
+
     if (
       typeof publicPayload.imageDataUrl === 'string' &&
       !publicPayload.imageDataUrl.startsWith('data:image/png;base64,')
@@ -1292,6 +1301,29 @@ export class LuckyService {
     }
 
     return publicPayload;
+  }
+
+  private resolveFileServiceBaseUrl() {
+    return this.configService.get<string>('FILE_SERVICE_BASE_URL')?.replace(/\/$/, '') ?? '';
+  }
+
+  private resolveUploadedFileUrl(contentUrl?: string | null, fileId?: string) {
+    const publicApiBaseUrl = this.configService.get<string>('PUBLIC_API_BASE_URL');
+    const resolvedFileId = fileId || (contentUrl ? extractFileIdFromFileUrl(contentUrl) : null);
+
+    if (resolvedFileId) {
+      return buildPublicApiFileContentUrl(resolvedFileId, publicApiBaseUrl);
+    }
+
+    if (!contentUrl) {
+      return null;
+    }
+
+    return normalizeFileServiceUrlToApiProxy(contentUrl, {
+      forceProxy: true,
+      internalBaseUrl: this.resolveFileServiceBaseUrl(),
+      publicApiBaseUrl,
+    });
   }
 
   private slugify(input: string) {

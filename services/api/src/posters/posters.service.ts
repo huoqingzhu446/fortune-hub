@@ -8,6 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
+import {
+  buildPublicApiFileContentUrl,
+  extractFileIdFromFileUrl,
+  normalizeFileServiceUrlToApiProxy,
+} from '../common/file-url.util';
 import { ImageGenerationService } from '../common/image-generation.service';
 import {
   PosterMetric,
@@ -657,23 +662,22 @@ export class PostersService {
         return null;
       }
 
-      return payload?.contentUrl ?? payload?.url ?? null;
+      return this.resolveUploadedFileUrl(payload?.contentUrl ?? payload?.url, payload?.id);
     } catch {
       return null;
     }
   }
 
   private resolveFileServiceUploadUrl() {
-    const baseUrl = this.configService.get<string>('FILE_SERVICE_BASE_URL');
+    const baseUrl = this.resolveFileServiceBaseUrl();
 
     if (!baseUrl) {
       return null;
     }
 
-    const normalized = baseUrl.replace(/\/$/, '');
-    return normalized.endsWith('/api')
-      ? `${normalized}/files/upload`
-      : `${normalized}/api/files/upload`;
+    return baseUrl.endsWith('/api')
+      ? `${baseUrl}/files/upload`
+      : `${baseUrl}/api/files/upload`;
   }
 
   private async fetchWithTimeout(
@@ -738,6 +742,10 @@ export class PostersService {
     const publicPayload = { ...payload };
     delete publicPayload.svgMarkup;
 
+    if (typeof publicPayload.fileUrl === 'string') {
+      publicPayload.fileUrl = this.resolveUploadedFileUrl(publicPayload.fileUrl);
+    }
+
     if (
       typeof publicPayload.imageDataUrl === 'string' &&
       !publicPayload.imageDataUrl.startsWith('data:image/png;base64,')
@@ -754,6 +762,29 @@ export class PostersService {
     }
 
     return publicPayload;
+  }
+
+  private resolveFileServiceBaseUrl() {
+    return this.configService.get<string>('FILE_SERVICE_BASE_URL')?.replace(/\/$/, '') ?? '';
+  }
+
+  private resolveUploadedFileUrl(contentUrl?: string | null, fileId?: string) {
+    const publicApiBaseUrl = this.configService.get<string>('PUBLIC_API_BASE_URL');
+    const resolvedFileId = fileId || (contentUrl ? extractFileIdFromFileUrl(contentUrl) : null);
+
+    if (resolvedFileId) {
+      return buildPublicApiFileContentUrl(resolvedFileId, publicApiBaseUrl);
+    }
+
+    if (!contentUrl) {
+      return null;
+    }
+
+    return normalizeFileServiceUrlToApiProxy(contentUrl, {
+      forceProxy: true,
+      internalBaseUrl: this.resolveFileServiceBaseUrl(),
+      publicApiBaseUrl,
+    });
   }
 
   private resolveTodayIndexThemeName(dominantElement: string) {

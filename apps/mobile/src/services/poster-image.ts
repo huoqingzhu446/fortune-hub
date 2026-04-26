@@ -1,4 +1,5 @@
 import { getErrorMessage } from './errors';
+import { appEnv } from '../config/env';
 
 type WechatRuntime = {
   env?: {
@@ -31,6 +32,52 @@ function getWechatRuntime() {
 
 function isDataUrl(value: string) {
   return value.startsWith('data:image/');
+}
+
+function extractFileIdFromUrl(value: string) {
+  const match = value.match(
+    /(?:^|\/)(?:api(?:\/v1)?\/)?files\/([^/?#]+)\/content(?:$|[/?#])/i,
+  );
+
+  if (!match?.[1]) {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function buildApiFileContentUrl(fileId: string) {
+  const path = `/api/v1/files/${encodeURIComponent(fileId)}/content`;
+
+  if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
+    return new URL(path, appEnv.apiBaseUrl).toString();
+  }
+
+  return path;
+}
+
+function normalizeImageSource(imageSource: string) {
+  const trimmed = imageSource.trim();
+
+  if (!trimmed || isDataUrl(trimmed)) {
+    return trimmed;
+  }
+
+  const fileId = extractFileIdFromUrl(trimmed);
+
+  if (fileId) {
+    return buildApiFileContentUrl(fileId);
+  }
+
+  if (trimmed.startsWith('/') && /^https?:\/\//i.test(appEnv.apiBaseUrl)) {
+    return new URL(trimmed, appEnv.apiBaseUrl).toString();
+  }
+
+  return trimmed;
 }
 
 function stripFileExtension(fileName: string) {
@@ -182,7 +229,7 @@ export function resolvePreferredImageSource(input: {
   fileUrl?: string | null;
   imageDataUrl?: string | null;
 }) {
-  return input.fileUrl || input.imageDataUrl || '';
+  return normalizeImageSource(input.fileUrl || input.imageDataUrl || '');
 }
 
 export function handlePosterImageError(error: unknown, fallback = '图片处理失败，请稍后再试') {

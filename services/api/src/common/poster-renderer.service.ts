@@ -2,7 +2,28 @@ import { Injectable } from '@nestjs/common';
 import sharp from 'sharp';
 
 const POSTER_FONT_FAMILY =
-  'WenQuanYi Zen Hei, Noto Sans CJK SC, Noto Sans SC, PingFang SC, Microsoft YaHei, Arial, sans-serif';
+  'WenQuanYi Zen Hei, Noto Sans CJK SC, Noto Sans SC, PingFang SC, Microsoft YaHei, DejaVu Sans, Arial, sans-serif';
+
+const ZODIAC_POSTER_VISUALS: Record<
+  string,
+  {
+    glyph: string;
+    english: string;
+  }
+> = {
+  白羊座: { glyph: '白羊', english: 'Aries' },
+  金牛座: { glyph: '金牛', english: 'Taurus' },
+  双子座: { glyph: '双子', english: 'Gemini' },
+  巨蟹座: { glyph: '巨蟹', english: 'Cancer' },
+  狮子座: { glyph: '狮子', english: 'Leo' },
+  处女座: { glyph: '处女', english: 'Virgo' },
+  天秤座: { glyph: '天秤', english: 'Libra' },
+  天蝎座: { glyph: '天蝎', english: 'Scorpio' },
+  射手座: { glyph: '射手', english: 'Sagittarius' },
+  摩羯座: { glyph: '摩羯', english: 'Capricorn' },
+  水瓶座: { glyph: '水瓶', english: 'Aquarius' },
+  双鱼座: { glyph: '双鱼', english: 'Pisces' },
+};
 
 export type PosterMetric = {
   label: string;
@@ -23,10 +44,14 @@ export type PosterRenderSource = {
   metrics: PosterMetric[];
   highlightTitle?: string;
   highlightLines: string[];
+  zodiacName?: string;
+  zodiacGlyph?: string;
+  zodiacEnglish?: string;
+  energyValue?: string;
 };
 
 export type PosterLayout = {
-  size: '1280x1280' | '1088x1472';
+  size: '1280x1280' | '1080x1440';
   width: number;
   height: number;
   kind: 'square' | 'portrait';
@@ -58,20 +83,17 @@ export type WallpaperRenderInput = {
 @Injectable()
 export class PosterRendererService {
   resolvePosterLayout(
-    requestedSize: PosterLayout['size'] | undefined,
+    requestedSize: PosterLayout['size'] | '1088x1472' | undefined,
     sourceType: string,
   ): PosterLayout {
-    const size =
-      requestedSize ??
-      (sourceType === 'today_index' || sourceType === 'zodiac_today'
-        ? '1088x1472'
-        : '1280x1280');
+    const prefersPortrait = sourceType === 'today_index' || sourceType === 'zodiac_today';
+    const size = requestedSize ?? (prefersPortrait ? '1080x1440' : '1280x1280');
 
-    if (size === '1088x1472') {
+    if (size === '1080x1440' || size === '1088x1472') {
       return {
-        size,
-        width: 1088,
-        height: 1472,
+        size: '1080x1440',
+        width: 1080,
+        height: 1440,
         kind: 'portrait',
       };
     }
@@ -114,9 +136,11 @@ export class PosterRendererService {
     layout: PosterLayout,
   ): Promise<RenderedPosterImage> {
     const build = (background: string | null) =>
-      layout.kind === 'portrait'
-        ? this.buildRichPosterSvg(source, background, layout)
-        : this.buildSharePosterSvg(source, background);
+      layout.kind === 'portrait' && source.sourceType === 'zodiac_today'
+        ? this.buildZodiacTodayPosterSvg(source, layout)
+        : layout.kind === 'portrait'
+          ? this.buildRichPosterSvg(source, background, layout)
+          : this.buildSharePosterSvg(source, background);
 
     const templateMarkup = build(backgroundDataUrl);
 
@@ -274,6 +298,97 @@ export class PosterRendererService {
 </svg>`.trim();
   }
 
+  private buildZodiacTodayPosterSvg(source: PosterRenderSource, layout: PosterLayout) {
+    const visual = this.resolveZodiacPosterVisual(source);
+    const titleLines = this.renderZodiacTitleLines(source.zodiacName ?? source.title);
+    const subtitleLines = this.renderTextTspans(source.subtitle, 13, 0, 46, 78);
+    const reminderLines = this.renderTextTspans(
+      source.summary || source.highlightLines[0] || '把任务拆小，把节奏放稳。今天的每一步都算数。',
+      18,
+      0,
+      38,
+      348,
+    );
+    const infoCards = this.renderZodiacInfoCards(source.metrics.slice(0, 3));
+    const keywordTags = this.renderZodiacKeywordTags(source.chips.slice(0, 3));
+    const energyValue = this.escapeXml(source.energyValue ?? '78');
+    const highlightTitle = this.escapeXml(source.highlightTitle ?? '今日提醒');
+
+    return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
+  <defs>
+    <linearGradient id="zodiac-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F4F7FF" />
+      <stop offset="54%" stop-color="#EEF2FF" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+    <linearGradient id="poster-frame" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94" />
+      <stop offset="62%" stop-color="#F8FAFF" stop-opacity="0.82" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="hero-card" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.86" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.58" />
+    </linearGradient>
+    <linearGradient id="purple-core" x1="16%" x2="86%" y1="8%" y2="92%">
+      <stop offset="0%" stop-color="#C99DFF" />
+      <stop offset="48%" stop-color="#A85CFF" />
+      <stop offset="100%" stop-color="#5E7CFF" />
+    </linearGradient>
+    <linearGradient id="blue-pill" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EBF3FF" />
+      <stop offset="100%" stop-color="#F7FAFF" />
+    </linearGradient>
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#5D7FB8" flood-opacity="0.16" />
+    </filter>
+    <filter id="title-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#B6C7EE" flood-opacity="0.34" />
+    </filter>
+  </defs>
+  <rect width="${layout.width}" height="${layout.height}" fill="url(#zodiac-bg)" />
+  <rect x="-80" y="0" width="1240" height="270" fill="#5DA9E9" fill-opacity="0.14" />
+  <path d="M62 450 C 270 274, 518 314, 728 478 S 982 584, 1040 394" fill="none" stroke="#A85CFF" stroke-opacity="0.2" stroke-width="2" />
+  <path d="M450 116 C 594 188, 720 310, 960 236" fill="none" stroke="#5DA9E9" stroke-opacity="0.22" stroke-width="3" />
+  ${this.renderZodiacStars()}
+  <rect x="28" y="28" width="1024" height="1384" rx="56" ry="56" fill="url(#poster-frame)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <path d="M56 1210 C 232 1158, 388 1200, 548 1250 S 884 1322, 1024 1238" fill="none" stroke="#D7E5FF" stroke-width="7" stroke-opacity="0.58" />
+  <text x="78" y="116" font-size="26" letter-spacing="8" fill="#8EA8F8" font-family="${POSTER_FONT_FAMILY}">ZODIAC TODAY</text>
+  <path d="M326 107 L 414 107" stroke="#C5D5FF" stroke-width="2" />
+  <path d="M434 98 L 440 108 L 450 114 L 440 120 L 434 130 L 428 120 L 418 114 L 428 108 Z" fill="#90A7F7" fill-opacity="0.72" />
+  <text x="78" y="244" font-size="78" font-weight="760" fill="#25334B" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${titleLines}</text>
+  <path d="M82 392 L 112 360" stroke="#8AA5FF" stroke-width="3" stroke-linecap="round" />
+  <text x="78" y="468" font-size="34" font-weight="600" fill="#42546F" font-family="${POSTER_FONT_FAMILY}">${subtitleLines}</text>
+  <rect x="602" y="88" width="380" height="458" rx="64" ry="64" fill="url(#hero-card)" stroke="#FFFFFF" stroke-width="3" filter="url(#card-shadow)" />
+  <path d="M614 333 C 720 244, 844 236, 962 318" fill="none" stroke="#FFFFFF" stroke-opacity="0.82" stroke-width="2" />
+  <ellipse cx="800" cy="327" rx="212" ry="54" fill="none" stroke="#B9C5FF" stroke-width="2" stroke-opacity="0.58" transform="rotate(-17 800 327)" />
+  <circle cx="792" cy="236" r="108" fill="url(#purple-core)" />
+  <circle cx="792" cy="236" r="126" fill="#A85CFF" fill-opacity="0.12" />
+  <text x="792" y="270" text-anchor="middle" font-size="84" font-weight="760" letter-spacing="3" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+    visual.glyph,
+  )}</text>
+  <text x="792" y="448" text-anchor="middle" font-size="104" font-weight="760" fill="#6B5BEF" font-family="${POSTER_FONT_FAMILY}">${energyValue}</text>
+  <text x="792" y="498" text-anchor="middle" font-size="27" font-weight="600" fill="#7B83B2" font-family="${POSTER_FONT_FAMILY}">今日能量值</text>
+  ${infoCards}
+  ${keywordTags}
+  <rect x="64" y="1038" width="952" height="190" rx="32" ry="32" fill="#FFFFFF" fill-opacity="0.78" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  ${this.renderReminderIllustration()}
+  <text x="348" y="1110" font-size="35" font-weight="760" fill="#2F3A4A" font-family="${POSTER_FONT_FAMILY}">${highlightTitle}</text>
+  <path d="M518 1087 L 526 1102 L 542 1110 L 526 1118 L 518 1134 L 510 1118 L 494 1110 L 510 1102 Z" fill="#A9B9FF" fill-opacity="0.82" />
+  <text x="348" y="1164" font-size="30" font-weight="500" fill="#5D6A7F" font-family="${POSTER_FONT_FAMILY}">${reminderLines}</text>
+  <rect x="64" y="1274" width="86" height="86" rx="24" ry="24" fill="url(#purple-core)" />
+  <path d="M88 1324 C 114 1292, 142 1300, 130 1328 C 118 1354, 86 1350, 88 1324 Z" fill="#FFFFFF" fill-opacity="0.88" />
+  <circle cx="124" cy="1311" r="7" fill="#FFFFFF" />
+  <text x="174" y="1314" font-size="30" font-weight="720" fill="#24344F" font-family="${POSTER_FONT_FAMILY}">星座今日 · Zodiac Today</text>
+  <text x="174" y="1355" font-size="24" fill="#7E8DA6" font-family="${POSTER_FONT_FAMILY}">发现星座的力量，遇见更好的自己</text>
+  <path d="M636 1284 L 636 1362" stroke="#D6DEF2" stroke-width="2" />
+  <text x="674" y="1318" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">扫码查看你的</text>
+  <text x="674" y="1356" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">今日运势</text>
+  ${this.renderMiniProgramCodePlaceholder()}
+</svg>`.trim();
+  }
+
   private buildWallpaperSvg(input: WallpaperRenderInput) {
     const { layout, palette } = input;
     const [colorA, colorB, colorC] = palette;
@@ -409,6 +524,187 @@ export class PosterRendererService {
   )}</text>`.trim();
       })
       .join('');
+  }
+
+  private renderZodiacInfoCards(metrics: PosterMetric[]) {
+    const normalized = [
+      metrics[0] ?? { label: '幸运色', value: '雾光蓝', hint: '幸运色彩助力好运' },
+      metrics[1] ?? { label: '幸运物', value: '木质书签', hint: '随身携带，带来灵感' },
+      metrics[2] ?? { label: '行动签', value: '完成一个小目标', hint: '行动带来改变' },
+    ];
+    const cardWidth = 304;
+    const cardHeight = 244;
+    const gap = 22;
+    const startX = 64;
+    const y = 636;
+
+    return normalized
+      .map((metric, index) => {
+        const x = startX + index * (cardWidth + gap);
+        const label = this.escapeXml(metric.label);
+        const valueLines = this.renderTextTspans(metric.value, index === 2 ? 8 : 7, 0, 42, x + 28);
+        const hintLines = this.renderTextTspans(metric.hint ?? '', 10, 0, 30, x + 28);
+
+        return `
+  <rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="26" ry="26" fill="#FFFFFF" fill-opacity="0.82" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  ${this.renderZodiacCardIcon(metric.label, x + 56, y + 56)}
+  <text x="${x + 104}" y="${y + 66}" font-size="28" font-weight="640" fill="#657491" font-family="${POSTER_FONT_FAMILY}">${label}</text>
+  <text x="${x + 28}" y="${y + 142}" font-size="34" font-weight="760" fill="#24344F" font-family="${POSTER_FONT_FAMILY}">${valueLines}</text>
+  <text x="${x + 28}" y="${y + 204}" font-size="23" fill="#7C8AA4" font-family="${POSTER_FONT_FAMILY}">${hintLines}</text>`.trim();
+      })
+      .join('');
+  }
+
+  private renderZodiacKeywordTags(chips: string[]) {
+    const normalized = (chips.length ? chips : ['目标', '责任', '耐力']).slice(0, 3);
+    const startX = 64;
+    const y = 918;
+    const width = 304;
+    const gap = 18;
+
+    return normalized
+      .map((chip, index) => {
+        const x = startX + index * (width + gap);
+        return `
+  <rect x="${x}" y="${y}" width="${width}" height="82" rx="40" ry="40" fill="url(#blue-pill)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  ${this.renderZodiacTagIcon(x + 82, y + 41, index)}
+  <text x="${x + 160}" y="${y + 53}" text-anchor="middle" font-size="30" font-weight="720" fill="#3B6ECF" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+    chip,
+  )}</text>`.trim();
+      })
+      .join('');
+  }
+
+  private renderZodiacTitleLines(title: string) {
+    const match = title.match(/^(白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座)/);
+    const sign = match?.[1] ?? title.slice(0, 3);
+    const secondLine = title.includes('运势') ? '今日运势' : '今日运势';
+
+    return [
+      `<tspan x="78" dy="0">${this.escapeXml(sign)}</tspan>`,
+      `<tspan x="78" dy="96">${this.escapeXml(secondLine)}</tspan>`,
+    ].join('');
+  }
+
+  private resolveZodiacPosterVisual(source: PosterRenderSource) {
+    const sign = source.zodiacName ?? source.title;
+    const visual = ZODIAC_POSTER_VISUALS[sign] ?? {
+      glyph: source.zodiacGlyph ?? '✦',
+      english: source.zodiacEnglish ?? 'Zodiac',
+    };
+
+    return {
+      glyph: source.zodiacGlyph ?? visual.glyph,
+      english: source.zodiacEnglish ?? visual.english,
+    };
+  }
+
+  private renderZodiacStars() {
+    const stars = [
+      [760, 74, 14],
+      [986, 86, 8],
+      [914, 170, 30],
+      [526, 172, 13],
+      [650, 194, 9],
+      [996, 252, 7],
+      [484, 334, 15],
+      [928, 412, 12],
+      [724, 510, 7],
+    ];
+
+    return stars
+      .map(
+        ([x, y, size]) =>
+          `<path d="M${x} ${y - size} L${x + size * 0.28} ${y - size * 0.28} L${x + size} ${y} L${x + size * 0.28} ${y + size * 0.28} L${x} ${y + size} L${x - size * 0.28} ${y + size * 0.28} L${x - size} ${y} L${x - size * 0.28} ${y - size * 0.28} Z" fill="#FFFFFF" fill-opacity="0.9" />`,
+      )
+      .join('');
+  }
+
+  private renderZodiacCardIcon(label: string, cx: number, cy: number) {
+    const base = `<circle cx="${cx}" cy="${cy}" r="28" fill="#5DA9E9" fill-opacity="0.16" /><circle cx="${cx}" cy="${cy}" r="24" fill="#6D82FF" fill-opacity="0.72" />`;
+
+    if (label.includes('物')) {
+      return `
+  ${base}
+  <path d="M${cx - 13} ${cy - 2} H${cx + 13} V${cy + 15} H${cx - 13} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" />
+  <path d="M${cx - 17} ${cy - 9} H${cx + 17} V${cy - 2} H${cx - 17} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" />
+  <path d="M${cx} ${cy - 13} V${cy + 15}" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />
+  <path d="M${cx} ${cy - 11} C${cx - 17} ${cy - 25}, ${cx - 18} ${cy - 2}, ${cx} ${cy - 8} C${cx + 18} ${cy - 2}, ${cx + 17} ${cy - 25}, ${cx} ${cy - 11} Z" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />`.trim();
+    }
+
+    if (label.includes('行动')) {
+      return `
+  ${base}
+  <path d="M${cx - 17} ${cy + 11} L${cx + 18} ${cy - 15} L${cx + 8} ${cy + 17} L${cx} ${cy + 4} L${cx - 17} ${cy + 11} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />`.trim();
+    }
+
+    return `
+  ${base}
+  <circle cx="${cx}" cy="${cy}" r="13" fill="none" stroke="#FFFFFF" stroke-width="5" />
+  <circle cx="${cx - 10}" cy="${cy - 12}" r="5" fill="#FFFFFF" />
+  <circle cx="${cx + 12}" cy="${cy - 5}" r="4" fill="#FFFFFF" />
+  <circle cx="${cx - 7}" cy="${cy + 13}" r="4" fill="#FFFFFF" />`.trim();
+  }
+
+  private renderZodiacTagIcon(cx: number, cy: number, index: number) {
+    if (index === 1) {
+      return `
+  <path d="M${cx - 12} ${cy - 10} L${cx} ${cy - 18} L${cx + 12} ${cy - 10} V${cy + 7} C${cx + 5} ${cy + 17}, ${cx - 5} ${cy + 17}, ${cx - 12} ${cy + 7} Z" fill="#5F86E8" />
+  <path d="M${cx - 5} ${cy} L${cx - 1} ${cy + 5} L${cx + 8} ${cy - 6}" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />`.trim();
+    }
+
+    if (index === 2) {
+      return `
+  <path d="M${cx - 16} ${cy + 14} L${cx - 4} ${cy - 14} L${cx + 20} ${cy + 14} Z" fill="#5F86E8" />
+  <path d="M${cx - 2} ${cy - 2} L${cx + 8} ${cy - 11} L${cx + 18} ${cy - 2}" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />`.trim();
+    }
+
+    return `
+  <circle cx="${cx}" cy="${cy}" r="19" fill="#5F86E8" />
+  <circle cx="${cx}" cy="${cy}" r="10" fill="none" stroke="#FFFFFF" stroke-width="4" />
+  <path d="M${cx + 7} ${cy - 7} L${cx + 17} ${cy - 17}" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  <path d="M${cx + 12} ${cy - 18} H${cx + 18} V${cy - 12}" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />`.trim();
+  }
+
+  private renderReminderIllustration() {
+    return `
+  <circle cx="186" cy="1136" r="82" fill="#94A8FF" fill-opacity="0.32" />
+  <path d="M96 1192 L166 1086 L218 1162 L244 1128 L306 1192 Z" fill="#7390FF" fill-opacity="0.58" />
+  <path d="M166 1086 L184 1148 L152 1128 Z" fill="#FFFFFF" fill-opacity="0.54" />
+  <path d="M218 1162 L232 1184 L190 1184 Z" fill="#4D71DB" fill-opacity="0.3" />
+  <path d="M160 1086 V1048 H206 L192 1067 L206 1086 Z" fill="#4D71DB" />
+  <path d="M160 1048 V1092" stroke="#4D71DB" stroke-width="5" stroke-linecap="round" />
+  <path d="M112 1114 L 122 1124 L 134 1116" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-opacity="0.9" />
+  <path d="M274 1086 L 282 1100 L 296 1108 L 282 1116 L 274 1130 L 266 1116 L 252 1108 L 266 1100 Z" fill="#FFFFFF" fill-opacity="0.9" />`.trim();
+  }
+
+  private renderMiniProgramCodePlaceholder() {
+    const modules = [
+      [886, 1274, 10],
+      [912, 1278, 8],
+      [938, 1284, 12],
+      [876, 1302, 8],
+      [902, 1304, 12],
+      [928, 1304, 8],
+      [952, 1312, 10],
+      [884, 1330, 12],
+      [916, 1334, 10],
+      [944, 1342, 8],
+      [896, 1358, 8],
+      [932, 1364, 12],
+    ];
+
+    return `
+  <circle cx="926" cy="1320" r="75" fill="#FFFFFF" filter="url(#card-shadow)" />
+  <circle cx="926" cy="1320" r="58" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
+  ${modules
+    .map(
+      ([x, y, size]) =>
+        `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="3" ry="3" fill="#2F3A4A" fill-opacity="0.82" />`,
+    )
+    .join('')}
+  <circle cx="926" cy="1320" r="23" fill="url(#purple-core)" />
+  <path d="M913 1326 C923 1308, 940 1312, 935 1329 C929 1345, 912 1341, 913 1326 Z" fill="#FFFFFF" fill-opacity="0.9" />`.trim();
   }
 
   private renderTextTspans(

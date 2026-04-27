@@ -14,7 +14,6 @@ import {
   extractFileIdFromFileUrl,
   normalizeFileServiceUrlToApiProxy,
 } from '../common/file-url.util';
-import { ImageGenerationService } from '../common/image-generation.service';
 import {
   PosterMetric,
   PosterRendererService,
@@ -46,15 +45,10 @@ type PosterSource = {
   metrics: PosterMetric[];
   highlightTitle?: string;
   highlightLines: string[];
-};
-
-type PosterBackgroundAsset = {
-  provider: string;
-  status: string;
-  providerImageUrl: string | null;
-  backgroundImageDataUrl: string | null;
-  providerRequestId?: string | null;
-  providerError?: string | null;
+  zodiacName?: string;
+  zodiacGlyph?: string;
+  zodiacEnglish?: string;
+  energyValue?: string;
 };
 
 @Injectable()
@@ -72,31 +66,22 @@ export class PostersService {
     private readonly luckyService: LuckyService,
     private readonly zodiacService: ZodiacService,
     private readonly configService: ConfigService,
-    private readonly imageGenerationService: ImageGenerationService,
     private readonly posterRendererService: PosterRendererService,
   ) {}
 
   async generatePoster(dto: GeneratePosterDto, user: UserEntity | null) {
     const source = await this.resolvePosterSource(dto, user);
     const layout = this.posterRendererService.resolvePosterLayout(dto.size, source.sourceType);
-    const providerPrompt = this.buildProviderPrompt(source);
-    const backgroundAsset = await this.resolvePosterBackground(
-      providerPrompt,
-      layout.size,
-    );
     const rendered = await this.posterRendererService.renderPoster(
       source,
-      backgroundAsset.backgroundImageDataUrl,
+      null,
       layout,
     );
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
-    const provider = 'zhipu';
-    const providerStatus = 'generated';
+    const provider = 'template';
+    const providerStatus = 'rendered';
+    const templateId = this.resolvePosterTemplateId(source.sourceType, layout.kind);
     const downloadFileName = `fortune-hub-${source.sourceType}-${posterId}.png`;
-
-    if (!rendered.usedProviderBackground) {
-      throw new BadGatewayException('智谱背景没有参与海报渲染，请稍后重试');
-    }
 
     const fileUrl = await this.persistPosterFile(
       rendered.imageBuffer,
@@ -112,10 +97,11 @@ export class PostersService {
       accentText: source.accentText,
       footerText: source.footerText,
       themeName: source.themeName,
-      providerImageUrl: backgroundAsset.providerImageUrl,
-      providerRequestId: backgroundAsset.providerRequestId ?? null,
-      providerError: backgroundAsset.providerError ?? null,
-      providerPrompt,
+      templateId,
+      providerImageUrl: null,
+      providerRequestId: null,
+      providerError: null,
+      providerPrompt: '',
       width: layout.width,
       height: layout.height,
       size: layout.size,
@@ -137,7 +123,7 @@ export class PostersService {
         posterTitle: source.title,
         provider,
         status: providerStatus,
-        prompt: providerPrompt,
+        prompt: templateId,
         payloadJson: storedPayload,
         fileUrl,
         storageProvider: fileUrl ? 'file-service' : 'inline',
@@ -463,20 +449,20 @@ export class PostersService {
   private async buildZodiacTodayPosterSource(zodiac: string): Promise<PosterSource> {
     const response = await this.zodiacService.getTodayFortune(zodiac);
     const data = response.data;
-    const topDimensions = [...data.dimensions]
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 3);
     const sharePoster = data.sharePoster;
 
     return {
       sourceType: 'zodiac_today',
       sourceCode: data.zodiac,
       recordId: null,
-      title: this.truncateText(sharePoster.title, 18),
+      title: `${data.zodiac}今日运势`,
       subtitle: this.truncateText(sharePoster.subtitle, 42),
       accentText: this.truncateText(sharePoster.accentText, 24),
       footerText: this.truncateText(sharePoster.footerText, 42),
-      summary: this.truncateText(data.theme.summary, 40),
+      summary: this.truncateText(
+        data.action.description || data.theme.summary,
+        52,
+      ),
       promptKeywords: [
         ...this.resolveZodiacVisualKeywords(data.zodiac),
         this.resolveElementVisualKeyword(data.profile.element),
@@ -490,18 +476,31 @@ export class PostersService {
       promptHint: '竖版无文字星象背景，只画星轨、山海、云雾、光线和抽象星座意象，避免标题牌、文字框、海报排版和数字。',
       eyebrowText: 'ZODIAC TODAY',
       chips: [
-        `${data.zodiac}`,
-        `今日 ${data.score.overall}`,
-        data.lucky.color,
-        data.lucky.item,
-        data.compatibility.bestMatch,
+        ...data.theme.keywords,
+        '目标',
+        '责任',
+        '耐力',
+      ]
+        .filter((item, index, array) => Boolean(item) && array.indexOf(item) === index)
+        .slice(0, 3),
+      metrics: [
+        {
+          label: '幸运色',
+          value: this.truncateText(data.lucky.color, 8),
+          hint: '幸运色彩助力好运',
+        },
+        {
+          label: '幸运物',
+          value: this.truncateText(data.lucky.item, 8),
+          hint: '随身携带，带来灵感与专注',
+        },
+        {
+          label: '行动签',
+          value: this.truncateText(data.action.title, 14),
+          hint: '行动带来改变',
+        },
       ],
-      metrics: topDimensions.map((item) => ({
-        label: item.label,
-        value: String(item.score),
-        hint: this.truncateText(item.title, 12),
-      })),
-      highlightTitle: '今日行动签',
+      highlightTitle: '今日提醒',
       highlightLines: [
         data.action.title,
         data.action.description,
@@ -510,6 +509,10 @@ export class PostersService {
         .filter(Boolean)
         .slice(0, 3)
         .map((item) => this.truncateText(item, 28)),
+      zodiacName: data.zodiac,
+      zodiacGlyph: this.resolveZodiacGlyph(data.zodiac),
+      zodiacEnglish: this.resolveZodiacEnglishName(data.zodiac),
+      energyValue: String(data.score.overall),
     };
   }
 
@@ -549,6 +552,60 @@ export class PostersService {
     ]
       .filter(Boolean)
       .join(' ');
+  }
+
+  private resolvePosterTemplateId(sourceType: string, kind: 'square' | 'portrait') {
+    if (sourceType === 'zodiac_today') {
+      return 'zodiac-today-energy-card-v1';
+    }
+
+    if (sourceType === 'today_index') {
+      return 'today-index-template-v1';
+    }
+
+    if (kind === 'portrait') {
+      return 'portrait-share-template-v1';
+    }
+
+    return 'square-share-template-v1';
+  }
+
+  private resolveZodiacGlyph(zodiac: string) {
+    const map: Record<string, string> = {
+      白羊座: '白羊',
+      金牛座: '金牛',
+      双子座: '双子',
+      巨蟹座: '巨蟹',
+      狮子座: '狮子',
+      处女座: '处女',
+      天秤座: '天秤',
+      天蝎座: '天蝎',
+      射手座: '射手',
+      摩羯座: '摩羯',
+      水瓶座: '水瓶',
+      双鱼座: '双鱼',
+    };
+
+    return map[zodiac] ?? '星座';
+  }
+
+  private resolveZodiacEnglishName(zodiac: string) {
+    const map: Record<string, string> = {
+      白羊座: 'Aries',
+      金牛座: 'Taurus',
+      双子座: 'Gemini',
+      巨蟹座: 'Cancer',
+      狮子座: 'Leo',
+      处女座: 'Virgo',
+      天秤座: 'Libra',
+      天蝎座: 'Scorpio',
+      射手座: 'Sagittarius',
+      摩羯座: 'Capricorn',
+      水瓶座: 'Aquarius',
+      双鱼座: 'Pisces',
+    };
+
+    return map[zodiac] ?? 'Zodiac';
   }
 
   private buildVisualPromptKeywords(source: PosterSource) {
@@ -667,45 +724,6 @@ export class PostersService {
     });
 
     return this.asRecord(template?.payloadJson);
-  }
-
-  private async resolvePosterBackground(
-    prompt: string,
-    size: string,
-  ): Promise<PosterBackgroundAsset> {
-    if (!this.imageGenerationService.isConfigured()) {
-      throw new BadGatewayException('图片生成服务未配置，请稍后重试');
-    }
-
-    try {
-      const providerImage = await this.imageGenerationService.generate({
-        prompt,
-        size,
-        purpose: '海报背景',
-      });
-
-      return {
-        provider: 'zhipu',
-        status: 'generated',
-        providerImageUrl: providerImage.providerImageUrl,
-        backgroundImageDataUrl: providerImage.imageDataUrl,
-        providerRequestId: providerImage.requestId,
-        providerError: null,
-      };
-    } catch (error) {
-      const diagnostic = this.extractProviderDiagnostic(error);
-      console.warn('poster zhipu background failed', diagnostic);
-
-      throw new BadGatewayException({
-        message: '智谱海报背景生成失败，请稍后重试',
-        error: 'ZhipuPosterBackgroundFailed',
-        provider: 'zhipu',
-        providerCode: diagnostic.providerCode,
-        providerMessage: diagnostic.providerMessage,
-        providerStatusCode: diagnostic.providerStatusCode,
-        requestId: diagnostic.requestId,
-      });
-    }
   }
 
   private async persistPosterFile(imageBuffer: Buffer, fileName: string) {

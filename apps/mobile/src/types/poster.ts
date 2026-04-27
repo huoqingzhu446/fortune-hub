@@ -8,13 +8,16 @@ export interface GeneratedPoster {
   accentText: string;
   footerText: string;
   themeName: string;
+  templateId?: string;
+  provider?: string;
+  providerStatus?: string;
   providerImageUrl: string | null;
   providerRequestId?: string | null;
   providerError?: string | null;
   providerPrompt: string;
   width: number;
   height: number;
-  size: '1280x1280' | '1088x1472';
+  size: '1280x1280' | '1080x1440' | '1088x1472';
   downloadFileName: string;
   generatedAt: string;
   format: 'png';

@@ -5,7 +5,7 @@ export function createPosterJob(payload: {
   recordId?: string;
   sourceType?: 'lucky_sign' | 'today_index' | 'zodiac_today';
   bizCode?: string;
-  size?: '1280x1280' | '1088x1472';
+  size?: '1280x1280' | '1080x1440' | '1088x1472';
 }) {
   return http.post<PosterJobResponse, typeof payload>('/posters/jobs', payload);
 }
@@ -58,7 +58,7 @@ export async function generateLuckySignPosterAsync(bizCode: string) {
 }
 
 export async function generateTodayIndexPosterAsync() {
-  const response = await createPosterJob({ sourceType: 'today_index', size: '1088x1472' });
+  const response = await createPosterJob({ sourceType: 'today_index', size: '1080x1440' });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {
     throw new Error('海报任务没有返回结果');
@@ -70,7 +70,7 @@ export async function generateZodiacTodayPosterAsync(zodiac: string) {
   const response = await createPosterJob({
     sourceType: 'zodiac_today',
     bizCode: zodiac,
-    size: '1088x1472',
+    size: '1080x1440',
   });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {

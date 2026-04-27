@@ -18,6 +18,6 @@ export class GeneratePosterDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['1280x1280', '1088x1472'])
-  size?: '1280x1280' | '1088x1472';
+  @IsIn(['1280x1280', '1080x1440', '1088x1472'])
+  size?: '1280x1280' | '1080x1440' | '1088x1472';
 }

@@ -8,7 +8,6 @@ import {
   extractFileIdFromFileUrl,
   normalizeFileServiceUrlToApiProxy,
 } from '../common/file-url.util';
-import { ImageGenerationService } from '../common/image-generation.service';
 import { PosterRendererService, WallpaperLayout } from '../common/poster-renderer.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
@@ -153,7 +152,6 @@ export class LuckyService {
     @InjectRepository(PosterJobEntity)
     private readonly posterJobRepository: Repository<PosterJobEntity>,
     private readonly configService: ConfigService,
-    private readonly imageGenerationService: ImageGenerationService,
     private readonly posterRendererService: PosterRendererService,
   ) {}
 
@@ -383,16 +381,7 @@ export class LuckyService {
     const subtitle = this.buildWallpaperSubtitle(user, signals, dominantElement);
     const guidance = this.buildWallpaperGuidance(user, signals, sourceItem?.title ?? title);
     const chips = this.buildWallpaperChips(user, dominantElement, signals, mood);
-    const wallpaperPrompt = this.buildProviderWallpaperPrompt({
-      title,
-      prompt,
-      mood,
-      palette,
-      guidance,
-      chips,
-    });
-    const providerAsset = await this.resolveWallpaperImage(
-      wallpaperPrompt,
+    const providerAsset = await this.buildTemplateWallpaperAsset(
       {
         layout,
         title,
@@ -499,29 +488,7 @@ export class LuckyService {
     await this.posterJobRepository.save(job);
   }
 
-  private buildProviderWallpaperPrompt(input: {
-    title: string;
-    prompt: string;
-    mood: string;
-    palette: string[];
-    guidance: string;
-    chips: string[];
-  }) {
-    return [
-      input.prompt,
-      `主题：${input.title}`,
-      `情绪：${input.mood}`,
-      `色彩：${input.palette.join(', ')}`,
-      `氛围：${input.guidance}`,
-      `关键词：${input.chips.join(', ')}`,
-      'mobile wallpaper background illustration only, premium lifestyle still life, clean composition, soft daylight, no text, no letters, no numbers, no logo, no watermark, no people, no UI cards, high detail',
-    ]
-      .filter(Boolean)
-      .join('。');
-  }
-
-  private async resolveWallpaperImage(
-    prompt: string,
+  private async buildTemplateWallpaperAsset(
     renderInput: {
       layout: WallpaperLayout;
       title: string;
@@ -531,55 +498,6 @@ export class LuckyService {
       palette: string[];
     },
     title: string,
-  ) {
-    if (!this.imageGenerationService.isConfigured()) {
-      return this.buildFallbackWallpaperAsset(renderInput, title, '未配置 ZHIPU_API_KEY 或 BIGMODEL_API_KEY');
-    }
-
-    try {
-      const asset = await this.imageGenerationService.generate({
-        prompt,
-        size: this.imageGenerationService.getWallpaperSize(renderInput.layout.aspectRatio),
-        purpose: '幸运壁纸背景',
-      });
-      const rendered = await this.posterRendererService.renderWallpaper({
-        ...renderInput,
-        backgroundDataUrl: asset.imageDataUrl,
-      });
-      const fileUrl = await this.persistWallpaperFile(
-        rendered.imageBuffer,
-        `fortune-hub-${this.slugify(title)}-wallpaper.png`,
-      );
-
-      return {
-        provider: rendered.usedProviderBackground ? 'zhipu' : 'builtin',
-        status: rendered.usedProviderBackground ? 'generated' : 'fallback',
-        providerImageUrl: asset.providerImageUrl,
-        providerRequestId: asset.requestId,
-        providerError: rendered.usedProviderBackground ? null : '智谱背景渲染失败，已使用内建模板',
-        fileUrl,
-        format: 'png',
-        extension: 'png',
-        imageDataUrl: rendered.imageDataUrl,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '智谱幸运壁纸生成失败';
-      console.warn('lucky wallpaper fallback to builtin', errorMessage);
-      return this.buildFallbackWallpaperAsset(renderInput, title, errorMessage);
-    }
-  }
-
-  private async buildFallbackWallpaperAsset(
-    renderInput: {
-      layout: WallpaperLayout;
-      title: string;
-      subtitle: string;
-      guidance: string;
-      chips: string[];
-      palette: string[];
-    },
-    title: string,
-    providerError: string | null,
   ) {
     const rendered = await this.posterRendererService.renderWallpaper(renderInput);
     const fileUrl = await this.persistWallpaperFile(
@@ -588,11 +506,11 @@ export class LuckyService {
     );
 
     return {
-      provider: 'builtin',
-      status: 'fallback',
+      provider: 'template',
+      status: 'rendered',
       providerImageUrl: null,
       providerRequestId: null,
-      providerError,
+      providerError: null,
       fileUrl,
       format: 'png',
       extension: 'png',

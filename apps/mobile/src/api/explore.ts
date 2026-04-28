@@ -1,4 +1,5 @@
 import { http } from '../services/request';
+import { appendQueryString } from '../services/url';
 import type {
   ExploreIndexResponse,
   ExploreSearchResponse,
@@ -14,20 +15,12 @@ export function fetchExploreSearch(params: {
   goal?: string[];
   sort?: 'recommended' | 'related' | 'latest';
 }) {
-  const searchParams = new URLSearchParams();
-  searchParams.set('keyword', params.keyword);
-
-  if (params.type) {
-    searchParams.set('type', params.type);
-  }
-
-  if (params.goal?.length) {
-    searchParams.set('goal', params.goal.join(','));
-  }
-
-  if (params.sort) {
-    searchParams.set('sort', params.sort);
-  }
-
-  return http.get<ExploreSearchResponse>(`/explore/search?${searchParams.toString()}`);
+  return http.get<ExploreSearchResponse>(
+    appendQueryString('/explore/search', {
+      keyword: params.keyword,
+      type: params.type,
+      goal: params.goal?.length ? params.goal.join(',') : undefined,
+      sort: params.sort,
+    }),
+  );
 }

@@ -1,5 +1,6 @@
 import { getErrorMessage } from './errors';
 import { appEnv } from '../config/env';
+import { resolveUrl } from './url';
 
 type WechatRuntime = {
   env?: {
@@ -54,7 +55,7 @@ function buildApiFileContentUrl(fileId: string) {
   const path = `/api/v1/files/${encodeURIComponent(fileId)}/content`;
 
   if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
-    return new URL(path, appEnv.apiBaseUrl).toString();
+    return resolveUrl(path, appEnv.apiBaseUrl);
   }
 
   return path;
@@ -74,7 +75,7 @@ function normalizeImageSource(imageSource: string) {
   }
 
   if (trimmed.startsWith('/') && /^https?:\/\//i.test(appEnv.apiBaseUrl)) {
-    return new URL(trimmed, appEnv.apiBaseUrl).toString();
+    return resolveUrl(trimmed, appEnv.apiBaseUrl);
   }
 
   return trimmed;

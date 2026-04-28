@@ -1,4 +1,5 @@
 import { http } from '../services/request';
+import { appendQueryString } from '../services/url';
 import type {
   BaziAnalyzePayload,
   BaziAnalyzeResponse,
@@ -32,10 +33,10 @@ export function fetchProfessionalBaziDetail(recordId: string) {
 }
 
 export function searchBaziBirthPlaces(keyword: string, limit = 10) {
-  const searchParams = new URLSearchParams({
-    keyword,
-    limit: String(limit),
-  });
-
-  return http.get<BaziBirthPlaceSearchResponse>(`/bazi/birth-places?${searchParams.toString()}`);
+  return http.get<BaziBirthPlaceSearchResponse>(
+    appendQueryString('/bazi/birth-places', {
+      keyword,
+      limit,
+    }),
+  );
 }

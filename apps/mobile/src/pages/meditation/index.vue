@@ -400,6 +400,7 @@ import { appEnv } from '../../config/env';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
 import { defaultMeditationMusicLibrary } from '../../services/meditation-music';
+import { resolveUrl } from '../../services/url';
 import { usePageStateStore } from '../../stores/page-state';
 import type { MeditationMusicItem } from '../../types/lucky';
 import type { MeditationLogItem } from '../../types/records';
@@ -820,7 +821,7 @@ function resolveMeditationPreviewUrl(url: string) {
 
   if (trimmed.startsWith('/')) {
     if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
-      return new URL(trimmed, appEnv.apiBaseUrl).toString();
+      return resolveUrl(trimmed, appEnv.apiBaseUrl);
     }
 
     return trimmed;
@@ -833,7 +834,7 @@ function buildApiFilePreviewUrl(fileId: string) {
   const path = `/api/v1/files/${encodeURIComponent(fileId)}/content`;
 
   if (/^https?:\/\//i.test(appEnv.apiBaseUrl)) {
-    return new URL(path, appEnv.apiBaseUrl).toString();
+    return resolveUrl(path, appEnv.apiBaseUrl);
   }
 
   return path;

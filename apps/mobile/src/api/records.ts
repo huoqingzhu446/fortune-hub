@@ -1,4 +1,5 @@
 import { http } from '../services/request';
+import { appendQueryString } from '../services/url';
 import type {
   MeditationRecordListResponse,
   MeditationRecordDetailResponse,
@@ -30,17 +31,12 @@ export function fetchMoodRecordDetail(params: {
   recordId?: string;
   recordDate?: string;
 }) {
-  const searchParams = new URLSearchParams();
-
-  if (params.recordId) {
-    searchParams.set('recordId', params.recordId);
-  }
-
-  if (params.recordDate) {
-    searchParams.set('recordDate', params.recordDate);
-  }
-
-  return http.get<MoodRecordDetailResponse>(`/record/mood/detail?${searchParams.toString()}`);
+  return http.get<MoodRecordDetailResponse>(
+    appendQueryString('/record/mood/detail', {
+      recordId: params.recordId,
+      recordDate: params.recordDate,
+    }),
+  );
 }
 
 export function saveMoodRecord(payload: SaveMoodRecordPayload) {

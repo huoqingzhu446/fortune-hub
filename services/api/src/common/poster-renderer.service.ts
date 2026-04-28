@@ -88,7 +88,9 @@ export class PosterRendererService {
     sourceType: string,
   ): PosterLayout {
     const prefersPortrait =
-      sourceType === 'today_index' || sourceType === 'zodiac_today';
+      sourceType === 'today_index' ||
+      sourceType === 'zodiac_today' ||
+      sourceType === 'bazi';
     const size = requestedSize ?? (prefersPortrait ? '1088x1472' : '1280x1280');
 
     if (size === '1080x1440') {
@@ -149,9 +151,11 @@ export class PosterRendererService {
     const build = (background: string | null) =>
       layout.kind === 'portrait' && source.sourceType === 'zodiac_today'
         ? this.buildZodiacTodayPosterSvg(source, layout)
-        : layout.kind === 'portrait'
-          ? this.buildRichPosterSvg(source, background, layout)
-          : this.buildSharePosterSvg(source, background);
+        : layout.kind === 'portrait' && source.sourceType === 'bazi'
+          ? this.buildBaziPosterSvg(source, layout)
+          : layout.kind === 'portrait'
+            ? this.buildRichPosterSvg(source, background, layout)
+            : this.buildSharePosterSvg(source, background);
 
     const templateMarkup = build(backgroundDataUrl);
 
@@ -464,6 +468,223 @@ export class PosterRendererService {
   <text x="674" y="${footerY + 82}" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">今日运势</text>
   ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, codeCenterX, codeCenterY)}
 </svg>`.trim();
+  }
+
+  private buildBaziPosterSvg(source: PosterRenderSource, layout: PosterLayout) {
+    const visual = this.resolveBaziPosterVisual(source);
+    const titleLines = this.renderTextTspans(source.title, 7, 0, 92, 78);
+    const subtitleLines = this.renderTextTspans(source.subtitle, 16, 0, 42, 78);
+    const accentLines = this.renderTextTspans(source.accentText, 14, 0, 36, 82);
+    const summaryLines = this.renderTextTspans(
+      source.summary ||
+        '把擅长的节奏作为启动方式，再给需要补位的一面留出空间。',
+      20,
+      0,
+      38,
+      342,
+    );
+    const footerY = layout.height - 166;
+    const frameWidth = layout.width - 56;
+    const frameHeight = layout.height - 56;
+    const codeCenterX = layout.width - 154;
+    const codeCenterY = footerY + 46;
+
+    return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
+  <defs>
+    <linearGradient id="bazi-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F9F2E8" />
+      <stop offset="48%" stop-color="#EEF4EE" />
+      <stop offset="100%" stop-color="#FFFDF7" />
+    </linearGradient>
+    <linearGradient id="bazi-frame" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94" />
+      <stop offset="56%" stop-color="#FBF4E7" stop-opacity="0.82" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="bazi-ink" x1="10%" x2="88%" y1="8%" y2="92%">
+      <stop offset="0%" stop-color="#253B36" />
+      <stop offset="52%" stop-color="#436D5A" />
+      <stop offset="100%" stop-color="#C3934D" />
+    </linearGradient>
+    <linearGradient id="bazi-card" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.86" />
+      <stop offset="100%" stop-color="#FFF8EC" stop-opacity="0.62" />
+    </linearGradient>
+    <linearGradient id="purple-core" x1="16%" x2="86%" y1="8%" y2="92%">
+      <stop offset="0%" stop-color="#D5AA6C" />
+      <stop offset="54%" stop-color="#8F6B38" />
+      <stop offset="100%" stop-color="#486D5B" />
+    </linearGradient>
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#775C35" flood-opacity="0.14" />
+    </filter>
+    <filter id="title-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#D2B98E" flood-opacity="0.28" />
+    </filter>
+  </defs>
+  <rect width="${layout.width}" height="${layout.height}" fill="url(#bazi-bg)" />
+  <rect x="-72" y="0" width="1220" height="286" fill="#D9B56F" fill-opacity="0.14" />
+  <path d="M70 410 C 254 286, 452 314, 632 462 S 898 560, 1030 388" fill="none" stroke="#C3934D" stroke-opacity="0.24" stroke-width="3" />
+  <path d="M58 1238 C 252 1182, 430 1224, 612 1282 S 882 1354, 1032 1266" fill="none" stroke="#DFCAA3" stroke-width="7" stroke-opacity="0.6" />
+  ${this.renderBaziTexture()}
+  <rect x="28" y="28" width="${frameWidth}" height="${frameHeight}" rx="56" ry="56" fill="url(#bazi-frame)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <text x="78" y="116" font-size="26" letter-spacing="8" fill="#9B7B49" font-family="${POSTER_FONT_FAMILY}">BAZI ENERGY MAP</text>
+  <path d="M354 107 L 444 107" stroke="#D9BF8E" stroke-width="2" />
+  <circle cx="462" cy="107" r="7" fill="#C3934D" fill-opacity="0.66" />
+  <text x="78" y="244" font-size="78" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${titleLines}</text>
+  <text x="78" y="464" font-size="32" font-weight="600" fill="#57675D" font-family="${POSTER_FONT_FAMILY}">${subtitleLines}</text>
+  ${this.renderBaziEnergyPlate(visual, 800, 292)}
+  <rect x="64" y="578" width="960" height="88" rx="38" ry="38" fill="#FFFFFF" fill-opacity="0.72" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <text x="82" y="633" font-size="29" font-weight="680" fill="#4E5D54" font-family="${POSTER_FONT_FAMILY}">${accentLines}</text>
+  ${this.renderBaziInfoCards(visual)}
+  ${this.renderBaziTags(source.chips, visual)}
+  <rect x="64" y="1038" width="960" height="190" rx="34" ry="34" fill="#FFFFFF" fill-opacity="0.78" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  ${this.renderBaziMountainMark()}
+  <text x="342" y="1110" font-size="35" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">今日可借势</text>
+  <path d="M516 1087 L 524 1102 L 540 1110 L 524 1118 L 516 1134 L 508 1118 L 492 1110 L 508 1102 Z" fill="#CDA35B" fill-opacity="0.82" />
+  <text x="342" y="1164" font-size="30" font-weight="500" fill="#657268" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
+  <rect x="64" y="${footerY}" width="86" height="86" rx="24" ry="24" fill="url(#bazi-ink)" />
+  <path d="M90 ${footerY + 53} C 106 ${footerY + 23}, 142 ${footerY + 27}, 132 ${footerY + 55} C 122 ${footerY + 80}, 86 ${footerY + 78}, 90 ${footerY + 53} Z" fill="#FFFFFF" fill-opacity="0.88" />
+  <path d="M105 ${footerY + 34} L 128 ${footerY + 58}" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.76" />
+  <text x="174" y="${footerY + 40}" font-size="30" font-weight="720" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">八字轻解 · Bazi Map</text>
+  <text x="174" y="${footerY + 81}" font-size="24" fill="#7B887F" font-family="${POSTER_FONT_FAMILY}">把五行节奏翻译成今天能用的提醒</text>
+  <path d="M636 ${footerY + 10} L 636 ${footerY + 88}" stroke="#E0D2B8" stroke-width="2" />
+  <text x="674" y="${footerY + 44}" font-size="27" font-weight="620" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">扫码查看你的</text>
+  <text x="674" y="${footerY + 82}" font-size="27" font-weight="620" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">八字解读</text>
+  ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, codeCenterX, codeCenterY)}
+</svg>`.trim();
+  }
+
+  private resolveBaziPosterVisual(source: PosterRenderSource) {
+    const elementColors: Record<
+      string,
+      { main: string; pale: string; text: string }
+    > = {
+      木: { main: '#4F8B66', pale: '#DDEDE0', text: '#315E47' },
+      火: { main: '#C96B50', pale: '#F6DDD1', text: '#874935' },
+      土: { main: '#C3934D', pale: '#F4E7CC', text: '#765B34' },
+      金: { main: '#8FA1AE', pale: '#E3EAF0', text: '#536471' },
+      水: { main: '#4F7EA1', pale: '#DCE9F2', text: '#315A73' },
+    };
+    const dayMaster =
+      source.subtitle.match(/([甲乙丙丁戊己庚辛壬癸])日主/)?.[1] ??
+      source.accentText.match(/([甲乙丙丁戊己庚辛壬癸])日主/)?.[1] ??
+      '甲';
+    const dominant =
+      source.title.match(/([木火土金水])势/)?.[1] ??
+      source.accentText.match(/([木火土金水])主轴/)?.[1] ??
+      '木';
+    const support =
+      source.accentText.match(/([木火土金水])补位/)?.[1] ??
+      ['木', '火', '土', '金', '水'].find((item) => item !== dominant) ??
+      '水';
+
+    return {
+      dayMaster,
+      dominant,
+      support,
+      palette: elementColors[dominant] ?? elementColors.木,
+    };
+  }
+
+  private renderBaziEnergyPlate(
+    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
+    cx: number,
+    cy: number,
+  ) {
+    const elements = ['木', '火', '土', '金', '水'];
+    const points = elements.map((element, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI * 2) / elements.length;
+      const x = cx + Math.cos(angle) * 146;
+      const y = cy + Math.sin(angle) * 146;
+      const isDominant = element === visual.dominant;
+      const isSupport = element === visual.support;
+      return `
+  <circle cx="${x}" cy="${y}" r="${isDominant ? 42 : 34}" fill="${isDominant ? visual.palette.main : isSupport ? '#D2A45B' : '#FFFFFF'}" fill-opacity="${isDominant ? 0.92 : isSupport ? 0.78 : 0.72}" stroke="#FFFFFF" stroke-width="3" filter="url(#card-shadow)" />
+  <text x="${x}" y="${y + 11}" text-anchor="middle" font-size="${isDominant ? 34 : 28}" font-weight="760" fill="${isDominant || isSupport ? '#FFFFFF' : '#748076'}" font-family="${POSTER_FONT_FAMILY}">${element}</text>`.trim();
+    });
+
+    return `
+  <rect x="${cx - 206}" y="${cy - 206}" width="412" height="412" rx="64" ry="64" fill="url(#bazi-card)" stroke="#FFFFFF" stroke-width="3" filter="url(#card-shadow)" />
+  <circle cx="${cx}" cy="${cy}" r="158" fill="none" stroke="#D6C2A0" stroke-width="2" stroke-opacity="0.8" />
+  <circle cx="${cx}" cy="${cy}" r="104" fill="none" stroke="#B7CDB8" stroke-width="2" stroke-opacity="0.66" />
+  <path d="M${cx - 152} ${cy} C ${cx - 64} ${cy - 94}, ${cx + 80} ${cy - 94}, ${cx + 152} ${cy}" fill="none" stroke="#C3934D" stroke-opacity="0.24" stroke-width="4" />
+  ${points.join('')}
+  <circle cx="${cx}" cy="${cy}" r="76" fill="url(#bazi-ink)" />
+  <circle cx="${cx}" cy="${cy}" r="96" fill="${visual.palette.main}" fill-opacity="0.12" />
+  <text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="32" font-weight="620" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">日主</text>
+  <text x="${cx}" y="${cy + 48}" text-anchor="middle" font-size="70" font-weight="760" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">${visual.dayMaster}</text>`.trim();
+  }
+
+  private renderBaziInfoCards(
+    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
+  ) {
+    const cards = [
+      { label: '日主', value: `${visual.dayMaster}日`, hint: '自我启动方式' },
+      { label: '主轴', value: `${visual.dominant}势`, hint: '当前更容易发力' },
+      { label: '补位', value: `${visual.support}行`, hint: '需要温柔照顾' },
+    ];
+
+    return cards
+      .map((card, index) => {
+        const width = 304;
+        const gap = 22;
+        const x = 64 + index * (width + gap);
+        const y = 704;
+        return `
+  <rect x="${x}" y="${y}" width="${width}" height="182" rx="28" ry="28" fill="#FFFFFF" fill-opacity="0.82" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <text x="${x + 28}" y="${y + 52}" font-size="26" font-weight="620" fill="#7B887F" font-family="${POSTER_FONT_FAMILY}">${card.label}</text>
+  <text x="${x + 28}" y="${y + 116}" font-size="44" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">${card.value}</text>
+  <text x="${x + 28}" y="${y + 152}" font-size="23" fill="#8A948C" font-family="${POSTER_FONT_FAMILY}">${card.hint}</text>`.trim();
+      })
+      .join('');
+  }
+
+  private renderBaziTags(
+    chips: string[],
+    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
+  ) {
+    const normalized = (
+      chips.length
+        ? chips
+        : [`${visual.dominant}主轴`, `${visual.support}补位`, '顺势安排']
+    ).slice(0, 3);
+
+    return normalized
+      .map((chip, index) => {
+        const width = 304;
+        const gap = 18;
+        const x = 64 + index * (width + gap);
+        const y = 918;
+        return `
+  <rect x="${x}" y="${y}" width="${width}" height="82" rx="40" ry="40" fill="${index === 0 ? visual.palette.pale : '#F7FAF5'}" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <circle cx="${x + 74}" cy="${y + 41}" r="20" fill="${index === 0 ? visual.palette.main : '#C3934D'}" fill-opacity="0.86" />
+  <text x="${x + 160}" y="${y + 53}" text-anchor="middle" font-size="29" font-weight="720" fill="${index === 0 ? visual.palette.text : '#7A6139'}" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+    chip,
+  )}</text>`.trim();
+      })
+      .join('');
+  }
+
+  private renderBaziTexture() {
+    return `
+  <path d="M162 158 C 242 110, 340 118, 412 178" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.58" />
+  <path d="M742 74 C 830 116, 900 184, 1022 152" fill="none" stroke="#B7CDB8" stroke-width="3" stroke-opacity="0.45" />
+  <path d="M180 488 C 292 436, 406 448, 520 526" fill="none" stroke="#C3934D" stroke-width="2" stroke-opacity="0.18" />
+  <circle cx="958" cy="488" r="44" fill="#B7CDB8" fill-opacity="0.16" />
+  <circle cx="164" cy="534" r="28" fill="#C3934D" fill-opacity="0.14" />
+  <path d="M954 92 L 960 104 L 972 110 L 960 116 L 954 128 L 948 116 L 936 110 L 948 104 Z" fill="#C3934D" fill-opacity="0.58" />
+  <path d="M506 128 L 512 140 L 524 146 L 512 152 L 506 164 L 500 152 L 488 146 L 500 140 Z" fill="#B7CDB8" fill-opacity="0.72" />`.trim();
+  }
+
+  private renderBaziMountainMark() {
+    return `
+  <circle cx="188" cy="1136" r="82" fill="#C3934D" fill-opacity="0.18" />
+  <path d="M96 1192 L158 1092 L214 1164 L244 1128 L310 1192 Z" fill="#486D5B" fill-opacity="0.56" />
+  <path d="M158 1092 L178 1148 L146 1128 Z" fill="#FFFFFF" fill-opacity="0.54" />
+  <path d="M214 1164 L232 1184 L190 1184 Z" fill="#C3934D" fill-opacity="0.34" />
+  <circle cx="188" cy="1136" r="44" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.78" />`.trim();
   }
 
   private buildWallpaperSvg(input: WallpaperRenderInput) {

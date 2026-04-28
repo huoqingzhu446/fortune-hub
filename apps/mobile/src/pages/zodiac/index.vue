@@ -12,18 +12,8 @@
         </view>
         <view class="zodiac-art" :style="zodiacArtStyle">
           <view class="zodiac-art__constellation">
-            <view
-              v-for="line in constellationLines"
-              :key="line.id"
-              class="zodiac-art__line"
-              :style="line.style"
-            ></view>
-            <view
-              v-for="star in constellationStars"
-              :key="star.id"
-              class="zodiac-art__star"
-              :style="star.style"
-            ></view>
+            <view v-for="line in constellationLines" :key="line.id" class="zodiac-art__line" :style="line.style"></view>
+            <view v-for="star in constellationStars" :key="star.id" class="zodiac-art__star" :style="star.style"></view>
           </view>
           <text class="zodiac-art__glyph">{{ zodiacVisual.glyph }}</text>
           <text class="zodiac-art__label">{{ zodiacVisual.label }}</text>
@@ -70,17 +60,9 @@
       <image class="poster-image" :src="posterImageSource" mode="widthFix" @tap="previewGeneratedPoster" />
 
       <view class="poster-actions">
-        <button class="poster-button poster-button--secondary" @tap="previewGeneratedPoster">
-          大图预览
-        </button>
-        <button class="poster-button poster-button--primary" @tap="saveGeneratedPoster">
-          保存到手机
-        </button>
-        <button
-          v-if="isMpWeixin"
-          class="poster-button poster-button--ghost"
-          @tap="shareGeneratedPoster"
-        >
+        <button class="poster-button poster-button--secondary" @tap="previewGeneratedPoster">大图预览</button>
+        <button class="poster-button poster-button--primary" @tap="saveGeneratedPoster">保存到手机</button>
+        <button v-if="isMpWeixin" class="poster-button poster-button--ghost" @tap="shareGeneratedPoster">
           微信发好友
         </button>
       </view>
@@ -289,7 +271,9 @@
         <view class="panel section-panel">
           <text class="section-kicker">关键月份</text>
           <view class="tag-row">
-            <text v-for="month in yearlyFortune.keyMonths" :key="month" class="tag-chip tag-chip--soft">{{ month }}</text>
+            <text v-for="month in yearlyFortune.keyMonths" :key="month" class="tag-chip tag-chip--soft">{{
+              month
+            }}</text>
           </view>
         </view>
 
@@ -474,7 +458,12 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 62, y: 42, size: 12 },
       { x: 72, y: 60, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
   },
   金牛座: {
     glyph: '♉',
@@ -490,7 +479,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 75, y: 52, size: 9 },
       { x: 45, y: 68, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [2, 4], [2, 5]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [2, 4],
+      [2, 5],
+    ],
   },
   双子座: {
     glyph: '♊',
@@ -506,7 +501,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 30, y: 76, size: 9 },
       { x: 68, y: 74, size: 9 },
     ],
-    links: [[0, 2], [2, 4], [1, 3], [3, 5], [2, 3]],
+    links: [
+      [0, 2],
+      [2, 4],
+      [1, 3],
+      [3, 5],
+      [2, 3],
+    ],
   },
   巨蟹座: {
     glyph: '♋',
@@ -521,7 +522,12 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 62, y: 34, size: 12 },
       { x: 76, y: 44, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
   },
   狮子座: {
     glyph: '♌',
@@ -536,7 +542,12 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 70, y: 43, size: 9 },
       { x: 76, y: 66, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
   },
   处女座: {
     glyph: '♍',
@@ -552,7 +563,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 74, y: 50, size: 8 },
       { x: 60, y: 70, size: 9 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4], [2, 5]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [2, 5],
+    ],
   },
   天秤座: {
     glyph: '♎',
@@ -567,7 +584,12 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 64, y: 48, size: 9 },
       { x: 80, y: 58, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+    ],
   },
   天蝎座: {
     glyph: '♏',
@@ -583,7 +605,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 78, y: 42, size: 8 },
       { x: 70, y: 72, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4], [3, 5]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [3, 5],
+    ],
   },
   射手座: {
     glyph: '♐',
@@ -598,7 +626,12 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 70, y: 24, size: 13 },
       { x: 62, y: 62, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [2, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [2, 4],
+    ],
   },
   摩羯座: {
     glyph: '♑',
@@ -614,7 +647,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 80, y: 50, size: 8 },
       { x: 58, y: 76, size: 9 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4], [3, 5]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [3, 5],
+    ],
   },
   水瓶座: {
     glyph: '♒',
@@ -631,7 +670,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 34, y: 66, size: 8 },
       { x: 66, y: 66, size: 8 },
     ],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4], [5, 6]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [5, 6],
+    ],
   },
   双鱼座: {
     glyph: '♓',
@@ -647,7 +692,13 @@ const zodiacVisualMap: Record<ZodiacSign, ZodiacVisualConfig> = {
       { x: 58, y: 48, size: 11 },
       { x: 72, y: 68, size: 9 },
     ],
-    links: [[0, 1], [1, 2], [3, 4], [4, 5], [1, 4]],
+    links: [
+      [0, 1],
+      [1, 2],
+      [3, 4],
+      [4, 5],
+      [1, 4],
+    ],
   },
 };
 
@@ -858,10 +909,26 @@ function buildYearlyFallback(sign: string): ZodiacYearlyData {
       summary: `这一年适合${sign}把个人优势沉淀成更稳定的输出方式。`,
     },
     quarterForecasts: [
-      { quarter: 'Q1', title: '定下主轴', summary: '先确认今年最重要的方向和边界。' },
-      { quarter: 'Q2', title: '持续推进', summary: '适合把前期判断变成持续动作。' },
-      { quarter: 'Q3', title: '调整结构', summary: '会有几次必要的取舍，聚焦很重要。' },
-      { quarter: 'Q4', title: '回收成果', summary: '复盘与沉淀会让明年的起点更高。' },
+      {
+        quarter: 'Q1',
+        title: '定下主轴',
+        summary: '先确认今年最重要的方向和边界。',
+      },
+      {
+        quarter: 'Q2',
+        title: '持续推进',
+        summary: '适合把前期判断变成持续动作。',
+      },
+      {
+        quarter: 'Q3',
+        title: '调整结构',
+        summary: '会有几次必要的取舍，聚焦很重要。',
+      },
+      {
+        quarter: 'Q4',
+        title: '回收成果',
+        summary: '复盘与沉淀会让明年的起点更高。',
+      },
     ],
     focus: {
       relationship: '关系里需要更多清晰表达和稳定行动。',
@@ -924,18 +991,15 @@ const posterLoading = ref(false);
 const poster = ref<GeneratedPoster | null>(null);
 const actionChecked = ref(false);
 const { themeVars } = useThemePreference();
-const isMpWeixin = String(
-  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
-).toLowerCase() === 'mp-weixin';
+const isMpWeixin =
+  String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '').toLowerCase() === 'mp-weixin';
 const todayFortune = ref<ZodiacTodayData>(buildTodayFallback('狮子座'));
 const weeklyFortune = ref<ZodiacWeeklyData>(buildWeeklyFallback('狮子座'));
 const monthlyFortune = ref<ZodiacMonthlyData>(buildMonthlyFallback('狮子座'));
 const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
 const compatibility = ref<ZodiacCompatibilityData>(buildCompatibilityFallback('狮子座', '白羊座'));
 const knowledge = ref<ZodiacKnowledgeData>(buildKnowledgeFallback('狮子座'));
-const posterImageSource = computed(() =>
-  poster.value ? resolvePreferredImageSource(poster.value) : '',
-);
+const posterImageSource = computed(() => (poster.value ? resolvePreferredImageSource(poster.value) : ''));
 
 const zodiacVisual = computed(() => {
   const sign = String(selectedSign.value) as ZodiacSign;
@@ -1088,20 +1152,13 @@ async function loadModule(sign: string) {
       fetchZodiacKnowledge(sign),
     ]);
 
-  todayFortune.value =
-    todayResult.status === 'fulfilled' ? todayResult.value.data : buildTodayFallback(sign);
-  weeklyFortune.value =
-    weeklyResult.status === 'fulfilled' ? weeklyResult.value.data : buildWeeklyFallback(sign);
-  monthlyFortune.value =
-    monthlyResult.status === 'fulfilled' ? monthlyResult.value.data : buildMonthlyFallback(sign);
-  yearlyFortune.value =
-    yearlyResult.status === 'fulfilled' ? yearlyResult.value.data : buildYearlyFallback(sign);
+  todayFortune.value = todayResult.status === 'fulfilled' ? todayResult.value.data : buildTodayFallback(sign);
+  weeklyFortune.value = weeklyResult.status === 'fulfilled' ? weeklyResult.value.data : buildWeeklyFallback(sign);
+  monthlyFortune.value = monthlyResult.status === 'fulfilled' ? monthlyResult.value.data : buildMonthlyFallback(sign);
+  yearlyFortune.value = yearlyResult.status === 'fulfilled' ? yearlyResult.value.data : buildYearlyFallback(sign);
   compatibility.value =
-    compatibilityResult.status === 'fulfilled'
-      ? compatibilityResult.value.data
-      : buildCompatibilityFallback(sign);
-  knowledge.value =
-    knowledgeResult.status === 'fulfilled' ? knowledgeResult.value.data : buildKnowledgeFallback(sign);
+    compatibilityResult.status === 'fulfilled' ? compatibilityResult.value.data : buildCompatibilityFallback(sign);
+  knowledge.value = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value.data : buildKnowledgeFallback(sign);
   selectedPartner.value = compatibility.value.partner;
   loading.value = false;
 }
@@ -1207,13 +1264,38 @@ async function shareGeneratedPoster() {
   }
 }
 
+function decodeRouteValue(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function readSceneParam(scene: unknown, key: string) {
+  if (typeof scene !== 'string' || !scene) {
+    return '';
+  }
+
+  const decodedScene = decodeRouteValue(scene);
+  const pairs = decodedScene.split('&');
+
+  for (const pair of pairs) {
+    const [rawKey, ...rawValueParts] = pair.split('=');
+
+    if (decodeRouteValue(rawKey) === key) {
+      return decodeRouteValue(rawValueParts.join('='));
+    }
+  }
+
+  return '';
+}
+
 onLoad((query) => {
   const cachedUser = getCachedUser();
-  const routeSign =
-    query && typeof query.zodiac === 'string' ? decodeURIComponent(query.zodiac) : '';
-  const initialSign = zodiacSigns.includes(routeSign as ZodiacSign)
-    ? routeSign
-    : cachedUser?.zodiac || '狮子座';
+  const sceneSign = readSceneParam(query?.scene, 'zodiac');
+  const routeSign = query && typeof query.zodiac === 'string' ? decodeRouteValue(query.zodiac) : sceneSign;
+  const initialSign = zodiacSigns.includes(routeSign as ZodiacSign) ? routeSign : cachedUser?.zodiac || '狮子座';
 
   selectedSign.value = initialSign;
   void loadModule(initialSign);
@@ -1250,8 +1332,7 @@ onPullDownRefresh(async () => {
   overflow: hidden;
   background:
     radial-gradient(circle at 88% 18%, rgba(var(--theme-accent-rgb), 0.18), transparent 30%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(246, 249, 255, 0.86) 100%),
-    rgba(255, 255, 255, 0.82);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(246, 249, 255, 0.86) 100%), rgba(255, 255, 255, 0.82);
 }
 
 .hero-topline,

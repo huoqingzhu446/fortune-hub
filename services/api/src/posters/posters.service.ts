@@ -53,6 +53,13 @@ type PosterSource = {
 
 @Injectable()
 export class PostersService {
+  private cachedWechatAccessToken: { token: string; expireAt: number } | null =
+    null;
+  private readonly miniProgramCodeCache = new Map<
+    string,
+    { dataUrl: string; expireAt: number }
+  >();
+
   constructor(
     @InjectRepository(ShareRecordEntity)
     private readonly shareRecordRepository: Repository<ShareRecordEntity>,
@@ -71,16 +78,27 @@ export class PostersService {
 
   async generatePoster(dto: GeneratePosterDto, user: UserEntity | null) {
     const source = await this.resolvePosterSource(dto, user);
-    const layout = this.posterRendererService.resolvePosterLayout(dto.size, source.sourceType);
+    const layout = this.posterRendererService.resolvePosterLayout(
+      dto.size,
+      source.sourceType,
+    );
+    const miniProgramCodeDataUrl =
+      await this.resolveMiniProgramCodeDataUrl(source);
     const rendered = await this.posterRendererService.renderPoster(
-      source,
+      {
+        ...source,
+        miniProgramCodeDataUrl,
+      },
       null,
       layout,
     );
     const posterId = `poster_${randomBytes(10).toString('hex')}`;
     const provider = 'template';
     const providerStatus = 'rendered';
-    const templateId = this.resolvePosterTemplateId(source.sourceType, layout.kind);
+    const templateId = this.resolvePosterTemplateId(
+      source.sourceType,
+      layout.kind,
+    );
     const downloadFileName = `fortune-hub-${source.sourceType}-${posterId}.png`;
 
     const fileUrl = await this.persistPosterFile(
@@ -102,6 +120,9 @@ export class PostersService {
       providerRequestId: null,
       providerError: null,
       providerPrompt: '',
+      miniProgramCodeStatus: miniProgramCodeDataUrl
+        ? 'embedded'
+        : 'placeholder',
       width: layout.width,
       height: layout.height,
       size: layout.size,
@@ -170,7 +191,7 @@ export class PostersService {
       this.posterJobRepository.create({
         jobId: `poster_job_${randomBytes(10).toString('hex')}`,
         userId: user?.id ?? null,
-        jobType: dto.recordId ? 'report_poster' : dto.sourceType ?? 'poster',
+        jobType: dto.recordId ? 'report_poster' : (dto.sourceType ?? 'poster'),
         status: 'queued',
         requestJson: dto as Record<string, unknown>,
         resultJson: null,
@@ -226,7 +247,10 @@ export class PostersService {
     await this.posterJobRepository.save(job);
 
     try {
-      const response = await this.generatePoster(job.requestJson as GeneratePosterDto, user);
+      const response = await this.generatePoster(
+        job.requestJson as GeneratePosterDto,
+        user,
+      );
       const poster = response.data.poster as Record<string, unknown>;
       job.status = 'completed';
       job.resultJson = this.buildStoredPayload(poster);
@@ -242,13 +266,19 @@ export class PostersService {
     await this.posterJobRepository.save(job);
   }
 
-  private async resolvePosterSource(dto: GeneratePosterDto, user: UserEntity | null): Promise<PosterSource> {
+  private async resolvePosterSource(
+    dto: GeneratePosterDto,
+    user: UserEntity | null,
+  ): Promise<PosterSource> {
     if (dto.recordId) {
       if (!user) {
         throw new BadRequestException('请先登录后再生成结果海报');
       }
 
-      const record = await this.reportsService.getOwnedRecordOrThrow(dto.recordId, user.id);
+      const record = await this.reportsService.getOwnedRecordOrThrow(
+        dto.recordId,
+        user.id,
+      );
       const report = await this.reportsService.buildReportPayload(record, user);
 
       return {
@@ -315,7 +345,10 @@ export class PostersService {
 
       const content = this.asRecord(sign.contentJson);
       const signTag = this.pickString(content.tag, '今日幸运签');
-      const template = await this.resolveTemplatePayload('share_poster', 'lucky_sign');
+      const template = await this.resolveTemplatePayload(
+        'share_poster',
+        'lucky_sign',
+      );
       const fallbackSubtitle = this.pickString(
         template.subtitle,
         `${signTag} · ${sign.summary ?? '今天适合顺势推进。'}`,
@@ -366,7 +399,9 @@ export class PostersService {
     throw new BadRequestException('海报生成参数不完整');
   }
 
-  private async buildTodayIndexPosterSource(user: UserEntity): Promise<PosterSource> {
+  private async buildTodayIndexPosterSource(
+    user: UserEntity,
+  ): Promise<PosterSource> {
     const luckyToday = await this.luckyService.getToday(user);
     const luckyData = luckyToday.data;
     const primaryRecommendation = luckyData.recommendations[0] ?? null;
@@ -374,7 +409,10 @@ export class PostersService {
       luckyData.profile.dominantElement,
       this.resolveDominantElementFromUser(user),
     );
-    const subjectName = this.pickString(user.nickname ?? '', user.zodiac ?? '今日');
+    const subjectName = this.pickString(
+      user.nickname ?? '',
+      user.zodiac ?? '今日',
+    );
     const shortBaziSummary = this.truncateText(
       this.pickString(
         user.baziSummary ?? '',
@@ -386,7 +424,9 @@ export class PostersService {
       shortBaziSummary,
       primaryRecommendation?.supportiveFocus ?? luckyData.profile.guidance,
       ...luckyData.actionTips.slice(0, 2),
-    ].filter((item, index, array) => Boolean(item) && array.indexOf(item) === index);
+    ].filter(
+      (item, index, array) => Boolean(item) && array.indexOf(item) === index,
+    );
 
     return {
       sourceType: 'today_index',
@@ -412,7 +452,8 @@ export class PostersService {
         'large clean negative space',
       ].filter(Boolean),
       themeName: this.resolveTodayIndexThemeName(dominantElement),
-      promptHint: '竖版社交分享背景，现代东方气质，轻灵能量流线、柔和留白和层次光影，不能出现任何可读文字或卡片版式。',
+      promptHint:
+        '竖版社交分享背景，现代东方气质，轻灵能量流线、柔和留白和层次光影，不能出现任何可读文字或卡片版式。',
       eyebrowText: 'TODAY FORTUNE INDEX',
       chips: [
         `${user.zodiac}运势`,
@@ -434,19 +475,27 @@ export class PostersService {
         },
         {
           label: '今日重点',
-          value: this.truncateText(primaryRecommendation?.title ?? `${dominantElement}能量`, 8),
+          value: this.truncateText(
+            primaryRecommendation?.title ?? `${dominantElement}能量`,
+            8,
+          ),
           hint: this.truncateText(
-            primaryRecommendation?.supportiveFocus ?? luckyData.profile.guidance,
+            primaryRecommendation?.supportiveFocus ??
+              luckyData.profile.guidance,
             22,
           ),
         },
       ],
       highlightTitle: '今天更适合',
-      highlightLines: highlightLines.slice(0, 3).map((item) => this.truncateText(item, 28)),
+      highlightLines: highlightLines
+        .slice(0, 3)
+        .map((item) => this.truncateText(item, 28)),
     };
   }
 
-  private async buildZodiacTodayPosterSource(zodiac: string): Promise<PosterSource> {
+  private async buildZodiacTodayPosterSource(
+    zodiac: string,
+  ): Promise<PosterSource> {
     const response = await this.zodiacService.getTodayFortune(zodiac);
     const data = response.data;
     const sharePoster = data.sharePoster;
@@ -473,15 +522,14 @@ export class PostersService {
         'large clean negative space',
       ],
       themeName: sharePoster.themeName,
-      promptHint: '竖版无文字星象背景，只画星轨、山海、云雾、光线和抽象星座意象，避免标题牌、文字框、海报排版和数字。',
+      promptHint:
+        '竖版无文字星象背景，只画星轨、山海、云雾、光线和抽象星座意象，避免标题牌、文字框、海报排版和数字。',
       eyebrowText: 'ZODIAC TODAY',
-      chips: [
-        ...data.theme.keywords,
-        '目标',
-        '责任',
-        '耐力',
-      ]
-        .filter((item, index, array) => Boolean(item) && array.indexOf(item) === index)
+      chips: [...data.theme.keywords, '目标', '责任', '耐力']
+        .filter(
+          (item, index, array) =>
+            Boolean(item) && array.indexOf(item) === index,
+        )
         .slice(0, 3),
       metrics: [
         {
@@ -520,12 +568,18 @@ export class PostersService {
     const visualKeywords = this.buildVisualPromptKeywords(source);
     const colorMood = this.resolveProviderColorMood(source.themeName);
 
-    if (source.sourceType === 'today_index' || source.sourceType === 'zodiac_today') {
+    if (
+      source.sourceType === 'today_index' ||
+      source.sourceType === 'zodiac_today'
+    ) {
       return [
         '竖版微信分享背景插画，现代东方气质，通透高级，适合命理与运势产品分享。只生成纯背景，不生成成品海报。',
         `色彩氛围：${colorMood}。`,
         `视觉元素：${visualKeywords.join('、')}。`,
-        this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))
+        this.pickString(
+          source.promptHint,
+          this.resolvePosterPromptHint(source.sourceType),
+        )
           ? `额外风格要求：${this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))}。`
           : '',
         '画面层次丰富但安静，包含星轨、流光、云雾、五行纹理或抽象山海意象，顶部和中下部有干净留白。',
@@ -554,7 +608,10 @@ export class PostersService {
       .join(' ');
   }
 
-  private resolvePosterTemplateId(sourceType: string, kind: 'square' | 'portrait') {
+  private resolvePosterTemplateId(
+    sourceType: string,
+    kind: 'square' | 'portrait',
+  ) {
     if (sourceType === 'zodiac_today') {
       return 'zodiac-today-energy-card-v1';
     }
@@ -620,7 +677,12 @@ export class PostersService {
       return keywords.slice(0, 10);
     }
 
-    return ['soft celestial glow', 'mist', 'flowing light', 'large clean negative space'];
+    return [
+      'soft celestial glow',
+      'mist',
+      'flowing light',
+      'large clean negative space',
+    ];
   }
 
   private resolveElementVisualKeyword(element: string) {
@@ -650,17 +712,53 @@ export class PostersService {
   private resolveZodiacVisualKeywords(zodiac: string) {
     const map: Record<string, string[]> = {
       白羊座: ['aries constellation', 'ram horn silhouette', 'morning sparks'],
-      金牛座: ['taurus constellation', 'gentle bull silhouette', 'spring meadow light'],
-      双子座: ['gemini constellation', 'twin star ribbons', 'airy light trails'],
+      金牛座: [
+        'taurus constellation',
+        'gentle bull silhouette',
+        'spring meadow light',
+      ],
+      双子座: [
+        'gemini constellation',
+        'twin star ribbons',
+        'airy light trails',
+      ],
       巨蟹座: ['cancer constellation', 'moonlit water', 'soft shell curve'],
       狮子座: ['leo constellation', 'golden mane light', 'sun halo'],
-      处女座: ['virgo constellation', 'wheat and moonlight', 'quiet earth garden'],
-      天秤座: ['libra constellation', 'balanced moon arc', 'soft scales silhouette'],
-      天蝎座: ['scorpio constellation', 'deep night desert', 'mysterious red glow'],
-      射手座: ['sagittarius constellation', 'arrow star trail', 'wide sky horizon'],
-      摩羯座: ['capricorn constellation', 'mountain silhouette', 'quiet midnight stone'],
-      水瓶座: ['aquarius constellation', 'flowing water light', 'future glass texture'],
-      双鱼座: ['pisces constellation', 'two fish light trails', 'dreamy ocean mist'],
+      处女座: [
+        'virgo constellation',
+        'wheat and moonlight',
+        'quiet earth garden',
+      ],
+      天秤座: [
+        'libra constellation',
+        'balanced moon arc',
+        'soft scales silhouette',
+      ],
+      天蝎座: [
+        'scorpio constellation',
+        'deep night desert',
+        'mysterious red glow',
+      ],
+      射手座: [
+        'sagittarius constellation',
+        'arrow star trail',
+        'wide sky horizon',
+      ],
+      摩羯座: [
+        'capricorn constellation',
+        'mountain silhouette',
+        'quiet midnight stone',
+      ],
+      水瓶座: [
+        'aquarius constellation',
+        'flowing water light',
+        'future glass texture',
+      ],
+      双鱼座: [
+        'pisces constellation',
+        'two fish light trails',
+        'dreamy ocean mist',
+      ],
     };
 
     return map[zodiac] ?? ['constellation', 'soft star trail', 'misty sky'];
@@ -726,6 +824,371 @@ export class PostersService {
     return this.asRecord(template?.payloadJson);
   }
 
+  private async resolveMiniProgramCodeDataUrl(source: PosterSource) {
+    if (
+      this.configService.get<string>(
+        'POSTER_MINI_PROGRAM_CODE_ENABLED',
+        'true',
+      ) === 'false'
+    ) {
+      return null;
+    }
+
+    const staticCodeUrl = this.pickString(
+      this.configService.get<string>('POSTER_MINI_PROGRAM_CODE_URL') ??
+        this.configService.get<string>('WECHAT_MINI_PROGRAM_CODE_URL'),
+      '',
+    );
+
+    if (staticCodeUrl) {
+      try {
+        const staticCodeDataUrl =
+          await this.resolveImageReferenceDataUrl(staticCodeUrl);
+
+        if (staticCodeDataUrl) {
+          return staticCodeDataUrl;
+        }
+      } catch (error) {
+        return this.handleMiniProgramCodeError(error);
+      }
+    }
+
+    const appId = this.configService.get<string>('WECHAT_APP_ID');
+    const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
+
+    if (!appId || !appSecret) {
+      return null;
+    }
+
+    const path = this.resolveMiniProgramCodePath(source);
+    const envVersion = this.resolveMiniProgramEnvVersion();
+    const cacheKey = [path, envVersion].join('|');
+    const cached = this.miniProgramCodeCache.get(cacheKey);
+
+    if (cached && cached.expireAt > Date.now()) {
+      return cached.dataUrl;
+    }
+
+    try {
+      const accessToken = await this.getWechatAccessToken(appId, appSecret);
+      const response = await this.fetchWithTimeout(
+        `https://api.weixin.qq.com/wxa/getwxacode?access_token=${encodeURIComponent(
+          accessToken,
+        )}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            path,
+            env_version: envVersion,
+            width: this.resolveMiniProgramCodeWidth(),
+            auto_color: false,
+            line_color: {
+              r: 47,
+              g: 58,
+              b: 74,
+            },
+            is_hyaline: false,
+          }),
+        },
+        12000,
+        '小程序码生成超时',
+      );
+      const dataUrl = await this.readWechatCodeResponse(response);
+      const cacheTtlSeconds = this.resolveMiniProgramCodeCacheTtlSeconds();
+
+      this.miniProgramCodeCache.set(cacheKey, {
+        dataUrl,
+        expireAt: Date.now() + cacheTtlSeconds * 1000,
+      });
+
+      return dataUrl;
+    } catch (error) {
+      return this.handleMiniProgramCodeError(error);
+    }
+  }
+
+  private async resolveImageReferenceDataUrl(reference: string) {
+    if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(reference)) {
+      return reference;
+    }
+
+    if (!/^https?:\/\//i.test(reference)) {
+      return null;
+    }
+
+    const response = await this.fetchWithTimeout(
+      reference,
+      undefined,
+      8000,
+      '小程序码图片下载超时',
+    );
+
+    if (!response.ok) {
+      throw new BadGatewayException('小程序码图片下载失败');
+    }
+
+    return this.readImageResponseAsDataUrl(response, '小程序码图片格式错误');
+  }
+
+  private async readWechatCodeResponse(response: Response) {
+    const body = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type') ?? '';
+    const looksLikeJson =
+      contentType.includes('json') || body.toString('utf8', 0, 1) === '{';
+
+    if (looksLikeJson) {
+      const payload = JSON.parse(body.toString('utf8')) as {
+        errcode?: number;
+        errmsg?: string;
+      };
+
+      throw new BadGatewayException(payload.errmsg || '微信小程序码生成失败');
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException('微信小程序码生成失败');
+    }
+
+    const mimeType = contentType.startsWith('image/')
+      ? contentType.split(';')[0]
+      : 'image/png';
+
+    return `data:${mimeType};base64,${body.toString('base64')}`;
+  }
+
+  private async readImageResponseAsDataUrl(
+    response: Response,
+    fallbackError: string,
+  ) {
+    const contentType = response.headers.get('content-type') ?? '';
+
+    if (!contentType.startsWith('image/')) {
+      throw new BadGatewayException(fallbackError);
+    }
+
+    const body = Buffer.from(await response.arrayBuffer());
+    const mimeType = contentType.split(';')[0];
+
+    return `data:${mimeType};base64,${body.toString('base64')}`;
+  }
+
+  private async getWechatAccessToken(appId: string, appSecret: string) {
+    if (
+      this.cachedWechatAccessToken &&
+      this.cachedWechatAccessToken.expireAt > Date.now()
+    ) {
+      return this.cachedWechatAccessToken.token;
+    }
+
+    const url = new URL('https://api.weixin.qq.com/cgi-bin/token');
+    url.searchParams.set('grant_type', 'client_credential');
+    url.searchParams.set('appid', appId);
+    url.searchParams.set('secret', appSecret);
+
+    const response = await this.fetchWithTimeout(
+      url.toString(),
+      undefined,
+      12000,
+      '微信 access_token 获取超时',
+    );
+    const result = (await response.json()) as {
+      access_token?: string;
+      expires_in?: number;
+      errmsg?: string;
+    };
+
+    if (!response.ok || !result.access_token) {
+      throw new BadGatewayException(
+        result.errmsg || '微信 access_token 获取失败',
+      );
+    }
+
+    this.cachedWechatAccessToken = {
+      token: result.access_token,
+      expireAt:
+        Date.now() +
+        Math.max(300, Number(result.expires_in ?? 7200) - 300) * 1000,
+    };
+
+    return result.access_token;
+  }
+
+  private handleMiniProgramCodeError(error: unknown) {
+    if (
+      this.configService.get<string>(
+        'POSTER_MINI_PROGRAM_CODE_REQUIRED',
+        'false',
+      ) === 'true'
+    ) {
+      throw new BadGatewayException(
+        this.extractErrorMessage(error, '小程序码生成失败'),
+      );
+    }
+
+    return null;
+  }
+
+  private resolveMiniProgramCodePath(source: PosterSource) {
+    const configuredPath = this.pickString(
+      this.configService.get<string>(
+        `POSTER_${source.sourceType.toUpperCase()}_WXACODE_PATH`,
+      ),
+      '',
+    );
+
+    if (configuredPath) {
+      return this.normalizeMiniProgramPath(
+        this.renderMiniProgramPathTemplate(configuredPath, source),
+      );
+    }
+
+    const legacyPage = this.pickString(
+      this.configService.get<string>(
+        `POSTER_${source.sourceType.toUpperCase()}_WXACODE_PAGE`,
+      ),
+      '',
+    );
+
+    const page = legacyPage
+      ? this.normalizeMiniProgramPage(legacyPage)
+      : this.resolveDefaultMiniProgramPage(source);
+    const query: Record<string, string> =
+      this.resolveMiniProgramCodeQuery(source);
+
+    return this.normalizeMiniProgramPath(
+      this.appendMiniProgramQuery(page, query),
+    );
+  }
+
+  private resolveDefaultMiniProgramPage(source: PosterSource) {
+    if (source.sourceType === 'zodiac_today') {
+      return 'pages/zodiac/index';
+    }
+
+    if (source.sourceType === 'lucky_sign') {
+      return 'pages/lucky/sign/index';
+    }
+
+    return 'pages/index/index';
+  }
+
+  private resolveMiniProgramCodeQuery(
+    source: PosterSource,
+  ): Record<string, string> {
+    if (source.sourceType === 'zodiac_today') {
+      return {
+        zodiac: source.sourceCode ?? source.zodiacName ?? '',
+      };
+    }
+
+    if (source.sourceType === 'lucky_sign') {
+      return {
+        bizCode: source.sourceCode ?? '',
+      };
+    }
+
+    return {
+      source: source.sourceType,
+    };
+  }
+
+  private renderMiniProgramPathTemplate(
+    template: string,
+    source: PosterSource,
+  ) {
+    return template
+      .replace(/\{sourceType\}/g, source.sourceType)
+      .replace(/\{sourceCode\}/g, encodeURIComponent(source.sourceCode ?? ''))
+      .replace(
+        /\{zodiac\}/g,
+        encodeURIComponent(source.zodiacName ?? source.sourceCode ?? ''),
+      )
+      .slice(0, 1024);
+  }
+
+  private normalizeMiniProgramPage(page: string) {
+    return page.replace(/^\/+/, '').split('?')[0];
+  }
+
+  private appendMiniProgramQuery(page: string, query: Record<string, string>) {
+    const params = Object.entries(query)
+      .filter(([key, value]) => key !== 'scancode_time' && value.trim())
+      .map(
+        ([key, value]) =>
+          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+      );
+
+    if (!params.length) {
+      return page;
+    }
+
+    return `${page}?${params.join('&')}`;
+  }
+
+  private normalizeMiniProgramPath(path: string) {
+    const normalized = path.trim().replace(/^\/+/, '');
+    const [route, ...queryParts] = normalized.split('?');
+    const query = queryParts.join('?');
+
+    if (!query) {
+      return (route || 'pages/index/index').slice(0, 1024);
+    }
+
+    const filteredQuery = query
+      .split('&')
+      .filter((part) => {
+        const [rawKey] = part.split('=');
+        return this.safeDecodeURIComponent(rawKey) !== 'scancode_time';
+      })
+      .join('&');
+
+    return `${route || 'pages/index/index'}${filteredQuery ? `?${filteredQuery}` : ''}`.slice(
+      0,
+      1024,
+    );
+  }
+
+  private resolveMiniProgramEnvVersion() {
+    const envVersion = this.pickString(
+      this.configService.get<string>('WECHAT_MINI_PROGRAM_ENV_VERSION'),
+      'release',
+    );
+
+    return ['release', 'trial', 'develop'].includes(envVersion)
+      ? envVersion
+      : 'release';
+  }
+
+  private resolveMiniProgramCodeWidth() {
+    const width = Number(
+      this.configService.get<string>('WECHAT_WXACODE_WIDTH', '430'),
+    );
+
+    if (!Number.isFinite(width)) {
+      return 430;
+    }
+
+    return Math.min(1280, Math.max(280, Math.round(width)));
+  }
+
+  private resolveMiniProgramCodeCacheTtlSeconds() {
+    const ttl = Number(
+      this.configService.get<string>(
+        'POSTER_MINI_PROGRAM_CODE_CACHE_TTL_SECONDS',
+        '21600',
+      ),
+    );
+
+    if (!Number.isFinite(ttl) || ttl <= 0) {
+      return 21600;
+    }
+
+    return Math.min(86400, Math.round(ttl));
+  }
+
   private async persistPosterFile(imageBuffer: Buffer, fileName: string) {
     const uploadUrl = this.resolveFileServiceUploadUrl();
 
@@ -755,19 +1218,20 @@ export class PostersService {
         12000,
         '海报文件上传超时，已保留内联图片',
       );
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            id?: string;
-            contentUrl?: string;
-            url?: string;
-          }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        id?: string;
+        contentUrl?: string;
+        url?: string;
+      } | null;
 
       if (!response.ok) {
         return null;
       }
 
-      return this.resolveUploadedFileUrl(payload?.contentUrl ?? payload?.url, payload?.id);
+      return this.resolveUploadedFileUrl(
+        payload?.contentUrl ?? payload?.url,
+        payload?.id,
+      );
     } catch {
       return null;
     }
@@ -817,7 +1281,9 @@ export class PostersService {
       jobType: job.jobType,
       status: job.status,
       request: job.requestJson ?? {},
-      result: job.resultJson ? this.buildPublicImagePayload(job.resultJson) : null,
+      result: job.resultJson
+        ? this.buildPublicImagePayload(job.resultJson)
+        : null,
       fileUrl: job.fileUrl,
       errorMessage: job.errorMessage,
       startedAt: job.startedAt?.toISOString() ?? null,
@@ -848,7 +1314,9 @@ export class PostersService {
     delete publicPayload.svgMarkup;
 
     if (typeof publicPayload.fileUrl === 'string') {
-      publicPayload.fileUrl = this.resolveUploadedFileUrl(publicPayload.fileUrl);
+      publicPayload.fileUrl = this.resolveUploadedFileUrl(
+        publicPayload.fileUrl,
+      );
     }
 
     if (
@@ -863,14 +1331,20 @@ export class PostersService {
     }
 
     if (typeof publicPayload.downloadFileName === 'string') {
-      publicPayload.downloadFileName = publicPayload.downloadFileName.replace(/\.svg$/i, '.png');
+      publicPayload.downloadFileName = publicPayload.downloadFileName.replace(
+        /\.svg$/i,
+        '.png',
+      );
     }
 
     return publicPayload;
   }
 
   private buildPublicJobErrorMessage(error: unknown) {
-    if (error instanceof BadRequestException || error instanceof NotFoundException) {
+    if (
+      error instanceof BadRequestException ||
+      error instanceof NotFoundException
+    ) {
       return this.extractErrorMessage(error, '海报生成失败');
     }
 
@@ -910,7 +1384,9 @@ export class PostersService {
           payload.providerMessage,
           this.extractErrorMessage(error, '智谱海报背景生成失败'),
         ),
-        providerStatusCode: this.pickDiagnosticValue(payload.providerStatusCode),
+        providerStatusCode: this.pickDiagnosticValue(
+          payload.providerStatusCode,
+        ),
         requestId: this.pickDiagnosticValue(payload.requestId),
       };
     }
@@ -943,7 +1419,8 @@ export class PostersService {
         }
 
         if (Array.isArray(message)) {
-          const firstMessage = message.find(
+          const messages = message as unknown[];
+          const firstMessage = messages.find(
             (item) => typeof item === 'string' && item.trim(),
           );
 
@@ -974,12 +1451,19 @@ export class PostersService {
   }
 
   private resolveFileServiceBaseUrl() {
-    return this.configService.get<string>('FILE_SERVICE_BASE_URL')?.replace(/\/$/, '') ?? '';
+    return (
+      this.configService
+        .get<string>('FILE_SERVICE_BASE_URL')
+        ?.replace(/\/$/, '') ?? ''
+    );
   }
 
   private resolveUploadedFileUrl(contentUrl?: string | null, fileId?: string) {
-    const publicApiBaseUrl = this.configService.get<string>('PUBLIC_API_BASE_URL');
-    const resolvedFileId = fileId || (contentUrl ? extractFileIdFromFileUrl(contentUrl) : null);
+    const publicApiBaseUrl = this.configService.get<string>(
+      'PUBLIC_API_BASE_URL',
+    );
+    const resolvedFileId =
+      fileId || (contentUrl ? extractFileIdFromFileUrl(contentUrl) : null);
 
     if (resolvedFileId) {
       return buildPublicApiFileContentUrl(resolvedFileId, publicApiBaseUrl);
@@ -1042,6 +1526,14 @@ export class PostersService {
 
   private pickString(value: unknown, fallback: string) {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  private safeDecodeURIComponent(value: string) {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
   }
 
   private asRecord(value: unknown) {

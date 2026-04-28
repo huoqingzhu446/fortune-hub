@@ -48,10 +48,11 @@ export type PosterRenderSource = {
   zodiacGlyph?: string;
   zodiacEnglish?: string;
   energyValue?: string;
+  miniProgramCodeDataUrl?: string | null;
 };
 
 export type PosterLayout = {
-  size: '1280x1280' | '1080x1440';
+  size: '1280x1280' | '1080x1440' | '1088x1472';
   width: number;
   height: number;
   kind: 'square' | 'portrait';
@@ -83,17 +84,27 @@ export type WallpaperRenderInput = {
 @Injectable()
 export class PosterRendererService {
   resolvePosterLayout(
-    requestedSize: PosterLayout['size'] | '1088x1472' | undefined,
+    requestedSize: PosterLayout['size'] | undefined,
     sourceType: string,
   ): PosterLayout {
-    const prefersPortrait = sourceType === 'today_index' || sourceType === 'zodiac_today';
-    const size = requestedSize ?? (prefersPortrait ? '1080x1440' : '1280x1280');
+    const prefersPortrait =
+      sourceType === 'today_index' || sourceType === 'zodiac_today';
+    const size = requestedSize ?? (prefersPortrait ? '1088x1472' : '1280x1280');
 
-    if (size === '1080x1440' || size === '1088x1472') {
+    if (size === '1080x1440') {
       return {
         size: '1080x1440',
         width: 1080,
         height: 1440,
+        kind: 'portrait',
+      };
+    }
+
+    if (size === '1088x1472') {
+      return {
+        size: '1088x1472',
+        width: 1088,
+        height: 1472,
         kind: 'portrait',
       };
     }
@@ -152,7 +163,9 @@ export class PosterRendererService {
     };
   }
 
-  async renderWallpaper(input: WallpaperRenderInput): Promise<RenderedPosterImage> {
+  async renderWallpaper(
+    input: WallpaperRenderInput,
+  ): Promise<RenderedPosterImage> {
     const build = (background: string | null) =>
       this.buildWallpaperSvg({
         ...input,
@@ -196,12 +209,33 @@ export class PosterRendererService {
     return ['#7aa8ff', '#dfe9ff', '#435c98'];
   }
 
-  private buildSharePosterSvg(source: PosterRenderSource, backgroundDataUrl: string | null) {
+  private buildSharePosterSvg(
+    source: PosterRenderSource,
+    backgroundDataUrl: string | null,
+  ) {
     const [colorA, colorB, colorC] = this.resolveThemePalette(source.themeName);
     const titleLines = this.renderTextTspans(source.title, 12, 0, 74, 640);
-    const subtitleLines = this.renderTextTspans(source.subtitle, 22, 0, 44, 520);
-    const accentLines = this.renderTextTspans(source.accentText, 26, 0, 38, 460);
-    const footerLines = this.renderTextTspans(source.footerText, 32, 0, 34, 540);
+    const subtitleLines = this.renderTextTspans(
+      source.subtitle,
+      22,
+      0,
+      44,
+      520,
+    );
+    const accentLines = this.renderTextTspans(
+      source.accentText,
+      26,
+      0,
+      38,
+      460,
+    );
+    const footerLines = this.renderTextTspans(
+      source.footerText,
+      32,
+      0,
+      34,
+      540,
+    );
     const backgroundLayer = backgroundDataUrl
       ? `<image href="${backgroundDataUrl}" x="0" y="0" width="1280" height="1280" preserveAspectRatio="xMidYMid slice" />`
       : this.buildAbstractBackground(1280, 1280, colorA, colorB, colorC);
@@ -241,12 +275,35 @@ export class PosterRendererService {
     const [colorA, colorB, colorC] = this.resolveThemePalette(source.themeName);
     const titleLines = this.renderTextTspans(source.title, 10, 0, 78, 88);
     const subtitleLines = this.renderTextTspans(source.subtitle, 18, 0, 42, 88);
-    const accentLines = this.renderTextTspans(source.accentText, 16, 0, 38, 118);
+    const accentLines = this.renderTextTspans(
+      source.accentText,
+      16,
+      0,
+      38,
+      118,
+    );
     const summaryLines = this.renderTextTspans(source.summary, 17, 0, 36, 120);
-    const footerLines = this.renderTextTspans(source.footerText, 22, 0, 32, 148);
+    const footerLines = this.renderTextTspans(
+      source.footerText,
+      22,
+      0,
+      32,
+      148,
+    );
     const highlightTitle = this.escapeXml(source.highlightTitle ?? '今日提示');
-    const metricBlocks = this.renderMetricBlocks(source.metrics, 120, 620, 848, 184);
-    const chipBlocks = this.renderChipBlocks(source.chips.slice(0, 5), 120, 530, 848);
+    const metricBlocks = this.renderMetricBlocks(
+      source.metrics,
+      120,
+      620,
+      848,
+      184,
+    );
+    const chipBlocks = this.renderChipBlocks(
+      source.chips.slice(0, 5),
+      120,
+      530,
+      848,
+    );
     const highlightBlocks = this.renderHighlightBlocks(
       source.highlightLines,
       160,
@@ -256,7 +313,13 @@ export class PosterRendererService {
     );
     const backgroundLayer = backgroundDataUrl
       ? `<image href="${backgroundDataUrl}" x="0" y="0" width="${layout.width}" height="${layout.height}" preserveAspectRatio="xMidYMid slice" />`
-      : this.buildAbstractBackground(layout.width, layout.height, colorA, colorB, colorC);
+      : this.buildAbstractBackground(
+          layout.width,
+          layout.height,
+          colorA,
+          colorB,
+          colorC,
+        );
 
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
@@ -298,12 +361,19 @@ export class PosterRendererService {
 </svg>`.trim();
   }
 
-  private buildZodiacTodayPosterSvg(source: PosterRenderSource, layout: PosterLayout) {
+  private buildZodiacTodayPosterSvg(
+    source: PosterRenderSource,
+    layout: PosterLayout,
+  ) {
     const visual = this.resolveZodiacPosterVisual(source);
-    const titleLines = this.renderZodiacTitleLines(source.zodiacName ?? source.title);
+    const titleLines = this.renderZodiacTitleLines(
+      source.zodiacName ?? source.title,
+    );
     const subtitleLines = this.renderTextTspans(source.subtitle, 13, 0, 46, 78);
     const reminderLines = this.renderTextTspans(
-      source.summary || source.highlightLines[0] || '把任务拆小，把节奏放稳。今天的每一步都算数。',
+      source.summary ||
+        source.highlightLines[0] ||
+        '把任务拆小，把节奏放稳。今天的每一步都算数。',
       18,
       0,
       38,
@@ -313,6 +383,13 @@ export class PosterRendererService {
     const keywordTags = this.renderZodiacKeywordTags(source.chips.slice(0, 3));
     const energyValue = this.escapeXml(source.energyValue ?? '78');
     const highlightTitle = this.escapeXml(source.highlightTitle ?? '今日提醒');
+    const frameWidth = layout.width - 56;
+    const frameHeight = layout.height - 56;
+    const footerY = layout.height - 166;
+    const codeCenterX = layout.width - 154;
+    const codeCenterY = footerY + 46;
+    const waveY = layout.height - 230;
+    const waveEndY = layout.height - 202;
 
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
@@ -352,8 +429,8 @@ export class PosterRendererService {
   <path d="M62 450 C 270 274, 518 314, 728 478 S 982 584, 1040 394" fill="none" stroke="#A85CFF" stroke-opacity="0.2" stroke-width="2" />
   <path d="M450 116 C 594 188, 720 310, 960 236" fill="none" stroke="#5DA9E9" stroke-opacity="0.22" stroke-width="3" />
   ${this.renderZodiacStars()}
-  <rect x="28" y="28" width="1024" height="1384" rx="56" ry="56" fill="url(#poster-frame)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  <path d="M56 1210 C 232 1158, 388 1200, 548 1250 S 884 1322, 1024 1238" fill="none" stroke="#D7E5FF" stroke-width="7" stroke-opacity="0.58" />
+  <rect x="28" y="28" width="${frameWidth}" height="${frameHeight}" rx="56" ry="56" fill="url(#poster-frame)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
+  <path d="M56 ${waveY} C 232 ${waveY - 52}, 388 ${waveY - 10}, 548 ${waveY + 40} S 884 ${waveY + 112}, 1024 ${waveEndY}" fill="none" stroke="#D7E5FF" stroke-width="7" stroke-opacity="0.58" />
   <text x="78" y="116" font-size="26" letter-spacing="8" fill="#8EA8F8" font-family="${POSTER_FONT_FAMILY}">ZODIAC TODAY</text>
   <path d="M326 107 L 414 107" stroke="#C5D5FF" stroke-width="2" />
   <path d="M434 98 L 440 108 L 450 114 L 440 120 L 434 130 L 428 120 L 418 114 L 428 108 Z" fill="#90A7F7" fill-opacity="0.72" />
@@ -377,15 +454,15 @@ export class PosterRendererService {
   <text x="348" y="1110" font-size="35" font-weight="760" fill="#2F3A4A" font-family="${POSTER_FONT_FAMILY}">${highlightTitle}</text>
   <path d="M518 1087 L 526 1102 L 542 1110 L 526 1118 L 518 1134 L 510 1118 L 494 1110 L 510 1102 Z" fill="#A9B9FF" fill-opacity="0.82" />
   <text x="348" y="1164" font-size="30" font-weight="500" fill="#5D6A7F" font-family="${POSTER_FONT_FAMILY}">${reminderLines}</text>
-  <rect x="64" y="1274" width="86" height="86" rx="24" ry="24" fill="url(#purple-core)" />
-  <path d="M88 1324 C 114 1292, 142 1300, 130 1328 C 118 1354, 86 1350, 88 1324 Z" fill="#FFFFFF" fill-opacity="0.88" />
-  <circle cx="124" cy="1311" r="7" fill="#FFFFFF" />
-  <text x="174" y="1314" font-size="30" font-weight="720" fill="#24344F" font-family="${POSTER_FONT_FAMILY}">星座今日 · Zodiac Today</text>
-  <text x="174" y="1355" font-size="24" fill="#7E8DA6" font-family="${POSTER_FONT_FAMILY}">发现星座的力量，遇见更好的自己</text>
-  <path d="M636 1284 L 636 1362" stroke="#D6DEF2" stroke-width="2" />
-  <text x="674" y="1318" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">扫码查看你的</text>
-  <text x="674" y="1356" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">今日运势</text>
-  ${this.renderMiniProgramCodePlaceholder()}
+  <rect x="64" y="${footerY}" width="86" height="86" rx="24" ry="24" fill="url(#purple-core)" />
+  <path d="M88 ${footerY + 50} C 114 ${footerY + 18}, 142 ${footerY + 26}, 130 ${footerY + 54} C 118 ${footerY + 80}, 86 ${footerY + 76}, 88 ${footerY + 50} Z" fill="#FFFFFF" fill-opacity="0.88" />
+  <circle cx="124" cy="${footerY + 37}" r="7" fill="#FFFFFF" />
+  <text x="174" y="${footerY + 40}" font-size="30" font-weight="720" fill="#24344F" font-family="${POSTER_FONT_FAMILY}">星座今日 · Zodiac Today</text>
+  <text x="174" y="${footerY + 81}" font-size="24" fill="#7E8DA6" font-family="${POSTER_FONT_FAMILY}">发现星座的力量，遇见更好的自己</text>
+  <path d="M636 ${footerY + 10} L 636 ${footerY + 88}" stroke="#D6DEF2" stroke-width="2" />
+  <text x="674" y="${footerY + 44}" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">扫码查看你的</text>
+  <text x="674" y="${footerY + 82}" font-size="27" font-weight="620" fill="#53617A" font-family="${POSTER_FONT_FAMILY}">今日运势</text>
+  ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, codeCenterX, codeCenterY)}
 </svg>`.trim();
   }
 
@@ -394,11 +471,28 @@ export class PosterRendererService {
     const [colorA, colorB, colorC] = palette;
     const titleTspans = this.renderTextTspans(input.title, 13, 0, 74, 84);
     const subtitleTspans = this.renderTextTspans(input.subtitle, 22, 0, 42, 84);
-    const guidanceTspans = this.renderTextTspans(input.guidance, 24, 0, 40, 118);
-    const chipBlocks = this.renderChipBlocks(input.chips.slice(0, 4), 84, 86, layout.width - 168);
+    const guidanceTspans = this.renderTextTspans(
+      input.guidance,
+      24,
+      0,
+      40,
+      118,
+    );
+    const chipBlocks = this.renderChipBlocks(
+      input.chips.slice(0, 4),
+      84,
+      86,
+      layout.width - 168,
+    );
     const backgroundLayer = input.backgroundDataUrl
       ? `<image href="${input.backgroundDataUrl}" x="0" y="0" width="${layout.width}" height="${layout.height}" preserveAspectRatio="xMidYMid slice" />`
-      : this.buildAbstractBackground(layout.width, layout.height, colorA, colorB, colorC);
+      : this.buildAbstractBackground(
+          layout.width,
+          layout.height,
+          colorA,
+          colorB,
+          colorC,
+        );
     const cardY = Math.round(layout.height * 0.54);
     const cardHeight = Math.round(layout.height * 0.26);
 
@@ -455,14 +549,22 @@ export class PosterRendererService {
     }
 
     const gap = 18;
-    const itemWidth = Math.floor((width - gap * (metrics.length - 1)) / metrics.length);
+    const itemWidth = Math.floor(
+      (width - gap * (metrics.length - 1)) / metrics.length,
+    );
 
     return metrics
       .map((metric, index) => {
         const currentX = x + index * (itemWidth + gap);
         const label = this.escapeXml(metric.label);
         const value = this.escapeXml(metric.value);
-        const hint = this.renderTextTspans(metric.hint ?? '', 10, 0, 28, currentX + 24);
+        const hint = this.renderTextTspans(
+          metric.hint ?? '',
+          10,
+          0,
+          28,
+          currentX + 24,
+        );
 
         return `
   <rect x="${currentX}" y="${y}" width="${itemWidth}" height="${height}" rx="30" ry="30" fill="#06111d" fill-opacity="0.2" stroke="#ffffff" stroke-opacity="0.16" />
@@ -473,7 +575,12 @@ export class PosterRendererService {
       .join('');
   }
 
-  private renderChipBlocks(chips: string[], x: number, y: number, width: number) {
+  private renderChipBlocks(
+    chips: string[],
+    x: number,
+    y: number,
+    width: number,
+  ) {
     if (!chips.length) {
       return '';
     }
@@ -493,9 +600,11 @@ export class PosterRendererService {
         cursorY += lineHeight + gap;
       }
 
-      parts.push(`
+      parts.push(
+        `
   <rect x="${cursorX}" y="${cursorY}" width="${chipWidth}" height="${lineHeight}" rx="20" ry="20" fill="#06111d" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.14" />
-  <text x="${cursorX + 18}" y="${cursorY + 33}" font-size="22" fill="#ffffff" fill-opacity="0.96" font-family="${POSTER_FONT_FAMILY}">${label}</text>`.trim());
+  <text x="${cursorX + 18}" y="${cursorY + 33}" font-size="22" fill="#ffffff" fill-opacity="0.96" font-family="${POSTER_FONT_FAMILY}">${label}</text>`.trim(),
+      );
 
       cursorX += chipWidth + gap;
     }
@@ -528,9 +637,21 @@ export class PosterRendererService {
 
   private renderZodiacInfoCards(metrics: PosterMetric[]) {
     const normalized = [
-      metrics[0] ?? { label: '幸运色', value: '雾光蓝', hint: '幸运色彩助力好运' },
-      metrics[1] ?? { label: '幸运物', value: '木质书签', hint: '随身携带，带来灵感' },
-      metrics[2] ?? { label: '行动签', value: '完成一个小目标', hint: '行动带来改变' },
+      metrics[0] ?? {
+        label: '幸运色',
+        value: '雾光蓝',
+        hint: '幸运色彩助力好运',
+      },
+      metrics[1] ?? {
+        label: '幸运物',
+        value: '木质书签',
+        hint: '随身携带，带来灵感',
+      },
+      metrics[2] ?? {
+        label: '行动签',
+        value: '完成一个小目标',
+        hint: '行动带来改变',
+      },
     ];
     const cardWidth = 304;
     const cardHeight = 244;
@@ -542,8 +663,20 @@ export class PosterRendererService {
       .map((metric, index) => {
         const x = startX + index * (cardWidth + gap);
         const label = this.escapeXml(metric.label);
-        const valueLines = this.renderTextTspans(metric.value, index === 2 ? 8 : 7, 0, 42, x + 28);
-        const hintLines = this.renderTextTspans(metric.hint ?? '', 10, 0, 30, x + 28);
+        const valueLines = this.renderTextTspans(
+          metric.value,
+          index === 2 ? 8 : 7,
+          0,
+          42,
+          x + 28,
+        );
+        const hintLines = this.renderTextTspans(
+          metric.hint ?? '',
+          10,
+          0,
+          30,
+          x + 28,
+        );
 
         return `
   <rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="26" ry="26" fill="#FFFFFF" fill-opacity="0.82" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
@@ -556,7 +689,10 @@ export class PosterRendererService {
   }
 
   private renderZodiacKeywordTags(chips: string[]) {
-    const normalized = (chips.length ? chips : ['目标', '责任', '耐力']).slice(0, 3);
+    const normalized = (chips.length ? chips : ['目标', '责任', '耐力']).slice(
+      0,
+      3,
+    );
     const startX = 64;
     const y = 918;
     const width = 304;
@@ -576,7 +712,9 @@ export class PosterRendererService {
   }
 
   private renderZodiacTitleLines(title: string) {
-    const match = title.match(/^(白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座)/);
+    const match = title.match(
+      /^(白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座)/,
+    );
     const sign = match?.[1] ?? title.slice(0, 3);
     const secondLine = title.includes('运势') ? '今日运势' : '今日运势';
 
@@ -678,33 +816,52 @@ export class PosterRendererService {
   <path d="M274 1086 L 282 1100 L 296 1108 L 282 1116 L 274 1130 L 266 1116 L 252 1108 L 266 1100 Z" fill="#FFFFFF" fill-opacity="0.9" />`.trim();
   }
 
-  private renderMiniProgramCodePlaceholder() {
+  private renderMiniProgramCode(
+    codeDataUrl: string | null,
+    cx: number,
+    cy: number,
+  ) {
+    if (codeDataUrl) {
+      const imageSize = 142;
+      const imageX = cx - imageSize / 2;
+      const imageY = cy - imageSize / 2;
+
+      return `
+  <circle cx="${cx}" cy="${cy}" r="84" fill="#FFFFFF" filter="url(#card-shadow)" />
+  <circle cx="${cx}" cy="${cy}" r="68" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
+  <image href="${this.escapeXml(codeDataUrl)}" x="${imageX}" y="${imageY}" width="${imageSize}" height="${imageSize}" preserveAspectRatio="xMidYMid meet" />`.trim();
+    }
+
+    return this.renderMiniProgramCodePlaceholder(cx, cy);
+  }
+
+  private renderMiniProgramCodePlaceholder(cx: number, cy: number) {
     const modules = [
-      [886, 1274, 10],
-      [912, 1278, 8],
-      [938, 1284, 12],
-      [876, 1302, 8],
-      [902, 1304, 12],
-      [928, 1304, 8],
-      [952, 1312, 10],
-      [884, 1330, 12],
-      [916, 1334, 10],
-      [944, 1342, 8],
-      [896, 1358, 8],
-      [932, 1364, 12],
+      [-40, -46, 10],
+      [-14, -42, 8],
+      [12, -36, 12],
+      [-50, -18, 8],
+      [-24, -16, 12],
+      [2, -16, 8],
+      [26, -8, 10],
+      [-42, 10, 12],
+      [-10, 14, 10],
+      [18, 22, 8],
+      [-30, 38, 8],
+      [6, 44, 12],
     ];
 
     return `
-  <circle cx="926" cy="1320" r="75" fill="#FFFFFF" filter="url(#card-shadow)" />
-  <circle cx="926" cy="1320" r="58" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
+  <circle cx="${cx}" cy="${cy}" r="84" fill="#FFFFFF" filter="url(#card-shadow)" />
+  <circle cx="${cx}" cy="${cy}" r="62" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
   ${modules
     .map(
-      ([x, y, size]) =>
-        `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="3" ry="3" fill="#2F3A4A" fill-opacity="0.82" />`,
+      ([offsetX, offsetY, size]) =>
+        `<rect x="${cx + offsetX}" y="${cy + offsetY}" width="${size}" height="${size}" rx="3" ry="3" fill="#2F3A4A" fill-opacity="0.82" />`,
     )
     .join('')}
-  <circle cx="926" cy="1320" r="23" fill="url(#purple-core)" />
-  <path d="M913 1326 C923 1308, 940 1312, 935 1329 C929 1345, 912 1341, 913 1326 Z" fill="#FFFFFF" fill-opacity="0.9" />`.trim();
+  <circle cx="${cx}" cy="${cy}" r="23" fill="url(#purple-core)" />
+  <path d="M${cx - 13} ${cy + 6} C${cx - 3} ${cy - 12}, ${cx + 14} ${cy - 8}, ${cx + 9} ${cy + 9} C${cx + 3} ${cy + 25}, ${cx - 14} ${cy + 21}, ${cx - 13} ${cy + 6} Z" fill="#FFFFFF" fill-opacity="0.9" />`.trim();
   }
 
   private renderTextTspans(
@@ -750,7 +907,9 @@ export class PosterRendererService {
   }
 
   private async renderPng(templateMarkup: string) {
-    return sharp(Buffer.from(templateMarkup)).png({ compressionLevel: 9 }).toBuffer();
+    return sharp(Buffer.from(templateMarkup))
+      .png({ compressionLevel: 9 })
+      .toBuffer();
   }
 
   private toPngDataUrl(imageBuffer: Buffer) {

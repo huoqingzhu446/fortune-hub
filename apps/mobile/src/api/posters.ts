@@ -14,10 +14,7 @@ export function fetchPosterJob(jobId: string) {
   return http.get<PosterJobResponse>(`/posters/jobs/${encodeURIComponent(jobId)}`);
 }
 
-export async function waitPosterJob(
-  jobId: string,
-  options: { attempts?: number; intervalMs?: number } = {},
-) {
+export async function waitPosterJob(jobId: string, options: { attempts?: number; intervalMs?: number } = {}) {
   const attempts = options.attempts ?? 40;
   const intervalMs = options.intervalMs ?? 1500;
 
@@ -58,7 +55,10 @@ export async function generateLuckySignPosterAsync(bizCode: string) {
 }
 
 export async function generateTodayIndexPosterAsync() {
-  const response = await createPosterJob({ sourceType: 'today_index', size: '1080x1440' });
+  const response = await createPosterJob({
+    sourceType: 'today_index',
+    size: '1088x1472',
+  });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {
     throw new Error('海报任务没有返回结果');
@@ -70,7 +70,7 @@ export async function generateZodiacTodayPosterAsync(zodiac: string) {
   const response = await createPosterJob({
     sourceType: 'zodiac_today',
     bizCode: zodiac,
-    size: '1080x1440',
+    size: '1088x1472',
   });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {

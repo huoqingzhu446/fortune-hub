@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { PosterRendererService } from './poster-renderer.service';
 
 describe('PosterRendererService', () => {
-  it('renders zodiac today templates as 1080x1440 PNG images', async () => {
+  it('renders zodiac today templates as 1088x1472 PNG images', async () => {
     const service = new PosterRendererService();
     const layout = service.resolvePosterLayout('1088x1472', 'zodiac_today');
     const rendered = await service.renderPoster(
@@ -39,6 +39,8 @@ describe('PosterRendererService', () => {
         zodiacGlyph: '摩羯',
         zodiacEnglish: 'Capricorn',
         energyValue: '78',
+        miniProgramCodeDataUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lbcN5QAAAABJRU5ErkJggg==',
       },
       null,
       layout,
@@ -47,14 +49,14 @@ describe('PosterRendererService', () => {
 
     expect(layout).toEqual(
       expect.objectContaining({
-        size: '1080x1440',
-        width: 1080,
-        height: 1440,
+        size: '1088x1472',
+        width: 1088,
+        height: 1472,
       }),
     );
     expect(metadata.format).toBe('png');
-    expect(metadata.width).toBe(1080);
-    expect(metadata.height).toBe(1440);
+    expect(metadata.width).toBe(1088);
+    expect(metadata.height).toBe(1472);
     expect(rendered.imageDataUrl).toMatch(/^data:image\/png;base64,/);
     expect(rendered.usedProviderBackground).toBe(false);
   });

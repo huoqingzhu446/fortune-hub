@@ -66,9 +66,7 @@
         <button class="hero-button hero-button--primary" :loading="posterLoading" @tap="generatePoster">
           生成分享海报
         </button>
-        <button class="hero-button hero-button--secondary" @tap="copySharePoster">
-          复制海报文案
-        </button>
+        <button class="hero-button hero-button--secondary" @tap="copySharePoster">复制海报文案</button>
       </view>
 
       <view v-if="poster" class="poster-result">
@@ -78,9 +76,7 @@
           <button class="hero-button hero-button--primary" @tap="downloadPoster">保存到手机</button>
         </view>
         <view v-if="isMpWeixin" class="action-row">
-          <button class="hero-button hero-button--ghost" @tap="sharePosterToWechat">
-            微信发好友
-          </button>
+          <button class="hero-button hero-button--ghost" @tap="sharePosterToWechat">微信发好友</button>
         </view>
       </view>
     </view>
@@ -126,10 +122,7 @@ const fallbackDetail: LuckySignDetailData = {
     favorableWindow: '10:00 - 13:00',
     goodFor: '适合沟通、确认安排、做一次轻量整理。',
     avoid: '不要在疲惫和上头的时候做情绪化决定。',
-    suggestions: [
-      '先完成一件最小但明确的任务，让节奏重新流动。',
-      '给重要沟通留一点缓冲和回看空间。',
-    ],
+    suggestions: ['先完成一件最小但明确的任务，让节奏重新流动。', '给重要沟通留一点缓冲和回看空间。'],
     sharePoster: {
       themeName: 'fresh-mint',
       title: '今日幸运签',
@@ -143,19 +136,11 @@ const fallbackDetail: LuckySignDetailData = {
 const detail = ref<LuckySignDetailData>(fallbackDetail);
 const poster = ref<GeneratedPoster | null>(null);
 const posterLoading = ref(false);
-const {
-  favoriteActive,
-  favoriteLoading,
-  syncFavoriteState,
-  toggleCurrent,
-} = useFavoriteToggle();
+const { favoriteActive, favoriteLoading, syncFavoriteState, toggleCurrent } = useFavoriteToggle();
 const { themeVars } = useThemePreference();
-const isMpWeixin = String(
-  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
-).toLowerCase() === 'mp-weixin';
-const posterImageSource = computed(() =>
-  poster.value ? resolvePreferredImageSource(poster.value) : '',
-);
+const isMpWeixin =
+  String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '').toLowerCase() === 'mp-weixin';
+const posterImageSource = computed(() => (poster.value ? resolvePreferredImageSource(poster.value) : ''));
 
 async function loadDetail(bizCode: string) {
   try {
@@ -270,10 +255,7 @@ async function sharePosterToWechat() {
   }
 
   try {
-    await sharePosterImageToWechat(
-      posterImageSource.value,
-      poster.value.downloadFileName,
-    );
+    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
@@ -288,11 +270,41 @@ function backHome() {
   });
 }
 
+function decodeRouteValue(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function readSceneParam(scene: unknown, key: string) {
+  if (typeof scene !== 'string' || !scene) {
+    return '';
+  }
+
+  const decodedScene = decodeRouteValue(scene);
+  const pairs = decodedScene.split('&');
+
+  for (const pair of pairs) {
+    const [rawKey, ...rawValueParts] = pair.split('=');
+
+    if (decodeRouteValue(rawKey) === key) {
+      return decodeRouteValue(rawValueParts.join('='));
+    }
+  }
+
+  return '';
+}
+
 onLoad((options) => {
+  const sceneBizCode = readSceneParam(options?.scene, 'bizCode');
   const bizCode =
     typeof options?.bizCode === 'string' && options.bizCode
-      ? decodeURIComponent(options.bizCode)
-      : fallbackDetail.sign.bizCode;
+      ? decodeRouteValue(options.bizCode)
+      : sceneBizCode
+        ? sceneBizCode
+        : fallbackDetail.sign.bizCode;
   void loadDetail(bizCode);
 });
 </script>

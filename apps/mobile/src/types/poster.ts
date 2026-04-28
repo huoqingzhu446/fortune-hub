@@ -15,6 +15,7 @@ export interface GeneratedPoster {
   providerRequestId?: string | null;
   providerError?: string | null;
   providerPrompt: string;
+  miniProgramCodeStatus?: 'embedded' | 'placeholder';
   width: number;
   height: number;
   size: '1280x1280' | '1080x1440' | '1088x1472';

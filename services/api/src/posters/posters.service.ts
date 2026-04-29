@@ -18,6 +18,7 @@ import {
   BaziPosterDetails,
   PosterMetric,
   PosterRendererService,
+  ZodiacPosterDetails,
 } from '../common/poster-renderer.service';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
@@ -50,6 +51,7 @@ type PosterSource = {
   zodiacGlyph?: string;
   zodiacEnglish?: string;
   energyValue?: string;
+  zodiacPoster?: ZodiacPosterDetails;
   baziPoster?: BaziPosterDetails;
 };
 
@@ -348,7 +350,7 @@ export class PostersService {
         throw new BadRequestException('请先选择星座后再生成星座分享图');
       }
 
-      return this.buildZodiacTodayPosterSource(zodiac);
+      return this.buildZodiacTodayPosterSource(zodiac, user);
     }
 
     if (dto.sourceType === 'lucky_sign' && dto.bizCode) {
@@ -519,23 +521,22 @@ export class PostersService {
 
   private async buildZodiacTodayPosterSource(
     zodiac: string,
+    user: UserEntity | null,
   ): Promise<PosterSource> {
     const response = await this.zodiacService.getTodayFortune(zodiac);
     const data = response.data;
     const sharePoster = data.sharePoster;
+    const zodiacPoster = this.buildZodiacPosterDetails(data, user);
 
     return {
       sourceType: 'zodiac_today',
       sourceCode: data.zodiac,
       recordId: null,
-      title: `${data.zodiac}今日运势`,
-      subtitle: this.truncateText(sharePoster.subtitle, 42),
-      accentText: this.truncateText(sharePoster.accentText, 24),
-      footerText: this.truncateText(sharePoster.footerText, 42),
-      summary: this.truncateText(
-        data.action.description || data.theme.summary,
-        52,
-      ),
+      title: '星运档案',
+      subtitle: zodiacPoster.subtitle,
+      accentText: `${zodiacPoster.signName} · ${zodiacPoster.keywords.join(' · ')}`,
+      footerText: '长按识别小程序码，查看你的专属星运报告',
+      summary: zodiacPoster.quote,
       promptKeywords: [
         ...this.resolveZodiacVisualKeywords(data.zodiac),
         this.resolveElementVisualKeyword(data.profile.element),
@@ -547,45 +548,182 @@ export class PostersService {
       ],
       themeName: sharePoster.themeName,
       promptHint:
-        '竖版无文字星象背景，只画星轨、山海、云雾、光线和抽象星座意象，避免标题牌、文字框、海报排版和数字。',
-      eyebrowText: 'ZODIAC TODAY',
-      chips: [...data.theme.keywords, '目标', '责任', '耐力']
+        '竖版无文字星座档案背景，只画月光、星轨、星盘、柔云、星座符号光影和浅蓝紫氛围，避免标题牌、文字框、海报排版和数字。',
+      eyebrowText: 'ZODIAC ARCHIVE',
+      chips: zodiacPoster.keywords,
+      metrics: [
+        {
+          label: '出生日期',
+          value: zodiacPoster.birthday,
+        },
+        {
+          label: '出生地点',
+          value: zodiacPoster.birthPlace,
+        },
+        {
+          label: '星座属性',
+          value: zodiacPoster.elementLabel,
+        },
+        {
+          label: '魅力指数',
+          value: String(zodiacPoster.charmScore),
+        },
+        {
+          label: '社交能量',
+          value: String(zodiacPoster.socialScore),
+        },
+        {
+          label: '今日幸运色',
+          value: zodiacPoster.luckyColor,
+        },
+      ],
+      highlightTitle: '星座档案',
+      highlightLines: [
+        zodiacPoster.quote,
+        data.action.title,
+        data.dayparts[0]?.hint ?? '',
+      ]
         .filter(
           (item, index, array) =>
             Boolean(item) && array.indexOf(item) === index,
         )
         .slice(0, 3),
-      metrics: [
-        {
-          label: '幸运色',
-          value: this.truncateText(data.lucky.color, 8),
-          hint: '幸运色彩助力好运',
-        },
-        {
-          label: '幸运物',
-          value: this.truncateText(data.lucky.item, 8),
-          hint: '随身携带，带来灵感与专注',
-        },
-        {
-          label: '行动签',
-          value: this.truncateText(data.action.title, 14),
-          hint: '行动带来改变',
-        },
-      ],
-      highlightTitle: '今日提醒',
-      highlightLines: [
-        data.action.title,
-        data.action.description,
-        data.dayparts[0]?.hint ?? '',
-      ]
-        .filter(Boolean)
-        .slice(0, 3)
-        .map((item) => this.truncateText(item, 28)),
       zodiacName: data.zodiac,
       zodiacGlyph: this.resolveZodiacGlyph(data.zodiac),
       zodiacEnglish: this.resolveZodiacEnglishName(data.zodiac),
       energyValue: String(data.score.overall),
+      zodiacPoster,
     };
+  }
+
+  private buildZodiacPosterDetails(
+    data: Record<string, unknown>,
+    user: UserEntity | null,
+  ): ZodiacPosterDetails {
+    const zodiac = this.pickString(data.zodiac, '星座');
+    const profile = this.asRecord(data.profile);
+    const score = this.asRecord(data.score);
+    const lucky = this.asRecord(data.lucky);
+    const theme = this.asRecord(data.theme);
+    const overallScore = Number(score.overall ?? 86);
+    const loveScore = Number(score.love ?? overallScore);
+    const careerScore = Number(score.career ?? overallScore);
+    const keywords = this.resolveZodiacPosterKeywords(
+      zodiac,
+      Array.isArray(profile.keywords)
+        ? profile.keywords
+            .map((item) => (typeof item === 'string' ? item.trim() : ''))
+            .filter(Boolean)
+        : [],
+    );
+
+    return {
+      tagText: '星运档案',
+      subtitle: '根据出生日期与出生地生成你的星座画像',
+      signName: zodiac,
+      englishName: this.resolveZodiacEnglishName(zodiac),
+      glyph: this.resolveZodiacGlyph(zodiac),
+      keywords,
+      birthday: this.formatZodiacPosterBirthday(user?.birthday ?? ''),
+      birthPlace: this.resolveZodiacPosterBirthPlace(user),
+      elementLabel: this.resolveZodiacPosterElementLabel(
+        this.pickString(profile.element, ''),
+      ),
+      charmScore: this.clampPosterScore(loveScore + 6, 92),
+      socialScore: this.clampPosterScore(
+        (loveScore + careerScore) / 2 + 4,
+        88,
+      ),
+      luckyColor: this.truncateText(
+        this.pickString(lucky.color, '雾蓝').replace(/霾粉蓝/g, '蓝'),
+        6,
+      ),
+      quote: this.resolveZodiacPosterQuote(
+        zodiac,
+        this.pickString(theme.summary, ''),
+      ),
+    };
+  }
+
+  private formatZodiacPosterBirthday(value: string) {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) {
+      return value || '待完善';
+    }
+
+    return `${match[1]}.${match[2]}.${match[3]}`;
+  }
+
+  private resolveZodiacPosterBirthPlace(user: UserEntity | null) {
+    const preferences = this.asRecord(user?.preferencesJson);
+
+    return this.pickString(
+      preferences.birthPlace,
+      this.pickString(
+        preferences.birthCity,
+        this.pickString(preferences.city, '待完善'),
+      ),
+    );
+  }
+
+  private resolveZodiacPosterElementLabel(value: string) {
+    const normalized = value
+      ? value.includes('象')
+        ? value
+        : `${value}象`
+      : '风象';
+
+    return normalized.endsWith('星座') ? normalized : `${normalized}星座`;
+  }
+
+  private resolveZodiacPosterKeywords(
+    zodiac: string,
+    fallbackKeywords: string[],
+  ) {
+    const map: Record<string, string[]> = {
+      白羊座: ['热烈', '勇气', '开端'],
+      金牛座: ['稳定', '质感', '积累'],
+      双子座: ['灵动', '表达', '连接'],
+      巨蟹座: ['温柔', '守护', '安全感'],
+      狮子座: ['明亮', '自信', '热忱'],
+      处女座: ['细致', '秩序', '纯净'],
+      天秤座: ['优雅', '平衡', '和谐'],
+      天蝎座: ['深邃', '敏锐', '专注'],
+      射手座: ['自由', '探索', '乐观'],
+      摩羯座: ['稳定', '坚韧', '长期'],
+      水瓶座: ['独立', '创新', '理性'],
+      双鱼座: ['浪漫', '共情', '想象'],
+    };
+
+    return (map[zodiac] ?? fallbackKeywords ?? ['星光', '节奏', '好运'])
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+
+  private resolveZodiacPosterQuote(zodiac: string, fallback: string) {
+    const map: Record<string, string> = {
+      白羊座: '你像破晓火光一样明亮直接，勇气会替你打开新的局面。',
+      金牛座: '你像春日原野一样安定丰盈，慢慢来反而更接近想要的答案。',
+      双子座: '你像风里的讯息一样轻盈灵动，好奇心会带你找到新的连接。',
+      巨蟹座: '你像月光下的海湾一样柔软可靠，温柔里藏着坚定的力量。',
+      狮子座: '你像盛夏阳光一样自带光芒，真诚表达会让世界看见你。',
+      处女座: '你像清晨微光一样细致清醒，秩序感会让复杂慢慢变简单。',
+      天秤座: '你像秋夜微风一样温柔而有分寸，理性与浪漫恰到好处。',
+      天蝎座: '你像深夜星河一样敏锐专注，越安静越能看见关键答案。',
+      射手座: '你像远方地平线一样开阔明朗，自由感会带来新的可能。',
+      摩羯座: '你像冬夜山脊一样沉稳坚定，长期主义会把努力变成底气。',
+      水瓶座: '你像清冷星光一样独立清醒，新的视角会让旧问题松动。',
+      双鱼座: '你像梦境海潮一样柔软浪漫，直觉会带你靠近真正的心愿。',
+    };
+
+    const quote = (map[zodiac] ?? fallback).trim();
+
+    if (quote.length <= 34) {
+      return quote;
+    }
+
+    return quote.slice(0, 34).replace(/[，。、；：,.+\s]+$/u, '');
   }
 
   private buildBaziPosterDetails(
@@ -881,7 +1019,7 @@ export class PostersService {
     kind: 'square' | 'portrait',
   ) {
     if (sourceType === 'zodiac_today') {
-      return 'zodiac-today-energy-card-v1';
+      return 'zodiac-archive-poster-941x1672-v1';
     }
 
     if (sourceType === 'today_index') {
@@ -901,21 +1039,21 @@ export class PostersService {
 
   private resolveZodiacGlyph(zodiac: string) {
     const map: Record<string, string> = {
-      白羊座: '白羊',
-      金牛座: '金牛',
-      双子座: '双子',
-      巨蟹座: '巨蟹',
-      狮子座: '狮子',
-      处女座: '处女',
-      天秤座: '天秤',
-      天蝎座: '天蝎',
-      射手座: '射手',
-      摩羯座: '摩羯',
-      水瓶座: '水瓶',
-      双鱼座: '双鱼',
+      白羊座: '♈',
+      金牛座: '♉',
+      双子座: '♊',
+      巨蟹座: '♋',
+      狮子座: '♌',
+      处女座: '♍',
+      天秤座: '♎',
+      天蝎座: '♏',
+      射手座: '♐',
+      摩羯座: '♑',
+      水瓶座: '♒',
+      双鱼座: '♓',
     };
 
-    return map[zodiac] ?? '星座';
+    return map[zodiac] ?? '✦';
   }
 
   private resolveZodiacEnglishName(zodiac: string) {

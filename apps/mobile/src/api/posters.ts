@@ -76,7 +76,7 @@ export async function generateZodiacTodayPosterAsync(zodiac: string) {
   const response = await createPosterJob({
     sourceType: 'zodiac_today',
     bizCode: zodiac,
-    size: '1088x1472',
+    size: '941x1672',
   });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {

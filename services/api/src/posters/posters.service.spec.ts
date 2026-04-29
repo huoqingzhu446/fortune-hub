@@ -91,9 +91,15 @@ describe('PostersService', () => {
     expect(posterRendererService.renderPoster).toHaveBeenCalledWith(
       expect.objectContaining({
         sourceType: 'zodiac_today',
-        title: '摩羯座今日运势',
+        title: '星运档案',
         energyValue: '78',
-        chips: ['目标', '责任', '耐力'],
+        chips: ['稳定', '坚韧', '长期'],
+        zodiacPoster: expect.objectContaining({
+          tagText: '星运档案',
+          signName: '摩羯座',
+          elementLabel: '土象星座',
+          birthPlace: '待完善',
+        }),
       }),
       null,
       expect.objectContaining({
@@ -104,7 +110,7 @@ describe('PostersService', () => {
       expect.objectContaining({
         provider: 'template',
         providerStatus: 'rendered',
-        templateId: 'zodiac-today-energy-card-v1',
+        templateId: 'zodiac-archive-poster-941x1672-v1',
         providerImageUrl: null,
         providerRequestId: null,
         providerError: null,
@@ -115,7 +121,7 @@ describe('PostersService', () => {
       expect.objectContaining({
         provider: 'template',
         status: 'rendered',
-        prompt: 'zodiac-today-energy-card-v1',
+        prompt: 'zodiac-archive-poster-941x1672-v1',
       }),
     );
   });

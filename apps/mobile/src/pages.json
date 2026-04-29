@@ -32,6 +32,42 @@
       }
     },
     {
+      "path": "pages/divination/index/index",
+      "style": {
+        "navigationBarTitleText": "占卜"
+      }
+    },
+    {
+      "path": "pages/divination/select/index",
+      "style": {
+        "navigationBarTitleText": "选择占卜主题"
+      }
+    },
+    {
+      "path": "pages/divination/loading/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/divination/result/index",
+      "style": {
+        "navigationBarTitleText": "占卜结果"
+      }
+    },
+    {
+      "path": "pages/divination/history/index",
+      "style": {
+        "navigationBarTitleText": "占卜记录"
+      }
+    },
+    {
+      "path": "pages/divination/poster/index",
+      "style": {
+        "navigationBarTitleText": "分享海报"
+      }
+    },
+    {
       "path": "pages/personality/index",
       "style": {
         "navigationBarTitleText": "性格测评"

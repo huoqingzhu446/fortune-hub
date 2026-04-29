@@ -38,6 +38,24 @@
         @select="goToReport"
       />
 
+      <view class="home-page__divination divination-entry">
+        <view class="divination-entry__copy" @tap="openDivinationHome">
+          <text class="divination-entry__eyebrow">周易占卜</text>
+          <text class="divination-entry__title">今日占卜</text>
+          <text class="divination-entry__summary">结合八字、星座与心情，给当下一个温柔方向。</text>
+          <view class="divination-entry__tags">
+            <text>宜沟通</text>
+            <text>忌冲动</text>
+          </view>
+        </view>
+        <view class="divination-entry__visual" @tap="openDivinationHome">
+          <view class="divination-entry__moon"></view>
+          <view class="divination-entry__crystal"></view>
+          <view class="divination-entry__rings"></view>
+        </view>
+        <button class="divination-entry__button" @tap.stop="startHomeDivination">立即占卜</button>
+      </view>
+
       <view class="insight-grid">
         <view
           v-for="card in homeCards"
@@ -94,6 +112,10 @@ import { useThemePreference } from '../../composables/useThemePreference';
 import { getFortuneOrbitalDataUrl } from '../../theme/fortune-orbital';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
+import {
+  createTodayDivinationRequest,
+  setPendingDivinationRequest,
+} from '../../services/divination';
 import type { DashboardStateFactor } from '../../types/dashboard';
 import type { ThemeKey } from '../../theme/tokens';
 
@@ -379,6 +401,15 @@ function goToReport() {
   handleRoute('/pages/report/index');
 }
 
+function openDivinationHome() {
+  handleRoute('/pages/divination/index/index');
+}
+
+function startHomeDivination() {
+  setPendingDivinationRequest(createTodayDivinationRequest('general'));
+  handleRoute('/pages/divination/loading/index');
+}
+
 function findFactor(...ids: string[]) {
   for (const id of ids) {
     const match = factorMap.value.get(id);
@@ -627,6 +658,7 @@ onPullDownRefresh(async () => {
 
 .hero,
 .home-page__main-card,
+.home-page__divination,
 .insight-grid,
 .home-page__advice,
 .home-page__tools {
@@ -742,6 +774,162 @@ onPullDownRefresh(async () => {
 .home-page__main-card {
   margin-top: -5rpx;
   margin-bottom: 26rpx;
+}
+
+.home-page__divination {
+  margin: 0 20rpx 24rpx;
+}
+
+.divination-entry {
+  position: relative;
+  min-height: 236rpx;
+  display: flex;
+  align-items: stretch;
+  gap: 20rpx;
+  padding: 28rpx;
+  overflow: hidden;
+  border-radius: 34rpx;
+  background:
+    radial-gradient(circle at 74% 10%, rgba(255, 255, 255, 0.58), transparent 28%),
+    linear-gradient(135deg, rgba(139, 111, 214, 0.92), rgba(216, 166, 78, 0.46));
+  color: #ffffff;
+  box-shadow:
+    0 20rpx 52rpx rgba(var(--theme-text-primary-rgb), 0.12),
+    0 0 0 1rpx rgba(255, 255, 255, 0.24) inset;
+}
+
+.divination-entry::before,
+.divination-entry::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.divination-entry::before {
+  left: -30rpx;
+  right: -30rpx;
+  bottom: -20rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(255, 255, 255, 0.28);
+}
+
+.divination-entry::after {
+  right: 130rpx;
+  top: 30rpx;
+  width: 18rpx;
+  height: 18rpx;
+  background: #fff3d8;
+  clip-path: polygon(50% 0, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0 50%, 36% 36%);
+}
+
+.divination-entry__copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: 10rpx;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 66rpx;
+}
+
+.divination-entry__eyebrow,
+.divination-entry__summary,
+.divination-entry__tags {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.divination-entry__eyebrow {
+  font-size: 22rpx;
+}
+
+.divination-entry__title {
+  font-size: 42rpx;
+  font-weight: 700;
+  font-family:
+    'Iowan Old Style',
+    'Times New Roman',
+    'Noto Serif SC',
+    serif;
+}
+
+.divination-entry__summary {
+  max-width: 390rpx;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.divination-entry__tags {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 4rpx;
+}
+
+.divination-entry__tags text {
+  padding: 7rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 20rpx;
+}
+
+.divination-entry__visual {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 178rpx;
+}
+
+.divination-entry__moon {
+  position: absolute;
+  right: 8rpx;
+  top: 4rpx;
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: rgba(255, 243, 216, 0.9);
+  box-shadow: -22rpx 0 0 rgba(139, 111, 214, 0.28) inset;
+}
+
+.divination-entry__crystal {
+  position: absolute;
+  left: 40rpx;
+  top: 76rpx;
+  width: 76rpx;
+  height: 100rpx;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(238, 218, 255, 0.48));
+  clip-path: polygon(50% 0, 100% 36%, 72% 100%, 28% 100%, 0 36%);
+}
+
+.divination-entry__rings {
+  position: absolute;
+  left: 2rpx;
+  top: 146rpx;
+  width: 156rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(255, 255, 255, 0.42);
+}
+
+.divination-entry__button {
+  position: absolute;
+  left: 28rpx;
+  bottom: 26rpx;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 176rpx;
+  height: 58rpx;
+  padding: 0;
+  margin: 0;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  color: #8b6fd6;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.divination-entry__button::after {
+  border: 0;
 }
 
 .insight-grid {

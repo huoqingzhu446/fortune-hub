@@ -34,7 +34,15 @@ const WESTERN_ZODIAC_BOUNDARIES = [
 ] as const;
 
 const FIVE_ELEMENT_NAMES = ['木', '火', '土', '金', '水'] as const;
-const RECORD_WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const;
+const RECORD_WEEKDAYS = [
+  '周日',
+  '周一',
+  '周二',
+  '周三',
+  '周四',
+  '周五',
+  '周六',
+] as const;
 const RECORD_LEGEND = [
   { type: 'calm', label: '平静' },
   { type: 'low', label: '低落' },
@@ -101,9 +109,14 @@ const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
     durationMinutes: 12,
     atmosphere: '低频环境音',
     scene: '入睡困难、身体紧绷、脑内还在复盘白天时使用。',
-    guide: ['调暗灯光，放下手机', '从脚趾开始逐段放松', '结束后不再处理复杂信息'],
+    guide: [
+      '调暗灯光，放下手机',
+      '从脚趾开始逐段放松',
+      '结束后不再处理复杂信息',
+    ],
     tags: ['安睡', '身体放松', '晚间'],
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
+    previewUrl:
+      'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
   },
   {
     id: 'box-breath-reset',
@@ -116,7 +129,8 @@ const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
     scene: '焦虑上头、会议前、通勤中或需要马上降速时使用。',
     guide: ['吸气 4 拍', '停顿 4 拍', '呼气 4 拍，再停顿 4 拍'],
     tags: ['急救', '短练习', '呼吸'],
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/woodland_night.ogg',
+    previewUrl:
+      'https://actions.google.com/sounds/v1/ambiences/woodland_night.ogg',
   },
   {
     id: 'forest-focus',
@@ -129,7 +143,8 @@ const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
     scene: '开始工作、学习前，或注意力碎片化时使用。',
     guide: ['写下一个任务', '跟随 10 次自然呼吸', '结束后立刻开始第一步'],
     tags: ['专注', '工作前', '清晰'],
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
+    previewUrl:
+      'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
   },
   {
     id: 'tidal-emotion-reset',
@@ -155,7 +170,8 @@ const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
     scene: '起床后、出门前，或想给一天定一个稳定基调时使用。',
     guide: ['感受双脚和坐骨', '观察三处环境声音', '确认今天只先做好一件事'],
     tags: ['晨间', '安定', '意图'],
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
+    previewUrl:
+      'https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg',
   },
   {
     id: 'shoulder-release',
@@ -168,7 +184,8 @@ const DEFAULT_MEDITATION_MUSIC_LIBRARY = [
     scene: '久坐、肩颈紧、头脑疲惫但又不想睡觉时使用。',
     guide: ['觉察肩膀高度', '放松下颌和眼周', '缓慢转动肩颈后记录身体变化'],
     tags: ['肩颈', '久坐', '身体觉察'],
-    previewUrl: 'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
+    previewUrl:
+      'https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg',
   },
 ] as const;
 
@@ -205,7 +222,7 @@ export class UsersService {
   getCurrentProfile(user: UserEntity) {
     return this.buildEnvelope({
       user: this.authService.serializeUser(user),
-      isProfileCompleted: Boolean(user.birthday && user.zodiac),
+      isProfileCompleted: this.authService.isProfileCompleted(user),
     });
   }
 
@@ -218,12 +235,21 @@ export class UsersService {
   async getProfilePage(user: UserEntity | null) {
     const serializedUser = user ? this.authService.serializeUser(user) : null;
     const isLoggedIn = Boolean(user);
-    const isProfileCompleted = Boolean(user?.birthday && user?.zodiac);
+    const isProfileCompleted = this.authService.isProfileCompleted(user);
     const isVipActive = this.membershipService.isVipActive(user);
-    const recentHistory = user ? await this.loadUnifiedHistoryItems(user, 3) : [];
-    const latestScore = recentHistory.find((item) => item.score !== null)?.score ?? null;
+    const recentHistory = user
+      ? await this.loadUnifiedHistoryItems(user, 3)
+      : [];
+    const latestScore =
+      recentHistory.find((item) => item.score !== null)?.score ?? null;
 
-    const [totalRecords, moodDayCount, orderCount, paidOrderCount, favoriteCount] = user
+    const [
+      totalRecords,
+      moodDayCount,
+      orderCount,
+      paidOrderCount,
+      favoriteCount,
+    ] = user
       ? await Promise.all([
           this.userRecordRepository.count({
             where: { userId: user.id },
@@ -239,7 +265,9 @@ export class UsersService {
         ])
       : [0, 0, 0, 0, 0];
 
-    const vipExpireText = isVipActive ? this.formatDate(serializedUser?.vipExpiredAt) : null;
+    const vipExpireText = isVipActive
+      ? this.formatDate(serializedUser?.vipExpiredAt)
+      : null;
 
     return this.buildEnvelope({
       isLoggedIn,
@@ -257,7 +285,7 @@ export class UsersService {
           ? '登录后会把记录、会员状态和主题偏好绑定到当前账号。'
           : isProfileCompleted
             ? '资料已完善，首页与探索页会优先参考你的资料。'
-            : '生日和出生时间补齐后，会自动生成星座与五行信息。',
+            : '生日、出生时间和出生地补齐后，会自动生成星座与五行信息。',
       },
       membershipCard: {
         title: '开通会员 · 解锁全部权益',
@@ -273,7 +301,12 @@ export class UsersService {
         {
           title: '综合气运指数',
           value: latestScore !== null ? `${latestScore}` : '--',
-          meta: latestScore !== null ? (latestScore >= 80 ? '优秀' : '平稳') : '登录后同步',
+          meta:
+            latestScore !== null
+              ? latestScore >= 80
+                ? '优秀'
+                : '平稳'
+              : '登录后同步',
           tone: 'mist',
         },
         {
@@ -315,6 +348,10 @@ export class UsersService {
     user.avatarUrl = dto.avatarUrl ?? user.avatarUrl;
     user.birthday = dto.birthday;
     user.birthTime = dto.birthTime ?? user.birthTime ?? null;
+    user.preferencesJson = this.mergeProfilePreferences(
+      user.preferencesJson,
+      dto,
+    );
     user.gender = dto.gender;
     user.zodiac = profile.zodiac;
     user.baziSummary = profile.baziSummary;
@@ -327,7 +364,7 @@ export class UsersService {
       message: 'ok',
       data: {
         user: this.authService.serializeUser(savedUser),
-        isProfileCompleted: true,
+        isProfileCompleted: this.authService.isProfileCompleted(savedUser),
       },
       timestamp: new Date().toISOString(),
     };
@@ -485,7 +522,9 @@ export class UsersService {
       },
     });
 
-    const rawItems = Array.isArray((config?.valueJson as { items?: unknown[] } | null)?.items)
+    const rawItems = Array.isArray(
+      (config?.valueJson as { items?: unknown[] } | null)?.items,
+    )
       ? ((config?.valueJson as { items?: unknown[] }).items ?? [])
       : [];
 
@@ -539,7 +578,9 @@ export class UsersService {
         })
       : null;
 
-    const completionStatus = dto.completionStatus ?? (dto.completed === false ? 'partial' : 'completed');
+    const completionStatus =
+      dto.completionStatus ??
+      (dto.completed === false ? 'partial' : 'completed');
     const record =
       existing ??
       this.meditationRecordRepository.create({
@@ -614,7 +655,9 @@ export class UsersService {
 
     const latestMoodScore =
       moodRecords[0]?.moodScore ??
-      this.resolveLatestEmotionScore(testRecords.filter((record) => record.recordType === 'emotion'));
+      this.resolveLatestEmotionScore(
+        testRecords.filter((record) => record.recordType === 'emotion'),
+      );
     const trendPoints = this.buildTrendPoints(moodRecords);
     const hasEnoughTrendData =
       trendPoints.filter((point) => point.value !== null).length >= 3;
@@ -665,7 +708,9 @@ export class UsersService {
         hasEnoughData: hasEnoughTrendData,
         points: trendPoints,
       },
-      moodRecords: moodRecords.slice(0, 12).map((record) => this.serializeMoodRecord(record)),
+      moodRecords: moodRecords
+        .slice(0, 12)
+        .map((record) => this.serializeMoodRecord(record)),
       testRecords: user
         ? testRecords.map((record) =>
             this.serializeUnifiedHistoryItem(
@@ -685,7 +730,9 @@ export class UsersService {
       growth: {
         continuousDays: this.calculateContinuousDays(
           [
-            ...testRecords.map((record) => this.resolveResultRecordDate(record)),
+            ...testRecords.map((record) =>
+              this.resolveResultRecordDate(record),
+            ),
             ...moodRecords.map((record) => record.recordDate),
             ...meditationRecords.map((record) => record.recordDate),
           ].filter((value): value is string => Boolean(value)),
@@ -712,6 +759,22 @@ export class UsersService {
     };
   }
 
+  private mergeProfilePreferences(
+    current: Record<string, unknown> | null,
+    dto: UpdateProfileDto,
+  ) {
+    const birthPlace = dto.birthPlace?.trim();
+
+    if (!birthPlace) {
+      return current;
+    }
+
+    return {
+      ...(current ?? {}),
+      birthPlace,
+    };
+  }
+
   private computeWesternZodiac(birthday: string) {
     const date = birthday.slice(5, 10);
 
@@ -723,17 +786,25 @@ export class UsersService {
   }
 
   private computeFiveElements(birthday: string, birthTime?: string) {
-    const [year, month, day] = birthday.split('-').map((value) => Number(value));
+    const [year, month, day] = birthday
+      .split('-')
+      .map((value) => Number(value));
     const hour = birthTime ? Number.parseInt(birthTime.slice(0, 2), 10) : 12;
     const seed = year + month * 3 + day * 5 + hour * 7;
 
-    return FIVE_ELEMENT_NAMES.reduce<Record<string, number>>((result, element, index) => {
-      result[element] = ((seed + index * 11) % 9) + 1;
-      return result;
-    }, {});
+    return FIVE_ELEMENT_NAMES.reduce<Record<string, number>>(
+      (result, element, index) => {
+        result[element] = ((seed + index * 11) % 9) + 1;
+        return result;
+      },
+      {},
+    );
   }
 
-  private serializeUnifiedHistoryItem(record: UserRecordEntity, hasVipAccess: boolean) {
+  private serializeUnifiedHistoryItem(
+    record: UserRecordEntity,
+    hasVipAccess: boolean,
+  ) {
     const resultData = record.resultData as {
       summary?: string;
       subtitle?: string;
@@ -789,7 +860,8 @@ export class UsersService {
       categoryLabel: categoryMeta.label,
       categorySummary: categoryMeta.summary,
       sourceType: record.sourceType,
-      sourceTypeLabel: MEDITATION_SOURCE_LABELS[record.sourceType] ?? '自定义练习',
+      sourceTypeLabel:
+        MEDITATION_SOURCE_LABELS[record.sourceType] ?? '自定义练习',
       sourceTitle: record.sourceTitle ?? '',
       durationMinutes: record.durationMinutes,
       completed: record.completed,
@@ -852,7 +924,9 @@ export class UsersService {
     );
   }
 
-  private resolveLatestEmotionScore(records: Array<{ score: string | number | null }>) {
+  private resolveLatestEmotionScore(
+    records: Array<{ score: string | number | null }>,
+  ) {
     const latest = records.find((record) => record.score !== null);
     const parsed = latest && latest.score !== null ? Number(latest.score) : NaN;
 
@@ -885,7 +959,8 @@ export class UsersService {
       return {
         date: dateKey,
         day: date.getDate(),
-        moodType: (moodTypeByDate.get(dateKey) ?? this.resolveMoodType(score)) as
+        moodType: (moodTypeByDate.get(dateKey) ??
+          this.resolveMoodType(score)) as
           | 'calm'
           | 'low'
           | 'anxious'
@@ -948,7 +1023,10 @@ export class UsersService {
       .select('COUNT(record.id)', 'totalCount')
       .addSelect('COALESCE(SUM(record.durationMinutes), 0)', 'totalMinutes')
       .where('record.userId = :userId', { userId })
-      .getRawOne<{ totalCount?: string | number; totalMinutes?: string | number }>();
+      .getRawOne<{
+        totalCount?: string | number;
+        totalMinutes?: string | number;
+      }>();
 
     return {
       totalCount: Number(raw?.totalCount ?? 0),
@@ -982,7 +1060,8 @@ export class UsersService {
     weekStart.setDate(today.getDate() - 6);
     const weekStartKey = this.toDateKey(weekStart);
     const weeklyRecords = records.filter(
-      (record) => record.recordDate >= weekStartKey && record.recordDate <= todayKey,
+      (record) =>
+        record.recordDate >= weekStartKey && record.recordDate <= todayKey,
     );
     const completedRecords = records.filter(
       (record) => record.completionStatus !== 'skipped',
@@ -991,19 +1070,36 @@ export class UsersService {
     const afterStateCounts = new Map<string, number>();
 
     for (const record of completedRecords) {
-      categoryCounts.set(record.category, (categoryCounts.get(record.category) ?? 0) + 1);
+      categoryCounts.set(
+        record.category,
+        (categoryCounts.get(record.category) ?? 0) + 1,
+      );
 
       if (record.moodAfter) {
-        afterStateCounts.set(record.moodAfter, (afterStateCounts.get(record.moodAfter) ?? 0) + 1);
+        afterStateCounts.set(
+          record.moodAfter,
+          (afterStateCounts.get(record.moodAfter) ?? 0) + 1,
+        );
       }
     }
 
     const [favoriteCategoryCode = '', favoriteCategoryCount = 0] =
-      Array.from(categoryCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? [];
+      Array.from(categoryCounts.entries()).sort(
+        (left, right) => right[1] - left[1],
+      )[0] ?? [];
     const [bestAfterStateCode = ''] =
-      Array.from(afterStateCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? [];
-    const improvedAfterStates = new Set(['settled', 'clear', 'relaxed', 'sleepy']);
-    const afterStateRecords = records.filter((record) => Boolean(record.moodAfter));
+      Array.from(afterStateCounts.entries()).sort(
+        (left, right) => right[1] - left[1],
+      )[0] ?? [];
+    const improvedAfterStates = new Set([
+      'settled',
+      'clear',
+      'relaxed',
+      'sleepy',
+    ]);
+    const afterStateRecords = records.filter((record) =>
+      Boolean(record.moodAfter),
+    );
     const improvedCount = afterStateRecords.filter((record) =>
       improvedAfterStates.has(record.moodAfter ?? ''),
     ).length;
@@ -1017,7 +1113,10 @@ export class UsersService {
 
     return {
       weeklyCount: weeklyRecords.length,
-      weeklyMinutes: weeklyRecords.reduce((sum, record) => sum + record.durationMinutes, 0),
+      weeklyMinutes: weeklyRecords.reduce(
+        (sum, record) => sum + record.durationMinutes,
+        0,
+      ),
       totalCount: aggregate.totalCount,
       totalMinutes: aggregate.totalMinutes,
       favoriteCategory,
@@ -1027,7 +1126,10 @@ export class UsersService {
       bestAfterState,
       insight: this.buildMeditationInsightText({
         weeklyCount: weeklyRecords.length,
-        weeklyMinutes: weeklyRecords.reduce((sum, record) => sum + record.durationMinutes, 0),
+        weeklyMinutes: weeklyRecords.reduce(
+          (sum, record) => sum + record.durationMinutes,
+          0,
+        ),
         favoriteCategory,
         improvementRate,
         totalCount: aggregate.totalCount,
@@ -1071,7 +1173,7 @@ export class UsersService {
       unchanged: '变化不大',
     };
 
-    return value ? mapping[value] ?? value : '暂无';
+    return value ? (mapping[value] ?? value) : '暂无';
   }
 
   private async countDistinctMoodDays(userId: string) {
@@ -1138,7 +1240,9 @@ export class UsersService {
       },
       {
         title: '我的报告',
-        description: input.reportCount ? `已生成 ${input.reportCount} 份报告` : '暂无报告记录',
+        description: input.reportCount
+          ? `已生成 ${input.reportCount} 份报告`
+          : '暂无报告记录',
         icon: '报',
         route: '/pages/records/index',
       },
@@ -1256,7 +1360,9 @@ export class UsersService {
     return `${year}-${month}-${day}`;
   }
 
-  private normalizeUserPreferences(input: Record<string, unknown> | null | undefined) {
+  private normalizeUserPreferences(
+    input: Record<string, unknown> | null | undefined,
+  ) {
     return {
       ...USER_PREFERENCE_DEFAULTS,
       ...(input || {}),
@@ -1377,13 +1483,19 @@ export class UsersService {
           : categoryMeta.summary,
       guide: Array.isArray(item.guide)
         ? item.guide
-            .filter((step): step is string => typeof step === 'string' && Boolean(step.trim()))
+            .filter(
+              (step): step is string =>
+                typeof step === 'string' && Boolean(step.trim()),
+            )
             .slice(0, 4)
             .map((step) => step.trim())
         : [],
       tags: Array.isArray(item.tags)
         ? item.tags
-            .filter((tag): tag is string => typeof tag === 'string' && Boolean(tag.trim()))
+            .filter(
+              (tag): tag is string =>
+                typeof tag === 'string' && Boolean(tag.trim()),
+            )
             .slice(0, 4)
             .map((tag) => tag.trim())
         : [],
@@ -1394,7 +1506,9 @@ export class UsersService {
                 'FILE_SERVICE_BASE_URL',
                 'http://8.152.214.57:3000/api',
               ),
-              publicApiBaseUrl: this.configService.get<string>('PUBLIC_API_BASE_URL'),
+              publicApiBaseUrl: this.configService.get<string>(
+                'PUBLIC_API_BASE_URL',
+              ),
             })
           : '',
     };

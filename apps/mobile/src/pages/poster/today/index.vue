@@ -9,19 +9,33 @@
       <text class="summary">{{ heroSummary }}</text>
 
       <view class="chip-row">
-        <text v-for="item in profileChips" :key="item" class="chip">{{ item }}</text>
+        <text v-for="item in profileChips" :key="item" class="chip">{{
+          item
+        }}</text>
       </view>
 
       <view class="status-grid">
         <view class="status-card">
-          <text class="status-card__label">{{ dashboard.todayLuckyScore.label }}</text>
-          <text class="status-card__value">{{ dashboard.todayLuckyScore.value }}</text>
-          <text class="status-card__hint">{{ dashboard.todayLuckyScore.hint }}</text>
+          <text class="status-card__label">{{
+            dashboard.todayLuckyScore.label
+          }}</text>
+          <text class="status-card__value">{{
+            dashboard.todayLuckyScore.value
+          }}</text>
+          <text class="status-card__hint">{{
+            dashboard.todayLuckyScore.hint
+          }}</text>
         </view>
         <view class="status-card">
-          <text class="status-card__label">{{ dashboard.annualLuckyScore.label }}</text>
-          <text class="status-card__value">{{ dashboard.annualLuckyScore.value }}</text>
-          <text class="status-card__hint">{{ dashboard.annualLuckyScore.hint }}</text>
+          <text class="status-card__label">{{
+            dashboard.annualLuckyScore.label
+          }}</text>
+          <text class="status-card__value">{{
+            dashboard.annualLuckyScore.value
+          }}</text>
+          <text class="status-card__hint">{{
+            dashboard.annualLuckyScore.hint
+          }}</text>
         </view>
       </view>
     </view>
@@ -29,13 +43,17 @@
     <view class="panel panel--soft">
       <view class="section-head">
         <text class="section-title">会综合这些信息</text>
-        <text class="section-side">{{ profileReady ? '已具备生成条件' : '还差资料' }}</text>
+        <text class="section-side">{{
+          profileReady ? '已具备生成条件' : '还差资料'
+        }}</text>
       </view>
 
       <view class="info-grid">
         <view class="info-card">
           <text class="info-card__label">星座</text>
-          <text class="info-card__value">{{ profile?.zodiac || '未完善' }}</text>
+          <text class="info-card__value">{{
+            profile?.zodiac || '未完善'
+          }}</text>
         </view>
         <view class="info-card">
           <text class="info-card__label">主导元素</text>
@@ -43,17 +61,32 @@
         </view>
         <view class="info-card">
           <text class="info-card__label">出生时间</text>
-          <text class="info-card__value">{{ profile?.birthTime || '未填写' }}</text>
+          <text class="info-card__value">{{
+            profile?.birthTime || '未填写'
+          }}</text>
+        </view>
+        <view class="info-card">
+          <text class="info-card__label">出生地</text>
+          <text class="info-card__value">{{
+            profile?.birthPlace || '未填写'
+          }}</text>
         </view>
         <view class="info-card">
           <text class="info-card__label">今日幸运签</text>
-          <text class="info-card__value">{{ dashboard.todayLuckySign.tag }}</text>
+          <text class="info-card__value">{{
+            dashboard.todayLuckySign.tag
+          }}</text>
         </view>
       </view>
 
-      <text class="body-text">{{ profile?.baziSummary || '补齐生日与出生时间后，会生成更完整的命理摘要。' }}</text>
+      <text class="body-text">{{
+        profile?.baziSummary ||
+        '补齐生日、出生时间与出生地后，会生成更完整的命理摘要。'
+      }}</text>
       <view class="tip-list">
-        <text v-for="item in posterHighlights" :key="item" class="tip-item">{{ item }}</text>
+        <text v-for="item in posterHighlights" :key="item" class="tip-item">{{
+          item
+        }}</text>
       </view>
     </view>
 
@@ -75,23 +108,33 @@
         >
           {{ primaryActionLabel }}
         </button>
-        <button class="hero-button hero-button--secondary" @tap="backHome">回到首页</button>
+        <button class="hero-button hero-button--secondary" @tap="backHome">
+          回到首页
+        </button>
       </view>
     </view>
 
     <view v-if="poster" class="panel">
       <view class="section-head">
         <text class="section-title">海报预览</text>
-        <text class="section-side">{{ poster.width }} × {{ poster.height }}</text>
+        <text class="section-side"
+          >{{ poster.width }} × {{ poster.height }}</text
+        >
       </view>
 
       <image class="poster-image" :src="posterImageSource" mode="widthFix" />
 
       <view class="action-row action-row--triple">
-        <button class="hero-button hero-button--secondary" @tap="previewGeneratedPoster">
+        <button
+          class="hero-button hero-button--secondary"
+          @tap="previewGeneratedPoster"
+        >
           大图预览
         </button>
-        <button class="hero-button hero-button--primary" @tap="saveGeneratedPoster">
+        <button
+          class="hero-button hero-button--primary"
+          @tap="saveGeneratedPoster"
+        >
           保存到手机
         </button>
         <button
@@ -107,8 +150,12 @@
     <view v-if="poster" class="panel panel--soft">
       <text class="section-title">生成信息</text>
       <text class="body-text">视觉主题：{{ poster.themeName }}</text>
-      <text class="body-text">生成时间：{{ formatDateTime(poster.generatedAt) }}</text>
-      <text class="helper-text">如果微信当前版本不支持直接发图，保存到相册后发送给好友会最稳。</text>
+      <text class="body-text"
+        >生成时间：{{ formatDateTime(poster.generatedAt) }}</text
+      >
+      <text class="helper-text"
+        >如果微信当前版本不支持直接发图，保存到相册后发送给好友会最稳。</text
+      >
     </view>
   </view>
 </template>
@@ -127,7 +174,11 @@ import {
   savePosterImage,
   sharePosterImageToWechat,
 } from '../../../services/poster-image';
-import { getAuthToken, getCachedUser, setCachedUser } from '../../../services/session';
+import {
+  getAuthToken,
+  getCachedUser,
+  setCachedUser,
+} from '../../../services/session';
 import { useDashboardStore } from '../../../stores/dashboard';
 import type { UserProfile } from '../../../types/auth';
 import type { GeneratedPoster } from '../../../types/poster';
@@ -140,16 +191,25 @@ const loading = ref(false);
 const contextLoading = ref(false);
 const autoGenerate = ref(false);
 const { themeVars } = useThemePreference();
-const isMpWeixin = String(
-  (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
-).toLowerCase() === 'mp-weixin';
+const isMpWeixin =
+  String(
+    (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
+  ).toLowerCase() === 'mp-weixin';
 const posterImageSource = computed(() =>
   poster.value ? resolvePreferredImageSource(poster.value) : '',
 );
 
 const dashboard = computed(() => dashboardStore.dashboard);
 const isLoggedIn = computed(() => Boolean(authToken.value));
-const profileReady = computed(() => Boolean(profile.value?.birthday && profile.value?.zodiac));
+const profileReady = computed(() =>
+  Boolean(
+    profile.value?.birthday &&
+    profile.value?.birthTime &&
+    profile.value?.birthPlace &&
+    profile.value?.zodiac &&
+    profile.value?.gender !== 'unknown',
+  ),
+);
 const dominantElement = computed(() => {
   const entries = Object.entries(profile.value?.fiveElements ?? {});
 
@@ -165,7 +225,9 @@ const profileChips = computed(() => {
     profile.value?.nickname || '',
     profile.value?.zodiac || '待完善星座',
     `${dominantElement.value}元素`,
-    profile.value?.birthTime ? `${profile.value.birthTime} 出生` : '未填写出生时辰',
+    profile.value?.birthTime
+      ? `${profile.value.birthTime} 出生`
+      : '未填写出生时辰',
   ].filter(Boolean);
 
   return chips.slice(0, 4);
@@ -296,7 +358,10 @@ async function previewGeneratedPoster() {
   }
 
   try {
-    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
+    await previewPosterImage(
+      posterImageSource.value,
+      poster.value.downloadFileName,
+    );
   } catch (error) {
     uni.showToast({
       title: handlePosterImageError(error, '预览失败，请稍后再试'),
@@ -311,7 +376,10 @@ async function saveGeneratedPoster() {
   }
 
   try {
-    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
+    await savePosterImage(
+      posterImageSource.value,
+      poster.value.downloadFileName,
+    );
     uni.showToast({
       title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
       icon: 'success',
@@ -330,10 +398,16 @@ async function shareGeneratedPoster() {
   }
 
   try {
-    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
+    await sharePosterImageToWechat(
+      posterImageSource.value,
+      poster.value.downloadFileName,
+    );
   } catch (error) {
     uni.showToast({
-      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
+      title: handlePosterImageError(
+        error,
+        '当前微信版本暂不支持直接发图，请先保存到相册',
+      ),
       icon: 'none',
     });
   }
@@ -375,7 +449,11 @@ onShow(() => {
   padding: 24rpx;
   background:
     radial-gradient(circle at top left, var(--theme-glow), transparent 26%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+    linear-gradient(
+      180deg,
+      var(--theme-page-top) 0%,
+      var(--theme-page-bottom) 100%
+    );
 }
 
 .page-orb {
@@ -419,8 +497,16 @@ onShow(() => {
 
 .hero-panel {
   background:
-    radial-gradient(circle at top right, rgba(138, 194, 255, 0.24), transparent 34%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 248, 255, 0.98) 100%);
+    radial-gradient(
+      circle at top right,
+      rgba(138, 194, 255, 0.24),
+      transparent 34%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(244, 248, 255, 0.98) 100%
+    );
 }
 
 .eyebrow,

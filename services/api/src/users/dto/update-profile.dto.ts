@@ -29,4 +29,9 @@ export class UpdateProfileDto {
   @IsString()
   @Matches(/^\d{2}:\d{2}$/)
   birthTime?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  birthPlace?: string;
 }

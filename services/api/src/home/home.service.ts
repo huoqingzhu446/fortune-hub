@@ -94,10 +94,18 @@ export class HomeService {
       this.pickString((luckySign as { themeName?: string }).themeName, ''),
     );
     const integrations = this.buildIntegrations();
-    const signals = user ? await this.loadHomeSignals(user.id) : this.createEmptySignals();
+    const signals = user
+      ? await this.loadHomeSignals(user.id)
+      : this.createEmptySignals();
     const stateOverview = this.buildStateOverview(user, signals);
     const isLoggedIn = Boolean(user);
-    const profileCompleted = Boolean(user?.birthday && user?.zodiac);
+    const profileCompleted = Boolean(
+      user?.birthday &&
+      user?.birthTime &&
+      this.resolveUserBirthPlace(user) &&
+      user?.zodiac &&
+      user?.gender !== 'unknown',
+    );
     const isVipActive =
       user?.vipStatus === 'active' &&
       user.vipExpiredAt instanceof Date &&
@@ -148,10 +156,14 @@ export class HomeService {
         description: isLoggedIn
           ? profileCompleted
             ? '基础资料已就绪，随时可以回来调整生日、时辰和昵称。'
-            : '先补齐生日和出生时间，首页的个性化解释会更准确。'
+            : '先补齐生日、出生时间和出生地，首页的个性化解释会更准确。'
           : '从个人中心发起微信登录，后续历史和状态变化都会绑定到账号。',
         route: '/pages/profile/index',
-        badge: isLoggedIn ? (profileCompleted ? '已登录' : '待完善') : '立即开始',
+        badge: isLoggedIn
+          ? profileCompleted
+            ? '已登录'
+            : '待完善'
+          : '立即开始',
       },
       {
         id: 'records',
@@ -192,21 +204,26 @@ export class HomeService {
         title: '完善资料',
         description: profileCompleted
           ? `当前会结合${user?.zodiac ?? '你的资料'}和最近测评结果，生成更贴近你的首页判断。`
-          : '补齐生日、出生时间和性别后，首页解释和个性化标签会更完整。',
+          : '补齐生日、出生时间、出生地和性别后，首页解释和个性化标签会更完整。',
         completed: profileCompleted,
       },
       {
         id: 'assessment',
         title: '建立状态基线',
-        description: signals.emotion.length || signals.personality
-          ? '首页已经开始参考你的测评结果，后续会越来越稳定。'
-          : '先做性格和情绪两项短测，首页分数才会更有依据。',
+        description:
+          signals.emotion.length || signals.personality
+            ? '首页已经开始参考你的测评结果，后续会越来越稳定。'
+            : '先做性格和情绪两项短测，首页分数才会更有依据。',
         completed: Boolean(signals.emotion.length || signals.personality),
       },
     ];
 
     const headline = this.buildHeadline(user, profileCompleted, stateOverview);
-    const userSummary = this.buildUserSummary(user, profileCompleted, isVipActive);
+    const userSummary = this.buildUserSummary(
+      user,
+      profileCompleted,
+      isVipActive,
+    );
 
     return {
       code: 0,
@@ -261,7 +278,8 @@ export class HomeService {
           {
             label: stateOverview.factors[0]?.label ?? '情绪稳定度',
             value: stateOverview.factors[0]?.value ?? '--',
-            hint: stateOverview.factors[0]?.hint ?? '先完成情绪自检后会更准确。',
+            hint:
+              stateOverview.factors[0]?.hint ?? '先完成情绪自检后会更准确。',
           },
           {
             label: stateOverview.completionScore.label,
@@ -341,7 +359,8 @@ export class HomeService {
 
     for (const record of records) {
       if (record.recordType === 'emotion') {
-        const sourceKey = record.sourceCode || `emotion-${emotionBySource.size + 1}`;
+        const sourceKey =
+          record.sourceCode || `emotion-${emotionBySource.size + 1}`;
         if (emotionBySource.has(sourceKey)) {
           continue;
         }
@@ -355,7 +374,10 @@ export class HomeService {
         emotionBySource.set(sourceKey, {
           sourceCode: record.sourceCode,
           title: record.resultTitle,
-          riskLevel: this.pickString(resultData.riskLevel, record.resultLevel ?? ''),
+          riskLevel: this.pickString(
+            resultData.riskLevel,
+            record.resultLevel ?? '',
+          ),
           primarySuggestion: this.pickString(
             resultData.primarySuggestion,
             '今天先把节奏稳下来，再继续推进。',
@@ -379,8 +401,15 @@ export class HomeService {
 
         personality = {
           title: record.resultTitle,
-          score: this.clampScore(Number(record.score ?? resultData.score ?? 0), 0, 100, 68),
-          dominantDimensionLabel: this.pickNullableString(dominantDimension.label),
+          score: this.clampScore(
+            Number(record.score ?? resultData.score ?? 0),
+            0,
+            100,
+            68,
+          ),
+          dominantDimensionLabel: this.pickNullableString(
+            dominantDimension.label,
+          ),
           summary: this.pickString(
             resultData.summary,
             '这次性格测评已经生成，能帮助你更快看清自己的自然优势。',
@@ -419,7 +448,10 @@ export class HomeService {
     };
   }
 
-  private buildStateOverview(user: UserEntity | null, signals: HomeSignals): StateOverview {
+  private buildStateOverview(
+    user: UserEntity | null,
+    signals: HomeSignals,
+  ): StateOverview {
     const emotionFactor = this.buildEmotionFactor(signals.emotion);
     const personalityFactor = this.buildPersonalityFactor(signals.personality);
     const completionFactor = this.buildCompletionFactor(user, signals);
@@ -438,10 +470,17 @@ export class HomeService {
     );
 
     const basisTags = this.buildBasisTags(user, signals);
-    const confidenceLabel = this.buildConfidenceLabel(signals, completionFactor.numericValue);
+    const confidenceLabel = this.buildConfidenceLabel(
+      signals,
+      completionFactor.numericValue,
+    );
     const title = this.buildStateTitle(currentScore, signals);
     const summary = this.buildStateSummary(currentScore, signals);
-    const primarySuggestion = this.buildPrimarySuggestion(currentScore, signals, user);
+    const primarySuggestion = this.buildPrimarySuggestion(
+      currentScore,
+      signals,
+      user,
+    );
     const evidenceLabel = this.buildEvidenceLabel(signals);
 
     return {
@@ -485,7 +524,13 @@ export class HomeService {
     const normalized = signals.slice(0, 2).map((signal) => {
       const base = EMOTION_BASE_SCORES[signal.riskLevel ?? ''] ?? 68;
       const freshnessPenalty =
-        signal.ageDays > 45 ? 12 : signal.ageDays > 21 ? 8 : signal.ageDays > 7 ? 4 : 0;
+        signal.ageDays > 45
+          ? 12
+          : signal.ageDays > 21
+            ? 8
+            : signal.ageDays > 7
+              ? 4
+              : 0;
       return this.clampScore(base - freshnessPenalty, 30, 92, 68);
     });
     const averageScore = Math.round(
@@ -496,7 +541,8 @@ export class HomeService {
       const rightWeight = EMOTION_BASE_SCORES[right.riskLevel ?? ''] ?? 68;
       return leftWeight - rightWeight;
     })[0];
-    const tone = averageScore >= 80 ? 'positive' : averageScore >= 66 ? 'steady' : 'watch';
+    const tone =
+      averageScore >= 80 ? 'positive' : averageScore >= 66 ? 'steady' : 'watch';
 
     return {
       id: 'emotion',
@@ -511,7 +557,9 @@ export class HomeService {
     };
   }
 
-  private buildPersonalityFactor(signal: PersonalitySignal | null): StateFactor {
+  private buildPersonalityFactor(
+    signal: PersonalitySignal | null,
+  ): StateFactor {
     if (!signal) {
       return {
         id: 'personality',
@@ -524,7 +572,13 @@ export class HomeService {
     }
 
     const freshnessPenalty =
-      signal.ageDays > 180 ? 8 : signal.ageDays > 90 ? 4 : signal.ageDays > 45 ? 2 : 0;
+      signal.ageDays > 180
+        ? 8
+        : signal.ageDays > 90
+          ? 4
+          : signal.ageDays > 45
+            ? 2
+            : 0;
     const normalized = this.clampScore(
       Math.round(58 + signal.score * 0.28 - freshnessPenalty),
       48,
@@ -540,15 +594,20 @@ export class HomeService {
       label: '节奏掌控度',
       value: String(normalized),
       hint: dimensionText,
-      tone: normalized >= 80 ? 'positive' : normalized >= 68 ? 'steady' : 'watch',
+      tone:
+        normalized >= 80 ? 'positive' : normalized >= 68 ? 'steady' : 'watch',
       numericValue: normalized,
     };
   }
 
-  private buildCompletionFactor(user: UserEntity | null, signals: HomeSignals): StateFactor {
+  private buildCompletionFactor(
+    user: UserEntity | null,
+    signals: HomeSignals,
+  ): StateFactor {
     const score =
-      (user?.birthday && user?.zodiac ? 30 : 0) +
-      (user?.birthTime ? 10 : 0) +
+      (user?.birthday && user?.zodiac ? 25 : 0) +
+      (user?.birthTime ? 8 : 0) +
+      (this.resolveUserBirthPlace(user) ? 7 : 0) +
       (signals.personality ? 20 : 0) +
       (signals.emotion.length ? 25 : 0) +
       (signals.bazi ? 15 : 0);
@@ -556,6 +615,8 @@ export class HomeService {
     const missingItems = [
       !user ? '登录账号' : '',
       !user?.birthday || !user?.zodiac ? '补齐生日资料' : '',
+      !user?.birthTime ? '补齐出生时间' : '',
+      !this.resolveUserBirthPlace(user) ? '补齐出生地' : '',
       !signals.personality ? '完成性格测评' : '',
       !signals.emotion.length ? '完成情绪自检' : '',
       !signals.bazi ? '补一份八字解读' : '',
@@ -568,12 +629,16 @@ export class HomeService {
       hint: missingItems.length
         ? `还差 ${missingItems.slice(0, 2).join('、')}，首页判断会更完整。`
         : '资料与核心测评都比较齐，首页解释会更稳定。',
-      tone: normalized >= 82 ? 'positive' : normalized >= 56 ? 'steady' : 'watch',
+      tone:
+        normalized >= 82 ? 'positive' : normalized >= 56 ? 'steady' : 'watch',
       numericValue: normalized,
     };
   }
 
-  private buildContextScore(user: UserEntity | null, baziSignal: BaziSignal | null) {
+  private buildContextScore(
+    user: UserEntity | null,
+    baziSignal: BaziSignal | null,
+  ) {
     const score =
       58 +
       (user?.zodiac ? 8 : 0) +
@@ -588,7 +653,9 @@ export class HomeService {
   private buildBasisTags(user: UserEntity | null, signals: HomeSignals) {
     const tags = [
       user?.zodiac ?? '',
-      this.resolveDominantElement(user, signals.bazi) ? `${this.resolveDominantElement(user, signals.bazi)}元素` : '',
+      this.resolveDominantElement(user, signals.bazi)
+        ? `${this.resolveDominantElement(user, signals.bazi)}元素`
+        : '',
       signals.personality?.dominantDimensionLabel ?? '',
       this.buildEmotionTag(signals.emotion[0]?.riskLevel ?? ''),
     ].filter(Boolean);
@@ -597,7 +664,11 @@ export class HomeService {
   }
 
   private buildConfidenceLabel(signals: HomeSignals, completionScore: number) {
-    if (signals.emotion.length && signals.personality && completionScore >= 80) {
+    if (
+      signals.emotion.length &&
+      signals.personality &&
+      completionScore >= 80
+    ) {
       return '依据较完整：近 30 天自检 + 资料档案';
     }
 
@@ -633,7 +704,10 @@ export class HomeService {
   private buildStateSummary(score: number, signals: HomeSignals) {
     const strongestEmotion = signals.emotion[0];
 
-    if (strongestEmotion?.riskLevel === 'urgent' || strongestEmotion?.riskLevel === 'support') {
+    if (
+      strongestEmotion?.riskLevel === 'urgent' ||
+      strongestEmotion?.riskLevel === 'support'
+    ) {
       return '最近的情绪自检提示当前压力偏高，首页会优先把恢复、减压和支持资源放在建议前面。';
     }
 
@@ -659,7 +733,10 @@ export class HomeService {
   ) {
     const strongestEmotion = signals.emotion[0];
 
-    if (strongestEmotion?.riskLevel === 'urgent' || strongestEmotion?.riskLevel === 'support') {
+    if (
+      strongestEmotion?.riskLevel === 'urgent' ||
+      strongestEmotion?.riskLevel === 'support'
+    ) {
       return strongestEmotion.primarySuggestion;
     }
 
@@ -743,7 +820,7 @@ export class HomeService {
       return {
         title: `${user.nickname || '欢迎回来'}，先把资料补齐`,
         subtitle:
-          '生日和出生时间补齐后，首页才会开始给你更完整的个性化解释和状态标签。',
+          '生日、出生时间和出生地补齐后，首页才会开始给你更完整的个性化解释和状态标签。',
       };
     }
 
@@ -774,7 +851,9 @@ export class HomeService {
           : '/pages/profile/index'
         : '/pages/profile/index',
       secondaryActionTitle: user ? '查看历史记录' : '看看设置与说明',
-      secondaryActionRoute: user ? '/pages/records/index' : '/pages/settings/index',
+      secondaryActionRoute: user
+        ? '/pages/records/index'
+        : '/pages/settings/index',
       welcomeNote: !user
         ? '登录后会把历史、状态变化和会员权益都绑定到当前账号。'
         : profileCompleted
@@ -803,7 +882,10 @@ export class HomeService {
     return '状态观察中';
   }
 
-  private resolveDominantElement(user: UserEntity | null, baziSignal: BaziSignal | null) {
+  private resolveDominantElement(
+    user: UserEntity | null,
+    baziSignal: BaziSignal | null,
+  ) {
     const entries = Object.entries(user?.fiveElements ?? {});
 
     if (entries.length) {
@@ -833,18 +915,38 @@ export class HomeService {
       return 999;
     }
 
-    return Math.max(0, Math.floor((Date.now() - target) / (24 * 60 * 60 * 1000)));
+    return Math.max(
+      0,
+      Math.floor((Date.now() - target) / (24 * 60 * 60 * 1000)),
+    );
   }
 
   private pickString(value: unknown, fallback: string) {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
   }
 
+  private resolveUserBirthPlace(user: UserEntity | null) {
+    const preferences = user?.preferencesJson ?? {};
+
+    return this.pickString(
+      preferences.birthPlace,
+      this.pickString(
+        preferences.birthCity,
+        this.pickString(preferences.city, ''),
+      ),
+    );
+  }
+
   private pickNullableString(value: unknown) {
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
 
-  private clampScore(value: number, min: number, max: number, fallback: number) {
+  private clampScore(
+    value: number,
+    min: number,
+    max: number,
+    fallback: number,
+  ) {
     if (!Number.isFinite(value)) {
       return fallback;
     }

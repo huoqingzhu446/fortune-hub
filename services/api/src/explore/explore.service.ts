@@ -236,9 +236,15 @@ export class ExploreService {
     const requestedSort = this.normalizeSort(query.sort, Boolean(keyword));
 
     const featureMatches = this.sortExploreFeatures(
-      data.features.filter((item) =>
-        this.matchExploreItem(item.title, item.description, keyword) &&
-        this.matchExploreFilters(item.type, item.goals, requestedType, requestedGoals),
+      data.features.filter(
+        (item) =>
+          this.matchExploreItem(item.title, item.description, keyword) &&
+          this.matchExploreFilters(
+            item.type,
+            item.goals,
+            requestedType,
+            requestedGoals,
+          ),
       ),
       keyword,
       requestedSort,
@@ -251,9 +257,15 @@ export class ExploreService {
       requestedSort,
     );
     const contentMatches = this.sortExploreContents(
-      data.contents.filter((item) =>
-        this.matchExploreItem(item.title, item.description, keyword) &&
-        this.matchExploreFilters(item.filterType, item.goals, requestedType, requestedGoals),
+      data.contents.filter(
+        (item) =>
+          this.matchExploreItem(item.title, item.description, keyword) &&
+          this.matchExploreFilters(
+            item.filterType,
+            item.goals,
+            requestedType,
+            requestedGoals,
+          ),
       ),
       keyword,
       requestedSort,
@@ -269,7 +281,13 @@ export class ExploreService {
   }
 
   private async buildExploreData(user: UserEntity | null) {
-    const isProfileCompleted = Boolean(user?.birthday && user?.zodiac);
+    const isProfileCompleted = Boolean(
+      user?.birthday &&
+      user?.birthTime &&
+      this.resolveUserBirthPlace(user) &&
+      user?.zodiac &&
+      user?.gender !== 'unknown',
+    );
     const [liveTopics, liveContents] = await Promise.all([
       this.buildLiveTopics(),
       this.buildLiveContents(),
@@ -280,8 +298,12 @@ export class ExploreService {
       searchPlaceholder: '搜索测试 / 冥想 / 星座 / 八字',
       todayFit: {
         icon: '莲',
-        text: isProfileCompleted ? '今日适合：情绪疗愈' : '今日适合：完善资料后再深入探索',
-        route: isProfileCompleted ? '/pages/emotion/index' : '/pages/profile/index',
+        text: isProfileCompleted
+          ? '今日适合：情绪疗愈'
+          : '今日适合：完善资料后再深入探索',
+        route: isProfileCompleted
+          ? '/pages/emotion/index'
+          : '/pages/profile/index',
       },
       filters: {
         types: [
@@ -327,6 +349,23 @@ export class ExploreService {
         'recommended',
       ),
     };
+  }
+
+  private resolveUserBirthPlace(user: UserEntity | null) {
+    const preferences = user?.preferencesJson ?? {};
+    const candidates = [
+      preferences.birthPlace,
+      preferences.birthCity,
+      preferences.city,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return '';
   }
 
   private async buildLiveTopics() {
@@ -405,7 +444,9 @@ export class ExploreService {
       icon: '泉',
       type: '内容',
       filterType: 'content',
-      goals: this.resolveGoals(`${item.title} ${item.summary ?? ''} ${item.category}`),
+      goals: this.resolveGoals(
+        `${item.title} ${item.summary ?? ''} ${item.category}`,
+      ),
       duration: '内容',
       stat: item.category,
       buttonText: '查看',
@@ -422,7 +463,9 @@ export class ExploreService {
       icon: this.resolveContentIcon(item.contentType),
       type: this.resolveContentType(item.contentType),
       filterType: this.resolveFilterType(item.contentType),
-      goals: this.resolveGoals(`${item.title} ${item.summary ?? ''} ${item.contentType}`),
+      goals: this.resolveGoals(
+        `${item.title} ${item.summary ?? ''} ${item.contentType}`,
+      ),
       duration: '内容',
       stat: item.contentType,
       buttonText: '查看',
@@ -439,7 +482,9 @@ export class ExploreService {
       icon: '报',
       type: '报告',
       filterType: this.resolveFilterType(item.templateType),
-      goals: this.resolveGoals(`${item.title} ${item.description ?? ''} ${item.templateType}`),
+      goals: this.resolveGoals(
+        `${item.title} ${item.description ?? ''} ${item.templateType}`,
+      ),
       duration: '报告',
       stat: item.templateType,
       buttonText: '查看',
@@ -469,10 +514,12 @@ export class ExploreService {
     }));
 
     return this.sortExploreContents(
-      [...liveLuckyItems, ...liveFortuneContents, ...liveTemplates, ...liveAssessments].slice(
-        0,
-        14,
-      ),
+      [
+        ...liveLuckyItems,
+        ...liveFortuneContents,
+        ...liveTemplates,
+        ...liveAssessments,
+      ].slice(0, 14),
       null,
       'recommended',
     ).slice(0, 10);
@@ -570,9 +617,7 @@ export class ExploreService {
     const normalized = text.toLowerCase();
     const goals = new Set<string>();
 
-    if (
-      /睡|眠|呼吸|放松|冥想|疗愈|relax|sleep/.test(normalized)
-    ) {
+    if (/睡|眠|呼吸|放松|冥想|疗愈|relax|sleep/.test(normalized)) {
       goals.add('relax');
       goals.add('sleep');
     }
@@ -592,7 +637,11 @@ export class ExploreService {
     return goals.size ? [...goals] : ['self'];
   }
 
-  private matchExploreItem(title: string, description: string, keyword: string | null) {
+  private matchExploreItem(
+    title: string,
+    description: string,
+    keyword: string | null,
+  ) {
     if (!keyword) {
       return true;
     }
@@ -611,7 +660,10 @@ export class ExploreService {
       return false;
     }
 
-    if (requestedGoals.length && !requestedGoals.some((goal) => goals.includes(goal))) {
+    if (
+      requestedGoals.length &&
+      !requestedGoals.some((goal) => goals.includes(goal))
+    ) {
       return false;
     }
 
@@ -747,14 +799,22 @@ export class ExploreService {
     }
   }
 
-  private compareByKeyword(leftText: string, rightText: string, keyword: string | null) {
+  private compareByKeyword(
+    leftText: string,
+    rightText: string,
+    keyword: string | null,
+  ) {
     const leftScore = this.resolveKeywordScore(leftText, keyword);
     const rightScore = this.resolveKeywordScore(rightText, keyword);
 
     return rightScore - leftScore;
   }
 
-  private resolveKeywordScore(text: string, keyword: string | null, title?: string) {
+  private resolveKeywordScore(
+    text: string,
+    keyword: string | null,
+    title?: string,
+  ) {
     if (!keyword) {
       return 0;
     }

@@ -81,9 +81,11 @@ export class AuthService {
         expiresIn: SESSION_TTL_SECONDS,
         authMode: session.authMode,
         authProviderLabel:
-          session.authMode === 'wechat' ? '正式微信授权登录' : '开发环境体验登录',
+          session.authMode === 'wechat'
+            ? '正式微信授权登录'
+            : '开发环境体验登录',
         user: this.serializeUser(savedUser),
-        isProfileCompleted: Boolean(savedUser.birthday && savedUser.zodiac),
+        isProfileCompleted: this.isProfileCompleted(savedUser),
       },
       timestamp: new Date().toISOString(),
     };
@@ -133,6 +135,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       birthday: user.birthday,
       birthTime: user.birthTime,
+      birthPlace: this.resolveUserBirthPlace(user),
       gender: user.gender,
       zodiac: user.zodiac,
       baziSummary: user.baziSummary,
@@ -143,13 +146,41 @@ export class AuthService {
     };
   }
 
+  isProfileCompleted(user: UserEntity | null | undefined) {
+    return Boolean(
+      user?.birthday &&
+      user?.birthTime &&
+      this.resolveUserBirthPlace(user) &&
+      user?.zodiac &&
+      user?.gender !== 'unknown',
+    );
+  }
+
+  resolveUserBirthPlace(user: UserEntity | null | undefined) {
+    const preferences = user?.preferencesJson ?? {};
+    const candidates = [
+      preferences.birthPlace,
+      preferences.birthCity,
+      preferences.city,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return null;
+  }
+
   private async persistUser(user: UserEntity) {
     try {
       return await this.userRepository.save(user);
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
-        (error.driverError as { code?: string } | undefined)?.code === 'ER_DUP_ENTRY'
+        (error.driverError as { code?: string } | undefined)?.code ===
+          'ER_DUP_ENTRY'
       ) {
         const existingUser = await this.userRepository.findOne({
           where: { openid: user.openid },
@@ -180,11 +211,14 @@ export class AuthService {
     return token;
   }
 
-  private async resolveWechatSession(code: string): Promise<ResolvedWechatSession> {
+  private async resolveWechatSession(
+    code: string,
+  ): Promise<ResolvedWechatSession> {
     const appId = this.configService.get<string>('WECHAT_APP_ID');
     const appSecret = this.configService.get<string>('WECHAT_APP_SECRET');
     const allowMockLogin =
-      this.configService.get<string>('WECHAT_LOGIN_ALLOW_MOCK', 'false') === 'true';
+      this.configService.get<string>('WECHAT_LOGIN_ALLOW_MOCK', 'false') ===
+      'true';
     const isDevCode = code.startsWith('dev-');
 
     if (appId && appSecret) {
@@ -199,7 +233,8 @@ export class AuthService {
 
       if (!response.ok || !payload.openid) {
         throw new BadGatewayException(
-          payload.errmsg || '微信登录失败，请检查小程序配置与登录 code 是否有效',
+          payload.errmsg ||
+            '微信登录失败，请检查小程序配置与登录 code 是否有效',
         );
       }
 

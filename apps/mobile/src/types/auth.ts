@@ -12,6 +12,7 @@ export interface UserProfile {
   avatarUrl: string | null;
   birthday: string | null;
   birthTime: string | null;
+  birthPlace: string | null;
   gender: string;
   zodiac: string | null;
   baziSummary: string | null;
@@ -48,4 +49,5 @@ export interface UpdateProfilePayload {
   birthday: string;
   gender: 'male' | 'female' | 'unknown';
   birthTime?: string;
+  birthPlace?: string;
 }

@@ -38,7 +38,9 @@
           v-for="option in modeOptions"
           :key="option.value"
           class="mode-switch__option"
-          :class="{ 'mode-switch__option--active': activeMode === option.value }"
+          :class="{
+            'mode-switch__option--active': activeMode === option.value,
+          }"
           @tap="selectMode(option.value)"
         >
           <text class="mode-switch__title">{{ option.label }}</text>
@@ -49,7 +51,11 @@
       <view class="field-grid">
         <view class="field-block">
           <text class="field-block__label">生日</text>
-          <picker mode="date" :value="form.birthday" @change="handleBirthdayChange">
+          <picker
+            mode="date"
+            :value="form.birthday"
+            @change="handleBirthdayChange"
+          >
             <view class="field-block__picker">
               <text>{{ form.birthday || '请选择生日' }}</text>
             </view>
@@ -58,7 +64,11 @@
 
         <view class="field-block">
           <text class="field-block__label">出生时间</text>
-          <picker mode="time" :value="form.birthTime" @change="handleBirthTimeChange">
+          <picker
+            mode="time"
+            :value="form.birthTime"
+            @change="handleBirthTimeChange"
+          >
             <view class="field-block__picker">
               <text>{{ form.birthTime || '请选择时辰' }}</text>
             </view>
@@ -101,16 +111,27 @@
               v-for="option in filteredBirthPlaces"
               :key="option.value"
               class="city-result"
-              :class="{ 'city-result--active': option.value === selectedBirthPlace.value }"
+              :class="{
+                'city-result--active':
+                  option.value === selectedBirthPlace.value,
+              }"
               @tap="selectBirthPlace(option)"
             >
               <text class="city-result__name">{{ option.label }}</text>
-              <text class="city-result__meta">{{ formatBirthPlaceMeta(option) }}</text>
+              <text class="city-result__meta">{{
+                formatBirthPlaceMeta(option)
+              }}</text>
             </view>
-            <view v-if="loadingBirthPlaces" class="city-result city-result--empty">
+            <view
+              v-if="loadingBirthPlaces"
+              class="city-result city-result--empty"
+            >
               <text class="city-result__name">正在搜索出生地...</text>
             </view>
-            <view v-else-if="!filteredBirthPlaces.length" class="city-result city-result--empty">
+            <view
+              v-else-if="!filteredBirthPlaces.length"
+              class="city-result city-result--empty"
+            >
               <text class="city-result__name">未找到匹配城市</text>
             </view>
           </view>
@@ -132,7 +153,10 @@
           <text class="sheet-header__eyebrow">chart result</text>
           <text class="sheet-header__title">{{ latestResult.title }}</text>
         </view>
-        <text class="sheet-header__side">{{ latestResult.baseProfile.zodiac }} · {{ latestResult.baseProfile.dayMaster }}日主</text>
+        <text class="sheet-header__side"
+          >{{ latestResult.baseProfile.zodiac }} ·
+          {{ latestResult.baseProfile.dayMaster }}日主</text
+        >
       </view>
 
       <text class="result-sheet__subtitle">{{ latestResult.subtitle }}</text>
@@ -141,19 +165,27 @@
       <view class="pillar-strip">
         <view class="pillar-cell">
           <text class="pillar-cell__label">年柱</text>
-          <text class="pillar-cell__value">{{ latestResult.chart.yearPillar }}</text>
+          <text class="pillar-cell__value">{{
+            latestResult.chart.yearPillar
+          }}</text>
         </view>
         <view class="pillar-cell">
           <text class="pillar-cell__label">月柱</text>
-          <text class="pillar-cell__value">{{ latestResult.chart.monthPillar }}</text>
+          <text class="pillar-cell__value">{{
+            latestResult.chart.monthPillar
+          }}</text>
         </view>
         <view class="pillar-cell">
           <text class="pillar-cell__label">日柱</text>
-          <text class="pillar-cell__value">{{ latestResult.chart.dayPillar }}</text>
+          <text class="pillar-cell__value">{{
+            latestResult.chart.dayPillar
+          }}</text>
         </view>
         <view class="pillar-cell">
           <text class="pillar-cell__label">时柱</text>
-          <text class="pillar-cell__value">{{ latestResult.chart.hourPillar }}</text>
+          <text class="pillar-cell__value">{{
+            latestResult.chart.hourPillar
+          }}</text>
         </view>
       </view>
 
@@ -163,11 +195,17 @@
             <text class="sheet-header__eyebrow">professional details</text>
             <text class="sheet-header__title">专业排盘信息</text>
           </view>
-          <text class="sheet-header__side">{{ latestResult.professional.library }}</text>
+          <text class="sheet-header__side">{{
+            latestResult.professional.library
+          }}</text>
         </view>
 
         <view class="professional-meta">
-          <view v-for="item in professionalProfileRows" :key="item.label" class="professional-meta__item">
+          <view
+            v-for="item in professionalProfileRows"
+            :key="item.label"
+            class="professional-meta__item"
+          >
             <text class="professional-meta__label">{{ item.label }}</text>
             <text class="professional-meta__value">{{ item.value }}</text>
           </view>
@@ -175,14 +213,18 @@
 
         <view class="reading-sheet">
           <text class="reading-sheet__title">节气规则</text>
-          <text class="reading-sheet__text">{{ latestResult.professional.monthRule }}</text>
+          <text class="reading-sheet__text">{{
+            latestResult.professional.monthRule
+          }}</text>
         </view>
 
         <view class="professional-grid">
           <view class="professional-group">
             <text class="professional-group__title">十神</text>
             <text
-              v-for="item in formatPillarMetaRows(latestResult.professional.tenGods)"
+              v-for="item in formatPillarMetaRows(
+                latestResult.professional.tenGods,
+              )"
               :key="`ten-${item.label}`"
               class="professional-group__row"
             >
@@ -192,7 +234,9 @@
           <view class="professional-group">
             <text class="professional-group__title">藏干</text>
             <text
-              v-for="item in formatPillarMetaRows(latestResult.professional.hiddenStems)"
+              v-for="item in formatPillarMetaRows(
+                latestResult.professional.hiddenStems,
+              )"
               :key="`hide-${item.label}`"
               class="professional-group__row"
             >
@@ -202,7 +246,9 @@
           <view class="professional-group">
             <text class="professional-group__title">纳音</text>
             <text
-              v-for="item in formatPillarMetaRows(latestResult.professional.naYin)"
+              v-for="item in formatPillarMetaRows(
+                latestResult.professional.naYin,
+              )"
               :key="`nayin-${item.label}`"
               class="professional-group__row"
             >
@@ -213,7 +259,9 @@
 
         <view class="reading-sheet">
           <text class="reading-sheet__title">日主强弱</text>
-          <text class="reading-sheet__text">{{ professionalDayMasterSummary }}</text>
+          <text class="reading-sheet__text">{{
+            professionalDayMasterSummary
+          }}</text>
         </view>
 
         <view class="professional-grid professional-grid--two">
@@ -241,11 +289,18 @@
 
         <view class="reading-sheet">
           <text class="reading-sheet__title">大运起运</text>
-          <text v-if="!latestResult.professional.majorLuck.available" class="reading-sheet__text">
+          <text
+            v-if="!latestResult.professional.majorLuck.available"
+            class="reading-sheet__text"
+          >
             {{ latestResult.professional.majorLuck.reason }}
           </text>
           <view v-else class="fortune-list">
-            <view v-for="item in professionalMajorLuckRows" :key="item.key" class="fortune-row">
+            <view
+              v-for="item in professionalMajorLuckRows"
+              :key="item.key"
+              class="fortune-row"
+            >
               <text class="fortune-row__title">{{ item.title }}</text>
               <text class="fortune-row__meta">{{ item.meta }}</text>
             </view>
@@ -255,7 +310,11 @@
         <view class="reading-sheet">
           <text class="reading-sheet__title">近年流年</text>
           <view class="fortune-list">
-            <view v-for="item in professionalAnnualFortuneRows" :key="item.key" class="fortune-row">
+            <view
+              v-for="item in professionalAnnualFortuneRows"
+              :key="item.key"
+              class="fortune-row"
+            >
               <text class="fortune-row__title">{{ item.title }}</text>
               <text class="fortune-row__meta">{{ item.meta }}</text>
             </view>
@@ -270,16 +329,27 @@
       </view>
 
       <view class="keyword-row">
-        <text v-for="keyword in latestResult.keywords" :key="keyword" class="keyword-chip">
+        <text
+          v-for="keyword in latestResult.keywords"
+          :key="keyword"
+          class="keyword-chip"
+        >
           {{ keyword }}
         </text>
       </view>
 
       <view class="element-bars">
-        <view v-for="item in latestResult.fiveElements" :key="item.name" class="element-row">
+        <view
+          v-for="item in latestResult.fiveElements"
+          :key="item.name"
+          class="element-row"
+        >
           <text class="element-row__name">{{ item.name }}</text>
           <view class="element-row__track">
-            <view class="element-row__bar" :style="{ width: `${Math.max(item.value * 12, 16)}%` }"></view>
+            <view
+              class="element-row__bar"
+              :style="{ width: `${Math.max(item.value * 12, 16)}%` }"
+            ></view>
           </view>
           <text class="element-row__value">{{ item.value }}</text>
         </view>
@@ -287,27 +357,37 @@
 
       <view class="reading-sheet">
         <text class="reading-sheet__title">事业节奏</text>
-        <text class="reading-sheet__text">{{ latestResult.reading.career }}</text>
+        <text class="reading-sheet__text">{{
+          latestResult.reading.career
+        }}</text>
       </view>
 
       <view class="reading-sheet">
         <text class="reading-sheet__title">关系状态</text>
-        <text class="reading-sheet__text">{{ latestResult.reading.relationship }}</text>
+        <text class="reading-sheet__text">{{
+          latestResult.reading.relationship
+        }}</text>
       </view>
 
       <view class="reading-sheet">
         <text class="reading-sheet__title">当前节奏建议</text>
-        <text class="reading-sheet__text">{{ latestResult.reading.rhythm }}</text>
+        <text class="reading-sheet__text">{{
+          latestResult.reading.rhythm
+        }}</text>
       </view>
 
       <view class="tip-grid">
         <view class="tip-tile">
           <text class="tip-tile__label">有利方位</text>
-          <text class="tip-tile__value">{{ latestResult.practicalTips.favorableDirection }}</text>
+          <text class="tip-tile__value">{{
+            latestResult.practicalTips.favorableDirection
+          }}</text>
         </view>
         <view class="tip-tile">
           <text class="tip-tile__label">辅助颜色</text>
-          <text class="tip-tile__value">{{ latestResult.practicalTips.supportiveColor }}</text>
+          <text class="tip-tile__value">{{
+            latestResult.practicalTips.supportiveColor
+          }}</text>
         </view>
       </view>
 
@@ -348,12 +428,16 @@
           <text class="sheet-header__eyebrow">history</text>
           <text class="sheet-header__title">最近排盘</text>
         </view>
-        <text class="sheet-header__side">{{ historyItems.length ? '已保存' : '未保存' }}</text>
+        <text class="sheet-header__side">{{
+          historyItems.length ? '已保存' : '未保存'
+        }}</text>
       </view>
 
       <view v-if="!isLoggedIn" class="history-empty">
         <text class="history-empty__title">登录后可保存排盘历史</text>
-        <text class="history-empty__text">现在也可以直接体验；如果想保留结果，先去个人中心做快捷登录即可。</text>
+        <text class="history-empty__text"
+          >现在也可以直接体验；如果想保留结果，先去个人中心做快捷登录即可。</text
+        >
       </view>
 
       <view v-else-if="loadingHistory" class="history-empty">
@@ -373,11 +457,18 @@
             <view>
               <view class="history-item__title-row">
                 <text class="history-item__title">{{ item.title }}</text>
-                <text v-if="item.isProfessional" class="history-item__badge">专业</text>
+                <text v-if="item.isProfessional" class="history-item__badge"
+                  >专业</text
+                >
               </view>
-              <text class="history-item__subtitle">{{ item.yearPillar }} · {{ item.dayPillar }} · {{ item.dominantElementName }}</text>
+              <text class="history-item__subtitle"
+                >{{ item.yearPillar }} · {{ item.dayPillar }} ·
+                {{ item.dominantElementName }}</text
+              >
             </view>
-            <text class="history-item__time">{{ formatDateTime(item.createdAt) }}</text>
+            <text class="history-item__time">{{
+              formatDateTime(item.createdAt)
+            }}</text>
           </view>
           <text class="history-item__summary">{{ item.summary }}</text>
         </view>
@@ -385,7 +476,9 @@
 
       <view v-else class="history-empty">
         <text class="history-empty__title">还没有保存的排盘记录</text>
-        <text class="history-empty__text">完成一次解读后，这里会展示你最近的历史。</text>
+        <text class="history-empty__text"
+          >完成一次解读后，这里会展示你最近的历史。</text
+        >
       </view>
     </view>
   </view>
@@ -402,7 +495,11 @@ import {
 } from '../../api/bazi';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken, getCachedUser } from '../../services/session';
-import type { BaziBirthPlace, BaziHistoryItem, BaziResult } from '../../types/bazi';
+import type {
+  BaziBirthPlace,
+  BaziHistoryItem,
+  BaziResult,
+} from '../../types/bazi';
 
 type GenderValue = 'male' | 'female' | 'unknown';
 type AnalyzeMode = 'lite' | 'professional';
@@ -433,7 +530,11 @@ const genderOptions: Array<{ label: string; value: GenderValue }> = [
   { label: '保密', value: 'unknown' },
 ];
 
-const modeOptions: Array<{ label: string; value: AnalyzeMode; description: string }> = [
+const modeOptions: Array<{
+  label: string;
+  value: AnalyzeMode;
+  description: string;
+}> = [
   {
     label: '轻解读',
     value: 'lite',
@@ -447,75 +548,489 @@ const modeOptions: Array<{ label: string; value: AnalyzeMode; description: strin
 ];
 
 const DEFAULT_BIRTH_PLACE_OPTIONS: BirthPlaceOption[] = [
-  { label: '杭州', value: 'hangzhou', longitude: 120.16, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '北京', value: 'beijing', longitude: 116.4, timezoneOffset: 8, keywords: ['bj'] },
-  { label: '上海', value: 'shanghai', longitude: 121.47, timezoneOffset: 8, keywords: ['sh'] },
-  { label: '广州', value: 'guangzhou', longitude: 113.26, timezoneOffset: 8, keywords: ['广东'] },
-  { label: '深圳', value: 'shenzhen', longitude: 114.06, timezoneOffset: 8, keywords: ['广东'] },
-  { label: '南京', value: 'nanjing', longitude: 118.78, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '徐州', value: 'xuzhou', longitude: 117.18, timezoneOffset: 8, keywords: ['江苏', 'xz'] },
-  { label: '无锡', value: 'wuxi', longitude: 120.31, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '常州', value: 'changzhou', longitude: 119.95, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '苏州', value: 'suzhou', longitude: 120.58, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '南通', value: 'nantong', longitude: 120.89, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '连云港', value: 'lianyungang', longitude: 119.22, timezoneOffset: 8, keywords: ['江苏', 'lyg'] },
-  { label: '淮安', value: 'huaian', longitude: 119.02, timezoneOffset: 8, keywords: ['江苏', 'huai an'] },
-  { label: '盐城', value: 'yancheng', longitude: 120.16, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '扬州', value: 'yangzhou', longitude: 119.41, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '镇江', value: 'zhenjiang', longitude: 119.45, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '泰州', value: 'taizhou-jiangsu', longitude: 119.92, timezoneOffset: 8, keywords: ['江苏', 'taizhou'] },
-  { label: '宿迁', value: 'suqian', longitude: 118.28, timezoneOffset: 8, keywords: ['江苏'] },
-  { label: '天津', value: 'tianjin', longitude: 117.2, timezoneOffset: 8, keywords: ['tj'] },
-  { label: '石家庄', value: 'shijiazhuang', longitude: 114.51, timezoneOffset: 8, keywords: ['河北', 'sjz'] },
-  { label: '太原', value: 'taiyuan', longitude: 112.55, timezoneOffset: 8, keywords: ['山西'] },
-  { label: '呼和浩特', value: 'hohhot', longitude: 111.75, timezoneOffset: 8, keywords: ['内蒙古', 'huhehaote'] },
-  { label: '成都', value: 'chengdu', longitude: 104.06, timezoneOffset: 8, keywords: ['四川'] },
-  { label: '重庆', value: 'chongqing', longitude: 106.55, timezoneOffset: 8, keywords: ['cq'] },
-  { label: '西安', value: 'xian', longitude: 108.94, timezoneOffset: 8, keywords: ['陕西', 'xi an'] },
-  { label: '武汉', value: 'wuhan', longitude: 114.31, timezoneOffset: 8, keywords: ['湖北'] },
-  { label: '长沙', value: 'changsha', longitude: 112.94, timezoneOffset: 8, keywords: ['湖南'] },
-  { label: '郑州', value: 'zhengzhou', longitude: 113.62, timezoneOffset: 8, keywords: ['河南'] },
-  { label: '济南', value: 'jinan', longitude: 117.12, timezoneOffset: 8, keywords: ['山东', 'ji nan'] },
-  { label: '青岛', value: 'qingdao', longitude: 120.38, timezoneOffset: 8, keywords: ['山东'] },
-  { label: '烟台', value: 'yantai', longitude: 121.45, timezoneOffset: 8, keywords: ['山东'] },
-  { label: '潍坊', value: 'weifang', longitude: 119.16, timezoneOffset: 8, keywords: ['山东'] },
-  { label: '临沂', value: 'linyi', longitude: 118.36, timezoneOffset: 8, keywords: ['山东'] },
-  { label: '沈阳', value: 'shenyang', longitude: 123.43, timezoneOffset: 8, keywords: ['辽宁'] },
-  { label: '大连', value: 'dalian', longitude: 121.61, timezoneOffset: 8, keywords: ['辽宁'] },
-  { label: '长春', value: 'changchun', longitude: 125.32, timezoneOffset: 8, keywords: ['吉林'] },
-  { label: '哈尔滨', value: 'harbin', longitude: 126.64, timezoneOffset: 8, keywords: ['黑龙江'] },
-  { label: '合肥', value: 'hefei', longitude: 117.23, timezoneOffset: 8, keywords: ['安徽'] },
-  { label: '芜湖', value: 'wuhu', longitude: 118.38, timezoneOffset: 8, keywords: ['安徽'] },
-  { label: '宁波', value: 'ningbo', longitude: 121.55, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '温州', value: 'wenzhou', longitude: 120.7, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '嘉兴', value: 'jiaxing', longitude: 120.76, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '绍兴', value: 'shaoxing', longitude: 120.58, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '金华', value: 'jinhua', longitude: 119.65, timezoneOffset: 8, keywords: ['浙江'] },
-  { label: '台州', value: 'taizhou-zhejiang', longitude: 121.42, timezoneOffset: 8, keywords: ['浙江', 'taizhou'] },
-  { label: '福州', value: 'fuzhou', longitude: 119.3, timezoneOffset: 8, keywords: ['福建'] },
-  { label: '厦门', value: 'xiamen', longitude: 118.09, timezoneOffset: 8, keywords: ['福建'] },
-  { label: '泉州', value: 'quanzhou', longitude: 118.68, timezoneOffset: 8, keywords: ['福建'] },
-  { label: '南昌', value: 'nanchang', longitude: 115.86, timezoneOffset: 8, keywords: ['江西'] },
-  { label: '昆明', value: 'kunming', longitude: 102.83, timezoneOffset: 8, keywords: ['云南'] },
-  { label: '贵阳', value: 'guiyang', longitude: 106.63, timezoneOffset: 8, keywords: ['贵州'] },
-  { label: '南宁', value: 'nanning', longitude: 108.37, timezoneOffset: 8, keywords: ['广西'] },
-  { label: '海口', value: 'haikou', longitude: 110.2, timezoneOffset: 8, keywords: ['海南'] },
-  { label: '三亚', value: 'sanya', longitude: 109.51, timezoneOffset: 8, keywords: ['海南'] },
-  { label: '兰州', value: 'lanzhou', longitude: 103.84, timezoneOffset: 8, keywords: ['甘肃'] },
-  { label: '西宁', value: 'xining', longitude: 101.78, timezoneOffset: 8, keywords: ['青海'] },
-  { label: '银川', value: 'yinchuan', longitude: 106.23, timezoneOffset: 8, keywords: ['宁夏'] },
-  { label: '拉萨', value: 'lhasa', longitude: 91.13, timezoneOffset: 8, keywords: ['西藏'] },
-  { label: '乌鲁木齐', value: 'urumqi', longitude: 87.62, timezoneOffset: 8, keywords: ['新疆', 'wulumuqi'] },
-  { label: '香港', value: 'hongkong', longitude: 114.17, timezoneOffset: 8, keywords: ['hong kong', 'hk'] },
-  { label: '澳门', value: 'macau', longitude: 113.54, timezoneOffset: 8, keywords: ['aomen', 'macao'] },
-  { label: '台北', value: 'taipei', longitude: 121.56, timezoneOffset: 8, keywords: ['台湾'] },
-  { label: '新加坡', value: 'singapore', longitude: 103.85, timezoneOffset: 8, keywords: ['sg'] },
-  { label: '东京', value: 'tokyo', longitude: 139.69, timezoneOffset: 9, keywords: ['日本'] },
-  { label: '首尔', value: 'seoul', longitude: 126.98, timezoneOffset: 9, keywords: ['韩国'] },
-  { label: '伦敦', value: 'london', longitude: -0.13, timezoneOffset: 0, keywords: ['英国'] },
-  { label: '纽约', value: 'new-york', longitude: -74.01, timezoneOffset: -5, keywords: ['new york', 'newyork'] },
-  { label: '洛杉矶', value: 'los-angeles', longitude: -118.24, timezoneOffset: -8, keywords: ['los angeles', 'la'] },
-  { label: '悉尼', value: 'sydney', longitude: 151.21, timezoneOffset: 10, keywords: ['澳大利亚'] },
+  {
+    label: '杭州',
+    value: 'hangzhou',
+    longitude: 120.16,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '北京',
+    value: 'beijing',
+    longitude: 116.4,
+    timezoneOffset: 8,
+    keywords: ['bj'],
+  },
+  {
+    label: '上海',
+    value: 'shanghai',
+    longitude: 121.47,
+    timezoneOffset: 8,
+    keywords: ['sh'],
+  },
+  {
+    label: '广州',
+    value: 'guangzhou',
+    longitude: 113.26,
+    timezoneOffset: 8,
+    keywords: ['广东'],
+  },
+  {
+    label: '深圳',
+    value: 'shenzhen',
+    longitude: 114.06,
+    timezoneOffset: 8,
+    keywords: ['广东'],
+  },
+  {
+    label: '南京',
+    value: 'nanjing',
+    longitude: 118.78,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '徐州',
+    value: 'xuzhou',
+    longitude: 117.18,
+    timezoneOffset: 8,
+    keywords: ['江苏', 'xz'],
+  },
+  {
+    label: '无锡',
+    value: 'wuxi',
+    longitude: 120.31,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '常州',
+    value: 'changzhou',
+    longitude: 119.95,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '苏州',
+    value: 'suzhou',
+    longitude: 120.58,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '南通',
+    value: 'nantong',
+    longitude: 120.89,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '连云港',
+    value: 'lianyungang',
+    longitude: 119.22,
+    timezoneOffset: 8,
+    keywords: ['江苏', 'lyg'],
+  },
+  {
+    label: '淮安',
+    value: 'huaian',
+    longitude: 119.02,
+    timezoneOffset: 8,
+    keywords: ['江苏', 'huai an'],
+  },
+  {
+    label: '盐城',
+    value: 'yancheng',
+    longitude: 120.16,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '扬州',
+    value: 'yangzhou',
+    longitude: 119.41,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '镇江',
+    value: 'zhenjiang',
+    longitude: 119.45,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '泰州',
+    value: 'taizhou-jiangsu',
+    longitude: 119.92,
+    timezoneOffset: 8,
+    keywords: ['江苏', 'taizhou'],
+  },
+  {
+    label: '宿迁',
+    value: 'suqian',
+    longitude: 118.28,
+    timezoneOffset: 8,
+    keywords: ['江苏'],
+  },
+  {
+    label: '天津',
+    value: 'tianjin',
+    longitude: 117.2,
+    timezoneOffset: 8,
+    keywords: ['tj'],
+  },
+  {
+    label: '石家庄',
+    value: 'shijiazhuang',
+    longitude: 114.51,
+    timezoneOffset: 8,
+    keywords: ['河北', 'sjz'],
+  },
+  {
+    label: '太原',
+    value: 'taiyuan',
+    longitude: 112.55,
+    timezoneOffset: 8,
+    keywords: ['山西'],
+  },
+  {
+    label: '呼和浩特',
+    value: 'hohhot',
+    longitude: 111.75,
+    timezoneOffset: 8,
+    keywords: ['内蒙古', 'huhehaote'],
+  },
+  {
+    label: '成都',
+    value: 'chengdu',
+    longitude: 104.06,
+    timezoneOffset: 8,
+    keywords: ['四川'],
+  },
+  {
+    label: '重庆',
+    value: 'chongqing',
+    longitude: 106.55,
+    timezoneOffset: 8,
+    keywords: ['cq'],
+  },
+  {
+    label: '西安',
+    value: 'xian',
+    longitude: 108.94,
+    timezoneOffset: 8,
+    keywords: ['陕西', 'xi an'],
+  },
+  {
+    label: '武汉',
+    value: 'wuhan',
+    longitude: 114.31,
+    timezoneOffset: 8,
+    keywords: ['湖北'],
+  },
+  {
+    label: '长沙',
+    value: 'changsha',
+    longitude: 112.94,
+    timezoneOffset: 8,
+    keywords: ['湖南'],
+  },
+  {
+    label: '郑州',
+    value: 'zhengzhou',
+    longitude: 113.62,
+    timezoneOffset: 8,
+    keywords: ['河南'],
+  },
+  {
+    label: '济南',
+    value: 'jinan',
+    longitude: 117.12,
+    timezoneOffset: 8,
+    keywords: ['山东', 'ji nan'],
+  },
+  {
+    label: '青岛',
+    value: 'qingdao',
+    longitude: 120.38,
+    timezoneOffset: 8,
+    keywords: ['山东'],
+  },
+  {
+    label: '烟台',
+    value: 'yantai',
+    longitude: 121.45,
+    timezoneOffset: 8,
+    keywords: ['山东'],
+  },
+  {
+    label: '潍坊',
+    value: 'weifang',
+    longitude: 119.16,
+    timezoneOffset: 8,
+    keywords: ['山东'],
+  },
+  {
+    label: '临沂',
+    value: 'linyi',
+    longitude: 118.36,
+    timezoneOffset: 8,
+    keywords: ['山东'],
+  },
+  {
+    label: '沈阳',
+    value: 'shenyang',
+    longitude: 123.43,
+    timezoneOffset: 8,
+    keywords: ['辽宁'],
+  },
+  {
+    label: '大连',
+    value: 'dalian',
+    longitude: 121.61,
+    timezoneOffset: 8,
+    keywords: ['辽宁'],
+  },
+  {
+    label: '长春',
+    value: 'changchun',
+    longitude: 125.32,
+    timezoneOffset: 8,
+    keywords: ['吉林'],
+  },
+  {
+    label: '哈尔滨',
+    value: 'harbin',
+    longitude: 126.64,
+    timezoneOffset: 8,
+    keywords: ['黑龙江'],
+  },
+  {
+    label: '合肥',
+    value: 'hefei',
+    longitude: 117.23,
+    timezoneOffset: 8,
+    keywords: ['安徽'],
+  },
+  {
+    label: '芜湖',
+    value: 'wuhu',
+    longitude: 118.38,
+    timezoneOffset: 8,
+    keywords: ['安徽'],
+  },
+  {
+    label: '宁波',
+    value: 'ningbo',
+    longitude: 121.55,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '温州',
+    value: 'wenzhou',
+    longitude: 120.7,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '嘉兴',
+    value: 'jiaxing',
+    longitude: 120.76,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '绍兴',
+    value: 'shaoxing',
+    longitude: 120.58,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '金华',
+    value: 'jinhua',
+    longitude: 119.65,
+    timezoneOffset: 8,
+    keywords: ['浙江'],
+  },
+  {
+    label: '台州',
+    value: 'taizhou-zhejiang',
+    longitude: 121.42,
+    timezoneOffset: 8,
+    keywords: ['浙江', 'taizhou'],
+  },
+  {
+    label: '福州',
+    value: 'fuzhou',
+    longitude: 119.3,
+    timezoneOffset: 8,
+    keywords: ['福建'],
+  },
+  {
+    label: '厦门',
+    value: 'xiamen',
+    longitude: 118.09,
+    timezoneOffset: 8,
+    keywords: ['福建'],
+  },
+  {
+    label: '泉州',
+    value: 'quanzhou',
+    longitude: 118.68,
+    timezoneOffset: 8,
+    keywords: ['福建'],
+  },
+  {
+    label: '南昌',
+    value: 'nanchang',
+    longitude: 115.86,
+    timezoneOffset: 8,
+    keywords: ['江西'],
+  },
+  {
+    label: '昆明',
+    value: 'kunming',
+    longitude: 102.83,
+    timezoneOffset: 8,
+    keywords: ['云南'],
+  },
+  {
+    label: '贵阳',
+    value: 'guiyang',
+    longitude: 106.63,
+    timezoneOffset: 8,
+    keywords: ['贵州'],
+  },
+  {
+    label: '南宁',
+    value: 'nanning',
+    longitude: 108.37,
+    timezoneOffset: 8,
+    keywords: ['广西'],
+  },
+  {
+    label: '海口',
+    value: 'haikou',
+    longitude: 110.2,
+    timezoneOffset: 8,
+    keywords: ['海南'],
+  },
+  {
+    label: '三亚',
+    value: 'sanya',
+    longitude: 109.51,
+    timezoneOffset: 8,
+    keywords: ['海南'],
+  },
+  {
+    label: '兰州',
+    value: 'lanzhou',
+    longitude: 103.84,
+    timezoneOffset: 8,
+    keywords: ['甘肃'],
+  },
+  {
+    label: '西宁',
+    value: 'xining',
+    longitude: 101.78,
+    timezoneOffset: 8,
+    keywords: ['青海'],
+  },
+  {
+    label: '银川',
+    value: 'yinchuan',
+    longitude: 106.23,
+    timezoneOffset: 8,
+    keywords: ['宁夏'],
+  },
+  {
+    label: '拉萨',
+    value: 'lhasa',
+    longitude: 91.13,
+    timezoneOffset: 8,
+    keywords: ['西藏'],
+  },
+  {
+    label: '乌鲁木齐',
+    value: 'urumqi',
+    longitude: 87.62,
+    timezoneOffset: 8,
+    keywords: ['新疆', 'wulumuqi'],
+  },
+  {
+    label: '香港',
+    value: 'hongkong',
+    longitude: 114.17,
+    timezoneOffset: 8,
+    keywords: ['hong kong', 'hk'],
+  },
+  {
+    label: '澳门',
+    value: 'macau',
+    longitude: 113.54,
+    timezoneOffset: 8,
+    keywords: ['aomen', 'macao'],
+  },
+  {
+    label: '台北',
+    value: 'taipei',
+    longitude: 121.56,
+    timezoneOffset: 8,
+    keywords: ['台湾'],
+  },
+  {
+    label: '新加坡',
+    value: 'singapore',
+    longitude: 103.85,
+    timezoneOffset: 8,
+    keywords: ['sg'],
+  },
+  {
+    label: '东京',
+    value: 'tokyo',
+    longitude: 139.69,
+    timezoneOffset: 9,
+    keywords: ['日本'],
+  },
+  {
+    label: '首尔',
+    value: 'seoul',
+    longitude: 126.98,
+    timezoneOffset: 9,
+    keywords: ['韩国'],
+  },
+  {
+    label: '伦敦',
+    value: 'london',
+    longitude: -0.13,
+    timezoneOffset: 0,
+    keywords: ['英国'],
+  },
+  {
+    label: '纽约',
+    value: 'new-york',
+    longitude: -74.01,
+    timezoneOffset: -5,
+    keywords: ['new york', 'newyork'],
+  },
+  {
+    label: '洛杉矶',
+    value: 'los-angeles',
+    longitude: -118.24,
+    timezoneOffset: -8,
+    keywords: ['los angeles', 'la'],
+  },
+  {
+    label: '悉尼',
+    value: 'sydney',
+    longitude: 151.21,
+    timezoneOffset: 10,
+    keywords: ['澳大利亚'],
+  },
 ];
 
 const form = reactive<{
@@ -549,30 +1064,47 @@ let birthPlaceSearchSequence = 0;
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const isProfessionalMode = computed(() => activeMode.value === 'professional');
-const loginStatusLabel = computed(() => (isLoggedIn.value ? '当前状态' : '保存历史'));
-const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需登录'));
-const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
+const loginStatusLabel = computed(() =>
+  isLoggedIn.value ? '当前状态' : '保存历史',
+);
+const loginStatusValue = computed(() =>
+  isLoggedIn.value ? '已登录' : '需登录',
+);
+const latestResultLabel = computed(
+  () => latestResult.value?.title || '等待生成',
+);
 const selectedBirthPlace = computed(
   () =>
-    birthPlaceOptions.value.find((item) => item.value === form.birthPlaceCode) ??
-    DEFAULT_BIRTH_PLACE_OPTIONS.find((item) => item.value === form.birthPlaceCode) ??
+    birthPlaceOptions.value.find(
+      (item) => item.value === form.birthPlaceCode,
+    ) ??
+    DEFAULT_BIRTH_PLACE_OPTIONS.find(
+      (item) => item.value === form.birthPlaceCode,
+    ) ??
     DEFAULT_BIRTH_PLACE_OPTIONS[0],
 );
 const filteredBirthPlaces = computed(() => {
   const keyword = normalizeCityKeyword(citySearch.value);
   const matches = keyword
-    ? birthPlaceOptions.value.filter((option) => matchesBirthPlace(option, keyword))
+    ? birthPlaceOptions.value.filter((option) =>
+        matchesBirthPlace(option, keyword),
+      )
     : birthPlaceOptions.value;
   const selected = selectedBirthPlace.value;
-  const shouldPinSelected = !keyword || matches.some((option) => option.value === selected.value);
+  const shouldPinSelected =
+    !keyword || matches.some((option) => option.value === selected.value);
   const rankedMatches = shouldPinSelected
     ? [selected, ...matches.filter((option) => option.value !== selected.value)]
     : matches;
 
   return rankedMatches.slice(0, 6);
 });
-const heroEyebrow = computed(() => (isProfessionalMode.value ? 'professional bazi chart' : 'lite bazi chart'));
-const heroTitle = computed(() => (isProfessionalMode.value ? '八字专业版' : '八字解读'));
+const heroEyebrow = computed(() =>
+  isProfessionalMode.value ? 'professional bazi chart' : 'lite bazi chart',
+);
+const heroTitle = computed(() =>
+  isProfessionalMode.value ? '八字专业版' : '八字解读',
+);
 const heroSubtitle = computed(() =>
   isProfessionalMode.value
     ? '专业版会使用农历/干支库，纳入节气换月、立春年界与真太阳时校正，并展示十神、藏干、纳音等专业信息。'
@@ -583,7 +1115,9 @@ const modeNotice = computed(() =>
     ? '专业版说明：出生地用于真太阳时校正，会按所选城市和当地时区推算。结果仍仅用于内容体验和自我观察。'
     : '轻解读说明：当前会直接使用公历日期与时辰做快速推演，不包含节气换月与真太阳时校正。',
 );
-const submitButtonLabel = computed(() => (isProfessionalMode.value ? '生成专业排盘' : '生成轻解读'));
+const submitButtonLabel = computed(() =>
+  isProfessionalMode.value ? '生成专业排盘' : '生成轻解读',
+);
 const professionalProfileRows = computed(() => {
   const professional = latestResult.value?.professional;
 
@@ -628,7 +1162,8 @@ const professionalDayMasterSummary = computed(() => {
   return `${analysis.dayStem}${analysis.dayElement}日主 · ${formatStrengthLevel(analysis.strengthLevel)} · 支持 ${analysis.supportScore} / 压力 ${analysis.pressureScore} / 平衡 ${analysis.balanceScore}`;
 });
 const professionalUsefulElements = computed(
-  () => latestResult.value?.professional?.dayMasterAnalysis.usefulElements ?? [],
+  () =>
+    latestResult.value?.professional?.dayMasterAnalysis.usefulElements ?? [],
 );
 const professionalAvoidElements = computed(
   () => latestResult.value?.professional?.dayMasterAnalysis.avoidElements ?? [],
@@ -647,11 +1182,13 @@ const professionalMajorLuckRows = computed(() => {
   }));
 });
 const professionalAnnualFortuneRows = computed(() =>
-  (latestResult.value?.professional?.annualFortunes ?? []).slice(0, 5).map((item) => ({
-    key: `${item.year}-${item.ganZhi}`,
-    title: `${item.year} ${item.ganZhi} · ${item.tenGod}`,
-    meta: `${item.nominalAge}岁 · ${formatAnnualRelation(item.relation)} · ${item.element}势`,
-  })),
+  (latestResult.value?.professional?.annualFortunes ?? [])
+    .slice(0, 5)
+    .map((item) => ({
+      key: `${item.year}-${item.ganZhi}`,
+      title: `${item.year} ${item.ganZhi} · ${item.tenGod}`,
+      meta: `${item.nominalAge}岁 · ${formatAnnualRelation(item.relation)} · ${item.element}势`,
+    })),
 );
 
 function selectMode(mode: AnalyzeMode) {
@@ -668,6 +1205,20 @@ function applyProfileDefaults() {
   form.birthday = cachedUser?.birthday || form.birthday;
   form.birthTime = cachedUser?.birthTime || form.birthTime || '08:30';
   form.gender = (cachedUser?.gender as GenderValue) || form.gender || 'unknown';
+
+  if (cachedUser?.birthPlace) {
+    citySearch.value = cachedUser.birthPlace;
+    const exactMatch = findBirthPlaceOption(
+      cachedUser.birthPlace,
+      birthPlaceOptions.value,
+    );
+
+    if (exactMatch) {
+      form.birthPlaceCode = exactMatch.value;
+    } else {
+      scheduleBirthPlaceSearch(cachedUser.birthPlace);
+    }
+  }
 
   if (!cachedUser?.birthday) {
     uni.showToast({
@@ -720,17 +1271,24 @@ function handleBirthPlaceSearchInput(event: InputEvent) {
 function selectBirthPlace(option: BirthPlaceOption) {
   form.birthPlaceCode = option.value;
   citySearch.value = option.label;
-  birthPlaceOptions.value = mergeBirthPlaceOptions([option], birthPlaceOptions.value);
+  birthPlaceOptions.value = mergeBirthPlaceOptions(
+    [option],
+    birthPlaceOptions.value,
+  );
 }
 
 function hasExactBirthPlaceMatch(option: BirthPlaceOption, keyword: string) {
   const normalizedKeyword = normalizeCityKeyword(keyword);
 
-  return getBirthPlaceSearchTexts(option).some((text) => normalizeCityKeyword(text) === normalizedKeyword);
+  return getBirthPlaceSearchTexts(option).some(
+    (text) => normalizeCityKeyword(text) === normalizedKeyword,
+  );
 }
 
 function matchesBirthPlace(option: BirthPlaceOption, keyword: string) {
-  return getBirthPlaceSearchTexts(option).some((text) => normalizeCityKeyword(text).includes(keyword));
+  return getBirthPlaceSearchTexts(option).some((text) =>
+    normalizeCityKeyword(text).includes(keyword),
+  );
 }
 
 function getBirthPlaceSearchTexts(option: BirthPlaceOption) {
@@ -744,7 +1302,10 @@ function getBirthPlaceSearchTexts(option: BirthPlaceOption) {
 }
 
 function normalizeCityKeyword(value: string) {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, '');
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '');
 }
 
 function getInputEventValue(event: InputEvent) {
@@ -778,7 +1339,10 @@ async function searchBirthPlaces(keyword: string) {
   loadingBirthPlaces.value = true;
 
   try {
-    const response = await searchBaziBirthPlaces(keyword, BIRTH_PLACE_RESULT_LIMIT);
+    const response = await searchBaziBirthPlaces(
+      keyword,
+      BIRTH_PLACE_RESULT_LIMIT,
+    );
 
     if (requestId !== birthPlaceSearchSequence) {
       return;
@@ -820,7 +1384,9 @@ function mapBirthPlaceFromApi(place: BaziBirthPlace): BirthPlaceOption {
 function searchDefaultBirthPlaces(keyword: string) {
   const normalizedKeyword = normalizeCityKeyword(keyword);
   const matches = normalizedKeyword
-    ? DEFAULT_BIRTH_PLACE_OPTIONS.filter((option) => matchesBirthPlace(option, normalizedKeyword))
+    ? DEFAULT_BIRTH_PLACE_OPTIONS.filter((option) =>
+        matchesBirthPlace(option, normalizedKeyword),
+      )
     : DEFAULT_BIRTH_PLACE_OPTIONS;
 
   return matches.slice(0, BIRTH_PLACE_RESULT_LIMIT);
@@ -858,7 +1424,9 @@ async function submitAnalyze() {
     return;
   }
 
-  const professionalPayload = isProfessionalMode.value ? await buildProfessionalPayload() : null;
+  const professionalPayload = isProfessionalMode.value
+    ? await buildProfessionalPayload()
+    : null;
 
   if (isProfessionalMode.value && !professionalPayload) {
     return;
@@ -913,7 +1481,9 @@ async function buildProfessionalPayload() {
   return {
     birthPlace: birthPlace.label,
     longitude: birthPlace.longitude,
-    ...(typeof birthPlace.latitude === 'number' ? { latitude: birthPlace.latitude } : {}),
+    ...(typeof birthPlace.latitude === 'number'
+      ? { latitude: birthPlace.latitude }
+      : {}),
     timezoneOffset: birthPlace.timezoneOffset,
   };
 }
@@ -926,11 +1496,15 @@ async function resolveBirthPlaceForSubmit() {
     return selected;
   }
 
-  let firstMatch = birthPlaceOptions.value.find((option) => matchesBirthPlace(option, keyword));
+  let firstMatch = birthPlaceOptions.value.find((option) =>
+    matchesBirthPlace(option, keyword),
+  );
 
   if (!firstMatch) {
     await searchBirthPlaces(citySearch.value);
-    firstMatch = birthPlaceOptions.value.find((option) => matchesBirthPlace(option, keyword));
+    firstMatch = birthPlaceOptions.value.find((option) =>
+      matchesBirthPlace(option, keyword),
+    );
   }
 
   if (firstMatch) {
@@ -947,7 +1521,10 @@ async function resolveBirthPlaceForSubmit() {
 }
 
 function formatBirthPlaceMeta(option: BirthPlaceOption) {
-  const region = option.province || option.country || `UTC${option.timezoneOffset >= 0 ? '+' : ''}${option.timezoneOffset}`;
+  const region =
+    option.province ||
+    option.country ||
+    `UTC${option.timezoneOffset >= 0 ? '+' : ''}${option.timezoneOffset}`;
 
   if (typeof option.latitude !== 'number') {
     return `${region} · UTC${option.timezoneOffset >= 0 ? '+' : ''}${option.timezoneOffset}`;
@@ -956,7 +1533,11 @@ function formatBirthPlaceMeta(option: BirthPlaceOption) {
   return `${region} · ${formatCoordinate(option.longitude, 'E', 'W')} ${formatCoordinate(option.latitude, 'N', 'S')}`;
 }
 
-function formatCoordinate(value: number, positiveSuffix: string, negativeSuffix: string) {
+function formatCoordinate(
+  value: number,
+  positiveSuffix: string,
+  negativeSuffix: string,
+) {
   return `${Math.abs(value).toFixed(2)}${value >= 0 ? positiveSuffix : negativeSuffix}`;
 }
 
@@ -970,7 +1551,9 @@ function formatStrengthLevel(value: 'strong' | 'weak' | 'balanced') {
   return labels[value];
 }
 
-function formatAnnualRelation(value: 'support' | 'drain' | 'wealth' | 'officer' | 'peer') {
+function formatAnnualRelation(
+  value: 'support' | 'drain' | 'wealth' | 'officer' | 'peer',
+) {
   const labels = {
     support: '生扶',
     drain: '泄秀',
@@ -1071,7 +1654,11 @@ onShow(() => {
   padding: 24rpx 24rpx 42rpx;
   background:
     radial-gradient(circle at top right, var(--theme-glow), transparent 26%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+    linear-gradient(
+      180deg,
+      var(--theme-page-top) 0%,
+      var(--theme-page-bottom) 100%
+    );
   overflow: hidden;
 }
 
@@ -1088,7 +1675,11 @@ onShow(() => {
   right: -90rpx;
   width: 280rpx;
   height: 280rpx;
-  background: radial-gradient(circle, rgba(117, 160, 142, 0.36) 0%, rgba(117, 160, 142, 0) 72%);
+  background: radial-gradient(
+    circle,
+    rgba(117, 160, 142, 0.36) 0%,
+    rgba(117, 160, 142, 0) 72%
+  );
 }
 
 .page-orb--gold {
@@ -1096,7 +1687,11 @@ onShow(() => {
   left: -120rpx;
   width: 300rpx;
   height: 300rpx;
-  background: radial-gradient(circle, rgba(205, 174, 117, 0.22) 0%, rgba(205, 174, 117, 0) 74%);
+  background: radial-gradient(
+    circle,
+    rgba(205, 174, 117, 0.22) 0%,
+    rgba(205, 174, 117, 0) 74%
+  );
 }
 
 .hero-sheet,
@@ -1250,7 +1845,11 @@ onShow(() => {
 
 .mode-switch__option--active {
   border-color: rgba(143, 107, 61, 0.72);
-  background: linear-gradient(180deg, rgba(253, 246, 232, 0.98) 0%, rgba(242, 229, 205, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(253, 246, 232, 0.98) 0%,
+    rgba(242, 229, 205, 0.98) 100%
+  );
 }
 
 .mode-switch__title {
@@ -1396,7 +1995,11 @@ onShow(() => {
   gap: 10rpx;
   padding: 20rpx;
   border-radius: 24rpx;
-  background: linear-gradient(180deg, rgba(248, 243, 233, 0.98) 0%, rgba(241, 233, 217, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(248, 243, 233, 0.98) 0%,
+    rgba(241, 233, 217, 0.98) 100%
+  );
   text-align: center;
 }
 

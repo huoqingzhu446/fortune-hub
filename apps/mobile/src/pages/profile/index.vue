@@ -53,7 +53,11 @@
         <text class="profile-hero__helper">{{ sessionHint }}</text>
       </view>
 
-      <view v-if="isLoggedIn && showProfileEditor" id="profile-editor" class="section profile-editor-section">
+      <view
+        v-if="isLoggedIn && showProfileEditor"
+        id="profile-editor"
+        class="section profile-editor-section"
+      >
         <view class="section__head">
           <text class="section__title">资料完善</text>
           <text class="section__meta">{{ completionSummary }}</text>
@@ -63,19 +67,32 @@
           <view class="completion-card">
             <view class="completion-card__top">
               <text class="completion-card__title">资料完整度</text>
-              <text class="completion-card__value">{{ completionPercent }}%</text>
+              <text class="completion-card__value"
+                >{{ completionPercent }}%</text
+              >
             </view>
             <view class="completion-card__bar">
-              <view class="completion-card__fill" :style="{ width: `${completionPercent}%` }"></view>
+              <view
+                class="completion-card__fill"
+                :style="{ width: `${completionPercent}%` }"
+              ></view>
             </view>
             <text class="completion-card__text">
-              {{ missingFields.length ? `还缺：${missingFields.join('、')}` : '资料已完整，首页和推荐会更贴近你。' }}
+              {{
+                missingFields.length
+                  ? `还缺：${missingFields.join('、')}`
+                  : '资料已完整，首页和推荐会更贴近你。'
+              }}
             </text>
           </view>
 
           <view class="field">
             <text class="field__label">昵称</text>
-            <input v-model="form.nickname" class="field__input" placeholder="请输入昵称" />
+            <input
+              v-model="form.nickname"
+              class="field__input"
+              placeholder="请输入昵称"
+            />
           </view>
 
           <view class="field">
@@ -87,7 +104,10 @@
               :end="todayDate"
               @change="handleBirthdayChange"
             >
-              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthday }">
+              <view
+                class="field__picker"
+                :class="{ 'field__picker--placeholder': !form.birthday }"
+              >
                 <text>{{ form.birthday || '请选择生日' }}</text>
                 <text>›</text>
               </view>
@@ -97,18 +117,44 @@
           <view class="field">
             <view class="field__head">
               <text class="field__label">出生时间</text>
-              <text v-if="form.birthTime" class="field__action" @tap="clearBirthTime">清空</text>
+              <text
+                v-if="form.birthTime"
+                class="field__action"
+                @tap="clearBirthTime"
+                >清空</text
+              >
             </view>
             <picker
               mode="time"
               :value="form.birthTime || defaultBirthTime"
               @change="handleBirthTimeChange"
             >
-              <view class="field__picker" :class="{ 'field__picker--placeholder': !form.birthTime }">
+              <view
+                class="field__picker"
+                :class="{ 'field__picker--placeholder': !form.birthTime }"
+              >
                 <text>{{ form.birthTime || '请选择出生时间' }}</text>
                 <text>›</text>
               </view>
             </picker>
+          </view>
+
+          <view class="field">
+            <view class="field__head">
+              <text class="field__label">出生地</text>
+              <text
+                v-if="form.birthPlace"
+                class="field__action"
+                @tap="clearBirthPlace"
+                >清空</text
+              >
+            </view>
+            <input
+              v-model="form.birthPlace"
+              class="field__input"
+              placeholder="请输入出生城市，如杭州"
+              maxlength="120"
+            />
           </view>
 
           <view class="field">
@@ -129,11 +175,21 @@
           <view class="preview-grid">
             <view class="preview-card">
               <text class="preview-card__label">当前星座</text>
-              <text class="preview-card__value">{{ profile.zodiac || pendingZodiac }}</text>
+              <text class="preview-card__value">{{
+                profile.zodiac || pendingZodiac
+              }}</text>
             </view>
             <view class="preview-card">
               <text class="preview-card__label">出生时间</text>
-              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
+              <text class="preview-card__value">{{
+                form.birthTime || '未填写'
+              }}</text>
+            </view>
+            <view class="preview-card">
+              <text class="preview-card__label">出生地</text>
+              <text class="preview-card__value">{{
+                form.birthPlace || '未填写'
+              }}</text>
             </view>
           </view>
 
@@ -145,16 +201,24 @@
 
       <view class="vip-card" @tap="goMembership">
         <view class="vip-card__copy">
-          <text class="vip-card__title">{{ profilePage.membershipCard.title }}</text>
-          <text class="vip-card__summary">{{ profilePage.membershipCard.summary }}</text>
+          <text class="vip-card__title">{{
+            profilePage.membershipCard.title
+          }}</text>
+          <text class="vip-card__summary">{{
+            profilePage.membershipCard.summary
+          }}</text>
         </view>
-        <button class="vip-card__button">{{ profilePage.membershipCard.buttonText }}</button>
+        <button class="vip-card__button">
+          {{ profilePage.membershipCard.buttonText }}
+        </button>
       </view>
 
       <view class="section">
         <view class="section__head">
           <text class="section__title">我的数据</text>
-          <text class="section__meta">{{ isLoggedIn ? '持续更新中' : '登录后同步' }}</text>
+          <text class="section__meta">{{
+            isLoggedIn ? '持续更新中' : '登录后同步'
+          }}</text>
         </view>
 
         <view class="data-grid">
@@ -208,7 +272,9 @@
               <view class="service-row__icon">{{ item.icon }}</view>
               <view>
                 <text class="service-row__title">{{ item.title }}</text>
-                <text v-if="item.description" class="service-row__text">{{ item.description }}</text>
+                <text v-if="item.description" class="service-row__text">{{
+                  item.description
+                }}</text>
               </view>
             </view>
             <text class="service-row__arrow">›</text>
@@ -234,26 +300,36 @@
             class="history-row"
             @tap="open(item.route)"
           >
-            <view class="history-row__icon">{{ historyIcon(item.recordType) }}</view>
+            <view class="history-row__icon">{{
+              historyIcon(item.recordType)
+            }}</view>
             <view class="history-row__body">
               <view class="history-row__head">
                 <text class="history-row__title">{{ item.title }}</text>
                 <text class="history-row__tag">{{ item.recordTypeLabel }}</text>
               </view>
-              <text class="history-row__text">{{ item.summary || item.detailHint }}</text>
+              <text class="history-row__text">{{
+                item.summary || item.detailHint
+              }}</text>
             </view>
-            <text class="history-row__score">{{ item.score !== null ? item.score : '--' }}</text>
+            <text class="history-row__score">{{
+              item.score !== null ? item.score : '--'
+            }}</text>
           </view>
         </view>
 
         <view v-else class="empty-state">
           <text class="empty-state__title">还没有历史记录</text>
-          <text class="empty-state__text">做一次情绪、测试或解读后，这里就会出现。</text>
+          <text class="empty-state__text"
+            >做一次情绪、测试或解读后，这里就会出现。</text
+          >
         </view>
       </view>
 
       <view v-if="isLoggedIn" class="bottom-actions">
-        <button class="bottom-actions__button" @tap="logout">退出当前会话</button>
+        <button class="bottom-actions__button" @tap="logout">
+          退出当前会话
+        </button>
       </view>
     </view>
 
@@ -315,6 +391,7 @@ const emptyProfile: UserProfile = {
   avatarUrl: null,
   birthday: null,
   birthTime: null,
+  birthPlace: null,
   gender: 'unknown',
   zodiac: null,
   baziSummary: null,
@@ -324,7 +401,15 @@ const emptyProfile: UserProfile = {
 };
 
 const profile = ref<UserProfile>(getCachedUser() || emptyProfile);
-const profileCompleted = ref(Boolean(profile.value.birthday && profile.value.zodiac));
+const profileCompleted = ref(
+  Boolean(
+    profile.value.birthday &&
+    profile.value.birthTime &&
+    profile.value.birthPlace &&
+    profile.value.zodiac &&
+    profile.value.gender !== 'unknown',
+  ),
+);
 const submitting = ref(false);
 const historyLoading = ref(false);
 const authToken = ref(getAuthToken());
@@ -367,6 +452,7 @@ const form = reactive({
   nickname: profile.value.nickname || '',
   birthday: profile.value.birthday || '',
   birthTime: profile.value.birthTime || '',
+  birthPlace: profile.value.birthPlace || '',
   gender: (profile.value.gender as GenderValue) || 'unknown',
 });
 
@@ -406,6 +492,9 @@ const missingFields = computed(() => {
   if (!form.birthTime) {
     result.push('出生时间');
   }
+  if (!form.birthPlace.trim()) {
+    result.push('出生地');
+  }
   if (!form.gender || form.gender === 'unknown') {
     result.push('性别');
   }
@@ -413,11 +502,13 @@ const missingFields = computed(() => {
   return result;
 });
 const completionPercent = computed(() => {
-  const total = 4;
+  const total = 5;
   return Math.round(((total - missingFields.value.length) / total) * 100);
 });
 const completionSummary = computed(() =>
-  profileCompleted.value ? '已完善' : `待完善 · ${missingFields.value.length} 项`,
+  profileCompleted.value
+    ? '已完善'
+    : `待完善 · ${missingFields.value.length} 项`,
 );
 const pendingZodiac = computed(() => {
   if (!form.birthday) {
@@ -441,7 +532,9 @@ const pendingZodiac = computed(() => {
     ['摩羯座', '12-22', '12-31'],
   ] as const;
 
-  return rules.find((item) => date >= item[1] && date <= item[2])?.[0] || '摩羯座';
+  return (
+    rules.find((item) => date >= item[1] && date <= item[2])?.[0] || '摩羯座'
+  );
 });
 
 function applyLoginResult(data: {
@@ -500,7 +593,10 @@ async function hydrateProfile() {
     console.warn('load profile failed', error);
     if (handleAuthExpired(error)) {
       resetSessionState();
-      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
+      loginErrorMessage.value = getErrorMessage(
+        error,
+        '登录状态已失效，请重新登录',
+      );
     }
   }
 }
@@ -509,6 +605,7 @@ function syncForm() {
   form.nickname = profile.value.nickname || '';
   form.birthday = profile.value.birthday || '';
   form.birthTime = profile.value.birthTime || '';
+  form.birthPlace = profile.value.birthPlace || '';
   form.gender = (profile.value.gender as GenderValue) || 'unknown';
 }
 
@@ -535,6 +632,10 @@ function clearBirthTime() {
   form.birthTime = '';
 }
 
+function clearBirthPlace() {
+  form.birthPlace = '';
+}
+
 async function loginForExperience() {
   const response = await loginWithCode(`dev-${Date.now()}`);
   applyLoginResult(response.data);
@@ -545,7 +646,9 @@ function requestWechatProfile() {
     const uniWithProfile = uni as typeof uni & {
       getUserProfile?: (options: {
         desc: string;
-        success?: (result: { userInfo?: { nickName?: string; avatarUrl?: string } }) => void;
+        success?: (result: {
+          userInfo?: { nickName?: string; avatarUrl?: string };
+        }) => void;
         fail?: () => void;
       }) => void;
     };
@@ -628,6 +731,13 @@ async function saveProfile() {
     });
     return;
   }
+  if (!form.birthPlace.trim()) {
+    uni.showToast({
+      title: '请先填写出生地',
+      icon: 'none',
+    });
+    return;
+  }
 
   try {
     submitting.value = true;
@@ -635,6 +745,7 @@ async function saveProfile() {
       nickname: form.nickname || undefined,
       birthday: form.birthday,
       birthTime: form.birthTime || undefined,
+      birthPlace: form.birthPlace.trim(),
       gender: form.gender,
     });
     profile.value = response.data.user;
@@ -651,7 +762,10 @@ async function saveProfile() {
     console.warn('save profile failed', error);
     if (handleAuthExpired(error, true)) {
       resetSessionState();
-      loginErrorMessage.value = getErrorMessage(error, '登录状态已失效，请重新登录');
+      loginErrorMessage.value = getErrorMessage(
+        error,
+        '登录状态已失效，请重新登录',
+      );
       return;
     }
     uni.showToast({
@@ -754,7 +868,11 @@ onShow(() => {
   overflow: hidden;
   background:
     radial-gradient(circle at top left, var(--theme-glow), transparent 34%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+    linear-gradient(
+      180deg,
+      var(--theme-page-top) 0%,
+      var(--theme-page-bottom) 100%
+    );
 }
 
 .page {
@@ -852,7 +970,11 @@ onShow(() => {
   border-radius: 50%;
   font-size: 42rpx;
   color: var(--theme-primary);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, var(--theme-soft) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    var(--theme-soft) 100%
+  );
 }
 
 .profile-hero__avatar-image {
@@ -875,11 +997,7 @@ onShow(() => {
   font-size: 52rpx;
   font-weight: 500;
   color: var(--theme-text-primary);
-  font-family:
-    'Iowan Old Style',
-    'Times New Roman',
-    'Noto Serif SC',
-    serif;
+  font-family: 'Iowan Old Style', 'Times New Roman', 'Noto Serif SC', serif;
 }
 
 .profile-hero__vip,
@@ -946,7 +1064,11 @@ onShow(() => {
 .hero-login-row__button--primary,
 .save-button {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary) 0%,
+    var(--theme-accent) 100%
+  );
 }
 
 .hero-login-row__button--secondary,
@@ -966,8 +1088,16 @@ onShow(() => {
   align-items: center;
   padding: 26rpx;
   background:
-    radial-gradient(circle at 88% 30%, rgba(255, 255, 255, 0.8), transparent 24%),
-    linear-gradient(135deg, rgba(255, 247, 232, 0.9) 0%, rgba(255, 243, 223, 0.82) 100%);
+    radial-gradient(
+      circle at 88% 30%,
+      rgba(255, 255, 255, 0.8),
+      transparent 24%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(255, 247, 232, 0.9) 0%,
+      rgba(255, 243, 223, 0.82) 100%
+    );
 }
 
 .vip-card__copy {
@@ -1026,19 +1156,35 @@ onShow(() => {
 }
 
 .data-card--mist {
-  background: linear-gradient(180deg, rgba(238, 245, 250, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(238, 245, 250, 0.96) 0%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
 }
 
 .data-card--blush {
-  background: linear-gradient(180deg, rgba(255, 240, 242, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 240, 242, 0.96) 0%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
 }
 
 .data-card--mint {
-  background: linear-gradient(180deg, rgba(236, 250, 247, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(236, 250, 247, 0.96) 0%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
 }
 
 .data-card--gold {
-  background: linear-gradient(180deg, rgba(255, 245, 226, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 245, 226, 0.96) 0%,
+    rgba(255, 255, 255, 0.86) 100%
+  );
 }
 
 .data-card__title,
@@ -1054,11 +1200,7 @@ onShow(() => {
   font-size: 64rpx;
   line-height: 1;
   color: var(--theme-text-primary);
-  font-family:
-    'Iowan Old Style',
-    'Times New Roman',
-    'Noto Serif SC',
-    serif;
+  font-family: 'Iowan Old Style', 'Times New Roman', 'Noto Serif SC', serif;
 }
 
 .tool-grid {
@@ -1082,7 +1224,11 @@ onShow(() => {
   display: grid;
   place-items: center;
   color: var(--theme-primary);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, var(--theme-soft) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    var(--theme-soft) 100%
+  );
 }
 
 .tool-item__icon {
@@ -1207,7 +1353,11 @@ onShow(() => {
 .completion-card__fill {
   height: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary) 0%,
+    var(--theme-accent) 100%
+  );
 }
 
 .completion-card__text {
@@ -1268,7 +1418,11 @@ onShow(() => {
 
 .gender-chip--active {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary) 0%,
+    var(--theme-accent) 100%
+  );
 }
 
 .empty-state {

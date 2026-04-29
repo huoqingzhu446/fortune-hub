@@ -26,7 +26,11 @@ export class AdminOpsService {
     private readonly imageGenerationService: ImageGenerationService,
   ) {}
 
-  async listUsers(query: { keyword?: string; vipStatus?: string; limit?: number }) {
+  async listUsers(query: {
+    keyword?: string;
+    vipStatus?: string;
+    limit?: number;
+  }) {
     const items = await this.userRepository.find({
       order: { updatedAt: 'DESC' },
       take: Math.min(200, Math.max(1, Number(query.limit) || 100)),
@@ -108,7 +112,9 @@ export class AdminOpsService {
 
     user.vipStatus = dto.vipStatus === 'active' ? 'active' : 'inactive';
     user.vipExpiredAt =
-      user.vipStatus === 'active' && dto.vipExpiredAt ? new Date(dto.vipExpiredAt) : null;
+      user.vipStatus === 'active' && dto.vipExpiredAt
+        ? new Date(dto.vipExpiredAt)
+        : null;
     const saved = await this.userRepository.save(user);
 
     await this.writeAudit({
@@ -128,7 +134,11 @@ export class AdminOpsService {
     });
   }
 
-  async listOrders(query: { status?: string; keyword?: string; limit?: number }) {
+  async listOrders(query: {
+    status?: string;
+    keyword?: string;
+    limit?: number;
+  }) {
     const items = await this.orderRepository.find({
       order: { createdAt: 'DESC' },
       take: Math.min(200, Math.max(1, Number(query.limit) || 100)),
@@ -137,7 +147,11 @@ export class AdminOpsService {
 
     return this.buildEnvelope({
       items: items
-        .filter((item) => (!query.status || query.status === 'all' ? true : item.status === query.status))
+        .filter((item) =>
+          !query.status || query.status === 'all'
+            ? true
+            : item.status === query.status,
+        )
         .filter((item) =>
           keyword
             ? [
@@ -179,7 +193,11 @@ export class AdminOpsService {
     });
   }
 
-  async listNotificationLogs(query: { scene?: string; status?: string; limit?: number }) {
+  async listNotificationLogs(query: {
+    scene?: string;
+    status?: string;
+    limit?: number;
+  }) {
     const logs = await this.pushDeliveryLogRepository.find({
       order: {
         createdAt: 'DESC',
@@ -189,8 +207,16 @@ export class AdminOpsService {
 
     return this.buildEnvelope({
       items: logs
-        .filter((item) => (!query.scene || query.scene === 'all' ? true : item.scene === query.scene))
-        .filter((item) => (!query.status || query.status === 'all' ? true : item.status === query.status))
+        .filter((item) =>
+          !query.scene || query.scene === 'all'
+            ? true
+            : item.scene === query.scene,
+        )
+        .filter((item) =>
+          !query.status || query.status === 'all'
+            ? true
+            : item.status === query.status,
+        )
         .map((item) => ({
           id: item.id,
           userId: item.userId,
@@ -205,7 +231,11 @@ export class AdminOpsService {
     });
   }
 
-  async listAuditLogs(query: { action?: string; resourceType?: string; limit?: number }) {
+  async listAuditLogs(query: {
+    action?: string;
+    resourceType?: string;
+    limit?: number;
+  }) {
     const logs = await this.auditLogRepository.find({
       order: {
         createdAt: 'DESC',
@@ -216,7 +246,9 @@ export class AdminOpsService {
     return this.buildEnvelope({
       items: logs
         .filter((item) => (!query.action ? true : item.action === query.action))
-        .filter((item) => (!query.resourceType ? true : item.resourceType === query.resourceType))
+        .filter((item) =>
+          !query.resourceType ? true : item.resourceType === query.resourceType,
+        )
         .map((item) => ({
           id: item.id,
           actorType: item.actorType,
@@ -231,7 +263,9 @@ export class AdminOpsService {
   }
 
   getZhipuImageStatus() {
-    return this.buildEnvelope(this.imageGenerationService.getDiagnosticStatus());
+    return this.buildEnvelope(
+      this.imageGenerationService.getDiagnosticStatus(),
+    );
   }
 
   async testZhipuImage(actorId: string | null, prompt?: string) {
@@ -239,7 +273,8 @@ export class AdminOpsService {
       prompt:
         prompt?.trim() ||
         'fortune hub diagnostic image, soft gradient background, no text, no logo',
-      size: this.imageGenerationService.getDiagnosticStatus().defaultSizes.diagnostic,
+      size: this.imageGenerationService.getDiagnosticStatus().defaultSizes
+        .diagnostic,
       purpose: '诊断',
     });
 
@@ -300,6 +335,7 @@ export class AdminOpsService {
       gender: user.gender,
       birthday: user.birthday,
       birthTime: user.birthTime,
+      birthPlace: this.resolveUserBirthPlace(user),
       zodiac: user.zodiac,
       vipStatus: this.resolveVipStatus(user),
       vipExpiredAt: user.vipExpiredAt?.toISOString() ?? null,
@@ -307,6 +343,23 @@ export class AdminOpsService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  private resolveUserBirthPlace(user: UserEntity) {
+    const preferences = user.preferencesJson ?? {};
+    const candidates = [
+      preferences.birthPlace,
+      preferences.birthCity,
+      preferences.city,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return null;
   }
 
   private serializeOrder(order: OrderEntity) {

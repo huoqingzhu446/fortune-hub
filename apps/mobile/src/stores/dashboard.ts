@@ -149,7 +149,8 @@ const fallbackDashboard: MobileDashboardPayload = {
     {
       id: 'profile',
       title: '完善资料',
-      description: '补齐生日、出生时间和性别后，首页和幸运体系会更完整。',
+      description:
+        '补齐生日、出生时间、出生地和性别后，首页和幸运体系会更完整。',
       completed: false,
     },
     {
@@ -242,9 +243,7 @@ export const useDashboardStore = defineStore('dashboard', {
       this.loading = true;
 
       try {
-        const response = await http.get<MobileDashboardResponse>(
-          '/home/index',
-        );
+        const response = await http.get<MobileDashboardResponse>('/home/index');
 
         const nextDashboard: MobileDashboardPayload = {
           ...fallbackDashboard,
@@ -253,15 +252,20 @@ export const useDashboardStore = defineStore('dashboard', {
             ...fallbackDashboard.todayLuckySign,
             ...response.data.todayLuckySign,
           },
-          stateOverview: response.data.stateOverview || fallbackDashboard.stateOverview,
+          stateOverview:
+            response.data.stateOverview || fallbackDashboard.stateOverview,
         };
 
-        saveDailyThemeKey((nextDashboard.dailyThemeKey as ThemeKey | undefined) || '');
+        saveDailyThemeKey(
+          (nextDashboard.dailyThemeKey as ThemeKey | undefined) || '',
+        );
 
         this.dashboard = nextDashboard;
       } catch (error) {
         console.warn('load dashboard fallback', error);
-        saveDailyThemeKey((fallbackDashboard.dailyThemeKey as ThemeKey | undefined) || '');
+        saveDailyThemeKey(
+          (fallbackDashboard.dailyThemeKey as ThemeKey | undefined) || '',
+        );
         this.dashboard = fallbackDashboard;
       } finally {
         this.loading = false;

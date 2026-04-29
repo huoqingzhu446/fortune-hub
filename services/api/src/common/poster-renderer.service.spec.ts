@@ -60,4 +60,67 @@ describe('PosterRendererService', () => {
     expect(rendered.imageDataUrl).toMatch(/^data:image\/png;base64,/);
     expect(rendered.usedProviderBackground).toBe(false);
   });
+
+  it('renders bazi share posters as 941x1672 PNG images', async () => {
+    const service = new PosterRendererService();
+    const layout = service.resolvePosterLayout('941x1672', 'bazi');
+    const rendered = await service.renderPoster(
+      {
+        sourceType: 'bazi',
+        title: '我的八字命盘',
+        subtitle: '根据出生日期与出生地生成的专属命理画像',
+        accentText: '乙木日主 · 木旺 · 喜用水木',
+        footerText: '知命而后，更懂自己',
+        summary: '乙木日主，气质温和，内心有韧性',
+        themeName: 'oriental-gold',
+        eyebrowText: 'FORTUNE HUB SHARE POSTER',
+        chips: ['乙木', '木旺', '喜用水木'],
+        metrics: [],
+        highlightLines: [],
+        baziPoster: {
+          tagText: '八字分享',
+          calendarText: '1996年10月21日 09:28',
+          birthPlace: '杭州',
+          dayMaster: '乙木',
+          pillars: [
+            { label: '年柱', stem: '丙', branch: '子' },
+            { label: '月柱', stem: '丁', branch: '酉' },
+            { label: '日柱', stem: '乙', branch: '卯' },
+            { label: '时柱', stem: '辛', branch: '巳' },
+          ],
+          wuxingTrend: '木旺',
+          favorableElements: '水木',
+          analysis: [
+            '乙木日主，气质温和，内心有韧性',
+            '木水相生，学习力与感受力较强',
+            '火土偏弱，宜增强行动与执行节奏',
+          ],
+          fortunes: [
+            { label: '综合运势', value: 82, color: '#2F7D5B' },
+            { label: '事业', value: 84, color: '#4B8FA8' },
+            { label: '感情', value: 88, color: '#D96B5F' },
+          ],
+          brandLabel: '八字运势',
+          bottomSlogan: '知命而后，更懂自己',
+        },
+        miniProgramCodeDataUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lbcN5QAAAABJRU5ErkJggg==',
+      },
+      null,
+      layout,
+    );
+    const metadata = await sharp(rendered.imageBuffer).metadata();
+
+    expect(layout).toEqual(
+      expect.objectContaining({
+        size: '941x1672',
+        width: 941,
+        height: 1672,
+      }),
+    );
+    expect(metadata.format).toBe('png');
+    expect(metadata.width).toBe(941);
+    expect(metadata.height).toBe(1672);
+    expect(rendered.imageDataUrl).toMatch(/^data:image\/png;base64,/);
+  });
 });

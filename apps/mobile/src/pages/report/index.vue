@@ -309,7 +309,10 @@ async function generatePoster() {
 
   try {
     posterLoading.value = true;
-    poster.value = await generateReportPosterAsync(recordId.value);
+    poster.value = await generateReportPosterAsync(
+      recordId.value,
+      report.value?.recordType === 'bazi' ? '941x1672' : undefined,
+    );
     uni.showToast({
       title: '海报已生成',
       icon: 'success',

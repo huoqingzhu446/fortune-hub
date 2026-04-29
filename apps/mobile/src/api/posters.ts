@@ -5,7 +5,7 @@ export function createPosterJob(payload: {
   recordId?: string;
   sourceType?: 'lucky_sign' | 'today_index' | 'zodiac_today';
   bizCode?: string;
-  size?: '1280x1280' | '1080x1440' | '1088x1472';
+  size?: '1280x1280' | '1080x1440' | '1088x1472' | '941x1672';
 }) {
   return http.post<PosterJobResponse, typeof payload>('/posters/jobs', payload);
 }
@@ -36,8 +36,14 @@ export async function waitPosterJob(jobId: string, options: { attempts?: number;
   throw new Error('海报生成仍在处理中，请稍后刷新');
 }
 
-export async function generateReportPosterAsync(recordId: string) {
-  const response = await createPosterJob({ recordId });
+export async function generateReportPosterAsync(
+  recordId: string,
+  size?: '1280x1280' | '1080x1440' | '1088x1472' | '941x1672',
+) {
+  const response = await createPosterJob({
+    recordId,
+    ...(size ? { size } : {}),
+  });
   const job = await waitPosterJob(response.data.job.jobId);
   if (!job.result) {
     throw new Error('海报任务没有返回结果');

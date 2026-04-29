@@ -44,14 +44,18 @@ export class BaziService {
 
   async analyze(dto: AnalyzeBaziDto, user: UserEntity | null) {
     const isProfessionalMode = dto.mode === 'professional';
-    const result = isProfessionalMode ? this.buildProfessionalResult(dto) : this.buildResult(dto);
+    const result = isProfessionalMode
+      ? this.buildProfessionalResult(dto)
+      : this.buildResult(dto);
     let recordId: string | null = null;
 
     if (user) {
       const record = this.userRecordRepository.create({
         userId: user.id,
         recordType: 'bazi',
-        sourceCode: isProfessionalMode ? 'professional-bazi-chart' : 'lite-bazi-chart',
+        sourceCode: isProfessionalMode
+          ? 'professional-bazi-chart'
+          : 'lite-bazi-chart',
         resultTitle: result.title,
         score: result.dominantElement.value.toFixed(2),
         resultLevel: result.dominantElement.name,
@@ -144,7 +148,8 @@ export class BaziService {
             title: record.resultTitle,
             sourceCode: record.sourceCode ?? '',
             isProfessional:
-              record.sourceCode === 'professional-bazi-chart' || Boolean(result.professional),
+              record.sourceCode === 'professional-bazi-chart' ||
+              Boolean(result.professional),
             subtitle: result.subtitle ?? '',
             summary: result.summary ?? '',
             dominantElementName: result.dominantElement?.name ?? '',
@@ -223,7 +228,11 @@ export class BaziService {
     const result = this.asRecord(rawResult);
     const professional = this.asRecord(result.professional);
 
-    if (professional.majorLuck && result.dayMasterAnalysis && result.inputSnapshot) {
+    if (
+      professional.majorLuck &&
+      result.dayMasterAnalysis &&
+      result.inputSnapshot
+    ) {
       return result as Record<string, any>;
     }
 
@@ -275,7 +284,9 @@ export class BaziService {
   }
 
   private pickGender(value: unknown): 'male' | 'female' | 'unknown' {
-    return value === 'male' || value === 'female' || value === 'unknown' ? value : 'unknown';
+    return value === 'male' || value === 'female' || value === 'unknown'
+      ? value
+      : 'unknown';
   }
 
   private buildResult(dto: AnalyzeBaziDto) {
@@ -302,10 +313,22 @@ export class BaziService {
     return this.buildInterpretedResult(engineResult, true);
   }
 
-  private buildInterpretedResult(engineResult: BaziEngineResult, isProfessional: boolean) {
+  private buildInterpretedResult(
+    engineResult: BaziEngineResult,
+    isProfessional: boolean,
+  ) {
     const { dominantElement, supportElement } = engineResult;
     const { dayMaster } = engineResult.baseProfile;
     const keywords = ELEMENT_TO_KEYWORD[dominantElement.name].slice(0, 3);
+    const dayMasterName = `${engineResult.dayMasterAnalysis.dayStem}${engineResult.dayMasterAnalysis.dayElement}`;
+    const favorableElements = [
+      ...engineResult.dayMasterAnalysis.usefulElements.map((item) => item.name),
+      supportElement.name,
+      engineResult.dayMasterAnalysis.dayElement,
+    ]
+      .filter((item, index, array) => item && array.indexOf(item) === index)
+      .slice(0, 2)
+      .join('');
 
     return {
       algorithmVersion: engineResult.algorithmVersion,
@@ -357,8 +380,7 @@ export class BaziService {
                 : supportElement.name === '金'
                   ? '试着把边界说清楚，会比反复揣测更省力。'
                   : '允许情绪慢一点流动出来，关系会更柔和。',
-        rhythm:
-          `当前更建议你用“${dominantElement.name}主轴 + ${supportElement.name}补位”的方式安排节奏。先用擅长的方式启动，再给偏弱的一面留一点照顾。`,
+        rhythm: `当前更建议你用“${dominantElement.name}主轴 + ${supportElement.name}补位”的方式安排节奏。先用擅长的方式启动，再给偏弱的一面留一点照顾。`,
       },
       practicalTips: {
         favorableDirection: ELEMENT_TO_DIRECTION[dominantElement.name],
@@ -366,17 +388,12 @@ export class BaziService {
         dailyFocus: `今天适合围绕“${keywords.join(' / ')}”来安排主要任务。`,
       },
       sharePoster: {
-        themeName: dominantElement.name === '火' ? 'warm-amber' : 'oriental-gold',
-        title: isProfessional
-          ? `${dominantElement.name}势专业校正版`
-          : `${dominantElement.name}势偏旺型`,
-        subtitle: isProfessional
-          ? `${dayMaster}日主 · ${engineResult.chart.monthPillar}月令`
-          : `${dayMaster}日主更突出，当前更适合顺势安排节奏。`,
-        accentText: `${dominantElement.name}主轴 · ${supportElement.name}补位`,
-        footerText: isProfessional
-          ? '专业版已纳入节气换月、立春年界与真太阳时。'
-          : '轻解读已统一使用农历/干支库排盘。',
+        themeName:
+          dominantElement.name === '火' ? 'warm-amber' : 'oriental-gold',
+        title: '我的八字命盘',
+        subtitle: '根据出生日期与出生地生成的专属命理画像',
+        accentText: `${dayMasterName}日主 · ${dominantElement.name}旺 · 喜用${favorableElements}`,
+        footerText: '知命而后，更懂自己',
       },
       ...(isProfessional
         ? {
@@ -384,10 +401,13 @@ export class BaziService {
               mode: 'professional',
               library: engineResult.library,
               algorithmVersion: engineResult.algorithmVersion,
-              adjustedBirthday: engineResult.correctionSnapshot.adjustedBirthday,
-              adjustedBirthTime: engineResult.correctionSnapshot.adjustedBirthTime,
+              adjustedBirthday:
+                engineResult.correctionSnapshot.adjustedBirthday,
+              adjustedBirthTime:
+                engineResult.correctionSnapshot.adjustedBirthTime,
               birthPlace: engineResult.inputSnapshot.birthPlace,
-              trueSolarOffsetMinutes: engineResult.correctionSnapshot.offsetMinutes,
+              trueSolarOffsetMinutes:
+                engineResult.correctionSnapshot.offsetMinutes,
               longitude: engineResult.inputSnapshot.longitude,
               latitude: engineResult.inputSnapshot.latitude,
               timezoneOffset: engineResult.inputSnapshot.timezoneOffset,

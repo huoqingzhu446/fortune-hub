@@ -15,6 +15,7 @@ import {
   normalizeFileServiceUrlToApiProxy,
 } from '../common/file-url.util';
 import {
+  BaziPosterDetails,
   PosterMetric,
   PosterRendererService,
 } from '../common/poster-renderer.service';
@@ -49,6 +50,7 @@ type PosterSource = {
   zodiacGlyph?: string;
   zodiacEnglish?: string;
   energyValue?: string;
+  baziPoster?: BaziPosterDetails;
 };
 
 @Injectable()
@@ -280,15 +282,25 @@ export class PostersService {
         user.id,
       );
       const report = await this.reportsService.buildReportPayload(record, user);
+      const baziPoster =
+        record.recordType === 'bazi'
+          ? this.buildBaziPosterDetails(this.asRecord(record.resultData))
+          : undefined;
 
       return {
         sourceType: record.recordType,
         sourceCode: record.sourceCode,
         recordId: record.id,
-        title: report.sharePoster.title,
-        subtitle: report.sharePoster.subtitle,
-        accentText: report.sharePoster.accentText,
-        footerText: report.sharePoster.footerText,
+        title: baziPoster ? '我的八字命盘' : report.sharePoster.title,
+        subtitle: baziPoster
+          ? '根据出生日期与出生地生成的专属命理画像'
+          : report.sharePoster.subtitle,
+        accentText: baziPoster
+          ? `${baziPoster.dayMaster}日主 · ${baziPoster.wuxingTrend} · 喜用${baziPoster.favorableElements}`
+          : report.sharePoster.accentText,
+        footerText: baziPoster
+          ? baziPoster.bottomSlogan
+          : report.sharePoster.footerText,
         summary: report.summary,
         promptKeywords: [
           report.recordType,
@@ -299,9 +311,21 @@ export class PostersService {
         themeName: report.sharePoster.themeName,
         promptHint: '',
         eyebrowText: 'FORTUNE HUB SHARE POSTER',
-        chips: [],
-        metrics: [],
+        chips: baziPoster
+          ? [
+              baziPoster.dayMaster,
+              baziPoster.wuxingTrend,
+              `喜用${baziPoster.favorableElements}`,
+            ]
+          : [],
+        metrics: baziPoster
+          ? baziPoster.fortunes.map((item) => ({
+              label: item.label,
+              value: String(item.value),
+            }))
+          : [],
         highlightLines: [],
+        baziPoster,
       };
     }
 
@@ -564,6 +588,200 @@ export class PostersService {
     };
   }
 
+  private buildBaziPosterDetails(
+    resultData: Record<string, unknown>,
+  ): BaziPosterDetails {
+    const chart = this.asRecord(resultData.chart);
+    const baseProfile = this.asRecord(resultData.baseProfile);
+    const inputSnapshot = this.asRecord(resultData.inputSnapshot);
+    const dominantElement = this.asRecord(resultData.dominantElement);
+    const supportElement = this.asRecord(resultData.supportElement);
+    const dayMasterAnalysis = this.asRecord(resultData.dayMasterAnalysis);
+    const reading = this.asRecord(resultData.reading);
+    const practicalTips = this.asRecord(resultData.practicalTips);
+    const yearPillar = this.pickString(chart.yearPillar, '丙子');
+    const monthPillar = this.pickString(chart.monthPillar, '丁酉');
+    const dayPillar = this.pickString(chart.dayPillar, '乙卯');
+    const hourPillar = this.pickString(chart.hourPillar, '辛巳');
+    const dayStem = this.pickString(
+      dayMasterAnalysis.dayStem,
+      dayPillar[0] ?? '乙',
+    );
+    const dayElement = this.pickString(
+      dayMasterAnalysis.dayElement,
+      this.resolveBaziElementFromChar(dayStem),
+    );
+    const dominantName = this.pickString(dominantElement.name, dayElement);
+    const supportName = this.pickString(supportElement.name, '水');
+    const favorableElements = this.resolveBaziFavorableElements(
+      dayMasterAnalysis,
+      supportName,
+      dayElement,
+    );
+    const birthday = this.pickString(
+      inputSnapshot.birthday,
+      this.pickString(baseProfile.birthday, '1996-10-21'),
+    );
+    const birthTime = this.pickString(
+      inputSnapshot.birthTime,
+      this.pickString(baseProfile.birthTime, '09:28'),
+    );
+    const birthPlace = this.pickString(
+      inputSnapshot.birthPlace,
+      this.pickString(baseProfile.birthPlace, '杭州'),
+    );
+    const supportScore = Number(dayMasterAnalysis.supportScore ?? 6);
+    const pressureScore = Number(dayMasterAnalysis.pressureScore ?? 4);
+    const balanceScore = Number(dayMasterAnalysis.balanceScore ?? 0);
+    const dominantValue = Number(dominantElement.value ?? 4);
+    const supportValue = Number(supportElement.value ?? 2);
+
+    return {
+      tagText: '八字分享',
+      calendarText: this.formatBaziCalendarText(birthday, birthTime),
+      birthPlace,
+      dayMaster: `${dayStem}${dayElement}`,
+      pillars: [
+        this.buildBaziPosterPillar('年柱', yearPillar),
+        this.buildBaziPosterPillar('月柱', monthPillar),
+        this.buildBaziPosterPillar('日柱', dayPillar),
+        this.buildBaziPosterPillar('时柱', hourPillar),
+      ],
+      wuxingTrend: `${dominantName}旺`,
+      favorableElements,
+      analysis: [
+        `${dayStem}${dayElement}日主，${this.resolveBaziDayMasterTrait(dayElement)}`,
+        `${dominantName}${supportName}相生，${this.resolveBaziSupportTrait(supportName)}`,
+        this.truncateText(
+          this.pickString(
+            reading.rhythm,
+            this.pickString(
+              practicalTips.dailyFocus,
+              `${supportName}元素补位，宜增强行动与执行节奏`,
+            ),
+          ),
+          28,
+        ),
+      ],
+      fortunes: [
+        {
+          label: '综合运势',
+          value: this.clampPosterScore(
+            78 + dominantValue * 2 + balanceScore,
+            82,
+          ),
+          color: '#2F7D5B',
+        },
+        {
+          label: '事业',
+          value: this.clampPosterScore(76 + supportScore * 2, 84),
+          color: '#4B8FA8',
+        },
+        {
+          label: '感情',
+          value: this.clampPosterScore(
+            82 + supportValue * 2 - pressureScore,
+            88,
+          ),
+          color: '#D96B5F',
+        },
+      ],
+      brandLabel: '八字运势',
+      bottomSlogan: '知命而后，更懂自己',
+    };
+  }
+
+  private buildBaziPosterPillar(label: string, pillar: string) {
+    return {
+      label,
+      stem: pillar[0] || '乙',
+      branch: pillar[1] || '卯',
+    };
+  }
+
+  private formatBaziCalendarText(birthday: string, birthTime: string) {
+    const match = birthday.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) {
+      return [birthday, birthTime].filter(Boolean).join(' ');
+    }
+
+    return `${match[1]}年${Number(match[2])}月${Number(match[3])}日 ${birthTime}`;
+  }
+
+  private resolveBaziFavorableElements(
+    dayMasterAnalysis: Record<string, unknown>,
+    supportName: string,
+    dayElement: string,
+  ) {
+    const usefulElements = Array.isArray(dayMasterAnalysis.usefulElements)
+      ? dayMasterAnalysis.usefulElements
+          .map((item) => this.pickString(this.asRecord(item).name, ''))
+          .filter(Boolean)
+      : [];
+    const merged = [...usefulElements, supportName, dayElement].filter(
+      (item, index, array) => item && array.indexOf(item) === index,
+    );
+
+    return merged.slice(0, 2).join('') || `${supportName}${dayElement}`;
+  }
+
+  private resolveBaziDayMasterTrait(dayElement: string) {
+    const traits: Record<string, string> = {
+      木: '气质温和，内心有韧性',
+      火: '表达直接，行动带有热度',
+      土: '重视稳定，擅长承接复杂事务',
+      金: '判断清晰，做事有边界感',
+      水: '感受敏锐，适合先观察再布局',
+    };
+
+    return traits[dayElement] ?? '气质稳定，适合顺势而为';
+  }
+
+  private resolveBaziSupportTrait(element: string) {
+    const traits: Record<string, string> = {
+      木: '学习力与延展力较强',
+      火: '表达力与行动热度较强',
+      土: '稳定度与承接力较强',
+      金: '判断力与收束力较强',
+      水: '学习力与感受力较强',
+    };
+
+    return traits[element] ?? '节奏感与适应力较强';
+  }
+
+  private resolveBaziElementFromChar(value: string) {
+    if ('甲乙寅卯木'.includes(value)) {
+      return '木';
+    }
+
+    if ('丙丁巳午火'.includes(value)) {
+      return '火';
+    }
+
+    if ('戊己辰戌丑未土'.includes(value)) {
+      return '土';
+    }
+
+    if ('庚辛申酉金'.includes(value)) {
+      return '金';
+    }
+
+    if ('壬癸子亥水'.includes(value)) {
+      return '水';
+    }
+
+    return '木';
+  }
+
+  private clampPosterScore(value: number, fallback: number) {
+    if (!Number.isFinite(value)) {
+      return fallback;
+    }
+
+    return Math.min(99, Math.max(60, Math.round(value)));
+  }
+
   private buildProviderPrompt(source: PosterSource) {
     const visualKeywords = this.buildVisualPromptKeywords(source);
     const colorMood = this.resolveProviderColorMood(source.themeName);
@@ -618,6 +836,10 @@ export class PostersService {
 
     if (sourceType === 'today_index') {
       return 'today-index-template-v1';
+    }
+
+    if (sourceType === 'bazi') {
+      return 'bazi-share-poster-941x1672-v1';
     }
 
     if (kind === 'portrait') {
@@ -872,9 +1094,7 @@ export class PostersService {
     try {
       const accessToken = await this.getWechatAccessToken(appId, appSecret);
       const response = await this.fetchWithTimeout(
-        `https://api.weixin.qq.com/wxa/getwxacode?access_token=${encodeURIComponent(
-          accessToken,
-        )}`,
+        `https://api.weixin.qq.com/wxa/getwxacode?access_token=${encodeURIComponent(accessToken)}`,
         {
           method: 'POST',
           headers: {
@@ -1072,6 +1292,10 @@ export class PostersService {
       return 'pages/lucky/sign/index';
     }
 
+    if (source.sourceType === 'bazi') {
+      return 'pages/report/index';
+    }
+
     return 'pages/index/index';
   }
 
@@ -1090,6 +1314,12 @@ export class PostersService {
       };
     }
 
+    if (source.sourceType === 'bazi') {
+      return {
+        recordId: source.recordId ?? '',
+      };
+    }
+
     return {
       source: source.sourceType,
     };
@@ -1102,6 +1332,7 @@ export class PostersService {
     return template
       .replace(/\{sourceType\}/g, source.sourceType)
       .replace(/\{sourceCode\}/g, encodeURIComponent(source.sourceCode ?? ''))
+      .replace(/\{recordId\}/g, encodeURIComponent(source.recordId ?? ''))
       .replace(
         /\{zodiac\}/g,
         encodeURIComponent(source.zodiacName ?? source.sourceCode ?? ''),

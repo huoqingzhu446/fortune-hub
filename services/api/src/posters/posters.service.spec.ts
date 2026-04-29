@@ -120,6 +120,147 @@ describe('PostersService', () => {
     );
   });
 
+  it('builds bazi report posters with structured chart details', async () => {
+    const shareRecordRepository = {
+      create: jest.fn((input: unknown) => input),
+      save: jest.fn(async (input: unknown) => input),
+    };
+    const posterRendererService = {
+      resolvePosterLayout: jest.fn(() => ({
+        size: '941x1672',
+        width: 941,
+        height: 1672,
+        kind: 'portrait',
+      })),
+      renderPoster: jest.fn(async () => ({
+        imageBuffer: Buffer.from('png'),
+        imageDataUrl: 'data:image/png;base64,cG5n',
+        usedProviderBackground: false,
+      })),
+    };
+    const resultData = {
+      title: '木势专业校正版',
+      subtitle: '已按节气换月、立春年界与真太阳时校正。',
+      summary: '乙木日主，四柱呈现木势更明显。',
+      chart: {
+        yearPillar: '丙子',
+        monthPillar: '丁酉',
+        dayPillar: '乙卯',
+        hourPillar: '辛巳',
+      },
+      inputSnapshot: {
+        birthday: '1996-10-21',
+        birthTime: '09:28',
+        birthPlace: '杭州',
+      },
+      baseProfile: {
+        birthday: '1996-10-21',
+        birthTime: '09:28',
+        birthPlace: '杭州',
+      },
+      dominantElement: { name: '木', value: 4 },
+      supportElement: { name: '水', value: 2 },
+      dayMasterAnalysis: {
+        dayStem: '乙',
+        dayElement: '木',
+        supportScore: 5,
+        pressureScore: 3,
+        balanceScore: 2,
+        usefulElements: [
+          { name: '水', reason: '日主偏弱，先取印星生扶。' },
+          { name: '木', reason: '同类比劫可补足行动和承压能力。' },
+        ],
+      },
+      reading: {
+        rhythm: '当前更建议你用“木主轴 + 水补位”的方式安排节奏。',
+      },
+      practicalTips: {
+        dailyFocus: '今天适合围绕舒展来安排主要任务。',
+      },
+    };
+    const reportsService = {
+      getOwnedRecordOrThrow: jest.fn(async () => ({
+        id: 'record-1',
+        userId: 'user-1',
+        recordType: 'bazi',
+        sourceCode: 'professional-bazi-chart',
+        resultTitle: '木势专业校正版',
+        resultData,
+        createdAt: new Date('2026-04-29T00:00:00.000Z'),
+      })),
+      buildReportPayload: jest.fn(async () => ({
+        recordType: 'bazi',
+        title: '木势专业校正版',
+        summary: resultData.summary,
+        sharePoster: {
+          themeName: 'oriental-gold',
+          title: '我的八字命盘',
+          subtitle: '根据出生日期与出生地生成的专属命理画像',
+          accentText: '乙木日主 · 木旺 · 喜用水木',
+          footerText: '知命而后，更懂自己',
+        },
+      })),
+    };
+    const service = new PostersService(
+      shareRecordRepository as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      reportsService as never,
+      {} as never,
+      {} as never,
+      {
+        get: jest.fn(() => undefined),
+      } as never,
+      posterRendererService as never,
+    );
+
+    const response = await service.generatePoster(
+      {
+        recordId: 'record-1',
+        size: '941x1672',
+      },
+      { id: 'user-1' } as never,
+    );
+
+    expect(posterRendererService.resolvePosterLayout).toHaveBeenCalledWith(
+      '941x1672',
+      'bazi',
+    );
+    expect(posterRendererService.renderPoster).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceType: 'bazi',
+        title: '我的八字命盘',
+        subtitle: '根据出生日期与出生地生成的专属命理画像',
+        baziPoster: expect.objectContaining({
+          calendarText: '1996年10月21日 09:28',
+          birthPlace: '杭州',
+          dayMaster: '乙木',
+          wuxingTrend: '木旺',
+          favorableElements: '水木',
+          pillars: [
+            { label: '年柱', stem: '丙', branch: '子' },
+            { label: '月柱', stem: '丁', branch: '酉' },
+            { label: '日柱', stem: '乙', branch: '卯' },
+            { label: '时柱', stem: '辛', branch: '巳' },
+          ],
+        }),
+      }),
+      null,
+      expect.objectContaining({
+        size: '941x1672',
+      }),
+    );
+    expect(response.data.poster).toEqual(
+      expect.objectContaining({
+        width: 941,
+        height: 1672,
+        size: '941x1672',
+        templateId: 'bazi-share-poster-941x1672-v1',
+      }),
+    );
+  });
+
   it('requests permanent wxacode images with path payloads', async () => {
     const originalFetch = global.fetch;
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {

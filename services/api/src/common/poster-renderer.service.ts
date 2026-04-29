@@ -31,6 +31,32 @@ export type PosterMetric = {
   hint?: string;
 };
 
+export type BaziPosterPillar = {
+  label: string;
+  stem: string;
+  branch: string;
+};
+
+export type BaziPosterFortune = {
+  label: string;
+  value: string | number;
+  color?: string;
+};
+
+export type BaziPosterDetails = {
+  tagText: string;
+  calendarText: string;
+  birthPlace: string;
+  dayMaster: string;
+  pillars: BaziPosterPillar[];
+  wuxingTrend: string;
+  favorableElements: string;
+  analysis: string[];
+  fortunes: BaziPosterFortune[];
+  brandLabel: string;
+  bottomSlogan: string;
+};
+
 export type PosterRenderSource = {
   sourceType: string;
   title: string;
@@ -48,11 +74,12 @@ export type PosterRenderSource = {
   zodiacGlyph?: string;
   zodiacEnglish?: string;
   energyValue?: string;
+  baziPoster?: BaziPosterDetails;
   miniProgramCodeDataUrl?: string | null;
 };
 
 export type PosterLayout = {
-  size: '1280x1280' | '1080x1440' | '1088x1472';
+  size: '1280x1280' | '1080x1440' | '1088x1472' | '941x1672';
   width: number;
   height: number;
   kind: 'square' | 'portrait';
@@ -91,7 +118,13 @@ export class PosterRendererService {
       sourceType === 'today_index' ||
       sourceType === 'zodiac_today' ||
       sourceType === 'bazi';
-    const size = requestedSize ?? (prefersPortrait ? '1088x1472' : '1280x1280');
+    const size =
+      requestedSize ??
+      (sourceType === 'bazi'
+        ? '941x1672'
+        : prefersPortrait
+          ? '1088x1472'
+          : '1280x1280');
 
     if (size === '1080x1440') {
       return {
@@ -107,6 +140,15 @@ export class PosterRendererService {
         size: '1088x1472',
         width: 1088,
         height: 1472,
+        kind: 'portrait',
+      };
+    }
+
+    if (size === '941x1672') {
+      return {
+        size: '941x1672',
+        width: 941,
+        height: 1672,
         kind: 'portrait',
       };
     }
@@ -471,45 +513,40 @@ export class PosterRendererService {
   }
 
   private buildBaziPosterSvg(source: PosterRenderSource, layout: PosterLayout) {
-    const visual = this.resolveBaziPosterVisual(source);
-    const titleLines = this.renderTextTspans(source.title, 7, 0, 92, 78);
-    const subtitleLines = this.renderTextTspans(source.subtitle, 16, 0, 42, 78);
-    const accentLines = this.renderTextTspans(source.accentText, 14, 0, 36, 82);
-    const summaryLines = this.renderTextTspans(
-      source.summary ||
-        '把擅长的节奏作为启动方式，再给需要补位的一面留出空间。',
-      20,
-      0,
-      38,
-      342,
+    const details = this.resolveBaziPosterDetails(source);
+    const scaleX = layout.width / 941;
+    const scaleY = layout.height / 1672;
+    const title = this.escapeXml(source.title || '我的八字命盘');
+    const subtitle = this.escapeXml(
+      source.subtitle || '根据出生日期与出生地生成的专属命理画像',
     );
-    const footerY = layout.height - 166;
-    const frameWidth = layout.width - 56;
-    const frameHeight = layout.height - 56;
-    const codeCenterX = layout.width - 154;
-    const codeCenterY = footerY + 46;
 
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
   <defs>
     <linearGradient id="bazi-bg" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#F9F2E8" />
-      <stop offset="48%" stop-color="#EEF4EE" />
-      <stop offset="100%" stop-color="#FFFDF7" />
+      <stop offset="0%" stop-color="#FAF0DF" />
+      <stop offset="48%" stop-color="#FFFDF7" />
+      <stop offset="100%" stop-color="#DBECE0" />
     </linearGradient>
     <linearGradient id="bazi-frame" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94" />
-      <stop offset="56%" stop-color="#FBF4E7" stop-opacity="0.82" />
+      <stop offset="56%" stop-color="#FFF8EA" stop-opacity="0.82" />
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
     </linearGradient>
-    <linearGradient id="bazi-ink" x1="10%" x2="88%" y1="8%" y2="92%">
-      <stop offset="0%" stop-color="#253B36" />
-      <stop offset="52%" stop-color="#436D5A" />
+    <linearGradient id="bazi-title" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#A9792C" />
+      <stop offset="52%" stop-color="#6E4616" />
       <stop offset="100%" stop-color="#C3934D" />
     </linearGradient>
+    <linearGradient id="bazi-ink" x1="10%" x2="88%" y1="8%" y2="92%">
+      <stop offset="0%" stop-color="#315845" />
+      <stop offset="52%" stop-color="#609A69" />
+      <stop offset="100%" stop-color="#CDA35B" />
+    </linearGradient>
     <linearGradient id="bazi-card" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.86" />
-      <stop offset="100%" stop-color="#FFF8EC" stop-opacity="0.62" />
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FFF8EC" stop-opacity="0.78" />
     </linearGradient>
     <linearGradient id="purple-core" x1="16%" x2="86%" y1="8%" y2="92%">
       <stop offset="0%" stop-color="#D5AA6C" />
@@ -523,168 +560,393 @@ export class PosterRendererService {
       <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#D2B98E" flood-opacity="0.28" />
     </filter>
   </defs>
-  <rect width="${layout.width}" height="${layout.height}" fill="url(#bazi-bg)" />
-  <rect x="-72" y="0" width="1220" height="286" fill="#D9B56F" fill-opacity="0.14" />
-  <path d="M70 410 C 254 286, 452 314, 632 462 S 898 560, 1030 388" fill="none" stroke="#C3934D" stroke-opacity="0.24" stroke-width="3" />
-  <path d="M58 1238 C 252 1182, 430 1224, 612 1282 S 882 1354, 1032 1266" fill="none" stroke="#DFCAA3" stroke-width="7" stroke-opacity="0.6" />
-  ${this.renderBaziTexture()}
-  <rect x="28" y="28" width="${frameWidth}" height="${frameHeight}" rx="56" ry="56" fill="url(#bazi-frame)" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  <text x="78" y="116" font-size="26" letter-spacing="8" fill="#9B7B49" font-family="${POSTER_FONT_FAMILY}">BAZI ENERGY MAP</text>
-  <path d="M354 107 L 444 107" stroke="#D9BF8E" stroke-width="2" />
-  <circle cx="462" cy="107" r="7" fill="#C3934D" fill-opacity="0.66" />
-  <text x="78" y="244" font-size="78" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${titleLines}</text>
-  <text x="78" y="464" font-size="32" font-weight="600" fill="#57675D" font-family="${POSTER_FONT_FAMILY}">${subtitleLines}</text>
-  ${this.renderBaziEnergyPlate(visual, 800, 292)}
-  <rect x="64" y="578" width="960" height="88" rx="38" ry="38" fill="#FFFFFF" fill-opacity="0.72" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  <text x="82" y="633" font-size="29" font-weight="680" fill="#4E5D54" font-family="${POSTER_FONT_FAMILY}">${accentLines}</text>
-  ${this.renderBaziInfoCards(visual)}
-  ${this.renderBaziTags(source.chips, visual)}
-  <rect x="64" y="1038" width="960" height="190" rx="34" ry="34" fill="#FFFFFF" fill-opacity="0.78" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  ${this.renderBaziMountainMark()}
-  <text x="342" y="1110" font-size="35" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">今日可借势</text>
-  <path d="M516 1087 L 524 1102 L 540 1110 L 524 1118 L 516 1134 L 508 1118 L 492 1110 L 508 1102 Z" fill="#CDA35B" fill-opacity="0.82" />
-  <text x="342" y="1164" font-size="30" font-weight="500" fill="#657268" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
-  <rect x="64" y="${footerY}" width="86" height="86" rx="24" ry="24" fill="url(#bazi-ink)" />
-  <path d="M90 ${footerY + 53} C 106 ${footerY + 23}, 142 ${footerY + 27}, 132 ${footerY + 55} C 122 ${footerY + 80}, 86 ${footerY + 78}, 90 ${footerY + 53} Z" fill="#FFFFFF" fill-opacity="0.88" />
-  <path d="M105 ${footerY + 34} L 128 ${footerY + 58}" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.76" />
-  <text x="174" y="${footerY + 40}" font-size="30" font-weight="720" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">八字轻解 · Bazi Map</text>
-  <text x="174" y="${footerY + 81}" font-size="24" fill="#7B887F" font-family="${POSTER_FONT_FAMILY}">把五行节奏翻译成今天能用的提醒</text>
-  <path d="M636 ${footerY + 10} L 636 ${footerY + 88}" stroke="#E0D2B8" stroke-width="2" />
-  <text x="674" y="${footerY + 44}" font-size="27" font-weight="620" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">扫码查看你的</text>
-  <text x="674" y="${footerY + 82}" font-size="27" font-weight="620" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">八字解读</text>
-  ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, codeCenterX, codeCenterY)}
+  <g transform="scale(${scaleX} ${scaleY})">
+    <rect width="941" height="1672" fill="url(#bazi-bg)" />
+    ${this.renderBaziTexture()}
+    <circle cx="486" cy="195" r="164" fill="none" stroke="#DDBD84" stroke-width="2" stroke-opacity="0.26" />
+    <circle cx="486" cy="195" r="128" fill="none" stroke="#DDBD84" stroke-width="2" stroke-opacity="0.18" />
+    ${this.renderBaziBaguaWatermark(486, 195, 112)}
+    <rect x="34" y="38" width="246" height="66" rx="32" ry="32" fill="#FFF8EA" fill-opacity="0.88" stroke="#E2C899" stroke-width="2" filter="url(#card-shadow)" />
+    <circle cx="74" cy="71" r="39" fill="#FFF8EA" stroke="#E0BE7D" stroke-width="2" />
+    ${this.renderBaziMiniTaiji(74, 71, 26)}
+    <text x="122" y="82" font-size="30" font-weight="700" fill="#8A5E23" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.tagText)}</text>
+    <text x="471" y="235" text-anchor="middle" font-size="76" font-weight="820" fill="url(#bazi-title)" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${title}</text>
+    <circle cx="770" cy="182" r="19" fill="#BD3F30" />
+    <text x="770" y="176" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">命</text>
+    <text x="770" y="193" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">理</text>
+    <path d="M142 296 L205 296" stroke="#D4A24E" stroke-width="2" stroke-opacity="0.78" />
+    <path d="M729 296 L792 296" stroke="#D4A24E" stroke-width="2" stroke-opacity="0.78" />
+    <path d="M132 296 L142 286 L152 296 L142 306 Z" fill="#D4A24E" />
+    <path d="M802 296 L792 286 L782 296 L792 306 Z" fill="#D4A24E" />
+    <text x="471" y="308" text-anchor="middle" font-size="28" font-weight="520" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${subtitle}</text>
+    <rect x="84" y="374" width="773" height="952" rx="34" ry="34" fill="url(#bazi-card)" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
+    ${this.renderBaziBirthRows(details)}
+    ${this.renderBaziLandscapeMedallion()}
+    ${this.renderBaziPillarPanel(details.pillars)}
+    ${this.renderBaziCapsule(154, 948, 298, '#4F8B66', `五行偏向：${details.wuxingTrend}`, 'leaf')}
+    ${this.renderBaziCapsule(490, 948, 280, '#4F8BA8', `喜用：${details.favorableElements}`, 'drop')}
+    ${this.renderBaziElementCycle()}
+    ${this.renderBaziAnalysisRows(details.analysis)}
+    ${this.renderBaziFortunes(details.fortunes)}
+    ${this.renderBaziLotus()}
+    <text x="310" y="1396" text-anchor="middle" font-size="28" font-weight="520" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">长按识别小程序码</text>
+    <text x="310" y="1440" text-anchor="middle" font-size="30" font-weight="760" fill="#2F7D5B" font-family="${POSTER_FONT_FAMILY}">查看完整八字报告</text>
+    <rect x="210" y="1470" width="204" height="58" rx="29" fill="#FFF8EA" stroke="#D9A441" stroke-opacity="0.46" filter="url(#card-shadow)" />
+    <circle cx="242" cy="1499" r="21" fill="#5F9B68" />
+    <path d="M230 1505 C 238 1486, 258 1489, 253 1509 C 244 1516, 236 1513, 230 1505 Z" fill="#FFFFFF" fill-opacity="0.92" />
+    <text x="329" y="1510" text-anchor="middle" font-size="27" font-weight="680" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.brandLabel)}</text>
+    <path d="M505 1374 L505 1546" stroke="#D9A441" stroke-width="2" stroke-opacity="0.34" />
+    ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, 705, 1435)}
+    <path d="M112 1584 C 260 1548, 406 1588, 538 1604 S 750 1594, 865 1546" fill="none" stroke="#CDA35B" stroke-width="6" stroke-opacity="0.42" />
+    <text x="471" y="1624" text-anchor="middle" font-size="30" font-weight="560" fill="#8A5E23" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.bottomSlogan)}</text>
+    <path d="M292 1614 L300 1602 L308 1614 L300 1626 Z" fill="#D9A441" />
+    <path d="M632 1614 L640 1602 L648 1614 L640 1626 Z" fill="#D9A441" />
+  </g>
 </svg>`.trim();
-  }
-
-  private resolveBaziPosterVisual(source: PosterRenderSource) {
-    const elementColors: Record<
-      string,
-      { main: string; pale: string; text: string }
-    > = {
-      木: { main: '#4F8B66', pale: '#DDEDE0', text: '#315E47' },
-      火: { main: '#C96B50', pale: '#F6DDD1', text: '#874935' },
-      土: { main: '#C3934D', pale: '#F4E7CC', text: '#765B34' },
-      金: { main: '#8FA1AE', pale: '#E3EAF0', text: '#536471' },
-      水: { main: '#4F7EA1', pale: '#DCE9F2', text: '#315A73' },
-    };
-    const dayMaster =
-      source.subtitle.match(/([甲乙丙丁戊己庚辛壬癸])日主/)?.[1] ??
-      source.accentText.match(/([甲乙丙丁戊己庚辛壬癸])日主/)?.[1] ??
-      '甲';
-    const dominant =
-      source.title.match(/([木火土金水])势/)?.[1] ??
-      source.accentText.match(/([木火土金水])主轴/)?.[1] ??
-      '木';
-    const support =
-      source.accentText.match(/([木火土金水])补位/)?.[1] ??
-      ['木', '火', '土', '金', '水'].find((item) => item !== dominant) ??
-      '水';
-
-    return {
-      dayMaster,
-      dominant,
-      support,
-      palette: elementColors[dominant] ?? elementColors.木,
-    };
-  }
-
-  private renderBaziEnergyPlate(
-    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
-    cx: number,
-    cy: number,
-  ) {
-    const elements = ['木', '火', '土', '金', '水'];
-    const points = elements.map((element, index) => {
-      const angle = -Math.PI / 2 + (index * Math.PI * 2) / elements.length;
-      const x = cx + Math.cos(angle) * 146;
-      const y = cy + Math.sin(angle) * 146;
-      const isDominant = element === visual.dominant;
-      const isSupport = element === visual.support;
-      return `
-  <circle cx="${x}" cy="${y}" r="${isDominant ? 42 : 34}" fill="${isDominant ? visual.palette.main : isSupport ? '#D2A45B' : '#FFFFFF'}" fill-opacity="${isDominant ? 0.92 : isSupport ? 0.78 : 0.72}" stroke="#FFFFFF" stroke-width="3" filter="url(#card-shadow)" />
-  <text x="${x}" y="${y + 11}" text-anchor="middle" font-size="${isDominant ? 34 : 28}" font-weight="760" fill="${isDominant || isSupport ? '#FFFFFF' : '#748076'}" font-family="${POSTER_FONT_FAMILY}">${element}</text>`.trim();
-    });
-
-    return `
-  <rect x="${cx - 206}" y="${cy - 206}" width="412" height="412" rx="64" ry="64" fill="url(#bazi-card)" stroke="#FFFFFF" stroke-width="3" filter="url(#card-shadow)" />
-  <circle cx="${cx}" cy="${cy}" r="158" fill="none" stroke="#D6C2A0" stroke-width="2" stroke-opacity="0.8" />
-  <circle cx="${cx}" cy="${cy}" r="104" fill="none" stroke="#B7CDB8" stroke-width="2" stroke-opacity="0.66" />
-  <path d="M${cx - 152} ${cy} C ${cx - 64} ${cy - 94}, ${cx + 80} ${cy - 94}, ${cx + 152} ${cy}" fill="none" stroke="#C3934D" stroke-opacity="0.24" stroke-width="4" />
-  ${points.join('')}
-  <circle cx="${cx}" cy="${cy}" r="76" fill="url(#bazi-ink)" />
-  <circle cx="${cx}" cy="${cy}" r="96" fill="${visual.palette.main}" fill-opacity="0.12" />
-  <text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="32" font-weight="620" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">日主</text>
-  <text x="${cx}" y="${cy + 48}" text-anchor="middle" font-size="70" font-weight="760" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">${visual.dayMaster}</text>`.trim();
-  }
-
-  private renderBaziInfoCards(
-    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
-  ) {
-    const cards = [
-      { label: '日主', value: `${visual.dayMaster}日`, hint: '自我启动方式' },
-      { label: '主轴', value: `${visual.dominant}势`, hint: '当前更容易发力' },
-      { label: '补位', value: `${visual.support}行`, hint: '需要温柔照顾' },
-    ];
-
-    return cards
-      .map((card, index) => {
-        const width = 304;
-        const gap = 22;
-        const x = 64 + index * (width + gap);
-        const y = 704;
-        return `
-  <rect x="${x}" y="${y}" width="${width}" height="182" rx="28" ry="28" fill="#FFFFFF" fill-opacity="0.82" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  <text x="${x + 28}" y="${y + 52}" font-size="26" font-weight="620" fill="#7B887F" font-family="${POSTER_FONT_FAMILY}">${card.label}</text>
-  <text x="${x + 28}" y="${y + 116}" font-size="44" font-weight="760" fill="#263B37" font-family="${POSTER_FONT_FAMILY}">${card.value}</text>
-  <text x="${x + 28}" y="${y + 152}" font-size="23" fill="#8A948C" font-family="${POSTER_FONT_FAMILY}">${card.hint}</text>`.trim();
-      })
-      .join('');
-  }
-
-  private renderBaziTags(
-    chips: string[],
-    visual: ReturnType<PosterRendererService['resolveBaziPosterVisual']>,
-  ) {
-    const normalized = (
-      chips.length
-        ? chips
-        : [`${visual.dominant}主轴`, `${visual.support}补位`, '顺势安排']
-    ).slice(0, 3);
-
-    return normalized
-      .map((chip, index) => {
-        const width = 304;
-        const gap = 18;
-        const x = 64 + index * (width + gap);
-        const y = 918;
-        return `
-  <rect x="${x}" y="${y}" width="${width}" height="82" rx="40" ry="40" fill="${index === 0 ? visual.palette.pale : '#F7FAF5'}" stroke="#FFFFFF" stroke-width="2" filter="url(#card-shadow)" />
-  <circle cx="${x + 74}" cy="${y + 41}" r="20" fill="${index === 0 ? visual.palette.main : '#C3934D'}" fill-opacity="0.86" />
-  <text x="${x + 160}" y="${y + 53}" text-anchor="middle" font-size="29" font-weight="720" fill="${index === 0 ? visual.palette.text : '#7A6139'}" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
-    chip,
-  )}</text>`.trim();
-      })
-      .join('');
   }
 
   private renderBaziTexture() {
     return `
-  <path d="M162 158 C 242 110, 340 118, 412 178" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.58" />
-  <path d="M742 74 C 830 116, 900 184, 1022 152" fill="none" stroke="#B7CDB8" stroke-width="3" stroke-opacity="0.45" />
-  <path d="M180 488 C 292 436, 406 448, 520 526" fill="none" stroke="#C3934D" stroke-width="2" stroke-opacity="0.18" />
-  <circle cx="958" cy="488" r="44" fill="#B7CDB8" fill-opacity="0.16" />
-  <circle cx="164" cy="534" r="28" fill="#C3934D" fill-opacity="0.14" />
-  <path d="M954 92 L 960 104 L 972 110 L 960 116 L 954 128 L 948 116 L 936 110 L 948 104 Z" fill="#C3934D" fill-opacity="0.58" />
-  <path d="M506 128 L 512 140 L 524 146 L 512 152 L 506 164 L 500 152 L 488 146 L 500 140 Z" fill="#B7CDB8" fill-opacity="0.72" />`.trim();
+  <path d="M12 344 C 102 260, 138 198, 112 124" fill="none" stroke="#D9A441" stroke-width="2" stroke-opacity="0.36" />
+  <path d="M30 444 C 114 480, 168 520, 186 594" fill="none" stroke="#D9A441" stroke-width="2" stroke-opacity="0.22" />
+  <path d="M744 74 C 830 116, 904 184, 934 154" fill="none" stroke="#D9A441" stroke-width="2" stroke-opacity="0.22" />
+  <path d="M692 1278 C 754 1184, 832 1122, 944 1112 L944 1350 L690 1350 Z" fill="#AFCBC2" fill-opacity="0.34" />
+  <path d="M0 1130 C 56 1028, 110 962, 174 1050 C 220 1112, 248 1164, 302 1208 L302 1360 L0 1360 Z" fill="#AFCBC2" fill-opacity="0.26" />
+  <path d="M0 1508 C 142 1426, 258 1488, 396 1514 S 720 1548, 941 1456 L941 1672 L0 1672 Z" fill="#5F9B86" fill-opacity="0.52" />
+  <path d="M-18 1536 C 150 1452, 290 1522, 444 1546 S 746 1546, 972 1482" fill="none" stroke="#E2C177" stroke-width="9" stroke-opacity="0.62" />
+  <path d="M46 174 L56 154 L66 174 L56 194 Z" fill="#D9A441" fill-opacity="0.8" />
+  <path d="M826 570 L834 554 L842 570 L834 586 Z" fill="#D9A441" fill-opacity="0.68" />
+  <path d="M280 1588 L288 1576 L296 1588 L288 1600 Z" fill="#D9A441" fill-opacity="0.82" />
+  ${this.renderBaziCloud(22, 552, 1.05, 0.28)}
+  ${this.renderBaziCloud(706, 334, 0.9, 0.22)}
+  ${this.renderBaziCloud(606, 604, 1.12, 0.28)}`.trim();
   }
 
-  private renderBaziMountainMark() {
+  private resolveBaziPosterDetails(
+    source: PosterRenderSource,
+  ): BaziPosterDetails {
+    const fallbackDayMaster =
+      source.subtitle.match(/([甲乙丙丁戊己庚辛壬癸][木火土金水])日主/)?.[1] ??
+      source.accentText.match(
+        /([甲乙丙丁戊己庚辛壬癸][木火土金水])日主/,
+      )?.[1] ??
+      '乙木';
+    const fallbackDominant =
+      source.title.match(/([木火土金水])势/)?.[1] ??
+      source.accentText.match(/([木火土金水])主轴/)?.[1] ??
+      fallbackDayMaster[1] ??
+      '木';
+    const fallbackSupport =
+      source.accentText.match(/([木火土金水])补位/)?.[1] ??
+      ['水', '木', '火', '土', '金'].find(
+        (item) => item !== fallbackDominant,
+      ) ??
+      '水';
+    const details = source.baziPoster;
+
+    return {
+      tagText: details?.tagText || '八字分享',
+      calendarText: details?.calendarText || '1996年10月21日 09:28',
+      birthPlace: details?.birthPlace || '杭州',
+      dayMaster: details?.dayMaster || fallbackDayMaster,
+      pillars: this.normalizeBaziPillars(details?.pillars),
+      wuxingTrend: details?.wuxingTrend || `${fallbackDominant}旺`,
+      favorableElements:
+        details?.favorableElements || `${fallbackSupport}${fallbackDominant}`,
+      analysis: (details?.analysis?.length
+        ? details.analysis
+        : [
+            `${fallbackDayMaster}日主，气质温和，内心有韧性`,
+            `${fallbackDominant}${fallbackSupport}相生，学习力与感受力较强`,
+            '火土偏弱，宜增强行动与执行节奏',
+          ]
+      ).slice(0, 3),
+      fortunes: (details?.fortunes?.length
+        ? details.fortunes
+        : [
+            { label: '综合运势', value: 82, color: '#2F7D5B' },
+            { label: '事业', value: 84, color: '#4B8FA8' },
+            { label: '感情', value: 88, color: '#D96B5F' },
+          ]
+      ).slice(0, 3),
+      brandLabel: details?.brandLabel || '八字运势',
+      bottomSlogan: details?.bottomSlogan || '知命而后，更懂自己',
+    };
+  }
+
+  private normalizeBaziPillars(pillars?: BaziPosterPillar[]) {
+    const fallback = [
+      { label: '年柱', stem: '丙', branch: '子' },
+      { label: '月柱', stem: '丁', branch: '酉' },
+      { label: '日柱', stem: '乙', branch: '卯' },
+      { label: '时柱', stem: '辛', branch: '巳' },
+    ];
+
+    return fallback.map((item, index) => ({
+      label: pillars?.[index]?.label || item.label,
+      stem: pillars?.[index]?.stem || item.stem,
+      branch: pillars?.[index]?.branch || item.branch,
+    }));
+  }
+
+  private renderBaziBirthRows(details: BaziPosterDetails) {
+    const rows = [
+      {
+        icon: 'calendar',
+        label: `公历：${details.calendarText}`,
+        color: '#4F8B66',
+        y: 454,
+      },
+      {
+        icon: 'location',
+        label: `出生地：${details.birthPlace}`,
+        color: '#D96B5F',
+        y: 544,
+      },
+      {
+        icon: 'leaf',
+        label: `日主：${details.dayMaster}`,
+        color: '#2F7D5B',
+        y: 634,
+      },
+    ];
+
+    return rows
+      .map(
+        (row) => `
+  ${this.renderBaziInfoIcon(row.icon, 166, row.y, row.color)}
+  <text x="226" y="${row.y + 12}" font-size="31" font-weight="580" fill="#372819" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(row.label)}</text>`,
+      )
+      .join('');
+  }
+
+  private renderBaziInfoIcon(
+    type: string,
+    cx: number,
+    cy: number,
+    color: string,
+  ) {
+    const body =
+      type === 'calendar'
+        ? `<rect x="${cx - 14}" y="${cy - 13}" width="28" height="27" rx="2" fill="none" stroke="${color}" stroke-width="4" /><path d="M${cx - 8} ${cy - 20} V${cy - 9} M${cx + 8} ${cy - 20} V${cy - 9} M${cx - 14} ${cy - 2} H${cx + 14}" stroke="${color}" stroke-width="4" stroke-linecap="round" />`
+        : type === 'location'
+          ? `<path d="M${cx} ${cy + 23} C${cx - 22} ${cy - 1}, ${cx - 14} ${cy - 25}, ${cx} ${cy - 25} C${cx + 14} ${cy - 25}, ${cx + 22} ${cy - 1}, ${cx} ${cy + 23} Z" fill="${color}" /><circle cx="${cx}" cy="${cy - 8}" r="6" fill="#FFFFFF" />`
+          : `<path d="M${cx - 16} ${cy + 15} C${cx - 6} ${cy - 24}, ${cx + 26} ${cy - 22}, ${cx + 17} ${cy + 15} C${cx + 4} ${cy + 24}, ${cx - 7} ${cy + 22}, ${cx - 16} ${cy + 15} Z" fill="${color}" /><path d="M${cx - 2} ${cy + 10} L${cx + 13} ${cy - 12}" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />`;
+
     return `
-  <circle cx="188" cy="1136" r="82" fill="#C3934D" fill-opacity="0.18" />
-  <path d="M96 1192 L158 1092 L214 1164 L244 1128 L310 1192 Z" fill="#486D5B" fill-opacity="0.56" />
-  <path d="M158 1092 L178 1148 L146 1128 Z" fill="#FFFFFF" fill-opacity="0.54" />
-  <path d="M214 1164 L232 1184 L190 1184 Z" fill="#C3934D" fill-opacity="0.34" />
-  <circle cx="188" cy="1136" r="44" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.78" />`.trim();
+  <circle cx="${cx}" cy="${cy}" r="35" fill="#FFFFFF" fill-opacity="0.78" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
+  ${body}`.trim();
+  }
+
+  private renderBaziLandscapeMedallion() {
+    return `
+  <circle cx="704" cy="535" r="108" fill="#F4EEDA" stroke="#E2A95B" stroke-width="2" />
+  <circle cx="704" cy="535" r="98" fill="#EAF4EC" stroke="#FFFFFF" stroke-width="3" />
+  <clipPath id="bazi-landscape-clip"><circle cx="704" cy="535" r="94" /></clipPath>
+  <g clip-path="url(#bazi-landscape-clip)">
+    <rect x="610" y="514" width="188" height="116" fill="#EAF4EC" />
+    <path d="M604 594 C650 544, 680 546, 716 594 Z" fill="#AFCBC2" fill-opacity="0.66" />
+    <path d="M664 592 C724 522, 770 548, 808 594 Z" fill="#C8D9CE" />
+    <path d="M610 610 C662 586, 716 590, 798 604" fill="none" stroke="#8FB9B3" stroke-width="8" stroke-opacity="0.72" />
+    <path d="M628 624 C684 602, 742 604, 798 620" fill="none" stroke="#BFD8D2" stroke-width="12" stroke-opacity="0.66" />
+    <path d="M724 606 V532 M704 606 V556 M744 606 V556 M696 580 H752 M704 556 H744 M712 532 H736" stroke="#2F7D5B" stroke-width="5" stroke-linecap="round" />
+    <path d="M660 602 C682 580, 704 580, 725 602" fill="none" stroke="#7DAAA4" stroke-width="4" />
+    <path d="M672 416 C676 474, 652 492, 642 536 M710 412 C710 470, 690 490, 682 526 M750 426 C738 474, 724 494, 716 526" fill="none" stroke="#6BA371" stroke-width="3" stroke-linecap="round" stroke-opacity="0.75" />
+  </g>
+  ${this.renderBaziCloud(756, 594, 0.58, 0.46)}`.trim();
+  }
+
+  private renderBaziPillarPanel(pillars: BaziPosterPillar[]) {
+    const x = 122;
+    const y = 690;
+    const width = 697;
+    const height = 218;
+    const columnWidth = width / 4;
+
+    return `
+  <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="22" ry="22" fill="#FFFFFF" fill-opacity="0.7" stroke="#E2C177" stroke-width="1.5" />
+  ${pillars
+    .map((pillar, index) => {
+      const centerX = x + columnWidth * index + columnWidth / 2;
+      const divider =
+        index > 0
+          ? `<path d="M${x + columnWidth * index} ${y + 18} V${y + height - 18}" stroke="#E0C99E" stroke-width="1.2" stroke-opacity="0.68" />`
+          : '';
+
+      return `
+  ${divider}
+  <text x="${centerX}" y="${y + 46}" text-anchor="middle" font-size="27" font-weight="700" fill="#8A5E23" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(pillar.label)}</text>
+  <path d="M${centerX - 58} ${y + 70} H${centerX + 58}" stroke="#D9A441" stroke-width="1.2" stroke-opacity="0.5" />
+  <path d="M${centerX} ${y + 61} L${centerX + 8} ${y + 70} L${centerX} ${y + 79} L${centerX - 8} ${y + 70} Z" fill="#D9A441" />
+  <text x="${centerX}" y="${y + 132}" text-anchor="middle" font-size="58" font-weight="800" fill="${this.resolveBaziElementColor(pillar.stem)}" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(pillar.stem)}</text>
+  <text x="${centerX}" y="${y + 192}" text-anchor="middle" font-size="58" font-weight="800" fill="${this.resolveBaziElementColor(pillar.branch)}" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(pillar.branch)}</text>`;
+    })
+    .join('')}`.trim();
+  }
+
+  private renderBaziCapsule(
+    x: number,
+    y: number,
+    width: number,
+    color: string,
+    text: string,
+    icon: 'leaf' | 'drop',
+  ) {
+    const iconMarkup =
+      icon === 'drop'
+        ? `<path d="M${x + 40} ${y + 15} C${x + 60} ${y + 40}, ${x + 50} ${y + 55}, ${x + 40} ${y + 55} C${x + 25} ${y + 55}, ${x + 18} ${y + 40}, ${x + 40} ${y + 15} Z" fill="#FFFFFF" />`
+        : `<path d="M${x + 28} ${y + 43} C${x + 34} ${y + 18}, ${x + 58} ${y + 20}, ${x + 52} ${y + 48} C${x + 42} ${y + 58}, ${x + 34} ${y + 54}, ${x + 28} ${y + 43} Z" fill="#FFFFFF" />`;
+
+    return `
+  <rect x="${x}" y="${y}" width="${width}" height="62" rx="31" fill="#FFFFFF" fill-opacity="0.72" stroke="#D9A441" stroke-width="1" stroke-opacity="0.28" filter="url(#card-shadow)" />
+  <circle cx="${x + 40}" cy="${y + 31}" r="25" fill="${color}" />
+  ${iconMarkup}
+  <text x="${x + 78}" y="${y + 42}" font-size="26" font-weight="700" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(text)}</text>`.trim();
+  }
+
+  private renderBaziElementCycle() {
+    const elements = ['木', '火', '土', '金', '水'];
+    const cx = 232;
+    const cy = 1156;
+    const radius = 102;
+    const points = elements.map((element, index) => {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index) / elements.length;
+
+      return {
+        element,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
+      };
+    });
+
+    return `
+  <circle cx="${cx}" cy="${cy}" r="132" fill="#FFFFFF" fill-opacity="0.54" stroke="#D9C28B" stroke-width="2" />
+  <circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="#CFA65B" stroke-width="2" stroke-opacity="0.42" />
+  ${points
+    .map((point, index) => {
+      const next = points[(index + 1) % points.length];
+      return `<path d="M${point.x} ${point.y} L${next.x} ${next.y}" stroke="#D9A441" stroke-width="2" stroke-opacity="0.38" stroke-dasharray="5 7" />`;
+    })
+    .join('')}
+  ${points
+    .map(
+      (point) => `
+  <circle cx="${point.x}" cy="${point.y}" r="28" fill="${this.resolveBaziElementColor(point.element)}" filter="url(#card-shadow)" />
+  <text x="${point.x}" y="${point.y + 10}" text-anchor="middle" font-size="28" font-weight="780" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">${point.element}</text>`,
+    )
+    .join('')}
+  <circle cx="${cx}" cy="${cy}" r="48" fill="#EEF6EA" stroke="#E0C99E" stroke-width="2" />
+  <path d="M${cx} ${cy + 34} V${cy - 8}" stroke="#4F8B66" stroke-width="6" stroke-linecap="round" />
+  <path d="M${cx - 2} ${cy - 8} C${cx - 44} ${cy - 28}, ${cx - 34} ${cy - 58}, ${cx - 2} ${cy - 44} C${cx + 32} ${cy - 58}, ${cx + 44} ${cy - 26}, ${cx - 2} ${cy - 8} Z" fill="#6EA36F" />
+  <path d="M${cx - 26} ${cy + 34} C${cx - 10} ${cy + 18}, ${cx + 12} ${cy + 18}, ${cx + 28} ${cy + 34}" fill="none" stroke="#6EA36F" stroke-width="5" stroke-linecap="round" />`.trim();
+  }
+
+  private renderBaziAnalysisRows(analysis: string[]) {
+    return analysis
+      .slice(0, 3)
+      .map((item, index) => {
+        const y = 1068 + index * 68;
+        const color = ['#4F8B66', '#4B8FA8', '#D96B5F'][index] ?? '#4F8B66';
+        const lines = this.renderTextTspans(item, 18, 0, 30, 472);
+        return `
+  <circle cx="438" cy="${y - 10}" r="20" fill="#FFFFFF" fill-opacity="0.68" stroke="#E0C99E" stroke-width="1" />
+  <circle cx="438" cy="${y - 10}" r="10" fill="${color}" />
+  <text x="472" y="${y}" font-size="25" font-weight="560" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${lines}</text>
+  <path d="M472 ${y + 30} H780" stroke="#E0C99E" stroke-width="1" stroke-opacity="0.52" />`;
+      })
+      .join('');
+  }
+
+  private renderBaziFortunes(fortunes: BaziPosterFortune[]) {
+    const normalized = fortunes.slice(0, 3);
+
+    return `
+  <rect x="384" y="1246" width="402" height="68" rx="20" fill="#FFFFFF" fill-opacity="0.72" stroke="#D9A441" stroke-width="1" stroke-opacity="0.3" />
+  ${normalized
+    .map((item, index) => {
+      const x = 448 + index * 128;
+      const divider =
+        index > 0
+          ? `<path d="M${x - 64} 1260 V1300" stroke="#D9A441" stroke-width="1" stroke-opacity="0.34" />`
+          : '';
+
+      return `
+  ${divider}
+  <text x="${x}" y="1274" text-anchor="middle" font-size="18" fill="#8D7E6C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(item.label)}</text>
+  <text x="${x}" y="1304" text-anchor="middle" font-size="31" font-weight="800" fill="${item.color ?? '#2F7D5B'}" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(String(item.value))}</text>`;
+    })
+    .join('')}`.trim();
+  }
+
+  private renderBaziBaguaWatermark(cx: number, cy: number, radius: number) {
+    return Array.from({ length: 8 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 8 - Math.PI / 2;
+      const x = cx + Math.cos(angle) * radius;
+      const y = cy + Math.sin(angle) * radius;
+      const rotate = (angle * 180) / Math.PI + 90;
+
+      return `<g transform="translate(${x} ${y}) rotate(${rotate})" opacity="0.18">
+  <path d="M-16 -8 H16 M-16 0 H16 M-16 8 H16" stroke="#D9A441" stroke-width="3" stroke-linecap="round" />
+</g>`;
+    }).join('');
+  }
+
+  private renderBaziMiniTaiji(cx: number, cy: number, radius: number) {
+    return `
+  <circle cx="${cx}" cy="${cy}" r="${radius}" fill="#FFF7EA" />
+  <path d="M${cx} ${cy - radius} A${radius} ${radius} 0 0 0 ${cx} ${cy + radius} A${radius / 2} ${radius / 2} 0 0 1 ${cx} ${cy} A${radius / 2} ${radius / 2} 0 0 0 ${cx} ${cy - radius}" fill="#372819" />
+  <path d="M${cx} ${cy - radius} A${radius} ${radius} 0 0 1 ${cx} ${cy + radius} A${radius / 2} ${radius / 2} 0 0 0 ${cx} ${cy} A${radius / 2} ${radius / 2} 0 0 1 ${cx} ${cy - radius}" fill="#FFFFFF" />
+  <circle cx="${cx}" cy="${cy - radius / 2}" r="${radius * 0.11}" fill="#FFFFFF" />
+  <circle cx="${cx}" cy="${cy + radius / 2}" r="${radius * 0.11}" fill="#372819" />`.trim();
+  }
+
+  private renderBaziCloud(
+    x: number,
+    y: number,
+    scale: number,
+    opacity: number,
+  ) {
+    return `
+  <g transform="translate(${x} ${y}) scale(${scale})" opacity="${opacity}">
+    <path d="M0 28 C22 4, 52 8, 62 30 C84 22, 114 32, 116 54 C88 50, 60 56, 28 52 C14 52, 4 42, 0 28 Z" fill="none" stroke="#D9A441" stroke-width="2.2" />
+  </g>`.trim();
+  }
+
+  private renderBaziLotus() {
+    return `
+  <g transform="translate(100 1320) scale(1.06)" opacity="0.9">
+    <path d="M0 0 C32 -54, 74 -52, 56 14 C34 44, 10 34, 0 0 Z" fill="#F2B9AF" />
+    <path d="M0 0 C-32 -54, -74 -52, -56 14 C-34 44, -10 34, 0 0 Z" fill="#F5CEC6" />
+    <path d="M0 2 C8 -72, 54 -78, 42 -2 C30 42, 8 48, 0 2 Z" fill="#F8D8D2" />
+    <path d="M0 2 C-8 -72, -54 -78, -42 -2 C-30 42, -8 48, 0 2 Z" fill="#F8D8D2" />
+    <path d="M0 -4 C-18 -74, 20 -96, 28 -12 C22 30, 4 40, 0 -4 Z" fill="#F7C6BD" />
+    <circle cx="0" cy="20" r="20" fill="#D9A441" />
+    <path d="M-98 120 C-42 70, 36 84, 106 112" fill="none" stroke="#5F9B86" stroke-width="7" stroke-opacity="0.7" />
+  </g>`.trim();
+  }
+
+  private resolveBaziElementColor(value: string) {
+    if ('甲乙寅卯木'.includes(value)) {
+      return '#2F7D5B';
+    }
+
+    if ('丙丁巳午火'.includes(value)) {
+      return '#C85748';
+    }
+
+    if ('戊己辰戌丑未土'.includes(value)) {
+      return '#B9853A';
+    }
+
+    if ('庚辛申酉金'.includes(value)) {
+      return '#C3934D';
+    }
+
+    if ('壬癸子亥水'.includes(value)) {
+      return '#4B8FA8';
+    }
+
+    return '#2F7D5B';
   }
 
   private buildWallpaperSvg(input: WallpaperRenderInput) {
@@ -1095,9 +1357,7 @@ export class PosterRendererService {
     return this.splitText(text, maxChars)
       .map(
         (line, index) =>
-          `<tspan x="${x}" dy="${index === 0 ? firstDy : nextDy}">${this.escapeXml(
-            line,
-          )}</tspan>`,
+          `<tspan x="${x}" dy="${index === 0 ? firstDy : nextDy}">${this.escapeXml(line)}</tspan>`,
       )
       .join('');
   }

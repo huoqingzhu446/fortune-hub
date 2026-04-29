@@ -597,8 +597,6 @@ export class PostersService {
     const dominantElement = this.asRecord(resultData.dominantElement);
     const supportElement = this.asRecord(resultData.supportElement);
     const dayMasterAnalysis = this.asRecord(resultData.dayMasterAnalysis);
-    const reading = this.asRecord(resultData.reading);
-    const practicalTips = this.asRecord(resultData.practicalTips);
     const yearPillar = this.pickString(chart.yearPillar, '丙子');
     const monthPillar = this.pickString(chart.monthPillar, '丁酉');
     const dayPillar = this.pickString(chart.dayPillar, '乙卯');
@@ -650,17 +648,14 @@ export class PostersService {
       wuxingTrend: `${dominantName}旺`,
       favorableElements,
       analysis: [
-        `${dayStem}${dayElement}日主，${this.resolveBaziDayMasterTrait(dayElement)}`,
-        `${dominantName}${supportName}相生，${this.resolveBaziSupportTrait(supportName)}`,
-        this.truncateText(
-          this.pickString(
-            reading.rhythm,
-            this.pickString(
-              practicalTips.dailyFocus,
-              `${supportName}元素补位，宜增强行动与执行节奏`,
-            ),
-          ),
-          28,
+        this.buildBaziPosterAnalysisLine(
+          `${dayStem}${dayElement}日主，${this.resolveBaziDayMasterPosterTrait(dayElement)}`,
+        ),
+        this.buildBaziPosterAnalysisLine(
+          `${dominantName}${supportName}相生，${this.resolveBaziSupportPosterTrait(supportName)}`,
+        ),
+        this.buildBaziPosterAnalysisLine(
+          this.resolveBaziRhythmPosterLine(dominantName, supportName),
         ),
       ],
       fortunes: [
@@ -726,28 +721,83 @@ export class PostersService {
     return merged.slice(0, 2).join('') || `${supportName}${dayElement}`;
   }
 
-  private resolveBaziDayMasterTrait(dayElement: string) {
+  private resolveBaziDayMasterPosterTrait(dayElement: string) {
     const traits: Record<string, string> = {
-      木: '气质温和，内心有韧性',
-      火: '表达直接，行动带有热度',
-      土: '重视稳定，擅长承接复杂事务',
-      金: '判断清晰，做事有边界感',
-      水: '感受敏锐，适合先观察再布局',
+      木: '气质温和，有韧性',
+      火: '表达直接，行动有热度',
+      土: '重视稳定，善承接',
+      金: '判断清晰，边界感强',
+      水: '感受敏锐，善观察',
     };
 
-    return traits[dayElement] ?? '气质稳定，适合顺势而为';
+    return traits[dayElement] ?? '气质稳定';
   }
 
-  private resolveBaziSupportTrait(element: string) {
+  private resolveBaziSupportPosterTrait(element: string) {
     const traits: Record<string, string> = {
-      木: '学习力与延展力较强',
-      火: '表达力与行动热度较强',
-      土: '稳定度与承接力较强',
-      金: '判断力与收束力较强',
-      水: '学习力与感受力较强',
+      木: '延展力强',
+      火: '行动力强',
+      土: '承接力强',
+      金: '判断力强',
+      水: '学习力强',
     };
 
-    return traits[element] ?? '节奏感与适应力较强';
+    return traits[element] ?? '适应力强';
+  }
+
+  private resolveBaziRhythmPosterLine(
+    dominantName: string,
+    supportName: string,
+  ) {
+    const dominant = this.resolveBaziSingleElement(dominantName, '木');
+    const support = this.resolveBaziSingleElement(supportName, '水');
+
+    return `节奏建议：${dominant}主轴，${support}补位`;
+  }
+
+  private buildBaziPosterAnalysisLine(value: string) {
+    const maxUnits = 15;
+    const normalized = value.replace(/\s+/g, '').trim();
+
+    if (this.measureBaziPosterTextUnits(normalized) <= maxUnits) {
+      return normalized;
+    }
+
+    let output = '';
+
+    for (const char of normalized) {
+      if (this.measureBaziPosterTextUnits(`${output}${char}`) > maxUnits) {
+        break;
+      }
+
+      output += char;
+    }
+
+    return output.replace(/[，。、；：,.+\s]+$/u, '');
+  }
+
+  private resolveBaziSingleElement(value: string, fallback: string) {
+    return ['木', '火', '土', '金', '水'].find((item) =>
+      value.includes(item),
+    ) ?? fallback;
+  }
+
+  private measureBaziPosterTextUnits(value: string) {
+    return [...value].reduce((total, char) => {
+      if (/\s/u.test(char)) {
+        return total + 0.32;
+      }
+
+      if (/[\u0000-\u007f]/u.test(char)) {
+        return total + 0.58;
+      }
+
+      if (/[\u3000-\u303f\uff00-\uffef]/u.test(char)) {
+        return total + 0.86;
+      }
+
+      return total + 1;
+    }, 0);
   }
 
   private resolveBaziElementFromChar(value: string) {

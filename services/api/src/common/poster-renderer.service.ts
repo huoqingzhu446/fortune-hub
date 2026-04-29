@@ -579,12 +579,12 @@ export class PosterRendererService {
     <path d="M132 296 L142 286 L152 296 L142 306 Z" fill="#D4A24E" />
     <path d="M802 296 L792 286 L782 296 L792 306 Z" fill="#D4A24E" />
     <text x="471" y="308" text-anchor="middle" font-size="28" font-weight="520" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${subtitle}</text>
-    <rect x="84" y="374" width="773" height="952" rx="34" ry="34" fill="url(#bazi-card)" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
+    <rect x="60" y="374" width="821" height="952" rx="34" ry="34" fill="url(#bazi-card)" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
     ${this.renderBaziBirthRows(details)}
     ${this.renderBaziLandscapeMedallion()}
     ${this.renderBaziPillarPanel(details.pillars)}
-    ${this.renderBaziCapsule(154, 948, 298, '#4F8B66', `五行偏向：${details.wuxingTrend}`, 'leaf')}
-    ${this.renderBaziCapsule(490, 948, 280, '#4F8BA8', `喜用：${details.favorableElements}`, 'drop')}
+    ${this.renderBaziCapsule(128, 948, 330, '#4F8B66', `五行偏向：${details.wuxingTrend}`, 'leaf')}
+    ${this.renderBaziCapsule(486, 948, 326, '#4F8BA8', `喜用：${details.favorableElements}`, 'drop')}
     ${this.renderBaziElementCycle()}
     ${this.renderBaziAnalysisRows(details.analysis)}
     ${this.renderBaziFortunes(details.fortunes)}
@@ -656,9 +656,9 @@ export class PosterRendererService {
       analysis: (details?.analysis?.length
         ? details.analysis
         : [
-            `${fallbackDayMaster}日主，气质温和，内心有韧性`,
-            `${fallbackDominant}${fallbackSupport}相生，学习力与感受力较强`,
-            '火土偏弱，宜增强行动与执行节奏',
+            `${fallbackDayMaster}日主，气质温和，有韧性`,
+            `${fallbackDominant}${fallbackSupport}相生，学习力强`,
+            `节奏建议：${fallbackDominant}主轴，${fallbackSupport}补位`,
           ]
       ).slice(0, 3),
       fortunes: (details?.fortunes?.length
@@ -740,26 +740,26 @@ export class PosterRendererService {
 
   private renderBaziLandscapeMedallion() {
     return `
-  <circle cx="704" cy="535" r="108" fill="#F4EEDA" stroke="#E2A95B" stroke-width="2" />
-  <circle cx="704" cy="535" r="98" fill="#EAF4EC" stroke="#FFFFFF" stroke-width="3" />
-  <clipPath id="bazi-landscape-clip"><circle cx="704" cy="535" r="94" /></clipPath>
+  <circle cx="728" cy="535" r="108" fill="#F4EEDA" stroke="#E2A95B" stroke-width="2" />
+  <circle cx="728" cy="535" r="98" fill="#EAF4EC" stroke="#FFFFFF" stroke-width="3" />
+  <clipPath id="bazi-landscape-clip"><circle cx="728" cy="535" r="94" /></clipPath>
   <g clip-path="url(#bazi-landscape-clip)">
-    <rect x="610" y="514" width="188" height="116" fill="#EAF4EC" />
-    <path d="M604 594 C650 544, 680 546, 716 594 Z" fill="#AFCBC2" fill-opacity="0.66" />
-    <path d="M664 592 C724 522, 770 548, 808 594 Z" fill="#C8D9CE" />
-    <path d="M610 610 C662 586, 716 590, 798 604" fill="none" stroke="#8FB9B3" stroke-width="8" stroke-opacity="0.72" />
-    <path d="M628 624 C684 602, 742 604, 798 620" fill="none" stroke="#BFD8D2" stroke-width="12" stroke-opacity="0.66" />
-    <path d="M724 606 V532 M704 606 V556 M744 606 V556 M696 580 H752 M704 556 H744 M712 532 H736" stroke="#2F7D5B" stroke-width="5" stroke-linecap="round" />
-    <path d="M660 602 C682 580, 704 580, 725 602" fill="none" stroke="#7DAAA4" stroke-width="4" />
-    <path d="M672 416 C676 474, 652 492, 642 536 M710 412 C710 470, 690 490, 682 526 M750 426 C738 474, 724 494, 716 526" fill="none" stroke="#6BA371" stroke-width="3" stroke-linecap="round" stroke-opacity="0.75" />
+    <rect x="634" y="514" width="188" height="116" fill="#EAF4EC" />
+    <path d="M628 594 C674 544, 704 546, 740 594 Z" fill="#AFCBC2" fill-opacity="0.66" />
+    <path d="M688 592 C748 522, 794 548, 832 594 Z" fill="#C8D9CE" />
+    <path d="M634 610 C686 586, 740 590, 822 604" fill="none" stroke="#8FB9B3" stroke-width="8" stroke-opacity="0.72" />
+    <path d="M652 624 C708 602, 766 604, 822 620" fill="none" stroke="#BFD8D2" stroke-width="12" stroke-opacity="0.66" />
+    <path d="M748 606 V532 M728 606 V556 M768 606 V556 M720 580 H776 M728 556 H768 M736 532 H760" stroke="#2F7D5B" stroke-width="5" stroke-linecap="round" />
+    <path d="M684 602 C706 580, 728 580, 749 602" fill="none" stroke="#7DAAA4" stroke-width="4" />
+    <path d="M696 416 C700 474, 676 492, 666 536 M734 412 C734 470, 714 490, 706 526 M774 426 C762 474, 748 494, 740 526" fill="none" stroke="#6BA371" stroke-width="3" stroke-linecap="round" stroke-opacity="0.75" />
   </g>
-  ${this.renderBaziCloud(756, 594, 0.58, 0.46)}`.trim();
+  ${this.renderBaziCloud(780, 594, 0.58, 0.46)}`.trim();
   }
 
   private renderBaziPillarPanel(pillars: BaziPosterPillar[]) {
-    const x = 122;
+    const x = 100;
     const y = 690;
-    const width = 697;
+    const width = 741;
     const height = 218;
     const columnWidth = width / 4;
 
@@ -806,7 +806,7 @@ export class PosterRendererService {
 
   private renderBaziElementCycle() {
     const elements = ['木', '火', '土', '金', '水'];
-    const cx = 232;
+    const cx = 214;
     const cy = 1156;
     const radius = 102;
     const points = elements.map((element, index) => {
@@ -842,17 +842,28 @@ export class PosterRendererService {
   }
 
   private renderBaziAnalysisRows(analysis: string[]) {
+    const iconX = 396;
+    const textX = 430;
+    const dividerEndX = 826;
+
     return analysis
       .slice(0, 3)
       .map((item, index) => {
         const y = 1068 + index * 68;
         const color = ['#4F8B66', '#4B8FA8', '#D96B5F'][index] ?? '#4F8B66';
-        const lines = this.renderTextTspans(item, 18, 0, 30, 472);
+        const lineItems = this.splitTextByDisplayUnits(item, 15, 2);
+        const lines = this.renderTextTspansFromLines(lineItems, 0, 28, textX);
+        const dividerY = y + (lineItems.length > 1 ? 44 : 30);
+        const divider =
+          index < 2
+            ? `<path d="M${textX} ${dividerY} H${dividerEndX}" stroke="#E0C99E" stroke-width="1" stroke-opacity="0.52" />`
+            : '';
+
         return `
-  <circle cx="438" cy="${y - 10}" r="20" fill="#FFFFFF" fill-opacity="0.68" stroke="#E0C99E" stroke-width="1" />
-  <circle cx="438" cy="${y - 10}" r="10" fill="${color}" />
-  <text x="472" y="${y}" font-size="25" font-weight="560" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${lines}</text>
-  <path d="M472 ${y + 30} H780" stroke="#E0C99E" stroke-width="1" stroke-opacity="0.52" />`;
+  <circle cx="${iconX}" cy="${y - 10}" r="20" fill="#FFFFFF" fill-opacity="0.68" stroke="#E0C99E" stroke-width="1" />
+  <circle cx="${iconX}" cy="${y - 10}" r="10" fill="${color}" />
+  <text x="${textX}" y="${y}" font-size="25" font-weight="560" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${lines}</text>
+  ${divider}`;
       })
       .join('');
   }
@@ -861,13 +872,13 @@ export class PosterRendererService {
     const normalized = fortunes.slice(0, 3);
 
     return `
-  <rect x="384" y="1246" width="402" height="68" rx="20" fill="#FFFFFF" fill-opacity="0.72" stroke="#D9A441" stroke-width="1" stroke-opacity="0.3" />
+  <rect x="368" y="1246" width="452" height="68" rx="20" fill="#FFFFFF" fill-opacity="0.72" stroke="#D9A441" stroke-width="1" stroke-opacity="0.3" />
   ${normalized
     .map((item, index) => {
-      const x = 448 + index * 128;
+      const x = 444 + index * 150;
       const divider =
         index > 0
-          ? `<path d="M${x - 64} 1260 V1300" stroke="#D9A441" stroke-width="1" stroke-opacity="0.34" />`
+          ? `<path d="M${x - 75} 1260 V1300" stroke="#D9A441" stroke-width="1" stroke-opacity="0.34" />`
           : '';
 
       return `
@@ -1354,7 +1365,21 @@ export class PosterRendererService {
     nextDy: number,
     x: number,
   ) {
-    return this.splitText(text, maxChars)
+    return this.renderTextTspansFromLines(
+      this.splitText(text, maxChars),
+      firstDy,
+      nextDy,
+      x,
+    );
+  }
+
+  private renderTextTspansFromLines(
+    lines: string[],
+    firstDy: number,
+    nextDy: number,
+    x: number,
+  ) {
+    return lines
       .map(
         (line, index) =>
           `<tspan x="${x}" dy="${index === 0 ? firstDy : nextDy}">${this.escapeXml(line)}</tspan>`,
@@ -1385,6 +1410,96 @@ export class PosterRendererService {
     }
 
     return lines.slice(0, 4);
+  }
+
+  private splitTextByDisplayUnits(
+    text: string,
+    maxUnits: number,
+    maxLines: number,
+  ) {
+    const value = text.trim();
+
+    if (!value) {
+      return [''];
+    }
+
+    const chars = [...value];
+    const lines: string[] = [];
+    let current = '';
+    let currentUnits = 0;
+
+    for (const char of chars) {
+      const charUnits = this.measurePosterTextUnits(char);
+
+      if (current && currentUnits + charUnits > maxUnits) {
+        const preferredBreakIndex = this.findPreferredTextBreakIndex(current);
+
+        if (preferredBreakIndex > 0 && preferredBreakIndex < current.length) {
+          lines.push(current.slice(0, preferredBreakIndex).trimEnd());
+          current = current.slice(preferredBreakIndex).trimStart();
+          currentUnits = this.measurePosterTextUnits(current);
+
+          if (current && currentUnits + charUnits > maxUnits) {
+            lines.push(current.trimEnd());
+            current = '';
+            currentUnits = 0;
+          }
+        } else {
+          lines.push(current.trimEnd());
+          current = '';
+          currentUnits = 0;
+        }
+
+        if (lines.length >= maxLines) {
+          break;
+        }
+      }
+
+      if (!current && /\s/u.test(char)) {
+        continue;
+      }
+
+      current += char;
+      currentUnits += charUnits;
+    }
+
+    if (current && lines.length < maxLines) {
+      lines.push(current.trimEnd());
+    }
+
+    const limitedLines = lines.slice(0, maxLines).filter(Boolean);
+
+    return limitedLines.length ? limitedLines : [''];
+  }
+
+  private findPreferredTextBreakIndex(value: string) {
+    const breakMarks = ['，', '。', '；', '：', ',', ';', ':', ' '];
+
+    for (let index = value.length - 1; index >= 0; index -= 1) {
+      if (breakMarks.includes(value[index])) {
+        return index + 1;
+      }
+    }
+
+    return -1;
+  }
+
+  private measurePosterTextUnits(value: string) {
+    return [...value].reduce((total, char) => {
+      if (/\s/u.test(char)) {
+        return total + 0.32;
+      }
+
+      if (/[\u0000-\u007f]/u.test(char)) {
+        return total + 0.58;
+      }
+
+      if (/[\u3000-\u303f\uff00-\uffef]/u.test(char)) {
+        return total + 0.86;
+      }
+
+      return total + 1;
+    }, 0);
   }
 
   private async renderPng(templateMarkup: string) {

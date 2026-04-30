@@ -3,6 +3,8 @@ import sharp from 'sharp';
 
 const POSTER_FONT_FAMILY =
   'WenQuanYi Zen Hei, Noto Sans CJK SC, Noto Sans SC, PingFang SC, Microsoft YaHei, DejaVu Sans, Arial, sans-serif';
+const ZODIAC_POSTER_FONT_FAMILY =
+  'PingFang SC, Noto Sans SC, Noto Sans CJK SC, Microsoft YaHei, Hiragino Sans GB, Source Han Sans SC, DejaVu Sans, Arial, sans-serif';
 
 const ZODIAC_POSTER_VISUALS: Record<
   string,
@@ -460,27 +462,39 @@ export class PosterRendererService {
       <stop offset="58%" stop-color="#879BFF" />
       <stop offset="100%" stop-color="#4962C7" />
     </linearGradient>
+    <linearGradient id="purple-core" x1="16%" x2="86%" y1="8%" y2="92%">
+      <stop offset="0%" stop-color="#C4B8FF" />
+      <stop offset="54%" stop-color="#787FE6" />
+      <stop offset="100%" stop-color="#4A5BC8" />
+    </linearGradient>
     <filter id="archive-shadow" x="-20%" y="-20%" width="140%" height="150%">
       <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#5D7FB8" flood-opacity="0.16" />
     </filter>
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#607FC8" flood-opacity="0.16" />
+    </filter>
     <filter id="archive-title-shadow" x="-10%" y="-10%" width="120%" height="130%">
       <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#B6C7EE" flood-opacity="0.34" />
+    </filter>
+    <filter id="archive-symbol-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.6" result="archive-symbol-blur" />
+      <feColorMatrix in="archive-symbol-blur" type="matrix" values="1 0 0 0 0.55 0 1 0 0 0.60 0 0 1 0 0.95 0 0 0 0.26 0" />
+      <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
     </filter>
   </defs>
   <g transform="scale(${scaleX} ${scaleY})">
     <rect width="941" height="1672" fill="url(#zodiac-archive-bg)" />
     ${this.renderZodiacArchiveTexture()}
     <rect x="318" y="58" width="55" height="55" rx="16" fill="url(#zodiac-icon)" filter="url(#archive-shadow)" />
-    <path d="M350 72 C334 77, 329 98, 347 104 C338 93, 342 79, 355 72 Z" fill="#FFFFFF" fill-opacity="0.9" />
-    <path d="M356 84 L360 76 L364 84 L372 88 L364 92 L360 100 L356 92 L348 88 Z" fill="#FFFFFF" />
-    <text x="398" y="103" font-size="46" font-weight="700" fill="#14245A" font-family="${POSTER_FONT_FAMILY}" filter="url(#archive-title-shadow)">${this.escapeXml(
+    ${this.renderZodiacSymbolIcon(details.signName, 345, 87, 50, '#FFFFFF', 0.96)}
+    <text x="398" y="103" font-size="43" font-weight="650" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}" filter="url(#archive-title-shadow)">${this.escapeXml(
       details.tagText,
     )}</text>
     <path d="M232 151 H326" stroke="#C8A76F" stroke-width="1.5" stroke-opacity="0.42" />
     <path d="M615 151 H708" stroke="#C8A76F" stroke-width="1.5" stroke-opacity="0.42" />
     <path d="M342 143 L348 151 L342 159 L334 151 Z" fill="#394D94" fill-opacity="0.78" />
     <path d="M600 143 L606 151 L600 159 L592 151 Z" fill="#394D94" fill-opacity="0.78" />
-    <text x="471" y="162" text-anchor="middle" font-size="25" font-weight="520" fill="#1D2D63" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+    <text x="471" y="162" text-anchor="middle" font-size="25" font-weight="520" fill="#1D2D63" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
       details.subtitle,
     )}</text>
     ${this.renderZodiacArchiveHero(details)}
@@ -489,13 +503,13 @@ export class PosterRendererService {
     <rect x="46" y="1174" width="849" height="224" rx="28" fill="#FFFFFF" fill-opacity="0.76" stroke="#E7C78F" stroke-width="1.4" filter="url(#archive-shadow)" />
     <path d="M94 1224 C112 1200, 142 1202, 154 1228 C134 1220, 110 1234, 110 1260 C94 1250, 84 1238, 94 1224 Z" fill="#D4A766" fill-opacity="0.32" />
     <path d="M806 1240 L812 1228 L818 1240 L830 1246 L818 1252 L812 1264 L806 1252 L794 1246 Z" fill="#C8A76F" fill-opacity="0.72" />
-    <text x="471" y="1264" text-anchor="middle" font-size="35" font-weight="650" fill="#14245A" font-family="${POSTER_FONT_FAMILY}">${quoteLines}</text>
+    <text x="471" y="1264" text-anchor="middle" font-size="34" font-weight="520" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${quoteLines}</text>
     <path d="M244 1368 H430 M512 1368 H698" stroke="#C8A76F" stroke-width="1.6" stroke-opacity="0.56" />
     <path d="M471 1348 L481 1368 L471 1388 L461 1368 Z" fill="#C8A76F" fill-opacity="0.62" />
     <rect x="158" y="1435" width="625" height="178" rx="34" fill="#FFFFFF" fill-opacity="0.58" stroke="#FFFFFF" stroke-width="2" filter="url(#archive-shadow)" />
     ${this.renderMiniProgramCode(source.miniProgramCodeDataUrl ?? null, 270, 1524)}
-    <text x="404" y="1510" font-size="30" font-weight="560" fill="#14245A" font-family="${POSTER_FONT_FAMILY}">长按识别小程序码，</text>
-    <text x="404" y="1565" font-size="34" font-weight="760" fill="#14245A" font-family="${POSTER_FONT_FAMILY}">查看你的专属星运报告</text>
+    <text x="404" y="1510" font-size="30" font-weight="520" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}">长按识别小程序码，</text>
+    <text x="404" y="1565" font-size="33" font-weight="680" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}">查看你的专属星运报告</text>
   </g>
 </svg>`.trim();
   }
@@ -581,6 +595,18 @@ export class PosterRendererService {
 
   private renderZodiacArchiveHero(details: ZodiacPosterDetails) {
     const keywords = details.keywords.join(' · ');
+    const signFontSize = this.fitPosterFontSize(
+      details.signName,
+      82,
+      58,
+      330,
+    );
+    const englishFontSize = this.fitPosterFontSize(
+      details.englishName,
+      44,
+      32,
+      250,
+    );
 
     return `
   <rect x="30" y="198" width="881" height="546" rx="42" fill="url(#zodiac-hero)" stroke="#FFFFFF" stroke-width="2.5" filter="url(#archive-shadow)" />
@@ -599,23 +625,190 @@ export class PosterRendererService {
     <circle cx="672" cy="390" r="128" fill="url(#zodiac-orb)" fill-opacity="0.9" />
     <circle cx="672" cy="390" r="154" fill="none" stroke="#F1D6A7" stroke-width="5" stroke-opacity="0.86" />
     <circle cx="672" cy="390" r="176" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.58" />
-    <text x="672" y="434" text-anchor="middle" font-size="132" font-weight="700" fill="#FFF2D2" stroke="#B58A48" stroke-width="1.2" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
-      details.glyph,
-    )}</text>
+    ${this.renderZodiacSymbolIcon(details.signName, 672, 394, 246, '#FFF2D2', 0.95)}
   </g>
-  <text x="244" y="480" text-anchor="middle" font-size="94" font-weight="760" fill="#14245A" font-family="${POSTER_FONT_FAMILY}" filter="url(#archive-title-shadow)">${this.escapeXml(
+  <text x="244" y="480" text-anchor="middle" font-size="${signFontSize}" font-weight="650" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}" filter="url(#archive-title-shadow)">${this.escapeXml(
     details.signName,
   )}</text>
-  <text x="248" y="556" text-anchor="middle" font-size="48" font-style="italic" fill="#C69C67" font-family="Georgia, Times New Roman, ${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="248" y="556" text-anchor="middle" font-size="${englishFontSize}" font-style="italic" fill="#C69C67" font-family="Georgia, Times New Roman, ${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
     details.englishName,
   )}</text>
-  <text x="248" y="624" text-anchor="middle" font-size="25" font-weight="520" fill="#1F3068" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="248" y="624" text-anchor="middle" font-size="25" font-weight="480" fill="#1F3068" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
     keywords,
   )}</text>`.trim();
   }
 
+  private renderZodiacSymbolIcon(
+    signName: string,
+    cx: number,
+    cy: number,
+    size: number,
+    color: string,
+    opacity = 1,
+  ) {
+    const scale = size / 512;
+    const x = cx - 256 * scale;
+    const y = cy - 256 * scale;
+
+    return `
+  <g transform="translate(${x} ${y}) scale(${scale})" color="${color}" opacity="${opacity}" filter="url(#archive-symbol-glow)">
+    <circle cx="256" cy="168" r="152" fill="none" stroke="currentColor" stroke-width="4" stroke-opacity="0.18" stroke-dasharray="1 16" />
+    <circle cx="256" cy="168" r="124" fill="none" stroke="currentColor" stroke-width="4" stroke-opacity="0.16" />
+    <circle cx="256" cy="168" r="92" fill="currentColor" fill-opacity="0.09" stroke="currentColor" stroke-width="6" stroke-opacity="0.68" />
+    <path d="M256 20v14M249 27h14M92 106v10M87 111h10M420 106v10M415 111h10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.76" />
+    <circle cx="140" cy="78" r="3" fill="currentColor" fill-opacity="0.72" />
+    <circle cx="372" cy="78" r="3" fill="currentColor" fill-opacity="0.72" />
+    <path d="M140 430c42 10 190 10 232 0" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-opacity="0.2" />
+    ${this.resolveZodiacSymbolArtwork(signName)}
+  </g>`.trim();
+  }
+
+  private resolveZodiacSymbolArtwork(signName: string) {
+    const line = (d: string, width = 8, opacity = 0.96) =>
+      `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="${opacity}" />`;
+    const fill = (d: string, width = 8, opacity = 0.96) =>
+      `<path d="${d}" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="${opacity}" />`;
+    const circle = (cx: number, cy: number, r: number, width = 8) =>
+      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-opacity="0.96" />`;
+    const ellipse = (cx: number, cy: number, rx: number, ry: number) =>
+      `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="6" stroke-opacity="0.82" />`;
+    const dot = (cx: number, cy: number, r = 5) =>
+      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="currentColor" fill-opacity="0.96" />`;
+    const map: Record<string, string> = {
+      白羊座: `
+        ${line('M210 184c0-42 14-77 46-101', 12)}
+        ${line('M302 184c0-42-14-77-46-101', 12)}
+        ${line('M256 83c-12-20-38-26-56-12-14 11-16 31-4 44 12 14 32 14 45 2', 8)}
+        ${line('M256 83c12-20 38-26 56-12 14 11 16 31 4 44-12 14-32 14-45 2', 8)}
+        ${line('M184 292c14-34 40-54 72-54s58 20 72 54', 8)}
+        ${line('M188 250c-28 0-52 22-52 50 0 24 18 42 42 42 18 0 34-10 42-25', 8)}
+        ${line('M324 250c28 0 52 22 52 50 0 24-18 42-42 42-18 0-34-10-42-25', 8)}
+        ${line('M214 312c12 14 27 22 42 22s30-8 42-22', 8)}
+        ${fill('M232 314c0 20 10 38 24 52 14-14 24-32 24-52', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      金牛座: `
+        ${circle(256, 166, 34, 12)}
+        ${line('M222 136c-20-8-34-24-36-48 24 2 44 18 52 42', 8)}
+        ${line('M290 136c20-8 34-24 36-48-24 2-44 18-52 42', 8)}
+        ${line('M194 262c-30-2-54 20-58 48 18-6 34-4 46 4', 8)}
+        ${line('M318 262c30-2 54 20 58 48-18-6-34-4-46 4', 8)}
+        ${fill('M186 286c0-34 32-62 70-62s70 28 70 62c0 32-22 62-70 62s-70-30-70-62z', 8)}
+        ${circle(256, 352, 14, 6)}
+        ${line('M236 332c12 8 28 8 40 0', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      双子座: `
+        ${line('M214 120h84M214 220h84', 12)}
+        ${line('M226 120c8 26 8 74 0 100', 12)}
+        ${line('M286 120c-8 26-8 74 0 100', 12)}
+        ${fill('M180 254h38v118h-38z', 8)}
+        ${fill('M294 254h38v118h-38z', 8)}
+        ${line('M218 312c16-14 32-20 38-20 6 0 22 6 38 20', 6)}
+        ${fill('M250 294l6-10 6 10-6 10z', 6)}
+        ${dot(198, 310, 6)}
+        ${dot(314, 310, 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      巨蟹座: `
+        ${circle(224, 146, 22, 12)}
+        ${circle(288, 198, 22, 12)}
+        ${line('M292 124c-34-16-62-8-74 18', 12)}
+        ${line('M220 220c34 16 62 8 74-18', 12)}
+        ${fill('M196 300c0-34 26-56 60-56s60 22 60 56', 8)}
+        ${line('M206 268c-26-6-48 6-58 28 16 4 28 10 38 22', 8)}
+        ${line('M306 268c26-6 48 6 58 28-16 4-28 10-38 22', 8)}
+        ${line('M216 322l-18 28M238 330l-12 30M274 330l12 30M296 322l18 28', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      狮子座: `
+        ${line('M214 138c-18-18-16-48 4-64 20-16 48-10 60 12 10 18 6 42-10 56', 12)}
+        ${line('M266 142c18 0 34 14 34 32 0 14-8 26-20 32', 12)}
+        ${line('M280 206c-18 2-28 16-28 32', 12)}
+        ${fill('M256 236l16 20 24-8 10 24 26 0-4 26 20 16-16 20 8 24-24 10 0 26-26-4-16 20-20-16-24 8-10-24-26 0 4-26-20-16 16-20-8-24 24-10 0-26 26 4z', 6)}
+        ${circle(256, 304, 58, 8)}
+        ${dot(242, 298)}
+        ${dot(270, 298)}
+        ${line('M242 324c8 8 20 8 28 0', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      处女座: `
+        ${line('M198 220v-92', 12)}
+        ${line('M234 220v-76c0-12 10-22 22-22 12 0 22 10 22 22v76', 12)}
+        ${line('M198 148c0-14 10-26 24-26', 12)}
+        ${line('M278 154c0-18 14-32 32-32 8 0 14 2 20 6', 12)}
+        ${line('M278 188c8-4 16-6 24-6 18 0 30 12 30 28 0 18-14 30-30 30-10 0-20-4-26-12', 12)}
+        ${fill('M256 262c-18 10-28 28-28 52 0 22 10 44 28 64 18-20 28-42 28-64 0-24-10-42-28-52z', 8)}
+        ${line('M230 322c-18-10-34-28-42-50', 6)}
+        ${line('M282 322c18-10 34-28 42-50', 6)}
+        ${line('M256 262v108', 6)}
+        ${ellipse(256, 382, 34, 10)}
+        ${ellipse(256, 410, 58, 15)}`,
+      天秤座: `
+        ${line('M208 164h96M188 200h136', 12)}
+        ${line('M208 164c0-26 21-47 48-47s48 21 48 47', 12)}
+        ${line('M154 292c26-8 47-15 76-15h52c29 0 50 7 76 15', 8)}
+        ${line('M238 294l18-22 18 22', 6)}
+        ${line('M256 292v106', 12)}
+        ${fill('M256 330c-18 20-18 44-10 68 4 11 8 20 10 30 2-10 6-19 10-30 8-24 8-48-10-68z', 6)}
+        ${line('M188 296L154 378M188 296L202 378M324 296L310 378M324 296L358 378', 4)}
+        ${fill('M128 378c10 20 34 30 50 30s40-10 50-30', 6)}
+        ${line('M136 378h84M292 378h84', 6)}
+        ${fill('M284 378c10 20 34 30 50 30s40-10 50-30', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      天蝎座: `
+        ${line('M206 220v-78M242 220v-78M278 220v-78', 12)}
+        ${line('M206 156c0-16 14-28 30-28s30 12 30 28', 12)}
+        ${line('M278 156c0-16 14-28 30-28s30 12 30 28v34', 12)}
+        ${line('M338 190l-18 18M338 190l18 18', 12)}
+        ${line('M198 290c0-18 16-34 34-34 16 0 24 8 24 24 0 10-6 18-16 22', 8)}
+        ${line('M314 290c0-18-16-34-34-34-16 0-24 8-24 24 0 10 6 18 16 22', 8)}
+        ${fill('M232 316c0 30 18 56 24 78 6-22 24-48 24-78', 8)}
+        ${line('M256 394c18-2 32-14 42-32', 8)}
+        ${line('M298 362c14-4 30 2 38 16-14 8-28 8-40 0', 8)}
+        ${ellipse(256, 410, 58, 15)}`,
+      射手座: `
+        ${line('M212 208l88-88', 12)}
+        ${line('M246 120h54v54M272 148l28-28', 12)}
+        ${line('M222 178v38M202 196h38', 12)}
+        ${line('M192 362c0-58 28-104 72-122', 8)}
+        ${line('M320 362c0-58-28-104-72-122', 8)}
+        ${line('M232 300l98-42', 12)}
+        ${line('M330 258l-18-6M330 258l-8 18M232 300l-20-6M232 300l-10 18', 6)}
+        ${line('M222 324c12 10 24 18 34 22M298 324c-12 10-24 18-34 22', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      摩羯座: `
+        ${line('M206 208v-64c0-12 10-22 22-22 12 0 22 10 22 22v64', 12)}
+        ${line('M250 154c0-18 14-32 32-32 22 0 38 18 38 40 0 18-14 32-30 32-16 0-28 10-28 24 0 14 12 26 28 26 14 0 26-10 30-24', 12)}
+        ${line('M190 286c6-30 28-52 66-52s60 22 66 52', 8)}
+        ${line('M196 286c-24-10-38-30-36-56 26 6 44 22 52 44', 8)}
+        ${line('M316 286c24-10 38-30 36-56-26 6-44 22-52 44', 8)}
+        ${fill('M214 300c0 30 18 52 42 52s42-22 42-52', 8)}
+        ${line('M222 352c10 16 20 30 34 42M290 352c-10 16-20 30-34 42', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+      水瓶座: `
+        ${line('M196 148l28-18 28 18 28-18 28 18 28-18', 12)}
+        ${line('M196 198l28-18 28 18 28-18 28 18 28-18', 12)}
+        ${fill('M226 246c-12 10-20 30-20 50 0 40 22 68 50 90 28-22 50-50 50-90 0-20-8-40-20-50z', 8)}
+        ${line('M234 246h44', 8)}
+        ${line('M234 246c0-16 10-26 22-34 12 8 22 18 22 34', 8)}
+        ${line('M230 302c14 8 30 8 52 0', 6)}
+        ${line('M294 318c26 8 46 22 58 40', 8)}
+        ${dot(318, 342, 4)}
+        ${dot(340, 366, 4)}
+        ${ellipse(256, 410, 58, 15)}`,
+      双鱼座: `
+        ${line('M206 172h100', 12)}
+        ${line('M226 124c18 14 30 34 30 48s-12 34-30 48', 12)}
+        ${line('M286 124c-18 14-30 34-30 48s12 34 30 48', 12)}
+        ${fill('M184 304c18-24 46-34 72-30 22 4 46 22 52 46-24 10-52 10-74 0-22-10-42-28-50-16z', 8)}
+        ${fill('M328 352c-18 24-46 34-72 30-22-4-46-22-52-46 24-10 52-10 74 0 22 10 42 28 50 16z', 8)}
+        ${dot(222, 313, 4)}
+        ${dot(290, 343, 4)}
+        ${line('M174 304c-12 8-20 18-26 28 14 0 24 2 36 10', 6)}
+        ${line('M338 352c12-8 20-18 26-28-14 0-24-2-36-10', 6)}
+        ${ellipse(256, 410, 58, 15)}`,
+    };
+
+    return (map[signName] ?? map.天秤座).replace(/\s{2,}/g, ' ').trim();
+  }
+
   private renderZodiacWheel(cx: number, cy: number, radius: number) {
-    const signs = Object.values(ZODIAC_POSTER_VISUALS).map((item) => item.glyph);
     const spokes = Array.from({ length: 12 }, (_, index) => {
       const angle = -Math.PI / 2 + (Math.PI * 2 * index) / 12;
       const innerX = cx + Math.cos(angle) * (radius - 72);
@@ -625,22 +818,20 @@ export class PosterRendererService {
 
       return `<path d="M${innerX} ${innerY} L${outerX} ${outerY}" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.22" />`;
     }).join('');
-    const labels = signs
-      .map((sign, index) => {
-        const angle = -Math.PI / 2 + (Math.PI * 2 * index) / signs.length;
-        const x = cx + Math.cos(angle) * (radius - 34);
-        const y = cy + Math.sin(angle) * (radius - 34);
+    const markers = Array.from({ length: 12 }, (_, index) => {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index) / 12;
+      const x = cx + Math.cos(angle) * (radius - 34);
+      const y = cy + Math.sin(angle) * (radius - 34);
 
-        return `<text x="${x}" y="${y + 8}" text-anchor="middle" font-size="24" fill="#FFFFFF" fill-opacity="0.42" font-family="${POSTER_FONT_FAMILY}">${sign}</text>`;
-      })
-      .join('');
+      return `<circle cx="${x}" cy="${y}" r="3.5" fill="#FFFFFF" fill-opacity="0.45" />`;
+    }).join('');
 
     return `
   <circle cx="${cx}" cy="${cy}" r="${radius}" fill="#FFFFFF" fill-opacity="0.13" stroke="#FFFFFF" stroke-width="1.4" stroke-opacity="0.32" />
   <circle cx="${cx}" cy="${cy}" r="${radius - 38}" fill="none" stroke="#FFFFFF" stroke-width="1.2" stroke-opacity="0.3" />
   <circle cx="${cx}" cy="${cy}" r="${radius - 78}" fill="none" stroke="#FFFFFF" stroke-width="1.2" stroke-opacity="0.22" />
   ${spokes}
-  ${labels}`.trim();
+  ${markers}`.trim();
   }
 
   private renderZodiacArchiveInfoCards(details: ZodiacPosterDetails) {
@@ -666,13 +857,20 @@ export class PosterRendererService {
     return cards
       .map((card, index) => {
         const x = xPositions[index];
+        const valueFontSize = this.fitPosterFontSize(card.value, 32, 20, 126);
+        const valueFitAttributes = this.buildSvgTextFitAttributes(
+          card.value,
+          valueFontSize,
+          126,
+        );
+
         return `
   <rect x="${x}" y="782" width="268" height="174" rx="24" fill="url(#zodiac-card)" stroke="#FFFFFF" stroke-width="2" filter="url(#archive-shadow)" />
   ${this.renderZodiacArchiveIcon(card.icon, x + 62, 870)}
-  <text x="${x + 132}" y="848" font-size="25" font-weight="560" fill="#26366E" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="${x + 132}" y="848" font-size="25" font-weight="500" fill="#26366E" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
     card.label,
   )}</text>
-  <text x="${x + 132}" y="902" font-size="33" font-weight="720" fill="#14245A" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="${x + 132}" y="902" font-size="${valueFontSize}" font-weight="680" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}"${valueFitAttributes}>${this.escapeXml(
     card.value,
   )}</text>`.trim();
       })
@@ -704,6 +902,16 @@ export class PosterRendererService {
   ${metrics
     .map((metric, index) => {
       const x = xPositions[index];
+      const valueFontSize =
+        index === 2
+          ? this.fitPosterFontSize(metric.value, 42, 26, 172)
+          : this.fitPosterFontSize(metric.value, 56, 38, 112);
+      const valueMaxWidth = index === 2 ? 172 : 112;
+      const valueFitAttributes = this.buildSvgTextFitAttributes(
+        metric.value,
+        valueFontSize,
+        valueMaxWidth,
+      );
       const divider =
         index > 0
           ? `<path d="M${x - 44} 1020 V1114" stroke="#C8A76F" stroke-width="1.4" stroke-opacity="0.5" />`
@@ -712,10 +920,10 @@ export class PosterRendererService {
       return `
   ${divider}
   ${this.renderZodiacArchiveIcon(metric.icon, x, 1066, 32)}
-  <text x="${x + 70}" y="1048" font-size="25" font-weight="560" fill="#26366E" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="${x + 70}" y="1048" font-size="25" font-weight="500" fill="#26366E" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
     metric.label,
   )}</text>
-  <text x="${x + 70}" y="1110" font-size="${index === 2 ? 43 : 57}" font-weight="760" fill="#20247A" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(
+  <text x="${x + 70}" y="1110" font-size="${valueFontSize}" font-weight="700" fill="#20247A" font-family="${ZODIAC_POSTER_FONT_FAMILY}"${valueFitAttributes}>${this.escapeXml(
     metric.value,
   )}</text>`.trim();
     })
@@ -1673,6 +1881,32 @@ export class PosterRendererService {
     }
 
     return lines.slice(0, 4);
+  }
+
+  private fitPosterFontSize(
+    text: string,
+    maxFontSize: number,
+    minFontSize: number,
+    maxWidth: number,
+  ) {
+    const units = Math.max(1, this.measurePosterTextUnits(text));
+    const fitted = Math.floor(maxWidth / units);
+
+    return Math.max(minFontSize, Math.min(maxFontSize, fitted));
+  }
+
+  private buildSvgTextFitAttributes(
+    text: string,
+    fontSize: number,
+    maxWidth: number,
+  ) {
+    const estimatedWidth = this.measurePosterTextUnits(text) * fontSize;
+
+    if (estimatedWidth <= maxWidth) {
+      return '';
+    }
+
+    return ` textLength="${Math.round(maxWidth)}" lengthAdjust="spacingAndGlyphs"`;
   }
 
   private splitTextByDisplayUnits(

@@ -15,7 +15,7 @@ FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 RUN sed -i 's#https://dl-cdn.alpinelinux.org/alpine#https://mirrors.aliyun.com/alpine#g' /etc/apk/repositories \
-  && apk add --no-cache --no-scripts fontconfig font-wqy-zenhei
+  && apk add --no-cache --no-scripts fontconfig font-noto-cjk font-wqy-zenhei
 COPY package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

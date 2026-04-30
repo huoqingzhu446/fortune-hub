@@ -19,5 +19,6 @@ RUN sed -i 's#https://dl-cdn.alpinelinux.org/alpine#https://mirrors.aliyun.com/a
 COPY package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/src/assets ./dist/assets
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

@@ -270,14 +270,7 @@ export class PosterRendererService {
     );
 
     if (!templateBuffer) {
-      const fallbackMarkup = this.buildZodiacTodayPosterSvg(source, layout);
-      const fallbackBuffer = await this.renderPng(fallbackMarkup);
-
-      return {
-        imageBuffer: fallbackBuffer,
-        imageDataUrl: this.toPngDataUrl(fallbackBuffer),
-        usedProviderBackground: false,
-      };
+      throw new Error(`星座分享模板缺失：${details.signName}`);
     }
 
     const overlay = this.buildZodiacTemplateOverlay(source, details, layout);

@@ -1,10 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import sharp from 'sharp';
 
 const POSTER_FONT_FAMILY =
   'WenQuanYi Zen Hei, Noto Sans CJK SC, Noto Sans SC, PingFang SC, Microsoft YaHei, DejaVu Sans, Arial, sans-serif';
 const ZODIAC_POSTER_FONT_FAMILY =
   'PingFang SC, Noto Sans SC, Noto Sans CJK SC, Microsoft YaHei, Hiragino Sans GB, Source Han Sans SC, DejaVu Sans, Arial, sans-serif';
+const ZODIAC_TEMPLATE_SANS_FONT_FAMILY =
+  "'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', 'WenQuanYi Zen Hei', sans-serif";
+const ZODIAC_TEMPLATE_SERIF_FONT_FAMILY =
+  "'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Noto Serif SC', 'SimSun', serif";
 
 const ZODIAC_POSTER_VISUALS: Record<
   string,
@@ -66,6 +73,9 @@ export type ZodiacPosterDetails = {
   englishName: string;
   glyph: string;
   keywords: string[];
+  temperament: string;
+  energyTendency: string;
+  guardianElement: string;
   birthday: string;
   birthPlace: string;
   elementLabel: string;
@@ -129,6 +139,8 @@ export type WallpaperRenderInput = {
 
 @Injectable()
 export class PosterRendererService {
+  private readonly zodiacTemplateCache = new Map<string, Buffer>();
+
   resolvePosterLayout(
     requestedSize: PosterLayout['size'] | undefined,
     sourceType: string,
@@ -209,10 +221,12 @@ export class PosterRendererService {
     backgroundDataUrl: string | null,
     layout: PosterLayout,
   ): Promise<RenderedPosterImage> {
+    if (layout.kind === 'portrait' && source.sourceType === 'zodiac_today') {
+      return this.renderZodiacTemplatePoster(source, layout);
+    }
+
     const build = (background: string | null) =>
-      layout.kind === 'portrait' && source.sourceType === 'zodiac_today'
-        ? this.buildZodiacTodayPosterSvg(source, layout)
-        : layout.kind === 'portrait' && source.sourceType === 'bazi'
+      layout.kind === 'portrait' && source.sourceType === 'bazi'
           ? this.buildBaziPosterSvg(source, layout)
           : layout.kind === 'portrait'
             ? this.buildRichPosterSvg(source, background, layout)
@@ -244,6 +258,350 @@ export class PosterRendererService {
       imageDataUrl: this.toPngDataUrl(imageBuffer),
       usedProviderBackground: Boolean(input.backgroundDataUrl),
     };
+  }
+
+  private async renderZodiacTemplatePoster(
+    source: PosterRenderSource,
+    layout: PosterLayout,
+  ): Promise<RenderedPosterImage> {
+    const details = this.resolveZodiacArchiveDetails(source);
+    const templateBuffer = await this.readZodiacPosterTemplate(
+      details.signName,
+    );
+
+    if (!templateBuffer) {
+      const fallbackMarkup = this.buildZodiacTodayPosterSvg(source, layout);
+      const fallbackBuffer = await this.renderPng(fallbackMarkup);
+
+      return {
+        imageBuffer: fallbackBuffer,
+        imageDataUrl: this.toPngDataUrl(fallbackBuffer),
+        usedProviderBackground: false,
+      };
+    }
+
+    const overlay = this.buildZodiacTemplateOverlay(source, details, layout);
+    const imageBuffer = await sharp(templateBuffer)
+      .resize(layout.width, layout.height, { fit: 'fill' })
+      .composite([{ input: Buffer.from(overlay), top: 0, left: 0 }])
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+
+    return {
+      imageBuffer,
+      imageDataUrl: this.toPngDataUrl(imageBuffer),
+      usedProviderBackground: false,
+    };
+  }
+
+  private async readZodiacPosterTemplate(signName: string) {
+    const normalizedSign = this.normalizeZodiacSignName(signName);
+    const cached = this.zodiacTemplateCache.get(normalizedSign);
+
+    if (cached) {
+      return cached;
+    }
+
+    const fileName = `${normalizedSign}.png`;
+    const candidates = [
+      path.join(__dirname, '..', 'assets', 'posters', 'zodiac', fileName),
+      path.join(
+        process.cwd(),
+        'dist',
+        'assets',
+        'posters',
+        'zodiac',
+        fileName,
+      ),
+      path.join(
+        process.cwd(),
+        'src',
+        'assets',
+        'posters',
+        'zodiac',
+        fileName,
+      ),
+      path.join(
+        process.cwd(),
+        'services',
+        'api',
+        'dist',
+        'assets',
+        'posters',
+        'zodiac',
+        fileName,
+      ),
+      path.join(
+        process.cwd(),
+        'services',
+        'api',
+        'src',
+        'assets',
+        'posters',
+        'zodiac',
+        fileName,
+      ),
+    ];
+    const templatePath = candidates.find((candidate) => existsSync(candidate));
+
+    if (!templatePath) {
+      return null;
+    }
+
+    const buffer = await readFile(templatePath);
+    this.zodiacTemplateCache.set(normalizedSign, buffer);
+
+    return buffer;
+  }
+
+  private buildZodiacTemplateOverlay(
+    source: PosterRenderSource,
+    details: ZodiacPosterDetails,
+    layout: PosterLayout,
+  ) {
+    const scaleX = layout.width / 941;
+    const scaleY = layout.height / 1672;
+    const keywords = details.keywords.join(' · ');
+    const signFontSize = this.fitPosterFontSize(
+      details.signName,
+      88,
+      62,
+      360,
+    );
+    const englishFontSize = this.fitPosterFontSize(
+      details.englishName,
+      46,
+      32,
+      260,
+    );
+    const keywordFontSize = this.fitPosterFontSize(keywords, 25, 19, 260);
+    const temperamentFontSize = this.fitPosterFontSize(
+      details.temperament,
+      32,
+      24,
+      132,
+    );
+    const energyFontSize = this.fitPosterFontSize(
+      details.energyTendency,
+      32,
+      24,
+      132,
+    );
+    const guardianFontSize = this.fitPosterFontSize(
+      details.guardianElement,
+      32,
+      24,
+      108,
+    );
+    const luckyColorFontSize = this.fitPosterFontSize(
+      details.luckyColor,
+      40,
+      28,
+      112,
+    );
+    const quoteLines = this.splitTextByDisplayUnits(details.quote, 17.5, 2);
+
+    return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
+  <defs>
+    <filter id="zodiac-template-text-soft" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#FFFFFF" flood-opacity="0.72" />
+    </filter>
+  </defs>
+  <g transform="scale(${scaleX} ${scaleY})" filter="url(#zodiac-template-text-soft)">
+    ${this.renderZodiacTemplateText({
+      x: 248,
+      y: 474,
+      value: details.signName,
+      size: signFontSize,
+      weight: 560,
+      family: ZODIAC_TEMPLATE_SERIF_FONT_FAMILY,
+      anchor: 'middle',
+      width: 360,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 248,
+      y: 548,
+      value: details.englishName,
+      size: englishFontSize,
+      weight: 400,
+      family: ZODIAC_TEMPLATE_SERIF_FONT_FAMILY,
+      anchor: 'middle',
+      width: 260,
+      color: '#C59B63',
+      style: 'font-style="italic"',
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 248,
+      y: 612,
+      value: keywords,
+      size: keywordFontSize,
+      weight: 390,
+      anchor: 'middle',
+      width: 260,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 150,
+      y: 916,
+      value: details.temperament,
+      size: temperamentFontSize,
+      weight: 400,
+      width: 132,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 453,
+      y: 916,
+      value: details.energyTendency,
+      size: energyFontSize,
+      weight: 400,
+      width: 132,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 756,
+      y: 916,
+      value: details.guardianElement,
+      size: guardianFontSize,
+      weight: 400,
+      width: 108,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 174,
+      y: 1128,
+      value: String(details.charmScore),
+      size: 56,
+      weight: 430,
+      color: '#24227D',
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 475,
+      y: 1128,
+      value: String(details.socialScore),
+      size: 56,
+      weight: 430,
+      color: '#24227D',
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 746,
+      y: 1126,
+      value: details.luckyColor,
+      size: luckyColorFontSize,
+      weight: 460,
+      width: 112,
+      color: '#24227D',
+    })}
+    ${quoteLines
+      .map((line, index) =>
+        this.renderZodiacTemplateText({
+          x: 471,
+          y: 1288 + index * 62,
+          value: line,
+          size: 36,
+          weight: 430,
+          family: ZODIAC_TEMPLATE_SERIF_FONT_FAMILY,
+          anchor: 'middle',
+          width: 620,
+        }),
+      )
+      .join('')}
+  </g>
+  <g transform="scale(${scaleX} ${scaleY})">
+    ${this.renderZodiacTemplateMiniProgramCode(
+      source.miniProgramCodeDataUrl ?? null,
+      270,
+      1556,
+    )}
+    ${this.renderZodiacTemplateText({
+      x: 404,
+      y: 1518,
+      value: '长按识别小程序码，',
+      size: 31,
+      weight: 430,
+    })}
+    ${this.renderZodiacTemplateText({
+      x: 404,
+      y: 1574,
+      value: '查看你的专属星运报告',
+      size: 34,
+      weight: 560,
+    })}
+  </g>
+</svg>`.trim();
+  }
+
+  private renderZodiacTemplateText(options: {
+    x: number;
+    y: number;
+    value: string | number;
+    size: number;
+    weight?: number;
+    family?: string;
+    anchor?: 'start' | 'middle' | 'end';
+    width?: number;
+    color?: string;
+    opacity?: number;
+    style?: string;
+  }) {
+    const value = String(options.value);
+    const widthAttributes = options.width
+      ? this.buildSvgTextFitAttributes(value, options.size, options.width)
+      : '';
+
+    return `<text x="${options.x}" y="${options.y}" text-anchor="${options.anchor ?? 'start'}" font-family="${options.family ?? ZODIAC_TEMPLATE_SANS_FONT_FAMILY}" font-size="${options.size}" font-weight="${options.weight ?? 400}" fill="${options.color ?? '#14245A'}" opacity="${options.opacity ?? 1}" ${options.style ?? ''}${widthAttributes}>${this.escapeXml(value)}</text>`;
+  }
+
+  private renderZodiacTemplateMiniProgramCode(
+    codeDataUrl: string | null,
+    cx: number,
+    cy: number,
+  ) {
+    if (codeDataUrl) {
+      const imageSize = 156;
+      const imageX = cx - imageSize / 2;
+      const imageY = cy - imageSize / 2;
+
+      return `
+  <circle cx="${cx}" cy="${cy}" r="86" fill="#FFFFFF" fill-opacity="0.9" />
+  <circle cx="${cx}" cy="${cy}" r="66" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
+  <image href="${this.escapeXml(codeDataUrl)}" x="${imageX}" y="${imageY}" width="${imageSize}" height="${imageSize}" preserveAspectRatio="xMidYMid meet" />`.trim();
+    }
+
+    return this.renderZodiacTemplateMiniProgramCodePlaceholder(cx, cy);
+  }
+
+  private renderZodiacTemplateMiniProgramCodePlaceholder(
+    cx: number,
+    cy: number,
+  ) {
+    const scale = 1.12;
+    const modules = [
+      [-49, -49, 18],
+      [-24, -49, 10],
+      [18, -49, 19],
+      [-49, -21, 10],
+      [-30, -16, 18],
+      [12, -20, 12],
+      [38, -18, 10],
+      [-44, 14, 18],
+      [-14, 16, 10],
+      [18, 12, 20],
+      [-32, 44, 12],
+      [4, 44, 16],
+      [37, 41, 10],
+    ];
+
+    return `
+  <circle cx="${cx}" cy="${cy}" r="86" fill="#FFFFFF" fill-opacity="0.9" />
+  <circle cx="${cx}" cy="${cy}" r="66" fill="#F7F9FF" stroke="#E5EBFA" stroke-width="2" />
+  ${modules
+    .map(
+      ([offsetX, offsetY, size]) =>
+        `<rect x="${cx + offsetX * scale}" y="${cy + offsetY * scale}" width="${size * scale}" height="${size * scale}" rx="3" fill="#2F3A4A" fill-opacity="0.84" />`,
+    )
+    .join('')}
+  <circle cx="${cx}" cy="${cy}" r="24" fill="#605DD5" />
+  <path d="M${cx - 14} ${cy + 6} C${cx - 3} ${cy - 13}, ${cx + 15} ${cy - 9}, ${cx + 9} ${cy + 9} C${cx + 3} ${cy + 26}, ${cx - 15} ${cy + 23}, ${cx - 14} ${cy + 6} Z" fill="#FFFFFF" fill-opacity="0.9" />
+  <circle cx="${cx + 61}" cy="${cy + 59}" r="18" fill="#20C866" />
+  <path d="M${cx + 55} ${cy + 57} C${cx + 55} ${cy + 49}, ${cx + 67} ${cy + 49}, ${cx + 67} ${cy + 57} V${cy + 70}" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />`.trim();
   }
 
   resolveThemePalette(themeName: string) {
@@ -527,6 +885,15 @@ export class PosterRendererService {
     const metrics = source.metrics;
     const pickMetric = (label: string, fallback: string) =>
       metrics.find((item) => item.label === label)?.value ?? fallback;
+    const keywords = (
+      source.zodiacPoster?.keywords?.length
+        ? source.zodiacPoster.keywords
+        : source.chips.length
+          ? source.chips
+          : ['优雅', '平衡', '和谐']
+    ).slice(0, 3);
+    const elementLabel =
+      source.zodiacPoster?.elementLabel || pickMetric('星座属性', '风象星座');
 
     return {
       tagText: source.zodiacPoster?.tagText || '星运档案',
@@ -539,18 +906,29 @@ export class PosterRendererService {
         source.zodiacEnglish ||
         visual.english,
       glyph: source.zodiacPoster?.glyph || visual.glyph,
-      keywords: (
-        source.zodiacPoster?.keywords?.length
-          ? source.zodiacPoster.keywords
-          : source.chips.length
-            ? source.chips
-            : ['优雅', '平衡', '和谐']
-      ).slice(0, 3),
+      keywords,
+      temperament:
+        source.zodiacPoster?.temperament ||
+        pickMetric(
+          '星象气质',
+          this.resolveZodiacTemplateTemperament(signName, keywords),
+        ),
+      energyTendency:
+        source.zodiacPoster?.energyTendency ||
+        pickMetric(
+          '能量倾向',
+          this.resolveZodiacTemplateEnergyTendency(signName),
+        ),
+      guardianElement:
+        source.zodiacPoster?.guardianElement ||
+        pickMetric(
+          '守护元素',
+          this.resolveZodiacTemplateGuardianElement(elementLabel),
+        ),
       birthday: source.zodiacPoster?.birthday || pickMetric('出生日期', '待完善'),
       birthPlace:
         source.zodiacPoster?.birthPlace || pickMetric('出生地点', '待完善'),
-      elementLabel:
-        source.zodiacPoster?.elementLabel || pickMetric('星座属性', '风象星座'),
+      elementLabel,
       charmScore:
         source.zodiacPoster?.charmScore ??
         Number(pickMetric('魅力指数', source.energyValue ?? '88')),
@@ -575,6 +953,71 @@ export class PosterRendererService {
     }
 
     return normalized.slice(0, 34).replace(/[，。、；：,.+\s]+$/u, '');
+  }
+
+  private normalizeZodiacSignName(value: string) {
+    return (
+      value.match(
+        /白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座/,
+      )?.[0] ?? '天秤座'
+    );
+  }
+
+  private resolveZodiacTemplateTemperament(
+    signName: string,
+    keywords: string[],
+  ) {
+    const map: Record<string, string> = {
+      白羊座: '热烈勇敢',
+      金牛座: '稳定丰盈',
+      双子座: '灵动敏捷',
+      巨蟹座: '温柔守护',
+      狮子座: '明亮自信',
+      处女座: '细致清醒',
+      天秤座: '优雅平衡',
+      天蝎座: '深邃敏锐',
+      射手座: '自由开阔',
+      摩羯座: '沉稳坚韧',
+      水瓶座: '独立理性',
+      双鱼座: '浪漫共情',
+    };
+
+    return map[signName] ?? keywords.slice(0, 2).join('') ?? '星光流动';
+  }
+
+  private resolveZodiacTemplateEnergyTendency(signName: string) {
+    const map: Record<string, string> = {
+      白羊座: '主动开局',
+      金牛座: '稳步积累',
+      双子座: '表达连接',
+      巨蟹座: '情感滋养',
+      狮子座: '自信绽放',
+      处女座: '秩序优化',
+      天秤座: '理性社交',
+      天蝎座: '专注洞察',
+      射手座: '探索扩展',
+      摩羯座: '长期推进',
+      水瓶座: '创新突破',
+      双鱼座: '直觉流动',
+    };
+
+    return map[signName] ?? '顺势调整';
+  }
+
+  private resolveZodiacTemplateGuardianElement(elementLabel: string) {
+    if (elementLabel.includes('火')) {
+      return '火元素';
+    }
+
+    if (elementLabel.includes('土')) {
+      return '土元素';
+    }
+
+    if (elementLabel.includes('水')) {
+      return '水元素';
+    }
+
+    return '风元素';
   }
 
   private renderZodiacArchiveTexture() {
@@ -837,18 +1280,18 @@ export class PosterRendererService {
   private renderZodiacArchiveInfoCards(details: ZodiacPosterDetails) {
     const cards = [
       {
-        label: '出生日期',
-        value: details.birthday,
+        label: '星象气质',
+        value: details.temperament,
         icon: 'calendar',
       },
       {
-        label: '出生地点',
-        value: details.birthPlace,
+        label: '能量倾向',
+        value: details.energyTendency,
         icon: 'location',
       },
       {
-        label: '星座属性',
-        value: details.elementLabel,
+        label: '守护元素',
+        value: details.guardianElement,
         icon: 'wind',
       },
     ];

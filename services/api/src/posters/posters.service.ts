@@ -553,16 +553,16 @@ export class PostersService {
       chips: zodiacPoster.keywords,
       metrics: [
         {
-          label: '出生日期',
-          value: zodiacPoster.birthday,
+          label: '星象气质',
+          value: zodiacPoster.temperament,
         },
         {
-          label: '出生地点',
-          value: zodiacPoster.birthPlace,
+          label: '能量倾向',
+          value: zodiacPoster.energyTendency,
         },
         {
-          label: '星座属性',
-          value: zodiacPoster.elementLabel,
+          label: '守护元素',
+          value: zodiacPoster.guardianElement,
         },
         {
           label: '魅力指数',
@@ -616,6 +616,9 @@ export class PostersService {
             .filter(Boolean)
         : [],
     );
+    const elementLabel = this.resolveZodiacPosterElementLabel(
+      this.pickString(profile.element, ''),
+    );
 
     return {
       tagText: '星运档案',
@@ -624,11 +627,12 @@ export class PostersService {
       englishName: this.resolveZodiacEnglishName(zodiac),
       glyph: this.resolveZodiacGlyph(zodiac),
       keywords,
+      temperament: this.resolveZodiacTemplateTemperament(zodiac, keywords),
+      energyTendency: this.resolveZodiacTemplateEnergyTendency(zodiac),
+      guardianElement: this.resolveZodiacTemplateGuardianElement(elementLabel),
       birthday: this.formatZodiacPosterBirthday(user?.birthday ?? ''),
       birthPlace: this.resolveZodiacPosterBirthPlace(user),
-      elementLabel: this.resolveZodiacPosterElementLabel(
-        this.pickString(profile.element, ''),
-      ),
+      elementLabel,
       charmScore: this.clampPosterScore(loveScore + 6, 92),
       socialScore: this.clampPosterScore(
         (loveScore + careerScore) / 2 + 4,
@@ -699,6 +703,63 @@ export class PostersService {
     return (map[zodiac] ?? fallbackKeywords ?? ['星光', '节奏', '好运'])
       .filter(Boolean)
       .slice(0, 3);
+  }
+
+  private resolveZodiacTemplateTemperament(
+    zodiac: string,
+    keywords: string[],
+  ) {
+    const map: Record<string, string> = {
+      白羊座: '热烈勇敢',
+      金牛座: '稳定丰盈',
+      双子座: '灵动敏捷',
+      巨蟹座: '温柔守护',
+      狮子座: '明亮自信',
+      处女座: '细致清醒',
+      天秤座: '优雅平衡',
+      天蝎座: '深邃敏锐',
+      射手座: '自由开阔',
+      摩羯座: '沉稳坚韧',
+      水瓶座: '独立理性',
+      双鱼座: '浪漫共情',
+    };
+
+    return map[zodiac] ?? keywords.slice(0, 2).join('') ?? '星光流动';
+  }
+
+  private resolveZodiacTemplateEnergyTendency(zodiac: string) {
+    const map: Record<string, string> = {
+      白羊座: '主动开局',
+      金牛座: '稳步积累',
+      双子座: '表达连接',
+      巨蟹座: '情感滋养',
+      狮子座: '自信绽放',
+      处女座: '秩序优化',
+      天秤座: '理性社交',
+      天蝎座: '专注洞察',
+      射手座: '探索扩展',
+      摩羯座: '长期推进',
+      水瓶座: '创新突破',
+      双鱼座: '直觉流动',
+    };
+
+    return map[zodiac] ?? '顺势调整';
+  }
+
+  private resolveZodiacTemplateGuardianElement(elementLabel: string) {
+    if (elementLabel.includes('火')) {
+      return '火元素';
+    }
+
+    if (elementLabel.includes('土')) {
+      return '土元素';
+    }
+
+    if (elementLabel.includes('水')) {
+      return '水元素';
+    }
+
+    return '风元素';
   }
 
   private resolveZodiacPosterQuote(zodiac: string, fallback: string) {

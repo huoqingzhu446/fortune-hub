@@ -370,21 +370,21 @@ export class PosterRendererService {
     const keywordFontSize = this.fitPosterFontSize(keywords, 25, 19, 260);
     const temperamentFontSize = this.fitPosterFontSize(
       details.temperament,
-      32,
-      24,
-      132,
+      28,
+      22,
+      128,
     );
     const energyFontSize = this.fitPosterFontSize(
       details.energyTendency,
-      32,
-      24,
-      132,
+      28,
+      22,
+      128,
     );
     const guardianFontSize = this.fitPosterFontSize(
       details.guardianElement,
-      32,
-      24,
-      108,
+      28,
+      22,
+      112,
     );
     const luckyColorFontSize = this.fitPosterFontSize(
       details.luckyColor,
@@ -435,27 +435,27 @@ export class PosterRendererService {
     })}
     ${this.renderZodiacTemplateText({
       x: 150,
-      y: 916,
+      y: 936,
       value: details.temperament,
       size: temperamentFontSize,
       weight: 400,
-      width: 132,
+      width: 128,
     })}
     ${this.renderZodiacTemplateText({
       x: 453,
-      y: 916,
+      y: 936,
       value: details.energyTendency,
       size: energyFontSize,
       weight: 400,
-      width: 132,
+      width: 128,
     })}
     ${this.renderZodiacTemplateText({
       x: 756,
-      y: 916,
+      y: 936,
       value: details.guardianElement,
       size: guardianFontSize,
       weight: 400,
-      width: 108,
+      width: 112,
     })}
     ${this.renderZodiacTemplateText({
       x: 174,

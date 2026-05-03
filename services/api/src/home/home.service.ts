@@ -969,7 +969,7 @@ export class HomeService {
         `http://localhost:${port}/api/v1`,
       fileServiceBaseUrl: this.configService.get<string>(
         'FILE_SERVICE_BASE_URL',
-        'http://8.152.214.57:3000/api',
+        'http://www.yuanlian.xin:3000/api',
       ),
       redisStatus: this.redisService.getStatus(),
     };

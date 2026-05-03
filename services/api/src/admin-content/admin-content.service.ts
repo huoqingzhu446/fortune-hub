@@ -916,7 +916,7 @@ export class AdminContentService {
 
   private resolveFileServiceBaseUrl() {
     return this.configService
-      .get<string>('FILE_SERVICE_BASE_URL', 'http://8.152.214.57:3000/api')
+      .get<string>('FILE_SERVICE_BASE_URL', 'http://www.yuanlian.xin:3000/api')
       .replace(/\/$/, '');
   }
 

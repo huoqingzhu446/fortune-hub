@@ -30,7 +30,7 @@ export const appEnv = {
         isDev ? import.meta.env.VITE_MP_WEIXIN_DEV_API_BASE_URL : undefined,
         import.meta.env.VITE_MP_WEIXIN_API_BASE_URL,
         import.meta.env.VITE_API_BASE_URL,
-        'http://8.152.214.57/api/v1',
+        'https://www.yuanlian.xin/api/v1',
       )
     : import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
   fileServiceBaseUrl: isMpWeixin
@@ -38,7 +38,7 @@ export const appEnv = {
         isDev ? import.meta.env.VITE_MP_WEIXIN_DEV_FILE_SERVICE_BASE_URL : undefined,
         import.meta.env.VITE_MP_WEIXIN_FILE_SERVICE_BASE_URL,
         import.meta.env.VITE_FILE_SERVICE_BASE_URL,
-        'http://8.152.214.57:3000/api',
+        'http://www.yuanlian.xin:3000/api',
       )
-    : import.meta.env.VITE_FILE_SERVICE_BASE_URL || 'http://8.152.214.57:3000/api',
+    : import.meta.env.VITE_FILE_SERVICE_BASE_URL || 'http://www.yuanlian.xin:3000/api',
 };

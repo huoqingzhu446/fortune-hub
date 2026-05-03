@@ -435,7 +435,7 @@ export class PosterRendererService {
     })}
     ${this.renderZodiacTemplateText({
       x: 150,
-      y: 936,
+      y: 928,
       value: details.temperament,
       size: temperamentFontSize,
       weight: 400,
@@ -443,7 +443,7 @@ export class PosterRendererService {
     })}
     ${this.renderZodiacTemplateText({
       x: 453,
-      y: 936,
+      y: 928,
       value: details.energyTendency,
       size: energyFontSize,
       weight: 400,
@@ -451,7 +451,7 @@ export class PosterRendererService {
     })}
     ${this.renderZodiacTemplateText({
       x: 756,
-      y: 936,
+      y: 928,
       value: details.guardianElement,
       size: guardianFontSize,
       weight: 400,

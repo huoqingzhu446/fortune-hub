@@ -12,10 +12,13 @@ export class FortuneService {
   ) {}
 
   getMobileDashboard() {
-    const apiBaseUrl = `http://8.152.214.57:${this.configService.get<number>('PORT', 3001)}/api/v1`;
+    const apiBaseUrl = this.configService.get<string>(
+      'PUBLIC_API_BASE_URL',
+      'https://www.yuanlian.xin/api/v1',
+    );
     const fileServiceBaseUrl = this.configService.get<string>(
       'FILE_SERVICE_BASE_URL',
-      'http://8.152.214.57:3000/api',
+      'http://www.yuanlian.xin:3000/api',
     );
 
     return {
@@ -141,7 +144,7 @@ export class FortuneService {
         redisStatus: this.redisService.getStatus(),
         fileServiceBaseUrl: this.configService.get<string>(
           'FILE_SERVICE_BASE_URL',
-          'http://8.152.214.57:3000/api',
+          'http://www.yuanlian.xin:3000/api',
         ),
       },
     };

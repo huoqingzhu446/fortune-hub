@@ -83,7 +83,7 @@ const fallbackDashboard: AdminDashboardResponse = {
     mysqlStatus: '等待 API 返回',
     redisStatus: '等待 API 返回',
     fileServiceBaseUrl:
-      import.meta.env.VITE_FILE_SERVICE_BASE_URL || 'http://8.152.214.57:3000/api',
+      import.meta.env.VITE_FILE_SERVICE_BASE_URL || 'http://www.yuanlian.xin:3000/api',
   },
 };
 

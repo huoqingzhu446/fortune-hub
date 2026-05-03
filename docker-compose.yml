@@ -50,8 +50,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fortune123}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
-      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://8.152.214.57/api/v1}
+      FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://www.yuanlian.xin:3000/api}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://www.yuanlian.xin/api/v1}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost:8443}
       WECHAT_APP_ID: ${WECHAT_APP_ID:-}
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
@@ -80,7 +80,7 @@ services:
       args:
         VITE_PUBLIC_BASE: /admin/
         VITE_API_BASE_URL: /api/v1
-        VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
+        VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://www.yuanlian.xin:3000/api}
     container_name: fortune-hub-admin
     restart: unless-stopped
     expose:
@@ -92,7 +92,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
-        VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://8.152.214.57:3000/api}
+        VITE_FILE_SERVICE_BASE_URL: ${FILE_SERVICE_BASE_URL:-http://www.yuanlian.xin:3000/api}
     container_name: fortune-hub-mobile-h5
     restart: unless-stopped
     expose:

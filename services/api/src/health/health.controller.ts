@@ -19,7 +19,7 @@ export class HealthController {
       redis: await this.redisService.ping(),
       fileServiceBaseUrl: this.configService.get<string>(
         'FILE_SERVICE_BASE_URL',
-        'http://8.152.214.57:3000/api',
+        'http://www.yuanlian.xin:3000/api',
       ),
       timestamp: new Date().toISOString(),
     };

@@ -1504,7 +1504,7 @@ export class UsersService {
           ? normalizeFileServiceUrlToApiProxy(item.previewUrl.trim(), {
               internalBaseUrl: this.configService.get<string>(
                 'FILE_SERVICE_BASE_URL',
-                'http://8.152.214.57:3000/api',
+                'http://www.yuanlian.xin:3000/api',
               ),
               publicApiBaseUrl: this.configService.get<string>(
                 'PUBLIC_API_BASE_URL',

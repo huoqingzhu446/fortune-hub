@@ -131,6 +131,7 @@ import {
   getPendingDivinationRequest,
   saveDivinationResult,
 } from '../../../services/divination';
+import { ensureDivinationContentCatalog } from '../../../services/divination-content';
 import type {
   DivinationCastingStep,
   DivinationFlow,
@@ -210,9 +211,14 @@ function selectMethod(method: DivinationMethod) {
   selectedMethod.value = method;
 }
 
-function startCasting(event?: TapEvent) {
+async function startCasting(event?: TapEvent) {
   if (isCasting.value) {
     return;
+  }
+
+  if (stepTimer) {
+    clearTimeout(stepTimer);
+    stepTimer = null;
   }
 
   const nextRequest: DivinationRequest = {
@@ -221,14 +227,17 @@ function startCasting(event?: TapEvent) {
     flow: selectedFlow.value,
     interactionSeed: buildInteractionSeed(event),
   };
-  const result = generateDivinationResult(nextRequest);
-
-  pendingResult.value = result;
   request.value = nextRequest;
   isCasting.value = true;
+  castComplete.value = false;
+  pendingResult.value = null;
   revealedSteps.value = [];
   currentStepIndex.value = -1;
 
+  await ensureDivinationContentCatalog();
+  const result = generateDivinationResult(nextRequest);
+
+  pendingResult.value = result;
   runStep(0);
 }
 
@@ -302,6 +311,7 @@ onLoad(() => {
   request.value = pending || createTodayDivinationRequest();
   selectedMethod.value = request.value.method || 'split-stalk';
   selectedFlow.value = request.value.flow || 'yang';
+  void ensureDivinationContentCatalog();
 });
 
 onUnload(() => {

@@ -46,6 +46,7 @@ import { PostersModule } from './posters/posters.module';
 import { RedisModule } from './redis/redis.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
+import { DivinationModule } from './divination/divination.module';
 import { UsersModule } from './users/users.module';
 import { ZodiacModule } from './zodiac/zodiac.module';
 
@@ -118,6 +119,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     ExploreModule,
     FavoritesModule,
     HomeModule,
+    DivinationModule,
     ZodiacModule,
     FortuneModule,
     LuckyModule,

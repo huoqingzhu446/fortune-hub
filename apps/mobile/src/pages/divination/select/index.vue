@@ -70,6 +70,7 @@ import {
   getDefaultPersonalizationFlags,
   setPendingDivinationRequest,
 } from '../../../services/divination';
+import { ensureDivinationContentCatalog } from '../../../services/divination-content';
 import type { DivinationPersonalizationFlags, DivinationTopic } from '../../../types/divination';
 
 const topicOptions = DIVINATION_TOPICS.slice(0, 5);
@@ -119,6 +120,7 @@ function back() {
 }
 
 onLoad((query) => {
+  void ensureDivinationContentCatalog();
   const topic = String(query?.topic || '') as DivinationTopic;
   if (DIVINATION_TOPICS.some((item) => item.value === topic)) {
     selectedTopic.value = topic;

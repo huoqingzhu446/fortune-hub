@@ -9,8 +9,8 @@ import type {
   DivinationTopic,
   DivinationTopicOption,
 } from '../types/divination';
-import { buildTopicReading } from '../data/divination/content';
 import { buildDivinationCasting } from './divination-casting';
+import { buildTopicReading } from './divination-content';
 
 const HISTORY_STORAGE_KEY = 'fortune-hub:divination-history';
 const PENDING_REQUEST_STORAGE_KEY = 'fortune-hub:divination-pending-request';

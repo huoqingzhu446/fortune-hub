@@ -5,7 +5,7 @@ import type {
   DivinationMethod,
   DivinationTopic,
 } from '../types/divination';
-import { buildHexagramLineReadings } from '../data/divination/content';
+import { buildHexagramLineReadings } from './divination-content';
 
 type TrigramName = '乾' | '兑' | '离' | '震' | '巽' | '坎' | '艮' | '坤';
 

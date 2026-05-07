@@ -11,7 +11,10 @@ ARG VITE_FILE_SERVICE_BASE_URL=http://host.docker.internal:3000/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_PUBLIC_BASE=$VITE_PUBLIC_BASE
 ENV VITE_FILE_SERVICE_BASE_URL=$VITE_FILE_SERVICE_BASE_URL
-RUN corepack enable && pnpm install --frozen-lockfile=false && pnpm build
+RUN corepack enable \
+  && corepack prepare pnpm@10.15.1 --activate \
+  && pnpm install --frozen-lockfile=false \
+  && pnpm build
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

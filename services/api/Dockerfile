@@ -2,6 +2,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json ./
 RUN corepack enable \
+  && corepack prepare pnpm@10.15.1 --activate \
   && pnpm config set registry https://registry.npmmirror.com \
   && pnpm install --frozen-lockfile=false
 COPY tsconfig*.json ./

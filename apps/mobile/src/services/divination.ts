@@ -1,26 +1,20 @@
 import type {
   DivinationHistoryTrendPoint,
+  DivinationFlow,
+  DivinationMethod,
   DivinationPersonalizationFlags,
   DivinationRequest,
+  DivinationReview,
   DivinationResult,
   DivinationTopic,
   DivinationTopicOption,
 } from '../types/divination';
-
-type HexagramSeed = {
-  id: number;
-  name: string;
-  symbol: string;
-  upperTrigram: string;
-  lowerTrigram: string;
-  meaning: string;
-  level: DivinationResult['hexagram']['level'];
-  keywords: string[];
-  lines: boolean[];
-};
+import { buildTopicReading } from '../data/divination/content';
+import { buildDivinationCasting } from './divination-casting';
 
 const HISTORY_STORAGE_KEY = 'fortune-hub:divination-history';
 const PENDING_REQUEST_STORAGE_KEY = 'fortune-hub:divination-pending-request';
+const REVIEW_STORAGE_KEY = 'fortune-hub:divination-reviews';
 const DEFAULT_USER_ID = 'local-user';
 const MAX_HISTORY_COUNT = 30;
 
@@ -32,163 +26,6 @@ export const DIVINATION_TOPICS: DivinationTopicOption[] = [
   { value: 'emotion', label: '情绪', subtitle: '身心安顿', icon: '☻' },
   { value: 'relationship', label: '人际', subtitle: '沟通边界', icon: '◎' },
   { value: 'growth', label: '成长', subtitle: '自我复盘', icon: '✶' },
-];
-
-const HEXAGRAMS: HexagramSeed[] = [
-  {
-    id: 1,
-    name: '乾为天',
-    symbol: '䷀',
-    upperTrigram: '乾',
-    lowerTrigram: '乾',
-    meaning: '主动、开创与清明的行动力',
-    level: '吉',
-    keywords: ['开创', '自信', '节奏', '担当'],
-    lines: [true, true, true, true, true, true],
-  },
-  {
-    id: 2,
-    name: '坤为地',
-    symbol: '䷁',
-    upperTrigram: '坤',
-    lowerTrigram: '坤',
-    meaning: '承载、照料与稳定的积累',
-    level: '吉',
-    keywords: ['接纳', '稳定', '滋养', '等待'],
-    lines: [false, false, false, false, false, false],
-  },
-  {
-    id: 11,
-    name: '地天泰',
-    symbol: '䷊',
-    upperTrigram: '坤',
-    lowerTrigram: '乾',
-    meaning: '上下相通，适合修复关系与推进计划',
-    level: '大吉',
-    keywords: ['通达', '合作', '和缓', '生长'],
-    lines: [true, true, true, false, false, false],
-  },
-  {
-    id: 14,
-    name: '火天大有',
-    symbol: '䷍',
-    upperTrigram: '离',
-    lowerTrigram: '乾',
-    meaning: '资源明亮，适合把优势整理出来',
-    level: '吉',
-    keywords: ['资源', '明朗', '自持', '丰盛'],
-    lines: [true, true, true, true, false, true],
-  },
-  {
-    id: 20,
-    name: '风地观',
-    symbol: '䷓',
-    upperTrigram: '巽',
-    lowerTrigram: '坤',
-    meaning: '先观察再表达，从细节里看见方向',
-    level: '中平',
-    keywords: ['观察', '复盘', '洞察', '放慢'],
-    lines: [false, false, false, false, true, true],
-  },
-  {
-    id: 24,
-    name: '地雷复',
-    symbol: '䷗',
-    upperTrigram: '坤',
-    lowerTrigram: '震',
-    meaning: '能量回升，适合从一件小事重新开始',
-    level: '小吉',
-    keywords: ['回归', '重启', '修复', '萌发'],
-    lines: [true, false, false, false, false, false],
-  },
-  {
-    id: 31,
-    name: '泽山咸',
-    symbol: '䷞',
-    upperTrigram: '兑',
-    lowerTrigram: '艮',
-    meaning: '彼此感应，真诚沟通会打开局面',
-    level: '吉',
-    keywords: ['感应', '真诚', '克制', '顺势'],
-    lines: [false, false, true, true, true, false],
-  },
-  {
-    id: 32,
-    name: '雷风恒',
-    symbol: '䷟',
-    upperTrigram: '震',
-    lowerTrigram: '巽',
-    meaning: '长期主义，适合稳定推进而不是频繁改向',
-    level: '吉',
-    keywords: ['恒心', '秩序', '耐心', '承诺'],
-    lines: [false, true, true, true, false, false],
-  },
-  {
-    id: 35,
-    name: '火地晋',
-    symbol: '䷢',
-    upperTrigram: '离',
-    lowerTrigram: '坤',
-    meaning: '逐步上升，适合展示成果与争取机会',
-    level: '吉',
-    keywords: ['上升', '呈现', '机会', '清晰'],
-    lines: [false, false, false, true, false, true],
-  },
-  {
-    id: 41,
-    name: '山泽损',
-    symbol: '䷨',
-    upperTrigram: '艮',
-    lowerTrigram: '兑',
-    meaning: '减法带来轻盈，适合减少消耗',
-    level: '中平',
-    keywords: ['减负', '边界', '收束', '照顾'],
-    lines: [true, true, false, false, false, true],
-  },
-  {
-    id: 42,
-    name: '风雷益',
-    symbol: '䷩',
-    upperTrigram: '巽',
-    lowerTrigram: '震',
-    meaning: '外部助力渐起，主动学习会带来增益',
-    level: '吉',
-    keywords: ['增益', '学习', '支持', '行动'],
-    lines: [true, false, false, false, true, true],
-  },
-  {
-    id: 52,
-    name: '艮为山',
-    symbol: '䷳',
-    upperTrigram: '艮',
-    lowerTrigram: '艮',
-    meaning: '适合止息与整理，不必急着给出答案',
-    level: '中平',
-    keywords: ['止息', '沉静', '边界', '观察'],
-    lines: [false, false, true, false, false, true],
-  },
-  {
-    id: 58,
-    name: '兑为泽',
-    symbol: '䷹',
-    upperTrigram: '兑',
-    lowerTrigram: '兑',
-    meaning: '交流与喜悦正在靠近，适合轻松表达',
-    level: '小吉',
-    keywords: ['表达', '愉悦', '回应', '松弛'],
-    lines: [true, true, false, true, true, false],
-  },
-  {
-    id: 62,
-    name: '雷山小过',
-    symbol: '䷽',
-    upperTrigram: '震',
-    lowerTrigram: '艮',
-    meaning: '小步试探比一次到位更稳妥',
-    level: '中平',
-    keywords: ['小步', '谨慎', '校准', '留白'],
-    lines: [false, false, true, true, false, false],
-  },
 ];
 
 const TOPIC_COPY: Record<
@@ -289,11 +126,17 @@ export function getDefaultPersonalizationFlags(): DivinationPersonalizationFlags
   };
 }
 
-export function createTodayDivinationRequest(topic: DivinationTopic = 'general'): DivinationRequest {
+export function createTodayDivinationRequest(
+  topic: DivinationTopic = 'general',
+  method: DivinationMethod = 'split-stalk',
+  flow: DivinationFlow = 'yang',
+): DivinationRequest {
   return {
     userId: DEFAULT_USER_ID,
     topic,
     timestamp: Date.now(),
+    method,
+    flow,
     ...getDefaultPersonalizationFlags(),
   };
 }
@@ -323,30 +166,94 @@ export function clearPendingDivinationRequest() {
   }
 }
 
+export function listDivinationReviews() {
+  try {
+    const raw = uni.getStorageSync(REVIEW_STORAGE_KEY) as Record<string, DivinationReview> | '';
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch (error) {
+    console.warn('read divination reviews failed', error);
+    return {};
+  }
+}
+
+export function getDivinationReview(resultId?: string) {
+  if (!resultId) {
+    return undefined;
+  }
+
+  return listDivinationReviews()[resultId];
+}
+
+export function saveDivinationReview(
+  resultId: string,
+  patch: Partial<Pick<DivinationReview, 'favorite' | 'outcome' | 'note'>>,
+) {
+  const reviews = listDivinationReviews();
+  const current = reviews[resultId] || createEmptyReview(resultId);
+  const next: DivinationReview = {
+    ...current,
+    ...patch,
+    note: typeof patch.note === 'string' ? patch.note.slice(0, 500) : current.note,
+    updatedAt: Date.now(),
+  };
+
+  try {
+    uni.setStorageSync(REVIEW_STORAGE_KEY, {
+      ...reviews,
+      [resultId]: next,
+    });
+  } catch (error) {
+    console.warn('save divination review failed', error);
+  }
+
+  return next;
+}
+
 export function generateDivinationResult(request: DivinationRequest): DivinationResult {
   const normalizedQuestion = (request.question || '').trim();
-  const salt = [
-    request.userId || DEFAULT_USER_ID,
-    request.topic,
-    normalizedQuestion,
-    toDateKey(request.timestamp),
-    request.useBazi ? 'bazi' : '',
-    request.useZodiac ? 'zodiac' : '',
-    request.useMood ? 'mood' : '',
-    request.usePersonality ? 'personality' : '',
-  ].join('|');
-  const seed = hashString(salt);
-  const hexagram = HEXAGRAMS[seed % HEXAGRAMS.length];
-  const changed = HEXAGRAMS[(seed + 5 + request.topic.length) % HEXAGRAMS.length];
+  const method = request.method || 'split-stalk';
+  const flow = request.flow || 'yang';
+  const casting = buildDivinationCasting({
+    ...request,
+    userId: request.userId || DEFAULT_USER_ID,
+    question: normalizedQuestion,
+    method,
+    flow,
+  });
+  const seed = casting.seed;
   const topicCopy = TOPIC_COPY[request.topic] || TOPIC_COPY.general;
-  const baseScore = clamp(70 + (seed % 19) + personalizedBonus(request), 58, 96);
+  const baseScore = clamp(66 + (seed % 23) + personalizedBonus(request), 56, 96);
   const emotionScore = clamp(baseScore - 8 + ((seed >> 3) % 14), 52, 95);
   const actionScore = clamp(baseScore - 3 + ((seed >> 5) % 16), 55, 98);
-  const changingLines = resolveChangingLines(seed);
-  const keywords = unique([...hexagram.keywords, topicCopy.focus.split('、')[0], topicCopy.action.slice(0, 2)])
+  const level = resolveScoreLevel(baseScore);
+  const hexagram = {
+    ...casting.hexagram,
+    level,
+  };
+  const changed = casting.changedHexagram;
+  const keywords = unique([...casting.keywords, topicCopy.focus.split('、')[0], topicCopy.action.slice(0, 2)])
     .filter(Boolean)
     .slice(0, 4);
   const createdAt = request.timestamp || Date.now();
+  const movingLineReading = hexagram.lineReadings?.[casting.movingLine - 1];
+  const topicReading = buildTopicReading({
+    topic: request.topic,
+    hexagram,
+    changedHexagram: changed,
+    movingLineReading,
+    movingLineLabel: casting.movingLineLabel,
+  });
+  const oracle = buildOracle({
+    question: normalizedQuestion,
+    focus: topicCopy.focus,
+    action: topicCopy.action,
+    methodLabel: casting.methodLabel,
+    hexagram,
+    changedHexagram: changed,
+    movingLineLabel: casting.movingLineLabel,
+    movingLineText: movingLineReading?.text,
+    movingLineAdvice: movingLineReading?.advice,
+  });
 
   return {
     id: `divination_${createdAt}_${seed.toString(16)}`,
@@ -354,34 +261,33 @@ export function generateDivinationResult(request: DivinationRequest): Divination
     topic: request.topic,
     topicLabel: topicCopy.label,
     question: normalizedQuestion || undefined,
-    hexagram: {
-      id: hexagram.id,
-      name: hexagram.name,
-      symbol: hexagram.symbol,
-      upperTrigram: hexagram.upperTrigram,
-      lowerTrigram: hexagram.lowerTrigram,
-      meaning: hexagram.meaning,
-      level: hexagram.level,
-      lines: hexagram.lines,
-    },
-    changingLines,
+    hexagram,
+    changingLines: [casting.movingLine],
     changedHexagram:
       changed.id === hexagram.id
         ? undefined
-        : {
-            id: changed.id,
-            name: changed.name,
-            meaning: changed.meaning,
-          },
+        : changed,
+    casting: {
+      method: casting.method,
+      methodLabel: casting.methodLabel,
+      flow: casting.flow,
+      flowLabel: casting.flowLabel,
+      movingLine: casting.movingLine,
+      movingLineLabel: casting.movingLineLabel,
+      steps: casting.steps,
+    },
     scores: {
       overall: baseScore,
       emotion: emotionScore,
       action: actionScore,
     },
+    oracle,
+    topicReading,
+    review: getDivinationReview(`divination_${createdAt}_${seed.toString(16)}`),
     keywords,
-    summary: `本卦为「${hexagram.name}」，象征${hexagram.meaning}。当前更适合${topicCopy.action}，不宜${topicCopy.avoid}。`,
-    analysis: `本次卦象呈现出「${keywords.join('、')}」的气质。结合你选择的${topicCopy.focus}主题，眼前的重点不是替未来下定论，而是看清当下最值得照顾的部分。若事情还没有完全明朗，可以先做一个低风险的小行动，让真实反馈慢慢浮现。`,
-    personalizedReason: buildPersonalizedReason(request, topicCopy.focus),
+    summary: `本卦为「${hexagram.name}」，动爻为「${casting.movingLineLabel}」。${hexagram.decision || `当前更适合${topicCopy.action}`}。`,
+    analysis: `本次以${casting.methodLabel}起卦，得${hexagram.upperTrigram}上${hexagram.lowerTrigram}下，卦象呈现「${keywords.join('、')}」的气质。${hexagram.judgement || ''}动爻指出变化关键，变卦「${changed.name}」提示后续趋向。`,
+    personalizedReason: buildPersonalizedReason(request, topicCopy.focus, casting.methodLabel),
     reminders: [
       '把占卜结果作为自我觉察和行动参考即可。',
       '涉及健康、投资、法律或重大人生决定时，仍建议结合现实信息判断。',
@@ -401,7 +307,8 @@ export function generateDivinationResult(request: DivinationRequest): Divination
 }
 
 export function saveDivinationResult(result: DivinationResult) {
-  const nextHistory = [result, ...listDivinationHistory().filter((item) => item.id !== result.id)].slice(
+  const normalized = normalizeDivinationResult(result);
+  const nextHistory = [normalized, ...listDivinationHistory().filter((item) => item.id !== normalized.id)].slice(
     0,
     MAX_HISTORY_COUNT,
   );
@@ -416,7 +323,7 @@ export function saveDivinationResult(result: DivinationResult) {
 export function listDivinationHistory() {
   try {
     const raw = uni.getStorageSync(HISTORY_STORAGE_KEY) as DivinationResult[] | '';
-    return Array.isArray(raw) ? raw : [];
+    return Array.isArray(raw) ? raw.map((item) => normalizeDivinationResult(item)) : [];
   } catch (error) {
     console.warn('read divination history failed', error);
     return [];
@@ -472,7 +379,7 @@ export function toDateKey(timestamp: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function buildPersonalizedReason(request: DivinationRequest, focus: string) {
+function buildPersonalizedReason(request: DivinationRequest, focus: string, methodLabel = '略筮法') {
   const dimensions = [
     request.useBazi ? '八字五行' : '',
     request.useZodiac ? '星座周期' : '',
@@ -481,35 +388,134 @@ function buildPersonalizedReason(request: DivinationRequest, focus: string) {
   ].filter(Boolean);
 
   if (!dimensions.length) {
-    return `这次主要根据你选择的「${focus}」主题与当前时间起卦生成，结果会更偏向当下可执行的提醒。`;
+    return `这次主要根据你选择的「${focus}」主题，以${methodLabel}完成起卦，结果会更偏向当下可执行的提醒。`;
   }
 
-  return `结合你的${dimensions.join('、')}，本次占卜更偏向「${focus}」的当下指引。完善更多资料后，结果会更贴近你的真实状态。`;
+  return `结合你的${dimensions.join('、')}，并以${methodLabel}定出本卦、动爻与变卦，本次占卜更偏向「${focus}」的当下指引。`;
+}
+
+function buildOracle(input: {
+  question: string;
+  focus: string;
+  action: string;
+  methodLabel: string;
+  hexagram: DivinationResult['hexagram'];
+  changedHexagram?: DivinationResult['hexagram'];
+  movingLineLabel: string;
+  movingLineText?: string;
+  movingLineAdvice?: string;
+}): DivinationResult['oracle'] {
+  const subject = input.question || input.focus;
+  const changed = input.changedHexagram;
+
+  return {
+    title: '高岛式断曰',
+    subject,
+    situation: `占得「${input.hexagram.name}」。${input.hexagram.judgement || input.hexagram.meaning}`,
+    moving: `${input.movingLineLabel}为本次关键。${input.movingLineText || '动爻提示事情已有变化之机，宜看清眼前最容易失衡的位置。'}`,
+    tendency: changed
+      ? `变为「${changed.name}」。${changed.decision || changed.meaning}`
+      : '本卦不变，宜守住当前判断，先把眼前一步做稳。',
+    action: input.movingLineAdvice || input.hexagram.decision || `今天更适合${input.action}。`,
+  };
+}
+
+function normalizeDivinationResult(input: DivinationResult): DivinationResult {
+  const movingLine = input.casting?.movingLine || input.changingLines?.[0] || 1;
+  const movingLineLabel = input.casting?.movingLineLabel || `第 ${movingLine} 爻`;
+  const hexagram = {
+    ...input.hexagram,
+    sequence: input.hexagram.sequence ?? input.hexagram.id,
+    judgement: input.hexagram.judgement || input.hexagram.meaning,
+    image: input.hexagram.image || input.hexagram.meaning,
+    decision: input.hexagram.decision || input.summary || input.analysis,
+    caution: input.hexagram.caution || '涉及重大决定时，仍需结合现实信息判断。',
+  };
+  const casting =
+    input.casting ||
+    ({
+      method: 'split-stalk',
+      methodLabel: '旧版本地起卦',
+      flow: 'yang',
+      flowLabel: '旧版记录',
+      movingLine,
+      movingLineLabel,
+      steps: [],
+    } satisfies NonNullable<DivinationResult['casting']>);
+  const movingLineReading = hexagram.lineReadings?.[movingLine - 1];
+  const changedHexagram = input.changedHexagram
+    ? {
+        ...input.changedHexagram,
+        decision: input.changedHexagram.decision || input.changedHexagram.meaning,
+      }
+    : undefined;
+  const topicReading =
+    input.topicReading ||
+    buildTopicReading({
+      topic: input.topic,
+      hexagram,
+      changedHexagram: changedHexagram as DivinationResult['hexagram'] | undefined,
+      movingLineReading,
+      movingLineLabel,
+    });
+  const oracle =
+    input.oracle ||
+    buildOracle({
+      question: input.question || '',
+      focus: input.topicLabel || '当前所问',
+      action: input.advice?.[0] || '先完成一件小而确定的事',
+      methodLabel: casting.methodLabel,
+      hexagram,
+      changedHexagram: changedHexagram as DivinationResult['hexagram'] | undefined,
+      movingLineLabel,
+      movingLineText: movingLineReading?.text,
+      movingLineAdvice: movingLineReading?.advice,
+    });
+
+  return {
+    ...input,
+    hexagram,
+    changedHexagram,
+    casting,
+    oracle,
+    topicReading,
+    review: input.review || getDivinationReview(input.id),
+    changingLines: input.changingLines?.length ? input.changingLines : [movingLine],
+  };
+}
+
+function createEmptyReview(resultId: string): DivinationReview {
+  return {
+    resultId,
+    favorite: false,
+    outcome: 'pending',
+    note: '',
+    updatedAt: Date.now(),
+  };
 }
 
 function personalizedBonus(request: DivinationRequest) {
   return [request.useBazi, request.useZodiac, request.useMood, request.usePersonality].filter(Boolean).length;
 }
 
-function resolveChangingLines(seed: number) {
-  const first = (seed % 6) + 1;
-  const second = ((seed >> 4) % 6) + 1;
-  return unique([first, second]).sort((a, b) => a - b);
+function resolveScoreLevel(score: number): DivinationResult['hexagram']['level'] {
+  if (score >= 88) {
+    return '大吉';
+  }
+
+  if (score >= 78) {
+    return '吉';
+  }
+
+  if (score >= 66) {
+    return '小吉';
+  }
+
+  return '中平';
 }
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
-}
-
-function hashString(input: string) {
-  let hash = 2166136261;
-
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-
-  return Math.abs(hash >>> 0);
 }
 
 function clamp(value: number, min: number, max: number) {

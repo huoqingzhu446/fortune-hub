@@ -56,8 +56,8 @@
     </view>
 
     <view class="bottom-action">
-      <button class="start-button" @tap="startDivination">开始占卜 ✨</button>
-      <text class="remain-text">今日剩余次数：3 次</text>
+      <button class="start-button" @tap="startDivination">进入起卦</button>
+      <text class="remain-text">下一步选择分策法或抽签法</text>
     </view>
   </view>
 </template>

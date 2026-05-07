@@ -3,7 +3,7 @@
     <view class="result-card">
       <view class="result-card__head">
         <view>
-          <text class="result-eyebrow">{{ result.topicLabel }}</text>
+          <text class="result-eyebrow">{{ result.topicLabel }} · {{ result.casting?.methodLabel || '略筮法' }}</text>
           <text class="result-title">本卦：{{ result.hexagram.name }}</text>
           <text class="result-subtitle">{{ result.hexagram.meaning }}</text>
         </view>
@@ -30,6 +30,61 @@
           </button>
         </view>
       </view>
+
+      <view v-if="result.casting" class="casting-strip">
+        <view class="casting-chip">
+          <text class="casting-chip__label">起法</text>
+          <text class="casting-chip__value">{{ result.casting.methodLabel }}</text>
+        </view>
+        <view class="casting-chip">
+          <text class="casting-chip__label">动爻</text>
+          <text class="casting-chip__value">{{ result.casting.movingLineLabel }}</text>
+        </view>
+        <view class="casting-chip">
+          <text class="casting-chip__label">变卦</text>
+          <text class="casting-chip__value">{{ result.changedHexagram?.name || '本卦不变' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="result.oracle" class="oracle-stack">
+      <view class="oracle-card oracle-card--main">
+        <text class="oracle-eyebrow">{{ result.oracle.title }}</text>
+        <text class="oracle-title">{{ result.oracle.subject }}</text>
+        <text class="oracle-text">{{ result.oracle.situation }}</text>
+      </view>
+
+      <view class="oracle-grid">
+        <view class="oracle-panel">
+          <text class="oracle-panel__label">动爻</text>
+          <text class="oracle-panel__title">{{ result.casting?.movingLineLabel || movingLineFallback }}</text>
+          <text class="oracle-panel__text">{{ result.oracle.moving }}</text>
+          <text v-if="movingLineReading" class="oracle-panel__advice">{{ movingLineReading.advice }}</text>
+        </view>
+        <view class="oracle-panel">
+          <text class="oracle-panel__label">变卦</text>
+          <text class="oracle-panel__title">{{ result.changedHexagram?.name || '本卦不变' }}</text>
+          <text class="oracle-panel__text">{{ result.oracle.tendency }}</text>
+          <text class="oracle-panel__advice">{{ result.oracle.action }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="result.topicReading" class="topic-reading">
+      <text class="topic-reading__eyebrow">问事类型</text>
+      <text class="topic-reading__title">{{ result.topicReading.title }}</text>
+      <text class="topic-reading__text">{{ result.topicReading.summary }}</text>
+      <view class="topic-reading__pair">
+        <view>
+          <text class="topic-reading__label">机会</text>
+          <text class="topic-reading__body">{{ result.topicReading.opportunity }}</text>
+        </view>
+        <view>
+          <text class="topic-reading__label topic-reading__label--risk">风险</text>
+          <text class="topic-reading__body">{{ result.topicReading.risk }}</text>
+        </view>
+      </view>
+      <text class="topic-reading__action">{{ result.topicReading.action }}</text>
     </view>
 
     <view class="score-row">
@@ -48,7 +103,7 @@
 
     <view class="detail-stack">
       <view class="detail-card">
-        <text class="detail-title">卦象解读</text>
+        <text class="detail-title">完整解读</text>
         <text class="detail-text">{{ result.analysis }}</text>
       </view>
 
@@ -100,6 +155,39 @@
           <text class="suitable-text">{{ result.avoid.join('、') }}</text>
         </view>
       </view>
+
+      <view class="review-card">
+        <view class="review-card__head">
+          <view>
+            <text class="detail-title">复盘记录</text>
+            <text class="review-card__subtitle">收藏、标记应验，并留下之后回看的备注。</text>
+          </view>
+          <button class="favorite-button" :class="{ 'favorite-button--active': review.favorite }" @tap="toggleFavorite">
+            {{ review.favorite ? '已收藏' : '收藏' }}
+          </button>
+        </view>
+
+        <view class="outcome-row">
+          <button
+            v-for="item in outcomeOptions"
+            :key="item.value"
+            class="outcome-button"
+            :class="{ 'outcome-button--active': review.outcome === item.value }"
+            @tap="markOutcome(item.value)"
+          >
+            {{ item.label }}
+          </button>
+        </view>
+
+        <textarea
+          v-model="review.note"
+          class="review-note"
+          maxlength="500"
+          placeholder="写下后续应验、偏差或当时的真实处境"
+          placeholder-class="review-note__placeholder"
+        />
+        <button class="review-save" @tap="saveReviewNote">保存复盘</button>
+      </view>
     </view>
 
     <view class="bottom-buttons">
@@ -114,13 +202,21 @@
 import { onLoad } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import {
+  getDivinationReview,
   getDivinationResult,
   getOrCreateTodayDivinationResult,
   saveDivinationResult,
+  saveDivinationReview,
 } from '../../../services/divination';
-import type { DivinationResult } from '../../../types/divination';
+import type { DivinationReview, DivinationResult } from '../../../types/divination';
 
 const result = ref<DivinationResult | null>(null);
+const review = ref<DivinationReview>(createDefaultReview(''));
+const outcomeOptions: Array<{ value: DivinationReview['outcome']; label: string }> = [
+  { value: 'pending', label: '待复盘' },
+  { value: 'fulfilled', label: '已应验' },
+  { value: 'unfulfilled', label: '未应验' },
+];
 
 const displayLines = computed(() => {
   if (!result.value) {
@@ -142,6 +238,20 @@ const scoreItems = computed(() => {
   ];
 });
 
+const movingLineFallback = computed(() => {
+  const line = result.value?.changingLines?.[0] || 1;
+  return `第 ${line} 爻`;
+});
+
+const movingLineReading = computed(() => {
+  if (!result.value) {
+    return null;
+  }
+
+  const line = result.value.casting?.movingLine || result.value.changingLines?.[0] || 1;
+  return result.value.hexagram.lineReadings?.[line - 1] || null;
+});
+
 function scoreStyle(value: number, color: string) {
   return {
     background: `conic-gradient(${color} ${value * 3.6}deg, rgba(139,111,214,0.12) 0deg)`,
@@ -152,10 +262,11 @@ function showChangedHexagram() {
   if (!result.value?.changedHexagram) {
     return;
   }
+  const changed = result.value.changedHexagram;
 
   uni.showModal({
-    title: result.value.changedHexagram.name,
-    content: result.value.changedHexagram.meaning,
+    title: changed.name,
+    content: [changed.meaning, changed.decision].filter(Boolean).join('\n'),
     showCancel: false,
     confirmText: '知道了',
   });
@@ -189,9 +300,58 @@ function again() {
   });
 }
 
+function toggleFavorite() {
+  if (!result.value) {
+    return;
+  }
+
+  review.value = saveDivinationReview(result.value.id, {
+    favorite: !review.value.favorite,
+  });
+  result.value.review = review.value;
+}
+
+function markOutcome(outcome: DivinationReview['outcome']) {
+  if (!result.value) {
+    return;
+  }
+
+  review.value = saveDivinationReview(result.value.id, {
+    outcome,
+  });
+  result.value.review = review.value;
+}
+
+function saveReviewNote() {
+  if (!result.value) {
+    return;
+  }
+
+  review.value = saveDivinationReview(result.value.id, {
+    note: review.value.note,
+  });
+  result.value.review = review.value;
+  uni.showToast({
+    title: '复盘已保存',
+    icon: 'success',
+  });
+}
+
+function createDefaultReview(resultId: string): DivinationReview {
+  return {
+    resultId,
+    favorite: false,
+    outcome: 'pending',
+    note: '',
+    updatedAt: Date.now(),
+  };
+}
+
 onLoad((query) => {
   const id = String(query?.id || '');
-  result.value = getDivinationResult(id) || getOrCreateTodayDivinationResult();
+  const nextResult = getDivinationResult(id) || getOrCreateTodayDivinationResult();
+  result.value = nextResult;
+  review.value = getDivinationReview(nextResult.id) || nextResult.review || createDefaultReview(nextResult.id);
 });
 </script>
 
@@ -209,7 +369,9 @@ onLoad((query) => {
 .result-card,
 .detail-card,
 .lucky-card,
-.suitable-panel {
+.suitable-panel,
+.topic-reading,
+.review-card {
   background: rgba(255, 255, 255, 0.84);
   border: 1rpx solid rgba(255, 255, 255, 0.92);
   box-shadow: 0 14rpx 38rpx rgba(80, 60, 120, 0.08);
@@ -333,6 +495,185 @@ onLoad((query) => {
 .changed-button::after,
 .action-button::after {
   border: 0;
+}
+
+.oracle-stack {
+  display: grid;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.oracle-card,
+.oracle-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14rpx 38rpx rgba(80, 60, 120, 0.08);
+}
+
+.oracle-card {
+  padding: 28rpx;
+  border-radius: 28rpx;
+}
+
+.oracle-card--main {
+  border-color: rgba(139, 111, 214, 0.16);
+}
+
+.oracle-eyebrow,
+.oracle-title,
+.oracle-text,
+.oracle-panel__label,
+.oracle-panel__title,
+.oracle-panel__text,
+.oracle-panel__advice {
+  display: block;
+}
+
+.oracle-eyebrow,
+.oracle-panel__label {
+  font-size: 21rpx;
+  color: #8b6fd6;
+}
+
+.oracle-title {
+  margin-top: 8rpx;
+  font-size: 34rpx;
+  font-weight: 760;
+}
+
+.oracle-text,
+.oracle-panel__text {
+  margin-top: 12rpx;
+  font-size: 25rpx;
+  line-height: 1.62;
+  color: rgba(78, 56, 37, 0.74);
+}
+
+.oracle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.oracle-panel {
+  min-width: 0;
+  padding: 24rpx;
+  border-radius: 26rpx;
+}
+
+.oracle-panel__title {
+  margin-top: 8rpx;
+  font-size: 30rpx;
+  font-weight: 740;
+  color: #4e3825;
+}
+
+.oracle-panel__advice {
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid rgba(139, 111, 214, 0.12);
+  font-size: 23rpx;
+  line-height: 1.5;
+  color: #8b6fd6;
+}
+
+.topic-reading {
+  display: grid;
+  gap: 14rpx;
+  margin-top: 20rpx;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  border-color: rgba(216, 166, 78, 0.2);
+}
+
+.topic-reading__eyebrow,
+.topic-reading__title,
+.topic-reading__text,
+.topic-reading__label,
+.topic-reading__body,
+.topic-reading__action {
+  display: block;
+}
+
+.topic-reading__eyebrow {
+  font-size: 21rpx;
+  color: #b97724;
+}
+
+.topic-reading__title {
+  font-size: 34rpx;
+  font-weight: 760;
+}
+
+.topic-reading__text,
+.topic-reading__body {
+  font-size: 24rpx;
+  line-height: 1.58;
+  color: rgba(78, 56, 37, 0.72);
+}
+
+.topic-reading__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.topic-reading__pair > view {
+  min-width: 0;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: rgba(139, 111, 214, 0.07);
+}
+
+.topic-reading__label {
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  color: #8b6fd6;
+}
+
+.topic-reading__label--risk {
+  color: #b97724;
+}
+
+.topic-reading__action {
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  background: rgba(216, 166, 78, 0.12);
+  color: #7a5426;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.casting-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 28rpx;
+}
+
+.casting-chip {
+  display: grid;
+  gap: 6rpx;
+  min-height: 82rpx;
+  box-sizing: border-box;
+  padding: 15rpx 16rpx;
+  border-radius: 20rpx;
+  background: rgba(139, 111, 214, 0.08);
+}
+
+.casting-chip__label {
+  font-size: 19rpx;
+  color: rgba(78, 56, 37, 0.52);
+}
+
+.casting-chip__value {
+  min-width: 0;
+  font-size: 22rpx;
+  font-weight: 720;
+  color: #4e3825;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .score-row {
@@ -475,6 +816,100 @@ onLoad((query) => {
   font-size: 23rpx;
   line-height: 1.5;
   color: rgba(78, 56, 37, 0.68);
+}
+
+.review-card {
+  display: grid;
+  gap: 18rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+}
+
+.review-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.review-card__subtitle {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(78, 56, 37, 0.56);
+}
+
+.favorite-button,
+.outcome-button,
+.review-save {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.favorite-button::after,
+.outcome-button::after,
+.review-save::after {
+  border: 0;
+}
+
+.favorite-button {
+  flex: 0 0 auto;
+  min-width: 116rpx;
+  height: 54rpx;
+  border-radius: 999rpx;
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
+  font-size: 22rpx;
+}
+
+.favorite-button--active {
+  color: #ffffff;
+  background: #8b6fd6;
+}
+
+.outcome-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.outcome-button {
+  height: 62rpx;
+  border-radius: 999rpx;
+  color: rgba(78, 56, 37, 0.62);
+  background: rgba(139, 111, 214, 0.08);
+  font-size: 22rpx;
+}
+
+.outcome-button--active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #8b6fd6, #b898f0);
+}
+
+.review-note {
+  width: 100%;
+  min-height: 150rpx;
+  box-sizing: border-box;
+  padding: 20rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 249, 239, 0.92);
+  color: #4e3825;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.review-note__placeholder {
+  color: rgba(78, 56, 37, 0.42);
+}
+
+.review-save {
+  height: 68rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #4e3825;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 .bottom-buttons {

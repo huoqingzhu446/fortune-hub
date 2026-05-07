@@ -102,6 +102,16 @@
     </view>
 
     <view class="detail-stack">
+      <view v-if="readingFlowItems.length" class="detail-card reading-flow-card">
+        <text class="detail-title">高岛断法</text>
+        <view class="reading-flow-list">
+          <view v-for="item in readingFlowItems" :key="item.label" class="reading-flow-row">
+            <text class="reading-flow-row__label">{{ item.label }}</text>
+            <text class="reading-flow-row__text">{{ item.text }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="detail-card">
         <text class="detail-title">完整解读</text>
         <text class="detail-text">{{ result.analysis }}</text>
@@ -110,6 +120,86 @@
       <view class="detail-card">
         <text class="detail-title">为什么是这个结果</text>
         <text class="detail-text">{{ result.personalizedReason }}</text>
+      </view>
+
+      <view v-if="personalizationSnapshot" class="detail-card profile-card">
+        <view class="profile-card__head">
+          <view class="profile-card__title-block">
+            <text class="detail-title">本次画像依据</text>
+            <text class="profile-card__time">
+              生成快照 · {{ formatDivinationDateTime(personalizationSnapshot.generatedAt) }}
+            </text>
+          </view>
+          <text class="profile-tone" :class="`profile-tone--${personalizationSnapshot.tone}`">
+            {{ personalizationSnapshot.toneLabel }}
+          </text>
+        </view>
+
+        <text class="profile-summary">{{ personalizationSnapshot.toneSummary }}</text>
+
+        <view class="profile-brief-grid">
+          <view v-for="item in profileBriefItems" :key="item.label" class="profile-brief-item">
+            <text class="profile-brief-item__label">{{ item.label }}</text>
+            <text class="profile-brief-item__value">{{ item.value }}</text>
+          </view>
+        </view>
+
+        <view v-if="personalizationSnapshot.hasPartialMiss" class="profile-alert">
+          <text class="profile-alert__label">部分画像未命中</text>
+          <text class="profile-alert__text">已用命中的资料作为断语旁参，未命中或已关闭的维度不会参与解释，也不会改变卦象。</text>
+        </view>
+
+        <view v-if="profileInsightRows.length" class="profile-insight-list">
+          <view
+            v-for="item in profileInsightRows"
+            :key="item.key"
+            class="profile-insight-row"
+          >
+            <view class="profile-insight-row__head">
+              <text class="profile-insight-row__title">{{ item.title }}</text>
+              <text class="profile-insight-row__weight">{{ item.weightLabel }}</text>
+            </view>
+            <text class="profile-insight-row__evidence">据：{{ item.evidence }}</text>
+            <text class="profile-insight-row__text">{{ item.judgement }}</text>
+            <text class="profile-insight-row__text">建议：{{ item.advice }}</text>
+            <text class="profile-insight-row__risk">风险：{{ item.risk }}</text>
+          </view>
+        </view>
+
+        <view v-else-if="personalizationSnapshot.signals.length" class="profile-signal-list">
+          <view
+            v-for="item in personalizationSnapshot.signals"
+            :key="item.key"
+            class="profile-signal-row"
+          >
+            <view class="profile-signal-row__main">
+              <text class="profile-signal-row__label">{{ item.label }}</text>
+              <text class="profile-signal-row__value">{{ item.value }}</text>
+            </view>
+            <text class="profile-signal-row__summary">{{ item.summary }}</text>
+          </view>
+        </view>
+
+        <view v-else class="profile-empty">
+          <text>{{ profileEmptyText }}</text>
+        </view>
+
+        <view v-if="missedPersonalizationRows.length" class="profile-missed">
+          <text class="profile-missed__label">未命中资料</text>
+          <text class="profile-missed__text">{{ missedPersonalizationRows.join('、') }}</text>
+        </view>
+
+        <view class="profile-adjust-grid">
+          <view
+            v-for="item in scoreAdjustmentItems"
+            :key="item.label"
+            class="profile-adjust-item"
+            :class="`profile-adjust-item--${item.tone}`"
+          >
+            <text class="profile-adjust-item__label">{{ item.label }}</text>
+            <text class="profile-adjust-item__value">{{ formatAdjustment(item.value) }}</text>
+          </view>
+        </view>
       </view>
 
       <view class="detail-card">
@@ -208,10 +298,17 @@ import {
   getDivinationReview,
   getDivinationResult,
   getOrCreateTodayDivinationResult,
+  formatDivinationDateTime,
   saveDivinationResult,
   saveDivinationReview,
+  syncDivinationReviewsFromServer,
 } from '../../../services/divination';
-import type { DivinationReview, DivinationResult } from '../../../types/divination';
+import { getDivinationProfileMapping } from '../../../services/divination-content';
+import type {
+  DivinationPersonalizationKey,
+  DivinationReview,
+  DivinationResult,
+} from '../../../types/divination';
 
 const result = ref<DivinationResult | null>(null);
 const review = ref<DivinationReview>(createDefaultReview(''));
@@ -241,6 +338,22 @@ const scoreItems = computed(() => {
   ];
 });
 
+const readingFlowItems = computed(() => {
+  const flow = result.value?.readingFlow;
+  if (!flow) {
+    return [];
+  }
+
+  return [
+    { label: '本卦大势', text: flow.hexagramTrend },
+    { label: '动爻爻辞', text: flow.movingLine },
+    { label: '变卦后势', text: flow.changedTrend },
+    { label: '问事分类', text: flow.topicJudgement },
+    flow.profileReference ? { label: '画像旁参', text: flow.profileReference } : null,
+    { label: '现实建议', text: flow.practicalAdvice },
+  ].filter((item): item is { label: string; text: string } => Boolean(item?.text));
+});
+
 const movingLineFallback = computed(() => {
   const line = result.value?.changingLines?.[0] || 1;
   return `第 ${line} 爻`;
@@ -255,10 +368,101 @@ const movingLineReading = computed(() => {
   return result.value.hexagram.lineReadings?.[line - 1] || null;
 });
 
+const personalizationSnapshot = computed(() => result.value?.personalizationSnapshot || null);
+const profileBriefItems = computed(() => {
+  const snapshot = personalizationSnapshot.value;
+  if (!snapshot) {
+    return [];
+  }
+
+  const moodState = snapshot.dimensionStates?.find((item) => item.key === 'mood');
+  const moodValue = moodState?.state === 'active'
+    ? moodState.valueLabel
+    : moodState?.statusLabel || '暂无记录';
+  const usedLabels = snapshot.signals.map((item) => item.label).join('、') || '无';
+
+  return [
+    { label: '当时心情', value: moodValue },
+    { label: '当时策略', value: snapshot.toneLabel },
+    { label: '当时用到', value: usedLabels },
+  ];
+});
+
+const profileWeightLabels: Record<string, string> = {
+  strong: '重参',
+  medium: '中参',
+  light: '轻参',
+};
+
+const profileInsightRows = computed(() => {
+  const insights = personalizationSnapshot.value?.profileInsights || [];
+  return insights.map((item) => ({
+    ...item,
+    evidence: item.evidence || '已命中的画像资料',
+    weightLabel: profileWeightLabels[item.weight] || '轻参',
+  }));
+});
+
+const missedPersonalizationRows = computed(() => {
+  const snapshot = personalizationSnapshot.value;
+  if (!snapshot) {
+    return [];
+  }
+
+  const dimensionRows = snapshot.dimensionStates || [];
+  if (dimensionRows.length) {
+    return dimensionRows
+      .filter((item) => item.enabled && item.state === 'missing')
+      .map((item) => `${item.label}：${item.reason === 'api-failed' ? '部分画像未命中' : item.statusLabel}`);
+  }
+
+  return snapshot.enabledKeys
+    .filter((key) => !snapshot.activeKeys.includes(key))
+    .map(personalizationKeyLabel);
+});
+
+const scoreAdjustmentItems = computed(() => {
+  const adjustments = personalizationSnapshot.value?.scoreAdjustments || {
+    overall: 0,
+    emotion: 0,
+    action: 0,
+  };
+
+  return [
+    { label: '综合修正', value: adjustments.overall },
+    { label: '情绪修正', value: adjustments.emotion },
+    { label: '行动修正', value: adjustments.action },
+  ].map((item) => ({
+    ...item,
+    tone: item.value > 0 ? 'plus' : item.value < 0 ? 'minus' : 'zero',
+  }));
+});
+
+const profileEmptyText = computed(() => {
+  const snapshot = personalizationSnapshot.value;
+  if (!snapshot?.enabledKeys.length) {
+    return '本次没有启用画像维度，只按所问主题与卦象生成解读。';
+  }
+
+  return '本次已启用画像维度，但生成时没有命中可用资料。';
+});
+
 function scoreStyle(value: number, color: string) {
   return {
     background: `conic-gradient(${color} ${value * 3.6}deg, rgba(139,111,214,0.12) 0deg)`,
   };
+}
+
+function formatAdjustment(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+
+  return String(value);
+}
+
+function personalizationKeyLabel(key: DivinationPersonalizationKey) {
+  return getDivinationProfileMapping().dimensionLabels[key] || key;
 }
 
 function showChangedHexagram() {
@@ -356,11 +560,24 @@ function createDefaultReview(resultId: string): DivinationReview {
   };
 }
 
+async function refreshReviewFromServer(resultId: string) {
+  await syncDivinationReviewsFromServer();
+  const latestReview = getDivinationReview(resultId);
+
+  if (!latestReview || result.value?.id !== resultId) {
+    return;
+  }
+
+  review.value = latestReview;
+  result.value.review = latestReview;
+}
+
 onLoad((query) => {
   const id = String(query?.id || '');
   const nextResult = getDivinationResult(id) || getOrCreateTodayDivinationResult();
   result.value = nextResult;
   review.value = getDivinationReview(nextResult.id) || nextResult.review || createDefaultReview(nextResult.id);
+  void refreshReviewFromServer(nextResult.id);
 });
 </script>
 
@@ -743,6 +960,276 @@ onLoad((query) => {
   font-size: 24rpx;
   line-height: 1.72;
   color: rgba(78, 56, 37, 0.7);
+}
+
+.reading-flow-card {
+  border-color: rgba(139, 111, 214, 0.18);
+}
+
+.reading-flow-list {
+  display: grid;
+  gap: 14rpx;
+}
+
+.reading-flow-row {
+  display: grid;
+  gap: 8rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(139, 111, 214, 0.07);
+}
+
+.reading-flow-row__label {
+  font-size: 21rpx;
+  font-weight: 760;
+  color: #8b6fd6;
+}
+
+.reading-flow-row__text {
+  font-size: 24rpx;
+  line-height: 1.62;
+  color: rgba(78, 56, 37, 0.72);
+}
+
+.profile-card {
+  gap: 18rpx;
+  border-color: rgba(139, 111, 214, 0.16);
+}
+
+.profile-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.profile-card__title-block {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.profile-card__time {
+  font-size: 21rpx;
+  color: rgba(78, 56, 37, 0.5);
+}
+
+.profile-tone {
+  flex: 0 0 auto;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 21rpx;
+  font-weight: 760;
+}
+
+.profile-tone--move {
+  color: #4f7c5a;
+  background: #f3f8ee;
+}
+
+.profile-tone--clarify {
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
+}
+
+.profile-tone--soften {
+  color: #b97724;
+  background: #fff3d8;
+}
+
+.profile-summary,
+.profile-empty,
+.profile-missed__text,
+.profile-alert__text,
+.profile-insight-row__evidence,
+.profile-insight-row__text,
+.profile-insight-row__risk,
+.profile-signal-row__summary {
+  font-size: 23rpx;
+  line-height: 1.62;
+  color: rgba(78, 56, 37, 0.66);
+}
+
+.profile-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.profile-brief-item {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+  min-height: 92rpx;
+  box-sizing: border-box;
+  padding: 14rpx;
+  border-radius: 18rpx;
+  background: rgba(139, 111, 214, 0.07);
+}
+
+.profile-brief-item__label,
+.profile-alert__label {
+  font-size: 20rpx;
+  color: rgba(78, 56, 37, 0.5);
+}
+
+.profile-brief-item__value {
+  min-width: 0;
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 760;
+  color: #4e3825;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.profile-alert {
+  display: grid;
+  gap: 8rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(216, 166, 78, 0.12);
+  border: 1rpx solid rgba(216, 166, 78, 0.18);
+}
+
+.profile-alert__label {
+  color: #b97724;
+  font-weight: 760;
+}
+
+.profile-signal-list {
+  display: grid;
+  gap: 0;
+  border-top: 1rpx solid rgba(139, 111, 214, 0.1);
+  border-bottom: 1rpx solid rgba(139, 111, 214, 0.1);
+}
+
+.profile-insight-list {
+  display: grid;
+  gap: 14rpx;
+}
+
+.profile-insight-row {
+  display: grid;
+  gap: 8rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(139, 111, 214, 0.07);
+}
+
+.profile-insight-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.profile-insight-row__title {
+  min-width: 0;
+  font-size: 23rpx;
+  font-weight: 760;
+  color: #4e3825;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-insight-row__weight {
+  flex: 0 0 auto;
+  font-size: 20rpx;
+  font-weight: 760;
+  color: #8b6fd6;
+}
+
+.profile-insight-row__risk {
+  color: rgba(183, 90, 79, 0.82);
+}
+
+.profile-signal-row {
+  display: grid;
+  gap: 8rpx;
+  padding: 18rpx 0;
+}
+
+.profile-signal-row + .profile-signal-row {
+  border-top: 1rpx solid rgba(139, 111, 214, 0.08);
+}
+
+.profile-signal-row__main,
+.profile-missed,
+.profile-adjust-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.profile-signal-row__label,
+.profile-missed__label,
+.profile-adjust-item__label {
+  flex: 0 0 auto;
+  font-size: 21rpx;
+  color: rgba(78, 56, 37, 0.52);
+}
+
+.profile-signal-row__value {
+  min-width: 0;
+  text-align: right;
+  color: #4e3825;
+  font-size: 23rpx;
+  font-weight: 760;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-empty,
+.profile-missed {
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(139, 111, 214, 0.06);
+}
+
+.profile-adjust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.profile-adjust-item {
+  min-width: 0;
+  min-height: 58rpx;
+  box-sizing: border-box;
+  padding: 10rpx 12rpx;
+  border-radius: 16rpx;
+  background: rgba(78, 56, 37, 0.05);
+}
+
+.profile-adjust-item__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-adjust-item__value {
+  flex: 0 0 auto;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.profile-adjust-item--plus .profile-adjust-item__value {
+  color: #4f7c5a;
+}
+
+.profile-adjust-item--minus .profile-adjust-item__value {
+  color: #b75a4f;
+}
+
+.profile-adjust-item--zero .profile-adjust-item__value {
+  color: rgba(78, 56, 37, 0.48);
 }
 
 .bullet-list {

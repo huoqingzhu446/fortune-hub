@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DivinationReviewEntity } from '../database/entities/divination-review.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { UserEntity } from '../database/entities/user.entity';
 import {
   DIVINATION_CONTENT_SEEDS,
   DIVINATION_CONTENT_TYPE,
@@ -9,23 +11,114 @@ import {
   type DivinationContentCatalog,
   type DivinationTopic,
 } from './divination.constants';
+import { SyncDivinationReviewDto } from './dto/sync-divination-review.dto';
 
 @Injectable()
 export class DivinationService {
   constructor(
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
+    @InjectRepository(DivinationReviewEntity)
+    private readonly divinationReviewRepository: Repository<DivinationReviewEntity>,
   ) {}
 
   async getContentCatalog() {
     await this.ensureSeedData();
-    const [linePositions, topicCopy] = await Promise.all([
+    const [
+      linePositions,
+      topicCopy,
+      topicOptions,
+      topicStrategies,
+      profileMapping,
+      luckyItems,
+      pageTabs,
+    ] = await Promise.all([
       this.findPublishedContent('line_positions'),
       this.findPublishedContent('topic_copy'),
+      this.findPublishedContent('topic_options'),
+      this.findPublishedContent('topic_strategies'),
+      this.findPublishedContent('profile_mapping'),
+      this.findPublishedContent('lucky_items'),
+      this.findPublishedContent('page_tabs'),
     ]);
 
     return this.buildEnvelope({
-      catalog: this.buildCatalog(linePositions, topicCopy),
+      catalog: this.buildCatalog({
+        linePositions,
+        topicCopy,
+        topicOptions,
+        topicStrategies,
+        profileMapping,
+        luckyItems,
+        pageTabs,
+      }),
+    });
+  }
+
+  async listReviews(user: UserEntity) {
+    const items = await this.divinationReviewRepository.find({
+      where: {
+        userId: user.id,
+      },
+      order: {
+        updatedAt: 'DESC',
+      },
+      take: 100,
+    });
+
+    return this.buildEnvelope({
+      items: items.map((item) => this.serializeReview(item)),
+    });
+  }
+
+  async syncReview(user: UserEntity, dto: SyncDivinationReviewDto) {
+    const resultId = dto.resultId.trim();
+    if (!resultId) {
+      throw new BadRequestException('缺少占卜结果标识');
+    }
+
+    let review = await this.divinationReviewRepository.findOne({
+      where: {
+        userId: user.id,
+        resultId,
+      },
+    });
+
+    if (!review) {
+      review = this.divinationReviewRepository.create({
+        userId: user.id,
+        resultId,
+        favorite: false,
+        outcome: 'pending',
+        note: null,
+        topic: null,
+        title: null,
+        summary: null,
+        resultSnapshot: null,
+      });
+    }
+
+    if (typeof dto.favorite === 'boolean') {
+      review.favorite = dto.favorite;
+    }
+
+    if (dto.outcome) {
+      review.outcome = dto.outcome;
+    }
+
+    if (typeof dto.note === 'string') {
+      review.note = this.pickNullableString(dto.note, 500);
+    }
+
+    review.topic = this.pickNullableString(dto.topic, 32) ?? review.topic;
+    review.title = this.pickNullableString(dto.title, 128) ?? review.title;
+    review.summary = this.pickNullableString(dto.summary, 255) ?? review.summary;
+    review.resultSnapshot = dto.resultSnapshot ?? review.resultSnapshot;
+
+    const saved = await this.divinationReviewRepository.save(review);
+
+    return this.buildEnvelope({
+      item: this.serializeReview(saved),
     });
   }
 
@@ -67,12 +160,22 @@ export class DivinationService {
     });
   }
 
-  private buildCatalog(
-    linePositions: FortuneContentEntity | null,
-    topicCopy: FortuneContentEntity | null,
-  ): DivinationContentCatalog {
-    const lineSource = this.asRecord(linePositions?.contentJson).linePositionContent;
-    const topicSource = this.asRecord(topicCopy?.contentJson).topicCopy;
+  private buildCatalog(input: {
+    linePositions: FortuneContentEntity | null;
+    topicCopy: FortuneContentEntity | null;
+    topicOptions: FortuneContentEntity | null;
+    topicStrategies: FortuneContentEntity | null;
+    profileMapping: FortuneContentEntity | null;
+    luckyItems: FortuneContentEntity | null;
+    pageTabs: FortuneContentEntity | null;
+  }): DivinationContentCatalog {
+    const lineSource = this.asRecord(input.linePositions?.contentJson).linePositionContent;
+    const topicSource = this.asRecord(input.topicCopy?.contentJson).topicCopy;
+    const topicOptionsSource = this.asRecord(input.topicOptions?.contentJson).topicOptions;
+    const topicStrategiesSource = this.asRecord(input.topicStrategies?.contentJson).topicStrategies;
+    const profileMappingSource = this.asRecord(input.profileMapping?.contentJson).profileMapping;
+    const luckyItemsSource = this.asRecord(input.luckyItems?.contentJson).luckyItems;
+    const pageTabsSource = this.asRecord(input.pageTabs?.contentJson).pageTabs;
 
     return {
       linePositionContent: DIVINATION_DEFAULT_CONTENT_CATALOG.linePositionContent.map(
@@ -105,10 +208,45 @@ export class DivinationService {
         };
         return result;
       }, {} as Record<DivinationTopic, DivinationContentCatalog['topicCopy'][DivinationTopic]>),
+      topicOptions: Array.isArray(topicOptionsSource)
+        ? topicOptionsSource as DivinationContentCatalog['topicOptions']
+        : DIVINATION_DEFAULT_CONTENT_CATALOG.topicOptions,
+      topicStrategies: this.pickRecord(
+        topicStrategiesSource,
+        DIVINATION_DEFAULT_CONTENT_CATALOG.topicStrategies,
+      ),
+      profileMapping: this.pickRecord(
+        profileMappingSource,
+        DIVINATION_DEFAULT_CONTENT_CATALOG.profileMapping,
+      ),
+      luckyItems: this.pickRecord(
+        luckyItemsSource,
+        DIVINATION_DEFAULT_CONTENT_CATALOG.luckyItems,
+      ),
+      pageTabs: this.pickRecord(
+        pageTabsSource,
+        DIVINATION_DEFAULT_CONTENT_CATALOG.pageTabs,
+      ),
     };
   }
 
-  private buildEnvelope(data: Record<string, unknown>) {
+  private serializeReview(item: DivinationReviewEntity) {
+    return {
+      id: item.id,
+      resultId: item.resultId,
+      favorite: item.favorite,
+      outcome: item.outcome,
+      note: item.note ?? '',
+      topic: item.topic ?? '',
+      title: item.title ?? '',
+      summary: item.summary ?? '',
+      resultSnapshot: item.resultSnapshot,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    };
+  }
+
+  private buildEnvelope<TData>(data: TData) {
     return {
       code: 0,
       message: 'ok',
@@ -128,5 +266,18 @@ export class DivinationService {
 
   private pickString(value: string, fallback: string) {
     return value.trim() || fallback;
+  }
+
+  private pickRecord<T extends Record<string, unknown>>(value: unknown, fallback: T) {
+    return value && typeof value === 'object' ? value as T : fallback;
+  }
+
+  private pickNullableString(value: string | undefined, maxLength: number) {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed.slice(0, maxLength) : null;
   }
 }

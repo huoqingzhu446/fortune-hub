@@ -238,10 +238,6 @@ export function buildDivinationCasting(input: BuildDivinationCastingInput): Buil
       method,
       flow,
       input.interactionSeed || '',
-      input.useBazi ? 'bazi' : '',
-      input.useZodiac ? 'zodiac' : '',
-      input.useMood ? 'mood' : '',
-      input.usePersonality ? 'personality' : '',
     ].join('|'),
   );
 

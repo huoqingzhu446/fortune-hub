@@ -37,20 +37,31 @@
 
     <view class="dimension-card">
       <text class="card-title">增强维度，可多选</text>
-      <text class="card-note">帮助我们结合更多信息为你解读。</text>
+      <text class="card-note">帮助我们作为断语旁参，不改变本卦、动爻和变卦。</text>
+      <view v-if="profileLoading" class="dimension-hint">
+        <text class="dimension-hint__text">正在同步资料状态…</text>
+      </view>
+      <view v-else class="dimension-hint">
+        <text class="dimension-hint__text">{{ profileHint }}</text>
+      </view>
       <view class="dimension-list">
         <view
-          v-for="item in dimensions"
-          :key="item.key"
+          v-for="item in dimensionRows"
+          :key="item.personalizationKey"
           class="dimension-item"
-          @tap="toggleDimension(item.key)"
+          :class="{ 'dimension-item--disabled': item.state === 'disabled' }"
+          @tap="toggleDimension(item.flagKey)"
         >
           <view class="dimension-icon">{{ item.icon }}</view>
           <view class="dimension-copy">
-            <text class="dimension-title">{{ item.title }}</text>
-            <text class="dimension-desc">{{ item.desc }}</text>
+            <view class="dimension-copy__head">
+              <text class="dimension-title">{{ item.title }}</text>
+              <text class="dimension-status" :class="`dimension-status--${item.state}`">{{ item.statusLabel }}</text>
+            </view>
+            <text class="dimension-value">{{ item.valueLabel }}</text>
+            <text class="dimension-desc">{{ item.summary }}</text>
           </view>
-          <view class="check-dot" :class="{ 'check-dot--active': flags[item.key] }"></view>
+          <view class="check-dot" :class="{ 'check-dot--active': flags[item.flagKey] }"></view>
         </view>
       </view>
     </view>
@@ -63,35 +74,78 @@
 </template>
 
 <script setup lang="ts">
-import { onLoad } from '@dcloudio/uni-app';
-import { reactive, ref } from 'vue';
+import { onLoad, onShow } from '@dcloudio/uni-app';
+import { computed, reactive, ref } from 'vue';
 import {
-  DIVINATION_TOPICS,
   getDefaultPersonalizationFlags,
   setPendingDivinationRequest,
 } from '../../../services/divination';
-import { ensureDivinationContentCatalog } from '../../../services/divination-content';
-import type { DivinationPersonalizationFlags, DivinationTopic } from '../../../types/divination';
+import {
+  ensureDivinationContentCatalog,
+  getDivinationPageTabs,
+  getDivinationSelectTopicOptions,
+  getDivinationTopicOptions,
+} from '../../../services/divination-content';
+import { resolveDivinationPersonalizationContext } from '../../../services/divination-profile';
+import type { DivinationDimensionOption } from '../../../services/divination-runtime-config';
+import type {
+  DivinationPersonalizationContext,
+  DivinationPersonalizationFlags,
+  DivinationTopic,
+} from '../../../types/divination';
 
-const topicOptions = DIVINATION_TOPICS.slice(0, 5);
+const topicOptions = ref(getDivinationSelectTopicOptions());
 const selectedTopic = ref<DivinationTopic>('general');
 const question = ref('');
 const flags = reactive<DivinationPersonalizationFlags>(getDefaultPersonalizationFlags());
 
-const dimensions: Array<{
-  key: keyof DivinationPersonalizationFlags;
-  title: string;
-  desc: string;
-  icon: string;
-}> = [
-  { key: 'useBazi', title: '自动结合八字', desc: '结合你的八字命盘', icon: '♎' },
-  { key: 'useMood', title: '结合最近心情', desc: '结合你最近的心情状态', icon: '☁' },
-  { key: 'useZodiac', title: '结合星座运势', desc: '参考星座运势节奏', icon: '✶' },
-  { key: 'usePersonality', title: '结合性格评测', desc: '结合敏感度与行动力', icon: '☯' },
-];
+const profileContext = ref<DivinationPersonalizationContext | null>(null);
+const profileLoading = ref(false);
+const dimensions = ref<DivinationDimensionOption[]>(getDivinationPageTabs().dimensionOptions);
+let profileRequestId = 0;
+
+const dimensionRows = computed(() =>
+  dimensions.value.map((item) => {
+    const state = profileContext.value?.dimensionStates.find(
+      (entry) => entry.key === item.personalizationKey,
+    );
+    const enabled = flags[item.flagKey];
+
+    return {
+      ...item,
+      state: state?.state || (enabled ? 'missing' : 'disabled'),
+      statusLabel: state?.statusLabel || (enabled ? '待完善' : '已关闭'),
+      valueLabel: state?.valueLabel || (enabled ? '暂无资料' : '未参与'),
+      summary: state?.summary || item.desc,
+    };
+  }),
+);
+
+const profileHint = computed(() => {
+  const states = profileContext.value?.dimensionStates || [];
+  const active = states.filter((item) => item.enabled && item.state === 'active').length;
+  const missing = states.filter((item) => item.enabled && item.state === 'missing').length;
+  const disabled = states.filter((item) => !item.enabled).length;
+
+  if (!states.length) {
+    return '当前没有可用资料时，也会继续按卦象本身起卦。';
+  }
+
+  if (profileContext.value?.hasPartialMiss) {
+    return `已命中 ${active} 项，${missing} 项未命中，${disabled} 项已关闭。`;
+  }
+
+  return `已命中 ${active} 项，${disabled} 项已关闭。`;
+});
 
 function toggleDimension(key: keyof DivinationPersonalizationFlags) {
   flags[key] = !flags[key];
+  void refreshProfileContext();
+}
+
+function refreshPageConfig() {
+  topicOptions.value = getDivinationSelectTopicOptions();
+  dimensions.value = getDivinationPageTabs().dimensionOptions;
 }
 
 function startDivination() {
@@ -111,6 +165,32 @@ function startDivination() {
   });
 }
 
+async function refreshProfileContext() {
+  const requestId = profileRequestId + 1;
+  profileRequestId = requestId;
+  profileLoading.value = true;
+  try {
+    const nextContext = await resolveDivinationPersonalizationContext({
+      useBazi: flags.useBazi,
+      useZodiac: flags.useZodiac,
+      useMood: flags.useMood,
+      usePersonality: flags.usePersonality,
+    });
+    if (requestId === profileRequestId) {
+      profileContext.value = nextContext;
+    }
+  } catch (error) {
+    console.warn('resolve divination personalization context failed', error);
+    if (requestId === profileRequestId) {
+      profileContext.value = null;
+    }
+  } finally {
+    if (requestId === profileRequestId) {
+      profileLoading.value = false;
+    }
+  }
+}
+
 function back() {
   uni.navigateBack({
     fail: () => {
@@ -120,11 +200,15 @@ function back() {
 }
 
 onLoad((query) => {
-  void ensureDivinationContentCatalog();
+  void ensureDivinationContentCatalog().then(refreshPageConfig);
   const topic = String(query?.topic || '') as DivinationTopic;
-  if (DIVINATION_TOPICS.some((item) => item.value === topic)) {
+  if (getDivinationTopicOptions().some((item) => item.value === topic)) {
     selectedTopic.value = topic;
   }
+});
+
+onShow(() => {
+  void refreshProfileContext();
 });
 </script>
 
@@ -247,6 +331,20 @@ onLoad((query) => {
   color: rgba(78, 56, 37, 0.58);
 }
 
+.dimension-hint {
+  margin-top: 18rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 18rpx;
+  background: rgba(139, 111, 214, 0.08);
+}
+
+.dimension-hint__text {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(78, 56, 37, 0.68);
+  line-height: 1.5;
+}
+
 .question-input {
   width: 100%;
   min-height: 210rpx;
@@ -309,15 +407,57 @@ onLoad((query) => {
   min-width: 0;
 }
 
+.dimension-copy__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  min-width: 0;
+}
+
 .dimension-title {
   font-size: 26rpx;
   font-weight: 650;
   color: #4e3825;
 }
 
-.dimension-desc {
+.dimension-status {
+  flex: 0 0 auto;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
+}
+
+.dimension-status--active {
+  color: #4f7c5a;
+  background: rgba(79, 124, 90, 0.12);
+}
+
+.dimension-status--missing {
+  color: #b97724;
+  background: rgba(216, 166, 78, 0.16);
+}
+
+.dimension-status--disabled {
+  color: rgba(78, 56, 37, 0.52);
+  background: rgba(78, 56, 37, 0.08);
+}
+
+.dimension-value {
   font-size: 22rpx;
-  color: rgba(78, 56, 37, 0.54);
+  color: rgba(78, 56, 37, 0.76);
+}
+
+.dimension-desc {
+  font-size: 20rpx;
+  color: rgba(78, 56, 37, 0.52);
+}
+
+.dimension-item--disabled {
+  opacity: 0.78;
 }
 
 .check-dot {

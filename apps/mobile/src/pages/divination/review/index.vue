@@ -16,6 +16,7 @@
         <text class="overview-panel__meta">
           收藏 {{ stats.favorite }} · 已应验 {{ stats.fulfilled }} · 未应验 {{ stats.unfulfilled }}
         </text>
+        <text class="overview-panel__sync">{{ syncStatusText }}</text>
       </view>
       <view class="overview-panel__seal">验</view>
     </view>
@@ -122,6 +123,35 @@
           <text class="note-box__text">{{ item.review.note || '暂无备注，进入原卦后可继续补充。' }}</text>
         </view>
 
+        <view v-if="item.result.personalizationSnapshot" class="review-profile">
+          <view class="review-profile__head">
+            <text class="review-profile__title">当时画像</text>
+            <text
+              class="review-profile__tone"
+              :class="`review-profile__tone--${item.result.personalizationSnapshot.tone}`"
+            >
+              {{ item.result.personalizationSnapshot.toneLabel }}
+            </text>
+          </view>
+          <view class="review-profile__grid">
+            <view class="review-profile__cell">
+              <text class="review-profile__label">心情</text>
+              <text class="review-profile__value">{{ snapshotMoodLabel(item.result.personalizationSnapshot) }}</text>
+            </view>
+            <view class="review-profile__cell">
+              <text class="review-profile__label">策略</text>
+              <text class="review-profile__value">{{ item.result.personalizationSnapshot.toneLabel }}</text>
+            </view>
+            <view class="review-profile__cell">
+              <text class="review-profile__label">用到资料</text>
+              <text class="review-profile__value">{{ snapshotUsedLabels(item.result.personalizationSnapshot) }}</text>
+            </view>
+          </view>
+          <text v-if="snapshotMissedText(item.result.personalizationSnapshot)" class="review-profile__miss">
+            {{ snapshotMissedText(item.result.personalizationSnapshot) }}
+          </text>
+        </view>
+
         <view class="review-item__foot">
           <text>{{ formatDivinationDateTime(item.result.createdAt) }}</text>
           <text class="review-item__link">查看原卦 ›</text>
@@ -148,26 +178,42 @@ import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import {
   createTodayDivinationRequest,
-  DIVINATION_TOPICS,
   formatDivinationDateTime,
+  getTopicOption,
   listDivinationReviewEntries,
   setPendingDivinationRequest,
+  syncDivinationReviewsFromServer,
 } from '../../../services/divination';
+import {
+  ensureDivinationContentCatalog,
+  getDivinationProfileMapping,
+  getDivinationReviewScopes,
+  getDivinationReviewTopicTabs,
+} from '../../../services/divination-content';
+import { getAuthToken } from '../../../services/session';
 import type {
+  DivinationHistoryTabValue,
+  DivinationReviewScopeValue,
+} from '../../../services/divination-runtime-config';
+import type {
+  DivinationPersonalizationSnapshot,
+  DivinationPersonalizationKey,
   DivinationResult,
   DivinationReview,
   DivinationReviewEntry,
   DivinationTopic,
 } from '../../../types/divination';
 
-type ScopeFilter = 'all' | 'favorite' | DivinationReview['outcome'];
-type TopicFilter = 'all' | DivinationTopic;
 type SortOrder = 'desc' | 'asc';
+type SyncStatus = 'local' | 'syncing' | 'synced';
 
 const entries = ref<DivinationReviewEntry[]>([]);
-const activeScope = ref<ScopeFilter>('all');
-const activeTopic = ref<TopicFilter>('all');
+const activeScope = ref<DivinationReviewScopeValue>('all');
+const activeTopic = ref<DivinationHistoryTabValue>('all');
 const sortOrder = ref<SortOrder>('desc');
+const syncStatus = ref<SyncStatus>('local');
+const scopeConfig = ref(getDivinationReviewScopes());
+const topicConfig = ref(getDivinationReviewTopicTabs());
 
 const stats = computed(() => {
   const favorite = entries.value.filter((item) => item.review.favorite).length;
@@ -184,22 +230,14 @@ const stats = computed(() => {
   };
 });
 
-const scopeTabs = computed<Array<{ value: ScopeFilter; label: string; count: number }>>(() => [
-  { value: 'all', label: '全部', count: stats.value.total },
-  { value: 'favorite', label: '收藏', count: stats.value.favorite },
-  { value: 'fulfilled', label: '已应验', count: stats.value.fulfilled },
-  { value: 'unfulfilled', label: '未应验', count: stats.value.unfulfilled },
-  { value: 'pending', label: '待复盘', count: stats.value.pending },
-]);
-
-const topicTabs = computed<Array<{ value: TopicFilter; label: string; icon: string }>>(() => [
-  { value: 'all', label: '全部', icon: '☷' },
-  ...DIVINATION_TOPICS.map((item) => ({
-    value: item.value,
-    label: item.label,
-    icon: item.icon,
+const scopeTabs = computed(() =>
+  scopeConfig.value.map((item) => ({
+    ...item,
+    count: scopeCount(item.value),
   })),
-]);
+);
+
+const topicTabs = computed(() => topicConfig.value);
 
 const filteredEntries = computed(() => {
   return entries.value
@@ -221,12 +259,39 @@ const filteredEntries = computed(() => {
     });
 });
 
+const syncStatusText = computed(() => {
+  if (!getAuthToken()) {
+    return '未登录时仅使用本地复盘';
+  }
+
+  return syncStatus.value === 'syncing' ? '正在尝试合并云端复盘' : '登录后自动同步复盘';
+});
+
 function loadEntries() {
   entries.value = listDivinationReviewEntries();
 }
 
+function scopeCount(scope: DivinationReviewScopeValue) {
+  if (scope === 'favorite') {
+    return stats.value.favorite;
+  }
+
+  if (scope === 'all') {
+    return stats.value.total;
+  }
+
+  return stats.value[scope];
+}
+
+async function syncEntries() {
+  syncStatus.value = getAuthToken() ? 'syncing' : 'local';
+  await syncDivinationReviewsFromServer();
+  loadEntries();
+  syncStatus.value = getAuthToken() ? 'synced' : 'local';
+}
+
 function topicIcon(topic: DivinationTopic) {
-  return DIVINATION_TOPICS.find((item) => item.value === topic)?.icon || '✦';
+  return getTopicOption(topic).icon;
 }
 
 function outcomeLabel(outcome: DivinationReview['outcome']) {
@@ -246,6 +311,36 @@ function hexagramLines(result: DivinationResult) {
 function movingLineFallback(result: DivinationResult) {
   const line = result.changingLines?.[0] || 1;
   return `第 ${line} 爻`;
+}
+
+function snapshotMoodLabel(snapshot: DivinationPersonalizationSnapshot) {
+  const moodState = snapshot.dimensionStates?.find((item) => item.key === 'mood');
+  if (moodState?.state === 'active') {
+    return moodState.valueLabel;
+  }
+
+  return moodState?.statusLabel || snapshot.signals.find((item) => item.key === 'mood')?.value || '暂无记录';
+}
+
+function snapshotUsedLabels(snapshot: DivinationPersonalizationSnapshot) {
+  return snapshot.signals.map((item) => item.label).join('、') || '无';
+}
+
+function snapshotMissedText(snapshot: DivinationPersonalizationSnapshot) {
+  const dimensionRows = snapshot.dimensionStates || [];
+  const missing = dimensionRows.length
+    ? dimensionRows
+        .filter((item) => item.enabled && item.state === 'missing')
+        .map((item) => item.label)
+    : snapshot.enabledKeys
+        .filter((key) => !snapshot.activeKeys.includes(key))
+        .map(personalizationKeyLabel);
+
+  return missing.length ? `未命中：${missing.join('、')}` : '';
+}
+
+function personalizationKeyLabel(key: DivinationPersonalizationKey) {
+  return getDivinationProfileMapping().dimensionLabels[key] || key;
 }
 
 function openResult(id: string) {
@@ -277,6 +372,11 @@ function back() {
 
 onShow(() => {
   loadEntries();
+  void ensureDivinationContentCatalog().then(() => {
+    scopeConfig.value = getDivinationReviewScopes();
+    topicConfig.value = getDivinationReviewTopicTabs();
+  });
+  void syncEntries();
 });
 </script>
 
@@ -399,6 +499,11 @@ onShow(() => {
 .overview-panel__meta {
   font-size: 22rpx;
   color: rgba(78, 56, 37, 0.58);
+}
+
+.overview-panel__sync {
+  font-size: 21rpx;
+  color: rgba(139, 111, 214, 0.72);
 }
 
 .overview-panel__seal {
@@ -699,6 +804,89 @@ onShow(() => {
 
 .note-box--empty .note-box__label {
   color: #8b6fd6;
+}
+
+.review-profile {
+  display: grid;
+  gap: 14rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 22rpx;
+  background: rgba(139, 111, 214, 0.06);
+  border: 1rpx solid rgba(139, 111, 214, 0.1);
+}
+
+.review-profile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.review-profile__title {
+  font-size: 21rpx;
+  color: #8b6fd6;
+  font-weight: 700;
+}
+
+.review-profile__tone {
+  flex: 0 0 auto;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 760;
+}
+
+.review-profile__tone--move {
+  color: #4f7c5a;
+  background: rgba(79, 124, 90, 0.12);
+}
+
+.review-profile__tone--clarify {
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
+}
+
+.review-profile__tone--soften {
+  color: #b97724;
+  background: rgba(216, 166, 78, 0.16);
+}
+
+.review-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.review-profile__cell {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+  padding: 12rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.review-profile__label {
+  font-size: 19rpx;
+  color: rgba(78, 56, 37, 0.5);
+}
+
+.review-profile__value {
+  min-width: 0;
+  font-size: 21rpx;
+  line-height: 1.35;
+  color: #4e3825;
+  font-weight: 720;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.review-profile__miss {
+  font-size: 21rpx;
+  color: #b97724;
+  line-height: 1.45;
 }
 
 .review-item__foot {

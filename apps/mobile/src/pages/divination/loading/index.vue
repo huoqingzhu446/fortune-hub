@@ -131,7 +131,11 @@ import {
   getPendingDivinationRequest,
   saveDivinationResult,
 } from '../../../services/divination';
-import { ensureDivinationContentCatalog } from '../../../services/divination-content';
+import {
+  ensureDivinationContentCatalog,
+  getDivinationCastingFlows,
+  getDivinationCastingMethods,
+} from '../../../services/divination-content';
 import { resolveDivinationPersonalizationContext } from '../../../services/divination-profile';
 import type {
   DivinationCastingStep,
@@ -147,15 +151,8 @@ type TapEvent = {
   touches?: Array<{ clientX?: number; clientY?: number; pageX?: number; pageY?: number }>;
 };
 
-const methodOptions: Array<{ value: DivinationMethod; title: string; desc: string }> = [
-  { value: 'split-stalk', title: '分策法', desc: '三次分策，取余定上下卦与动爻' },
-  { value: 'draw-lots', title: '抽签法', desc: '三次抽签，快速定卦与动爻' },
-];
-
-const flowOptions: Array<{ value: DivinationFlow; label: string }> = [
-  { value: 'yang', label: '阳式 左右左' },
-  { value: 'yin', label: '阴式 右左右' },
-];
+const methodOptions = ref(getDivinationCastingMethods());
+const flowOptions = ref(getDivinationCastingFlows());
 
 const request = ref<DivinationRequest>(createTodayDivinationRequest());
 const selectedMethod = ref<DivinationMethod>('split-stalk');
@@ -313,7 +310,10 @@ onLoad(() => {
   request.value = pending || createTodayDivinationRequest();
   selectedMethod.value = request.value.method || 'split-stalk';
   selectedFlow.value = request.value.flow || 'yang';
-  void ensureDivinationContentCatalog();
+  void ensureDivinationContentCatalog().then(() => {
+    methodOptions.value = getDivinationCastingMethods();
+    flowOptions.value = getDivinationCastingFlows();
+  });
 });
 
 onUnload(() => {

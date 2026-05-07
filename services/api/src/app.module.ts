@@ -15,6 +15,7 @@ import { AssessmentQuestionEntity } from './database/entities/assessment-questio
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
+import { DivinationReviewEntity } from './database/entities/divination-review.entity';
 import { FavoriteEntity } from './database/entities/favorite.entity';
 import { FeedbackEntity } from './database/entities/feedback.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
@@ -70,6 +71,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
           AssessmentQuestionEntity,
           AssessmentTestConfigEntity,
           AssessmentTestGroupEntity,
+          DivinationReviewEntity,
           FavoriteEntity,
           FeedbackEntity,
           UserEntity,

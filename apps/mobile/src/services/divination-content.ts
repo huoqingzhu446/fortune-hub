@@ -4,10 +4,27 @@ import { resolveUrl } from './url';
 import type {
   DivinationHexagram,
   DivinationLineReading,
+  DivinationMethod,
   DivinationPersonalizationContext,
+  DivinationProfileInsight,
   DivinationTopic,
+  DivinationTopicOption,
   DivinationTopicReading,
 } from '../types/divination';
+import {
+  DEFAULT_DIVINATION_RUNTIME_CONFIG,
+  normalizeDivinationRuntimeConfig,
+  type DivinationFlowOption,
+  type DivinationHistoryTab,
+  type DivinationHomeFeatureEntry,
+  type DivinationLuckyConfig,
+  type DivinationMethodOption,
+  type DivinationPageTabConfig,
+  type DivinationProfileMappingConfig,
+  type DivinationRuntimeConfig,
+  type DivinationTopicStrategy,
+} from './divination-runtime-config';
+import { buildTakashimaLineReading } from './divination-line-catalog';
 
 export interface DivinationLinePositionContent {
   theme: string;
@@ -27,6 +44,11 @@ export interface DivinationTopicCopy {
 export interface DivinationContentCatalog {
   linePositionContent: DivinationLinePositionContent[];
   topicCopy: Record<DivinationTopic, DivinationTopicCopy>;
+  topicOptions: DivinationTopicOption[];
+  topicStrategies: Record<DivinationTopic, DivinationTopicStrategy>;
+  luckyItems: DivinationLuckyConfig;
+  profileMapping: DivinationProfileMappingConfig;
+  pageTabs: DivinationPageTabConfig;
 }
 
 type DivinationLineBuildInput = {
@@ -149,12 +171,81 @@ export const DIVINATION_DEFAULT_CONTENT_CATALOG: DivinationContentCatalog = {
       actionPrefix: '成长上更适合：',
     },
   },
+  ...DEFAULT_DIVINATION_RUNTIME_CONFIG,
 };
 
 let cachedCatalog = DIVINATION_DEFAULT_CONTENT_CATALOG;
 
 export function getDivinationContentCatalog() {
   return cachedCatalog;
+}
+
+export function getDivinationRuntimeConfig(): DivinationRuntimeConfig {
+  return {
+    topicOptions: cachedCatalog.topicOptions,
+    topicStrategies: cachedCatalog.topicStrategies,
+    luckyItems: cachedCatalog.luckyItems,
+    profileMapping: cachedCatalog.profileMapping,
+    pageTabs: cachedCatalog.pageTabs,
+  };
+}
+
+export function getDivinationTopicOptions() {
+  return getDivinationRuntimeConfig().topicOptions;
+}
+
+export function getDivinationTopicStrategy(topic: DivinationTopic) {
+  return getDivinationRuntimeConfig().topicStrategies[topic] || getDivinationRuntimeConfig().topicStrategies.general;
+}
+
+export function getDivinationLuckyConfig() {
+  return getDivinationRuntimeConfig().luckyItems;
+}
+
+export function getDivinationProfileMapping() {
+  return getDivinationRuntimeConfig().profileMapping;
+}
+
+export function getDivinationPageTabs() {
+  return getDivinationRuntimeConfig().pageTabs;
+}
+
+export function getDivinationSelectTopicOptions() {
+  const { selectTopics } = getDivinationPageTabs();
+  return getDivinationTopicOptions().filter((item) => selectTopics.includes(item.value));
+}
+
+export function getDivinationHistoryTabs() {
+  return getDivinationPageTabs().historyTabs;
+}
+
+export function getDivinationReviewScopes() {
+  return getDivinationPageTabs().reviewScopes;
+}
+
+export function getDivinationReviewTopicTabs(): Array<DivinationHistoryTab & { icon: string }> {
+  return getDivinationPageTabs().reviewTopics.map((item) => ({
+    ...item,
+    icon: item.value === 'all'
+      ? '☷'
+      : getDivinationTopicOptions().find((topic) => topic.value === item.value)?.icon || '✦',
+  }));
+}
+
+export function getDivinationHomeFeatures(): DivinationHomeFeatureEntry[] {
+  return getDivinationPageTabs().homeFeatures;
+}
+
+export function getDivinationCastingMethods(): DivinationMethodOption[] {
+  return getDivinationPageTabs().castingMethods;
+}
+
+export function getDivinationCastingFlows(): DivinationFlowOption[] {
+  return getDivinationPageTabs().castingFlows;
+}
+
+export function getDivinationMethodOption(method: DivinationMethod) {
+  return getDivinationCastingMethods().find((item) => item.value === method) || getDivinationCastingMethods()[0];
 }
 
 export async function ensureDivinationContentCatalog() {
@@ -201,10 +292,12 @@ export function normalizeDivinationContentCatalog(
     };
     return result;
   }, {} as Record<DivinationTopic, DivinationTopicCopy>);
+  const runtimeConfig = normalizeDivinationRuntimeConfig(input);
 
   return {
     linePositionContent,
     topicCopy,
+    ...runtimeConfig,
   };
 }
 
@@ -223,24 +316,29 @@ export function buildHexagramLineReadingsFromCatalog(
   return catalog.linePositionContent.map((lineContent, index) => {
     const line = index + 1;
     const label = resolveMovingLineLabel(line, input.lines);
-    const lineNature = input.lines[index] ? '阳爻主动' : '阴爻承应';
+    const reading = buildTakashimaLineReading({
+      sequence: input.sequence,
+      name: input.name,
+      theme: input.theme,
+      judgement: input.judgement,
+      decision: input.decision,
+      caution: input.caution,
+      lines: input.lines,
+      line,
+      fallbackLabel: label,
+      linePosition: lineContent,
+    });
 
     return {
+      ...reading,
       line,
-      label,
-      theme: `${input.name} · ${lineContent.theme}`,
-      text: `${label}处于「${input.name}」的${lineContent.theme}位，${lineContent.focus}。本卦主旨为「${input.theme}」，此爻取${lineNature}之象，提示：${
-        line === 3 ? input.caution : input.judgement
-      }`,
-      advice: line === 5 ? input.decision : lineContent.action,
-      risk: lineContent.risk,
       topicReadings: buildLineTopicReadings(
         catalog,
         input,
         line,
-        label,
-        lineContent.action,
-        lineContent.risk,
+        reading.label,
+        reading.advice,
+        reading.risk || lineContent.risk,
       ),
     };
   });
@@ -266,20 +364,23 @@ export function buildTopicReadingFromCatalog(
     title: topicCopy.title,
     summary: joinSentences([
       `${topicCopy.lens}本次占得「${input.hexagram.name}」，${input.movingLineLabel}为关键。`,
-      buildProfileLens(personalization),
+      buildProfileLens(personalization, input.topic),
     ]),
     opportunity: joinSentences([
       topicCopy.opportunity,
+      buildProfileInsightJudgement(personalization, input.topic),
       personalization?.opportunityHint,
       changedText,
     ]),
     risk: joinSentences([
       topicCopy.risk,
+      buildProfileInsightRisk(personalization, input.topic),
       personalization?.riskHint,
       input.movingLineReading?.risk,
     ]),
     action: joinSentences([
       `${topicCopy.actionPrefix}${movingAdvice || input.hexagram.decision || '先完成一件小而确定的事。'}`,
+      buildProfileInsightAdvice(personalization, input.topic),
       personalization?.actionHint,
     ]),
   };
@@ -324,7 +425,24 @@ function resolveMovingLineLabel(movingLine: number, lines: boolean[]) {
   return `${stem}${['', '二', '三', '四', '五'][movingLine - 1]}`;
 }
 
-function buildProfileLens(context?: DivinationPersonalizationContext | null) {
+const PROFILE_INSIGHT_WEIGHT_RANK: Record<DivinationProfileInsight['weight'], number> = {
+  strong: 3,
+  medium: 2,
+  light: 1,
+};
+
+function buildProfileLens(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+) {
+  const insights = selectProfileInsights(context, topic, 2);
+  if (insights.length) {
+    const insightText = insights
+      .map((item) => `${item.title}据「${item.evidence}」取${item.weight === 'strong' ? '重参' : item.weight === 'medium' ? '中参' : '轻参'}`)
+      .join('；');
+    return `结合画像旁参，${insightText}读法落在「${context?.toneLabel}」：${context?.toneSummary}`;
+  }
+
   if (!context?.signals.length) {
     return '';
   }
@@ -333,6 +451,62 @@ function buildProfileLens(context?: DivinationPersonalizationContext | null) {
     .map((item) => `${item.label}为「${item.value}」`)
     .join('，');
   return `结合${signalText}，本次读法落在「${context.toneLabel}」：${context.toneSummary}`;
+}
+
+function buildProfileInsightJudgement(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+) {
+  const insights = selectProfileInsights(context, topic, 2);
+  if (!insights.length) {
+    return '';
+  }
+
+  return insights.map((item) => item.judgement).join('；');
+}
+
+function buildProfileInsightRisk(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+) {
+  const insights = selectProfileInsights(context, topic, 2);
+  if (!insights.length) {
+    return '';
+  }
+
+  return unique(insights.map((item) => item.risk)).join(' ');
+}
+
+function buildProfileInsightAdvice(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+) {
+  const insights = selectProfileInsights(context, topic, 2);
+  if (!insights.length) {
+    return '';
+  }
+
+  return unique(insights.map((item) => item.advice)).join(' ');
+}
+
+function selectProfileInsights(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+  limit = 2,
+) {
+  const insights = context?.profileInsights || [];
+  if (!insights.length) {
+    return [];
+  }
+
+  const topicMatched = topic
+    ? insights.filter((item) => !item.topics?.length || item.topics.includes(topic))
+    : insights;
+  const source = topicMatched.length ? topicMatched : insights;
+
+  return [...source]
+    .sort((left, right) => PROFILE_INSIGHT_WEIGHT_RANK[right.weight] - PROFILE_INSIGHT_WEIGHT_RANK[left.weight])
+    .slice(0, limit);
 }
 
 function joinSentences(parts: Array<string | undefined | null>) {
@@ -345,6 +519,10 @@ function joinSentences(parts: Array<string | undefined | null>) {
 
 function normalizeSentence(text: string) {
   return /[。！？.!?]$/.test(text) ? text : `${text}。`;
+}
+
+function unique<T>(items: T[]) {
+  return Array.from(new Set(items.filter(Boolean)));
 }
 
 function pickString(value: string | undefined, fallback: string) {

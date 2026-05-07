@@ -1,3 +1,5 @@
+import type { ApiEnvelope } from './auth';
+
 export type DivinationTopic =
   | 'general'
   | 'love'
@@ -29,10 +31,45 @@ export interface DivinationPersonalizationSignal {
   summary: string;
 }
 
+export interface DivinationProfileInsight {
+  key: DivinationPersonalizationKey;
+  title: string;
+  evidence: string;
+  judgement: string;
+  advice: string;
+  risk: string;
+  weight: 'light' | 'medium' | 'strong';
+  topics?: DivinationTopic[];
+}
+
+export type DivinationPersonalizationState = 'active' | 'missing' | 'disabled';
+
+export type DivinationPersonalizationMissReason =
+  | 'no-data'
+  | 'api-failed'
+  | 'not-logged-in'
+  | 'disabled';
+
+export interface DivinationPersonalizationDimensionState {
+  key: DivinationPersonalizationKey;
+  label: string;
+  enabled: boolean;
+  state: DivinationPersonalizationState;
+  statusLabel: string;
+  valueLabel: string;
+  summary: string;
+  source: 'local' | 'remote' | 'none';
+  reason?: DivinationPersonalizationMissReason;
+  updatedAt?: number;
+}
+
 export interface DivinationPersonalizationContext {
   enabledKeys: DivinationPersonalizationKey[];
   activeKeys: DivinationPersonalizationKey[];
   signals: DivinationPersonalizationSignal[];
+  profileInsights: DivinationProfileInsight[];
+  dimensionStates: DivinationPersonalizationDimensionState[];
+  hasPartialMiss: boolean;
   tone: DivinationInterpretationTone;
   toneLabel: string;
   toneSummary: string;
@@ -46,6 +83,10 @@ export interface DivinationPersonalizationContext {
   };
   moodScore?: number;
   zodiacScore?: number;
+}
+
+export interface DivinationPersonalizationSnapshot extends DivinationPersonalizationContext {
+  generatedAt: number;
 }
 
 export interface DivinationRequest extends DivinationPersonalizationFlags {
@@ -100,7 +141,9 @@ export interface DivinationResult {
   casting?: DivinationCastingDetail;
   oracle?: DivinationOracle;
   topicReading?: DivinationTopicReading;
+  readingFlow?: DivinationReadingFlow;
   review?: DivinationReview;
+  personalizationSnapshot?: DivinationPersonalizationSnapshot;
   scores: {
     overall: number;
     emotion: number;
@@ -124,10 +167,14 @@ export interface DivinationResult {
 }
 
 export interface DivinationLineReading {
+  sequence?: number;
   line: number;
   label: string;
   theme: string;
   text: string;
+  classicText?: string;
+  takashimaText?: string;
+  modernText?: string;
   advice: string;
   risk?: string;
   topicReadings?: Partial<Record<DivinationTopic, DivinationTopicReading>>;
@@ -174,6 +221,15 @@ export interface DivinationTopicReading {
   action: string;
 }
 
+export interface DivinationReadingFlow {
+  hexagramTrend: string;
+  movingLine: string;
+  changedTrend: string;
+  topicJudgement: string;
+  practicalAdvice: string;
+  profileReference?: string;
+}
+
 export interface DivinationReview {
   resultId: string;
   favorite: boolean;
@@ -186,6 +242,39 @@ export interface DivinationReviewEntry {
   result: DivinationResult;
   review: DivinationReview;
 }
+
+export interface DivinationReviewRemoteItem {
+  id: string;
+  resultId: string;
+  favorite: boolean;
+  outcome: DivinationReview['outcome'];
+  note: string;
+  topic: string;
+  title: string;
+  summary: string;
+  resultSnapshot: DivinationResult | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DivinationReviewSyncPayload {
+  resultId: string;
+  favorite: boolean;
+  outcome: DivinationReview['outcome'];
+  note: string;
+  topic?: string;
+  title?: string;
+  summary?: string;
+  resultSnapshot?: DivinationResult;
+}
+
+export type DivinationReviewListResponse = ApiEnvelope<{
+  items: DivinationReviewRemoteItem[];
+}>;
+
+export type DivinationReviewSyncResponse = ApiEnvelope<{
+  item: DivinationReviewRemoteItem;
+}>;
 
 export interface DivinationTopicOption {
   value: DivinationTopic;

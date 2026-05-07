@@ -4,15 +4,33 @@ import type {
   DivinationMethod,
   DivinationPersonalizationFlags,
   DivinationPersonalizationContext,
+  DivinationPersonalizationSnapshot,
+  DivinationPersonalizationKey,
+  DivinationProfileInsight,
   DivinationRequest,
   DivinationReviewEntry,
+  DivinationReviewRemoteItem,
   DivinationReview,
+  DivinationReviewSyncPayload,
+  DivinationLineReading,
   DivinationResult,
   DivinationTopic,
   DivinationTopicOption,
 } from '../types/divination';
+import {
+  fetchDivinationReviews,
+  syncDivinationReview,
+} from '../api/divination';
 import { buildDivinationCasting } from './divination-casting';
-import { buildTopicReading } from './divination-content';
+import {
+  buildTopicReading,
+  getDivinationLuckyConfig,
+  getDivinationProfileMapping,
+  getDivinationTopicOptions,
+  getDivinationTopicStrategy,
+} from './divination-content';
+import { DEFAULT_DIVINATION_RUNTIME_CONFIG } from './divination-runtime-config';
+import { getAuthToken } from './session';
 
 const HISTORY_STORAGE_KEY = 'fortune-hub:divination-history';
 const PENDING_REQUEST_STORAGE_KEY = 'fortune-hub:divination-pending-request';
@@ -20,103 +38,15 @@ const REVIEW_STORAGE_KEY = 'fortune-hub:divination-reviews';
 const DEFAULT_USER_ID = 'local-user';
 const MAX_HISTORY_COUNT = 30;
 
-export const DIVINATION_TOPICS: DivinationTopicOption[] = [
-  { value: 'general', label: '综合', subtitle: '今日方向', icon: '✦' },
-  { value: 'love', label: '感情', subtitle: '缘分关系', icon: '♡' },
-  { value: 'career', label: '事业', subtitle: '职业学业', icon: '▣' },
-  { value: 'wealth', label: '财运', subtitle: '收支节奏', icon: '◍' },
-  { value: 'emotion', label: '情绪', subtitle: '身心安顿', icon: '☻' },
-  { value: 'relationship', label: '人际', subtitle: '沟通边界', icon: '◎' },
-  { value: 'growth', label: '成长', subtitle: '自我复盘', icon: '✶' },
-];
-
-const TOPIC_COPY: Record<
-  DivinationTopic,
-  {
-    label: string;
-    focus: string;
-    action: string;
-    avoid: string;
-    advice: string[];
-    suitable: string[];
-    avoidList: string[];
-  }
-> = {
-  general: {
-    label: '综合占卜',
-    focus: '整体节奏与当下选择',
-    action: '把注意力放回最重要的一件事',
-    avoid: '被临时情绪带着频繁改向',
-    advice: ['先完成一件小而确定的事。', '把今天的计划拆成三步，先做第一步。', '晚上留一点时间复盘，不急着否定自己。'],
-    suitable: ['沟通', '整理', '学习', '复盘'],
-    avoidList: ['冲动决定', '熬夜', '争执'],
-  },
-  love: {
-    label: '感情占卜',
-    focus: '关系里的感受、回应与边界',
-    action: '用真诚表达代替反复试探',
-    avoid: '逼迫对方立刻给出答案',
-    advice: ['重要沟通可以放慢语速，先说感受。', '把期待说清楚，也给彼此一点缓冲。', '不急着定义关系，先观察真实互动。'],
-    suitable: ['表达', '倾听', '约见', '修复'],
-    avoidList: ['试探', '冷处理', '翻旧账'],
-  },
-  career: {
-    label: '事业占卜',
-    focus: '工作推进、学业节奏与机会判断',
-    action: '把成果整理出来，主动争取一次反馈',
-    avoid: '同时开启太多未收口的计划',
-    advice: ['今天适合梳理任务优先级。', '关键合作先确认边界和交付时间。', '重大变动建议结合现实信息再判断。'],
-    suitable: ['计划', '汇报', '学习', '面谈'],
-    avoidList: ['拖延', '过度承诺', '临时跳槽'],
-  },
-  wealth: {
-    label: '财运占卜',
-    focus: '收支节奏、资源配置与安全感',
-    action: '先盘点已有资源，再决定下一步',
-    avoid: '凭情绪做大额消费或投资决定',
-    advice: ['今天适合整理账单和预算。', '把冲动消费放入 24 小时观察清单。', '投资相关事项仍建议以专业信息为准。'],
-    suitable: ['记账', '预算', '储蓄', '比价'],
-    avoidList: ['冲动消费', '借贷压力', '盲目投资'],
-  },
-  emotion: {
-    label: '情绪疗愈',
-    focus: '压力、敏感度与自我安抚',
-    action: '先照顾身体感受，再处理复杂问题',
-    avoid: '把一时低落解读成全部结论',
-    advice: ['给自己十分钟安静呼吸。', '写下一个正在消耗你的念头。', '需要支持时，可以主动找可信任的人聊聊。'],
-    suitable: ['休息', '书写', '散步', '冥想'],
-    avoidList: ['压抑情绪', '过度内耗', '熬夜'],
-  },
-  relationship: {
-    label: '人际占卜',
-    focus: '社交回应、协作边界与信任建立',
-    action: '先确认事实，再回应情绪',
-    avoid: '替别人做过多猜测',
-    advice: ['今天适合把需求讲得更具体。', '不必承担所有人的情绪。', '遇到误会时，先问清楚再判断。'],
-    suitable: ['协商', '倾听', '澄清', '合作'],
-    avoidList: ['揣测', '讨好', '急着解释'],
-  },
-  growth: {
-    label: '成长占卜',
-    focus: '自我复盘、长期方向与行动力',
-    action: '用一个微小行动确认真正想要的方向',
-    avoid: '用完美标准阻止自己开始',
-    advice: ['今天适合复盘近期最有能量的一刻。', '挑一个可完成的小目标。', '把结果留给时间，把行动留给今天。'],
-    suitable: ['复盘', '阅读', '练习', '计划'],
-    avoidList: ['自责', '比较', '空想'],
-  },
-};
-
-const LUCKY_COLORS = ['淡紫色', '月白色', '莲叶绿', '暖金色', '雾蓝色', '桃粉色'];
-const LUCKY_DIRECTIONS = ['东南', '西南', '正东', '正北', '西北', '正南'];
-const LUCKY_ELEMENTS = ['水', '木', '火', '土', '金'];
+export const DIVINATION_TOPICS: DivinationTopicOption[] = DEFAULT_DIVINATION_RUNTIME_CONFIG.topicOptions;
 
 export function getTopicOption(topic: DivinationTopic) {
-  return DIVINATION_TOPICS.find((item) => item.value === topic) || DIVINATION_TOPICS[0];
+  const topicOptions = getDivinationTopicOptions();
+  return topicOptions.find((item) => item.value === topic) || topicOptions[0];
 }
 
 export function getTopicLabel(topic: DivinationTopic) {
-  return TOPIC_COPY[topic]?.label || getTopicOption(topic).label;
+  return getDivinationTopicStrategy(topic).label || getTopicOption(topic).label;
 }
 
 export function getDefaultPersonalizationFlags(): DivinationPersonalizationFlags {
@@ -171,10 +101,56 @@ export function clearPendingDivinationRequest() {
 export function listDivinationReviews() {
   try {
     const raw = uni.getStorageSync(REVIEW_STORAGE_KEY) as Record<string, DivinationReview> | '';
-    return raw && typeof raw === 'object' ? raw : {};
+    const reviews = raw && typeof raw === 'object' ? raw : {};
+    return backfillReviewsFromHistory(reviews);
   } catch (error) {
     console.warn('read divination reviews failed', error);
     return {};
+  }
+}
+
+export async function syncDivinationReviewsFromServer() {
+  if (!getAuthToken()) {
+    return listDivinationReviews();
+  }
+
+  try {
+    const response = await fetchDivinationReviews();
+    const currentReviews = listDivinationReviews();
+    const nextReviews = { ...currentReviews };
+    const staleLocalReviews: DivinationReview[] = [];
+    const remoteResultIds = new Set<string>();
+
+    for (const item of response.data.items) {
+      const remoteReview = normalizeRemoteReview(item);
+      const localReview = nextReviews[remoteReview.resultId];
+      remoteResultIds.add(remoteReview.resultId);
+
+      if (!localReview || remoteReview.updatedAt >= localReview.updatedAt) {
+        nextReviews[remoteReview.resultId] = remoteReview;
+      } else {
+        staleLocalReviews.push(localReview);
+      }
+
+      mergeRemoteResultSnapshot(item, nextReviews[remoteReview.resultId] || remoteReview);
+    }
+
+    Object.values(currentReviews).forEach((item) => {
+      if (!remoteResultIds.has(item.resultId)) {
+        staleLocalReviews.push(item);
+      }
+    });
+
+    writeDivinationReviews(nextReviews);
+
+    staleLocalReviews.forEach((item) => {
+      void syncDivinationReviewToServer(item.resultId, item);
+    });
+
+    return nextReviews;
+  } catch (error) {
+    console.warn('sync divination reviews failed', error);
+    return listDivinationReviews();
   }
 }
 
@@ -200,10 +176,11 @@ export function saveDivinationReview(
   };
 
   try {
-    uni.setStorageSync(REVIEW_STORAGE_KEY, {
+    writeDivinationReviews({
       ...reviews,
       [resultId]: next,
     });
+    void syncDivinationReviewToServer(resultId, next);
   } catch (error) {
     console.warn('save divination review failed', error);
   }
@@ -215,7 +192,7 @@ export function listDivinationReviewEntries(): DivinationReviewEntry[] {
   return listDivinationHistory()
     .map((result) => ({
       result,
-      review: result.review || getDivinationReview(result.id) || createEmptyReview(result.id),
+      review: getDivinationReview(result.id) || result.review || createEmptyReview(result.id),
     }))
     .sort((left, right) => right.result.createdAt - left.result.createdAt);
 }
@@ -235,7 +212,8 @@ export function generateDivinationResult(
     flow,
   });
   const seed = casting.seed;
-  const topicCopy = TOPIC_COPY[request.topic] || TOPIC_COPY.general;
+  const topicCopy = getDivinationTopicStrategy(request.topic);
+  const luckyConfig = getDivinationLuckyConfig();
   const scoreAdjustments = personalizationContext?.scoreAdjustments || {
     overall: personalizedBonus(request),
     emotion: 0,
@@ -276,14 +254,23 @@ export function generateDivinationResult(
     hexagram,
     changedHexagram: changed,
     movingLineLabel: casting.movingLineLabel,
-    movingLineText: movingLineReading?.text,
+    movingLineText: buildMovingLineOracleText(movingLineReading),
     movingLineAdvice: movingLineReading?.advice,
     personalizationContext,
   });
-  const analysis = [
-    `本次以${casting.methodLabel}起卦，得${hexagram.upperTrigram}上${hexagram.lowerTrigram}下，卦象呈现「${keywords.join('、')}」的气质。${hexagram.judgement || ''}动爻指出变化关键，变卦「${changed.name}」提示后续趋向。`,
-    buildProfileAnalysis(personalizationContext),
-  ].filter(Boolean).join('');
+  const readingFlow = buildTakashimaReadingFlow({
+    topic: request.topic,
+    topicLabel: topicCopy.label,
+    hexagram,
+    changedHexagram: changed,
+    movingLineLabel: casting.movingLineLabel,
+    movingLineReading,
+    topicReading,
+    oracle,
+    personalizationContext,
+  });
+  const analysis = buildReadingFlowAnalysis(readingFlow);
+  const personalizationSnapshot = buildPersonalizationSnapshot(personalizationContext, createdAt);
 
   return {
     id: `divination_${createdAt}_${seed.toString(16)}`,
@@ -313,7 +300,9 @@ export function generateDivinationResult(
     },
     oracle,
     topicReading,
+    readingFlow,
     review: getDivinationReview(`divination_${createdAt}_${seed.toString(16)}`),
+    personalizationSnapshot,
     keywords,
     summary: `本卦为「${hexagram.name}」，动爻为「${casting.movingLineLabel}」。${hexagram.decision || `当前更适合${topicCopy.action}`}。`,
     analysis,
@@ -333,10 +322,10 @@ export function generateDivinationResult(
     suitable: buildPersonalizedSuitable(topicCopy.suitable, personalizationContext),
     avoid: buildPersonalizedAvoid(topicCopy.avoidList, personalizationContext),
     lucky: {
-      color: LUCKY_COLORS[seed % LUCKY_COLORS.length],
-      number: (seed % 9) + 1,
-      direction: LUCKY_DIRECTIONS[(seed >> 2) % LUCKY_DIRECTIONS.length],
-      element: LUCKY_ELEMENTS[(seed >> 4) % LUCKY_ELEMENTS.length],
+      color: pickBySeed(luckyConfig.colors, seed, '淡紫色'),
+      number: pickBySeed(luckyConfig.numbers, seed, 1),
+      direction: pickBySeed(luckyConfig.directions, seed >> 2, '东南'),
+      element: pickBySeed(luckyConfig.elements, seed >> 4, '水'),
     },
     createdAt,
   };
@@ -421,29 +410,89 @@ function buildPersonalizedReason(
   methodLabel = '略筮法',
   personalizationContext?: DivinationPersonalizationContext | null,
 ) {
-  if (personalizationContext?.signals.length) {
-    const signalText = personalizationContext.signals
+  const insights = selectProfileInsights(personalizationContext, request.topic, 3);
+
+  if (personalizationContext?.signals.length || insights.length) {
+    const signalText = personalizationContext?.signals
       .map((item) => `${item.label}「${item.value}」`)
       .join('、');
-    const detailText = personalizationContext.signals
+    const detailText = personalizationContext?.signals
       .map((item) => `${item.label}：${item.summary}`)
       .join('；');
+    const insightText = insights
+      .map((item) => `${item.title}据「${item.evidence}」，断为${item.judgement}`)
+      .join('；');
+    const adviceText = unique(insights.map((item) => item.advice)).join(' ');
+    const missText = personalizationContext?.hasPartialMiss
+      ? ' 其中部分画像未命中，因此仅以已命中的资料参与解释。'
+      : '';
 
-    return `结合${signalText}，并以${methodLabel}定出本卦、动爻与变卦，本次占卜更偏向「${focus}」的当下指引。策略上取「${personalizationContext.toneLabel}」：${personalizationContext.toneSummary}具体依据为${detailText}。`;
+    return `本次先以${methodLabel}定出本卦、动爻与变卦，再以${signalText || '命中的用户资料'}作为断语旁参；画像只校准解读轻重，不改变卦象。此占更偏向「${focus}」的当下指引。策略上取「${personalizationContext?.toneLabel}」：${personalizationContext?.toneSummary}旁参依据为${insightText || detailText}。${adviceText ? `落地时，${adviceText}` : ''}${missText}`;
   }
 
-  const dimensions = [
-    request.useBazi ? '八字五行' : '',
-    request.useZodiac ? '星座周期' : '',
-    request.useMood ? '近期心情' : '',
-    request.usePersonality ? '性格倾向' : '',
-  ].filter(Boolean);
+  const activeDimensionLabels =
+    personalizationContext?.dimensionStates
+      ?.filter((item) => item.enabled && item.state === 'active')
+      .map((item) => item.label)
+      .filter(Boolean) || [];
 
-  if (!dimensions.length) {
-    return `这次主要根据你选择的「${focus}」主题，以${methodLabel}完成起卦，结果会更偏向当下可执行的提醒。`;
+  if (!activeDimensionLabels.length) {
+    const enabledDimensionLabels = personalizationContext?.enabledKeys.length
+      ? personalizationContext.enabledKeys.map(personalizationKeyLabel)
+      : [
+          request.useBazi ? '八字' : '',
+          request.useZodiac ? '星座' : '',
+          request.useMood ? '心情' : '',
+          request.usePersonality ? '性格' : '',
+        ].filter(Boolean);
+
+    if (!enabledDimensionLabels.length) {
+      return `这次主要根据你选择的「${focus}」主题，以${methodLabel}完成起卦；未启用画像旁参，结果会更偏向卦象本身与当下可执行的提醒。`;
+    }
+
+    const missText = personalizationContext?.hasPartialMiss
+      ? ' 其中部分画像未命中，因此仅以已命中的资料参与解释。'
+      : '';
+
+    return `本次以${methodLabel}定出本卦、动爻与变卦；${enabledDimensionLabels.join('、')}已启用，但本次没有命中可用资料，因此只保留卦象与问事主题的判断，不把这些维度写成断语主依据。${missText}`;
   }
 
-  return `结合你的${dimensions.join('、')}，并以${methodLabel}定出本卦、动爻与变卦，本次占卜更偏向「${focus}」的当下指引。`;
+  const missText = personalizationContext?.hasPartialMiss
+    ? ' 其中部分画像未命中，因此仅以已命中的资料参与解释。'
+    : '';
+
+  return `本次以${methodLabel}定出本卦、动爻与变卦；${activeDimensionLabels.join('、')}只作为断语旁参，不改变卦象。本次占卜更偏向「${focus}」的当下指引。${missText}`;
+}
+
+function buildPersonalizationSnapshot(
+  context: DivinationPersonalizationContext | null | undefined,
+  generatedAt: number,
+): DivinationPersonalizationSnapshot | undefined {
+  if (!context) {
+    return undefined;
+  }
+
+  return {
+    generatedAt,
+    enabledKeys: [...context.enabledKeys],
+    activeKeys: [...context.activeKeys],
+    signals: context.signals.map((item) => ({ ...item })),
+    profileInsights: (context.profileInsights || []).map((item) => ({
+      ...item,
+      topics: item.topics ? [...item.topics] : undefined,
+    })),
+    dimensionStates: context.dimensionStates.map((item) => ({ ...item })),
+    hasPartialMiss: context.hasPartialMiss,
+    tone: context.tone,
+    toneLabel: context.toneLabel,
+    toneSummary: context.toneSummary,
+    opportunityHint: context.opportunityHint,
+    riskHint: context.riskHint,
+    actionHint: context.actionHint,
+    scoreAdjustments: { ...context.scoreAdjustments },
+    moodScore: context.moodScore,
+    zodiacScore: context.zodiacScore,
+  };
 }
 
 function buildOracle(input: {
@@ -474,15 +523,135 @@ function buildOracle(input: {
   };
 }
 
-function buildProfileAnalysis(context?: DivinationPersonalizationContext | null) {
-  if (!context?.signals.length) {
+function buildTakashimaReadingFlow(input: {
+  topic?: DivinationTopic;
+  topicLabel: string;
+  hexagram: DivinationResult['hexagram'];
+  changedHexagram?: DivinationResult['hexagram'];
+  movingLineLabel: string;
+  movingLineReading?: DivinationLineReading | null;
+  topicReading?: DivinationResult['topicReading'];
+  oracle?: DivinationResult['oracle'];
+  personalizationContext?: DivinationPersonalizationContext | null;
+}): NonNullable<DivinationResult['readingFlow']> {
+  const movingLine = input.movingLineReading;
+  const topicReading = input.topicReading;
+  const profileSignals = input.personalizationContext?.signals || [];
+  const profileInsights = selectProfileInsights(input.personalizationContext, input.topic, 2);
+  const profileJudgement = buildProfileInsightJudgement(profileInsights);
+  const profileAdvice = buildProfileInsightAdvice(profileInsights);
+
+  return {
+    hexagramTrend: joinSentences([
+      `本卦大势：占得「${input.hexagram.name}」，${input.hexagram.judgement || input.hexagram.meaning}`,
+      input.hexagram.decision,
+    ]),
+    movingLine: joinSentences([
+      `动爻爻辞：${input.movingLineLabel}为本次关键`,
+      movingLine?.classicText ? `爻辞曰「${movingLine.classicText}」` : '',
+      movingLine?.takashimaText || movingLine?.text,
+    ]),
+    changedTrend: input.changedHexagram
+      ? joinSentences([
+          `变卦后势：由本卦变为「${input.changedHexagram.name}」`,
+          input.changedHexagram.decision || input.changedHexagram.meaning,
+        ])
+      : '变卦后势：本卦不变，主当前局势尚未明显转向，宜先守住眼前判断。',
+    topicJudgement: joinSentences([
+      `问事分类：以「${input.topicLabel}」观之`,
+      topicReading?.summary,
+      topicReading?.opportunity,
+      topicReading?.risk,
+      profileJudgement,
+    ]),
+    practicalAdvice: joinSentences([
+      '现实建议：以可验证的一步应卦',
+      input.oracle?.action || topicReading?.action || movingLine?.advice || input.hexagram.decision,
+      profileAdvice,
+    ]),
+    profileReference: buildProfileReference(profileInsights, profileSignals),
+  };
+}
+
+function buildReadingFlowAnalysis(flow: NonNullable<DivinationResult['readingFlow']>) {
+  return [
+    flow.hexagramTrend,
+    flow.movingLine,
+    flow.changedTrend,
+    flow.topicJudgement,
+    flow.profileReference,
+    flow.practicalAdvice,
+  ].filter(Boolean).join('\n');
+}
+
+function buildMovingLineOracleText(reading?: DivinationLineReading | null) {
+  if (!reading) {
+    return undefined;
+  }
+
+  return joinSentences([
+    reading.classicText ? `爻辞曰「${reading.classicText}」` : '',
+    reading.takashimaText,
+    reading.modernText || reading.text,
+  ]);
+}
+
+const PROFILE_INSIGHT_WEIGHT_RANK: Record<DivinationProfileInsight['weight'], number> = {
+  strong: 3,
+  medium: 2,
+  light: 1,
+};
+
+function selectProfileInsights(
+  context?: DivinationPersonalizationContext | null,
+  topic?: DivinationTopic,
+  limit = 2,
+) {
+  const insights = context?.profileInsights || [];
+  if (!insights.length) {
+    return [];
+  }
+
+  const topicMatched = topic
+    ? insights.filter((item) => !item.topics?.length || item.topics.includes(topic))
+    : insights;
+  const source = topicMatched.length ? topicMatched : insights;
+
+  return [...source]
+    .sort((left, right) => PROFILE_INSIGHT_WEIGHT_RANK[right.weight] - PROFILE_INSIGHT_WEIGHT_RANK[left.weight])
+    .slice(0, limit);
+}
+
+function buildProfileInsightJudgement(insights: DivinationProfileInsight[]) {
+  if (!insights.length) {
     return '';
   }
 
-  const signalText = context.signals
-    .map((item) => `${item.label}为「${item.value}」`)
-    .join('，');
-  return `画像层面，${signalText}，所以同一卦不会只按主题模板读取，而会先落到「${context.toneLabel}」的策略：${context.toneSummary}`;
+  return `画像旁参：${insights.map((item) => item.judgement).join('；')}`;
+}
+
+function buildProfileInsightAdvice(insights: DivinationProfileInsight[]) {
+  if (!insights.length) {
+    return '';
+  }
+
+  return unique(insights.map((item) => item.advice)).join(' ');
+}
+
+function buildProfileReference(
+  insights: DivinationProfileInsight[],
+  signals: DivinationPersonalizationContext['signals'],
+) {
+  if (insights.length) {
+    const detail = insights
+      .map((item) => `${item.title}「${item.evidence}」取${item.weight === 'strong' ? '重参' : item.weight === 'medium' ? '中参' : '轻参'}，${item.risk}`)
+      .join('；');
+    return `旁参画像：${detail}。这些资料只校准断语轻重，不改变本卦、动爻与变卦。`;
+  }
+
+  return signals.length
+    ? `旁参画像：${signals.map((item) => `${item.label}「${item.value}」`).join('、')}。这些资料只校准断语轻重，不改变本卦、动爻与变卦。`
+    : undefined;
 }
 
 function buildPersonalizedAdvice(
@@ -578,9 +747,24 @@ function normalizeDivinationResult(input: DivinationResult): DivinationResult {
       hexagram,
       changedHexagram: changedHexagram as DivinationResult['hexagram'] | undefined,
       movingLineLabel,
-      movingLineText: movingLineReading?.text,
+      movingLineText: buildMovingLineOracleText(movingLineReading),
       movingLineAdvice: movingLineReading?.advice,
     });
+  const readingFlow =
+    input.readingFlow ||
+    buildTakashimaReadingFlow({
+      topic: input.topic,
+      topicLabel: input.topicLabel || '当前问事',
+      hexagram,
+      changedHexagram: changedHexagram as DivinationResult['hexagram'] | undefined,
+      movingLineLabel,
+      movingLineReading,
+      topicReading,
+      oracle,
+      personalizationContext: input.personalizationSnapshot,
+    });
+
+  const storedReview = getDivinationReview(input.id);
 
   return {
     ...input,
@@ -589,9 +773,132 @@ function normalizeDivinationResult(input: DivinationResult): DivinationResult {
     casting,
     oracle,
     topicReading,
-    review: input.review || getDivinationReview(input.id),
+    readingFlow,
+    analysis: input.readingFlow ? input.analysis : buildReadingFlowAnalysis(readingFlow),
+    review: storedReview || input.review,
     changingLines: input.changingLines?.length ? input.changingLines : [movingLine],
   };
+}
+
+function writeDivinationReviews(reviews: Record<string, DivinationReview>) {
+  uni.setStorageSync(REVIEW_STORAGE_KEY, reviews);
+}
+
+function backfillReviewsFromHistory(reviews: Record<string, DivinationReview>) {
+  const history = uni.getStorageSync(HISTORY_STORAGE_KEY) as DivinationResult[] | '';
+  if (!Array.isArray(history)) {
+    return reviews;
+  }
+
+  let changed = false;
+  const nextReviews = { ...reviews };
+
+  history.forEach((item) => {
+    const embeddedReview = item.review;
+    if (!embeddedReview?.resultId) {
+      return;
+    }
+
+    const currentReview = nextReviews[embeddedReview.resultId];
+    if (!currentReview || embeddedReview.updatedAt > currentReview.updatedAt) {
+      nextReviews[embeddedReview.resultId] = {
+        ...embeddedReview,
+        note: embeddedReview.note.slice(0, 500),
+      };
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writeDivinationReviews(nextReviews);
+  }
+
+  return nextReviews;
+}
+
+async function syncDivinationReviewToServer(
+  resultId: string,
+  review: DivinationReview,
+  result = getDivinationResult(resultId),
+) {
+  if (!getAuthToken()) {
+    return review;
+  }
+
+  try {
+    const response = await syncDivinationReview(buildReviewSyncPayload(resultId, review, result));
+    const remoteReview = normalizeRemoteReview(response.data.item, review.updatedAt);
+    const reviews = listDivinationReviews();
+    writeDivinationReviews({
+      ...reviews,
+      [resultId]: remoteReview,
+    });
+    mergeRemoteResultSnapshot(response.data.item, remoteReview);
+    return remoteReview;
+  } catch (error) {
+    console.warn('sync divination review failed', error);
+    return review;
+  }
+}
+
+function buildReviewSyncPayload(
+  resultId: string,
+  review: DivinationReview,
+  result: DivinationResult | null,
+): DivinationReviewSyncPayload {
+  return {
+    resultId,
+    favorite: review.favorite,
+    outcome: review.outcome,
+    note: review.note,
+    topic: result?.topic,
+    title: result?.topicLabel || result?.hexagram.name,
+    summary: result?.question || result?.summary,
+    resultSnapshot: result ? { ...result, review } : undefined,
+  };
+}
+
+function normalizeRemoteReview(
+  item: DivinationReviewRemoteItem,
+  fallbackUpdatedAt = 0,
+): DivinationReview {
+  return {
+    resultId: item.resultId,
+    favorite: Boolean(item.favorite),
+    outcome: isReviewOutcome(item.outcome) ? item.outcome : 'pending',
+    note: typeof item.note === 'string' ? item.note.slice(0, 500) : '',
+    updatedAt: Math.max(parseRemoteDate(item.updatedAt), fallbackUpdatedAt),
+  };
+}
+
+function mergeRemoteResultSnapshot(
+  item: DivinationReviewRemoteItem,
+  review: DivinationReview,
+) {
+  if (!item.resultSnapshot) {
+    return;
+  }
+
+  const history = listDivinationHistory();
+  const existing = history.find((result) => result.id === item.resultId);
+
+  if (existing && existing.createdAt >= item.resultSnapshot.createdAt) {
+    return;
+  }
+
+  saveDivinationResult({
+    ...item.resultSnapshot,
+    review,
+  });
+}
+
+function parseRemoteDate(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isReviewOutcome(value: string): value is DivinationReview['outcome'] {
+  return value === 'pending' || value === 'fulfilled' || value === 'unfulfilled';
 }
 
 function createEmptyReview(resultId: string): DivinationReview {
@@ -626,6 +933,18 @@ function resolveScoreLevel(score: number): DivinationResult['hexagram']['level']
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
+}
+
+function personalizationKeyLabel(key: DivinationPersonalizationKey) {
+  return getDivinationProfileMapping().dimensionLabels[key] || key;
+}
+
+function pickBySeed<T>(items: T[], seed: number, fallback: T) {
+  if (!items.length) {
+    return fallback;
+  }
+
+  return items[Math.abs(seed) % items.length] ?? fallback;
 }
 
 function joinSentences(parts: Array<string | undefined | null>) {

@@ -51,9 +51,9 @@
     <view class="feature-grid">
       <view
         v-for="entry in featureEntries"
-        :key="entry.topic"
+        :key="entry.key"
         class="feature-card"
-        @tap="openSelect(entry.topic)"
+        @tap="openFeature(entry)"
       >
         <view class="feature-card__icon">{{ entry.icon }}</view>
         <view>
@@ -83,25 +83,20 @@
 </template>
 
 <script setup lang="ts">
+import { onLoad } from '@dcloudio/uni-app';
+import { ref } from 'vue';
 import {
   createTodayDivinationRequest,
   setPendingDivinationRequest,
 } from '../../../services/divination';
+import {
+  ensureDivinationContentCatalog,
+  getDivinationHomeFeatures,
+} from '../../../services/divination-content';
+import type { DivinationHomeFeatureEntry } from '../../../services/divination-runtime-config';
 import type { DivinationTopic } from '../../../types/divination';
 
-const featureEntries: Array<{
-  topic: DivinationTopic;
-  title: string;
-  desc: string;
-  icon: string;
-}> = [
-  { topic: 'general', title: '今日运势', desc: '每日趋势指引', icon: '✦' },
-  { topic: 'love', title: '感情占卜', desc: '缘分与关系', icon: '♡' },
-  { topic: 'career', title: '事业占卜', desc: '职业与发展', icon: '▣' },
-  { topic: 'wealth', title: '财运占卜', desc: '收支与资源', icon: '◍' },
-  { topic: 'emotion', title: '情绪疗愈', desc: '身心成长指南', icon: '✺' },
-  { topic: 'growth', title: '历史记录', desc: '复盘近期趋势', icon: '☷' },
-];
+const featureEntries = ref<DivinationHomeFeatureEntry[]>(getDivinationHomeFeatures());
 
 function startToday() {
   setPendingDivinationRequest(createTodayDivinationRequest('general'));
@@ -110,12 +105,16 @@ function startToday() {
   });
 }
 
-function openSelect(topic: DivinationTopic) {
-  if (topic === 'growth') {
+function openFeature(entry: DivinationHomeFeatureEntry) {
+  if (entry.action === 'history' || !entry.topic) {
     openHistory();
     return;
   }
 
+  openSelect(entry.topic);
+}
+
+function openSelect(topic: DivinationTopic) {
   uni.navigateTo({
     url: `/pages/divination/select/index?topic=${encodeURIComponent(topic)}`,
   });
@@ -126,6 +125,12 @@ function openHistory() {
     url: '/pages/divination/history/index',
   });
 }
+
+onLoad(() => {
+  void ensureDivinationContentCatalog().then(() => {
+    featureEntries.value = getDivinationHomeFeatures();
+  });
+});
 </script>
 
 <style lang="scss">

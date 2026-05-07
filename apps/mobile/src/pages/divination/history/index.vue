@@ -25,7 +25,7 @@
       <view class="trend-card__head">
         <view>
           <text class="trend-title">本周占卜趋势</text>
-          <text class="trend-date">最近 7 次 / 本地记录</text>
+          <text class="trend-date">最近 7 次 / {{ historySourceLabel }}</text>
         </view>
         <view class="trend-score">
           <text class="trend-score__label">平均分</text>
@@ -61,6 +61,16 @@
           </view>
           <text class="record-summary">{{ item.question || item.summary }}</text>
           <text class="record-time">{{ formatDivinationDateTime(item.createdAt) }}</text>
+          <view v-if="reviewBadges(item).length" class="record-review-row">
+            <text
+              v-for="badge in reviewBadges(item)"
+              :key="badge.value"
+              class="record-review-badge"
+              :class="`record-review-badge--${badge.tone}`"
+            >
+              {{ badge.label }}
+            </text>
+          </view>
         </view>
         <text class="record-arrow">›</text>
       </view>
@@ -80,24 +90,26 @@ import { computed, ref } from 'vue';
 import {
   createTodayDivinationRequest,
   formatDivinationDateTime,
+  getTopicOption,
   getDivinationTrend,
   listDivinationHistory,
   setPendingDivinationRequest,
+  syncDivinationReviewsFromServer,
 } from '../../../services/divination';
-import type { DivinationResult, DivinationTopic } from '../../../types/divination';
+import {
+  ensureDivinationContentCatalog,
+  getDivinationHistoryTabs,
+} from '../../../services/divination-content';
+import { getAuthToken } from '../../../services/session';
+import type { DivinationHistoryTabValue } from '../../../services/divination-runtime-config';
+import type { DivinationResult, DivinationReview, DivinationTopic } from '../../../types/divination';
 
-type TabValue = 'all' | DivinationTopic;
+type SyncStatus = 'local' | 'syncing' | 'synced';
 
-const tabs: Array<{ value: TabValue; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'love', label: '感情' },
-  { value: 'career', label: '事业' },
-  { value: 'emotion', label: '情绪' },
-  { value: 'wealth', label: '财运' },
-];
-
-const activeTab = ref<TabValue>('all');
+const tabs = ref(getDivinationHistoryTabs());
+const activeTab = ref<DivinationHistoryTabValue>('all');
 const history = ref<DivinationResult[]>([]);
+const syncStatus = ref<SyncStatus>('local');
 
 const filteredHistory = computed(() => {
   if (activeTab.value === 'all') {
@@ -118,18 +130,64 @@ const commonKeywords = computed(() => {
   return Array.from(new Set(source)).slice(0, 4).join('、') || '感应、整理、行动、留白';
 });
 
+const historySourceLabel = computed(() => {
+  if (!getAuthToken()) {
+    return '本地记录';
+  }
+
+  return syncStatus.value === 'syncing' ? '云端同步中' : '登录复盘同步';
+});
+
 function topicIcon(topic: DivinationTopic) {
-  const map: Record<DivinationTopic, string> = {
-    general: '✦',
-    love: '♡',
-    career: '▣',
-    wealth: '◍',
-    emotion: '☁',
-    relationship: '◎',
-    growth: '✶',
+  return getTopicOption(topic).icon;
+}
+
+function reviewBadges(item: DivinationResult) {
+  const itemReview = item.review;
+  if (!itemReview) {
+    return [];
+  }
+
+  const badges: Array<{ label: string; value: string; tone: 'favorite' | DivinationReview['outcome'] | 'note' }> = [];
+
+  if (itemReview.favorite) {
+    badges.push({ label: '已收藏', value: 'favorite', tone: 'favorite' });
+  }
+
+  if (itemReview.outcome !== 'pending') {
+    badges.push({
+      label: outcomeLabel(itemReview.outcome),
+      value: itemReview.outcome,
+      tone: itemReview.outcome,
+    });
+  }
+
+  if (itemReview.note.trim()) {
+    badges.push({ label: '有备注', value: 'note', tone: 'note' });
+  }
+
+  return badges;
+}
+
+function outcomeLabel(outcome: DivinationReview['outcome']) {
+  const labels: Record<DivinationReview['outcome'], string> = {
+    pending: '待复盘',
+    fulfilled: '已应验',
+    unfulfilled: '未应验',
   };
 
-  return map[topic] || '✦';
+  return labels[outcome];
+}
+
+function loadHistory() {
+  history.value = listDivinationHistory();
+}
+
+async function syncReviews() {
+  syncStatus.value = getAuthToken() ? 'syncing' : 'local';
+  await syncDivinationReviewsFromServer();
+  loadHistory();
+  syncStatus.value = getAuthToken() ? 'synced' : 'local';
 }
 
 function openResult(id: string) {
@@ -160,7 +218,11 @@ function back() {
 }
 
 onShow(() => {
-  history.value = listDivinationHistory();
+  loadHistory();
+  void ensureDivinationContentCatalog().then(() => {
+    tabs.value = getDivinationHistoryTabs();
+  });
+  void syncReviews();
 });
 </script>
 
@@ -417,6 +479,43 @@ onShow(() => {
 .record-time {
   font-size: 21rpx;
   color: rgba(78, 56, 37, 0.44);
+}
+
+.record-review-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  min-height: 36rpx;
+}
+
+.record-review-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 34rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  font-size: 19rpx;
+  font-weight: 700;
+}
+
+.record-review-badge--favorite {
+  color: #b97724;
+  background: #fff3d8;
+}
+
+.record-review-badge--fulfilled {
+  color: #4f7c5a;
+  background: #f3f8ee;
+}
+
+.record-review-badge--unfulfilled {
+  color: #b75a4f;
+  background: #fff0ea;
+}
+
+.record-review-badge--note {
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
 }
 
 .record-arrow {

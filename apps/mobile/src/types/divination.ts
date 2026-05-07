@@ -18,6 +18,36 @@ export interface DivinationPersonalizationFlags {
   usePersonality: boolean;
 }
 
+export type DivinationPersonalizationKey = 'bazi' | 'zodiac' | 'mood' | 'personality';
+
+export type DivinationInterpretationTone = 'move' | 'clarify' | 'soften';
+
+export interface DivinationPersonalizationSignal {
+  key: DivinationPersonalizationKey;
+  label: string;
+  value: string;
+  summary: string;
+}
+
+export interface DivinationPersonalizationContext {
+  enabledKeys: DivinationPersonalizationKey[];
+  activeKeys: DivinationPersonalizationKey[];
+  signals: DivinationPersonalizationSignal[];
+  tone: DivinationInterpretationTone;
+  toneLabel: string;
+  toneSummary: string;
+  opportunityHint: string;
+  riskHint: string;
+  actionHint: string;
+  scoreAdjustments: {
+    overall: number;
+    emotion: number;
+    action: number;
+  };
+  moodScore?: number;
+  zodiacScore?: number;
+}
+
 export interface DivinationRequest extends DivinationPersonalizationFlags {
   userId: string;
   topic: DivinationTopic;
@@ -150,6 +180,11 @@ export interface DivinationReview {
   outcome: 'pending' | 'fulfilled' | 'unfulfilled';
   note: string;
   updatedAt: number;
+}
+
+export interface DivinationReviewEntry {
+  result: DivinationResult;
+  review: DivinationReview;
 }
 
 export interface DivinationTopicOption {

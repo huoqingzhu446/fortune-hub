@@ -3,7 +3,9 @@ import type {
   DivinationFlow,
   DivinationMethod,
   DivinationPersonalizationFlags,
+  DivinationPersonalizationContext,
   DivinationRequest,
+  DivinationReviewEntry,
   DivinationReview,
   DivinationResult,
   DivinationTopic,
@@ -209,7 +211,19 @@ export function saveDivinationReview(
   return next;
 }
 
-export function generateDivinationResult(request: DivinationRequest): DivinationResult {
+export function listDivinationReviewEntries(): DivinationReviewEntry[] {
+  return listDivinationHistory()
+    .map((result) => ({
+      result,
+      review: result.review || getDivinationReview(result.id) || createEmptyReview(result.id),
+    }))
+    .sort((left, right) => right.result.createdAt - left.result.createdAt);
+}
+
+export function generateDivinationResult(
+  request: DivinationRequest,
+  personalizationContext?: DivinationPersonalizationContext | null,
+): DivinationResult {
   const normalizedQuestion = (request.question || '').trim();
   const method = request.method || 'split-stalk';
   const flow = request.flow || 'yang';
@@ -222,16 +236,26 @@ export function generateDivinationResult(request: DivinationRequest): Divination
   });
   const seed = casting.seed;
   const topicCopy = TOPIC_COPY[request.topic] || TOPIC_COPY.general;
-  const baseScore = clamp(66 + (seed % 23) + personalizedBonus(request), 56, 96);
-  const emotionScore = clamp(baseScore - 8 + ((seed >> 3) % 14), 52, 95);
-  const actionScore = clamp(baseScore - 3 + ((seed >> 5) % 16), 55, 98);
+  const scoreAdjustments = personalizationContext?.scoreAdjustments || {
+    overall: personalizedBonus(request),
+    emotion: 0,
+    action: 0,
+  };
+  const baseScore = clamp(66 + (seed % 23) + scoreAdjustments.overall, 56, 96);
+  const emotionScore = clamp(baseScore - 8 + ((seed >> 3) % 14) + scoreAdjustments.emotion, 52, 95);
+  const actionScore = clamp(baseScore - 3 + ((seed >> 5) % 16) + scoreAdjustments.action, 55, 98);
   const level = resolveScoreLevel(baseScore);
   const hexagram = {
     ...casting.hexagram,
     level,
   };
   const changed = casting.changedHexagram;
-  const keywords = unique([...casting.keywords, topicCopy.focus.split('、')[0], topicCopy.action.slice(0, 2)])
+  const keywords = unique([
+    ...casting.keywords,
+    topicCopy.focus.split('、')[0],
+    topicCopy.action.slice(0, 2),
+    personalizationContext?.signals.length ? personalizationContext.toneLabel : '',
+  ])
     .filter(Boolean)
     .slice(0, 4);
   const createdAt = request.timestamp || Date.now();
@@ -242,6 +266,7 @@ export function generateDivinationResult(request: DivinationRequest): Divination
     changedHexagram: changed,
     movingLineReading,
     movingLineLabel: casting.movingLineLabel,
+    personalizationContext,
   });
   const oracle = buildOracle({
     question: normalizedQuestion,
@@ -253,7 +278,12 @@ export function generateDivinationResult(request: DivinationRequest): Divination
     movingLineLabel: casting.movingLineLabel,
     movingLineText: movingLineReading?.text,
     movingLineAdvice: movingLineReading?.advice,
+    personalizationContext,
   });
+  const analysis = [
+    `本次以${casting.methodLabel}起卦，得${hexagram.upperTrigram}上${hexagram.lowerTrigram}下，卦象呈现「${keywords.join('、')}」的气质。${hexagram.judgement || ''}动爻指出变化关键，变卦「${changed.name}」提示后续趋向。`,
+    buildProfileAnalysis(personalizationContext),
+  ].filter(Boolean).join('');
 
   return {
     id: `divination_${createdAt}_${seed.toString(16)}`,
@@ -286,16 +316,22 @@ export function generateDivinationResult(request: DivinationRequest): Divination
     review: getDivinationReview(`divination_${createdAt}_${seed.toString(16)}`),
     keywords,
     summary: `本卦为「${hexagram.name}」，动爻为「${casting.movingLineLabel}」。${hexagram.decision || `当前更适合${topicCopy.action}`}。`,
-    analysis: `本次以${casting.methodLabel}起卦，得${hexagram.upperTrigram}上${hexagram.lowerTrigram}下，卦象呈现「${keywords.join('、')}」的气质。${hexagram.judgement || ''}动爻指出变化关键，变卦「${changed.name}」提示后续趋向。`,
-    personalizedReason: buildPersonalizedReason(request, topicCopy.focus, casting.methodLabel),
+    analysis,
+    personalizedReason: buildPersonalizedReason(
+      request,
+      topicCopy.focus,
+      casting.methodLabel,
+      personalizationContext,
+    ),
     reminders: [
       '把占卜结果作为自我觉察和行动参考即可。',
       '涉及健康、投资、法律或重大人生决定时，仍建议结合现实信息判断。',
+      personalizationContext?.signals.length ? `${personalizationContext.toneLabel}：${personalizationContext.riskHint}` : '',
       `今天更适合${topicCopy.action}。`,
-    ],
-    advice: topicCopy.advice,
-    suitable: topicCopy.suitable,
-    avoid: topicCopy.avoidList,
+    ].filter(Boolean),
+    advice: buildPersonalizedAdvice(topicCopy.advice, personalizationContext),
+    suitable: buildPersonalizedSuitable(topicCopy.suitable, personalizationContext),
+    avoid: buildPersonalizedAvoid(topicCopy.avoidList, personalizationContext),
     lucky: {
       color: LUCKY_COLORS[seed % LUCKY_COLORS.length],
       number: (seed % 9) + 1,
@@ -379,7 +415,23 @@ export function toDateKey(timestamp: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function buildPersonalizedReason(request: DivinationRequest, focus: string, methodLabel = '略筮法') {
+function buildPersonalizedReason(
+  request: DivinationRequest,
+  focus: string,
+  methodLabel = '略筮法',
+  personalizationContext?: DivinationPersonalizationContext | null,
+) {
+  if (personalizationContext?.signals.length) {
+    const signalText = personalizationContext.signals
+      .map((item) => `${item.label}「${item.value}」`)
+      .join('、');
+    const detailText = personalizationContext.signals
+      .map((item) => `${item.label}：${item.summary}`)
+      .join('；');
+
+    return `结合${signalText}，并以${methodLabel}定出本卦、动爻与变卦，本次占卜更偏向「${focus}」的当下指引。策略上取「${personalizationContext.toneLabel}」：${personalizationContext.toneSummary}具体依据为${detailText}。`;
+  }
+
   const dimensions = [
     request.useBazi ? '八字五行' : '',
     request.useZodiac ? '星座周期' : '',
@@ -404,9 +456,11 @@ function buildOracle(input: {
   movingLineLabel: string;
   movingLineText?: string;
   movingLineAdvice?: string;
+  personalizationContext?: DivinationPersonalizationContext | null;
 }): DivinationResult['oracle'] {
   const subject = input.question || input.focus;
   const changed = input.changedHexagram;
+  const baseAction = input.movingLineAdvice || input.hexagram.decision || `今天更适合${input.action}。`;
 
   return {
     title: '高岛式断曰',
@@ -416,8 +470,64 @@ function buildOracle(input: {
     tendency: changed
       ? `变为「${changed.name}」。${changed.decision || changed.meaning}`
       : '本卦不变，宜守住当前判断，先把眼前一步做稳。',
-    action: input.movingLineAdvice || input.hexagram.decision || `今天更适合${input.action}。`,
+    action: joinSentences([baseAction, input.personalizationContext?.actionHint]),
   };
+}
+
+function buildProfileAnalysis(context?: DivinationPersonalizationContext | null) {
+  if (!context?.signals.length) {
+    return '';
+  }
+
+  const signalText = context.signals
+    .map((item) => `${item.label}为「${item.value}」`)
+    .join('，');
+  return `画像层面，${signalText}，所以同一卦不会只按主题模板读取，而会先落到「${context.toneLabel}」的策略：${context.toneSummary}`;
+}
+
+function buildPersonalizedAdvice(
+  advice: string[],
+  context?: DivinationPersonalizationContext | null,
+) {
+  if (!context?.signals.length) {
+    return advice;
+  }
+
+  return unique([context.actionHint, ...advice]).slice(0, 4);
+}
+
+function buildPersonalizedSuitable(
+  suitable: string[],
+  context?: DivinationPersonalizationContext | null,
+) {
+  if (!context?.signals.length) {
+    return suitable;
+  }
+
+  const extra: Record<DivinationPersonalizationContext['tone'], string> = {
+    move: '推进',
+    clarify: '核对',
+    soften: '休整',
+  };
+
+  return unique([...suitable, extra[context.tone]]).slice(0, 5);
+}
+
+function buildPersonalizedAvoid(
+  avoidList: string[],
+  context?: DivinationPersonalizationContext | null,
+) {
+  if (!context?.signals.length) {
+    return avoidList;
+  }
+
+  const extra: Record<DivinationPersonalizationContext['tone'], string> = {
+    move: '贪多',
+    clarify: '猜测',
+    soften: '硬撑',
+  };
+
+  return unique([...avoidList, extra[context.tone]]).slice(0, 5);
 }
 
 function normalizeDivinationResult(input: DivinationResult): DivinationResult {
@@ -516,6 +626,14 @@ function resolveScoreLevel(score: number): DivinationResult['hexagram']['level']
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
+}
+
+function joinSentences(parts: Array<string | undefined | null>) {
+  return parts
+    .map((item) => item?.trim())
+    .filter((item): item is string => Boolean(item))
+    .map((item) => (/[。！？.!?]$/.test(item) ? item : `${item}。`))
+    .join('');
 }
 
 function clamp(value: number, min: number, max: number) {

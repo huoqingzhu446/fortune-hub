@@ -3,6 +3,7 @@
     <view class="history-head">
       <button class="back-button" @tap="back">‹</button>
       <text class="history-title">占卜记录</text>
+      <button class="head-link" @tap="openReviewList">复盘</button>
       <button class="head-link" @tap="startNew">新占</button>
     </view>
 
@@ -144,6 +145,12 @@ function startNew() {
   });
 }
 
+function openReviewList() {
+  uni.navigateTo({
+    url: '/pages/divination/review/index',
+  });
+}
+
 function back() {
   uni.navigateBack({
     fail: () => {
@@ -170,8 +177,9 @@ onShow(() => {
 
 .history-head {
   display: grid;
-  grid-template-columns: 64rpx 1fr 92rpx;
+  grid-template-columns: 64rpx 1fr 82rpx 82rpx;
   align-items: center;
+  gap: 10rpx;
   margin-bottom: 22rpx;
 }
 

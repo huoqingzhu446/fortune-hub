@@ -4,6 +4,7 @@ import { resolveUrl } from './url';
 import type {
   DivinationHexagram,
   DivinationLineReading,
+  DivinationPersonalizationContext,
   DivinationTopic,
   DivinationTopicReading,
 } from '../types/divination';
@@ -44,6 +45,7 @@ type DivinationTopicBuildInput = {
   changedHexagram?: DivinationHexagram;
   movingLineReading?: DivinationLineReading | null;
   movingLineLabel: string;
+  personalizationContext?: DivinationPersonalizationContext | null;
 };
 
 type DivinationContentEnvelope = {
@@ -249,6 +251,7 @@ export function buildTopicReadingFromCatalog(
   input: DivinationTopicBuildInput,
 ): DivinationTopicReading {
   const topicCopy = catalog.topicCopy[input.topic] || catalog.topicCopy.general;
+  const personalization = input.personalizationContext;
   const movingAdvice =
     input.movingLineReading?.topicReadings?.[input.topic]?.action ||
     input.movingLineReading?.advice ||
@@ -261,10 +264,24 @@ export function buildTopicReadingFromCatalog(
   return {
     topic: input.topic,
     title: topicCopy.title,
-    summary: `${topicCopy.lens}本次占得「${input.hexagram.name}」，${input.movingLineLabel}为关键。`,
-    opportunity: `${topicCopy.opportunity}${changedText}`,
-    risk: `${topicCopy.risk}${input.movingLineReading?.risk ? ` ${input.movingLineReading.risk}` : ''}`,
-    action: `${topicCopy.actionPrefix}${movingAdvice || input.hexagram.decision || '先完成一件小而确定的事。'}`,
+    summary: joinSentences([
+      `${topicCopy.lens}本次占得「${input.hexagram.name}」，${input.movingLineLabel}为关键。`,
+      buildProfileLens(personalization),
+    ]),
+    opportunity: joinSentences([
+      topicCopy.opportunity,
+      personalization?.opportunityHint,
+      changedText,
+    ]),
+    risk: joinSentences([
+      topicCopy.risk,
+      personalization?.riskHint,
+      input.movingLineReading?.risk,
+    ]),
+    action: joinSentences([
+      `${topicCopy.actionPrefix}${movingAdvice || input.hexagram.decision || '先完成一件小而确定的事。'}`,
+      personalization?.actionHint,
+    ]),
   };
 }
 
@@ -305,6 +322,29 @@ function resolveMovingLineLabel(movingLine: number, lines: boolean[]) {
   }
 
   return `${stem}${['', '二', '三', '四', '五'][movingLine - 1]}`;
+}
+
+function buildProfileLens(context?: DivinationPersonalizationContext | null) {
+  if (!context?.signals.length) {
+    return '';
+  }
+
+  const signalText = context.signals
+    .map((item) => `${item.label}为「${item.value}」`)
+    .join('，');
+  return `结合${signalText}，本次读法落在「${context.toneLabel}」：${context.toneSummary}`;
+}
+
+function joinSentences(parts: Array<string | undefined | null>) {
+  return parts
+    .map((item) => item?.trim())
+    .filter((item): item is string => Boolean(item))
+    .map(normalizeSentence)
+    .join('');
+}
+
+function normalizeSentence(text: string) {
+  return /[。！？.!?]$/.test(text) ? text : `${text}。`;
 }
 
 function pickString(value: string | undefined, fallback: string) {

@@ -62,6 +62,12 @@
       }
     },
     {
+      "path": "pages/divination/review/index",
+      "style": {
+        "navigationBarTitleText": "复盘列表"
+      }
+    },
+    {
       "path": "pages/divination/poster/index",
       "style": {
         "navigationBarTitleText": "分享海报"

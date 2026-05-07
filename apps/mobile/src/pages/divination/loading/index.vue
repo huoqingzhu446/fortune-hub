@@ -132,6 +132,7 @@ import {
   saveDivinationResult,
 } from '../../../services/divination';
 import { ensureDivinationContentCatalog } from '../../../services/divination-content';
+import { resolveDivinationPersonalizationContext } from '../../../services/divination-profile';
 import type {
   DivinationCastingStep,
   DivinationFlow,
@@ -235,7 +236,8 @@ async function startCasting(event?: TapEvent) {
   currentStepIndex.value = -1;
 
   await ensureDivinationContentCatalog();
-  const result = generateDivinationResult(nextRequest);
+  const personalizationContext = await resolveDivinationPersonalizationContext(nextRequest);
+  const result = generateDivinationResult(nextRequest, personalizationContext);
 
   pendingResult.value = result;
   runStep(0);

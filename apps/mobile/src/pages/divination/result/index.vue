@@ -186,7 +186,10 @@
           placeholder="写下后续应验、偏差或当时的真实处境"
           placeholder-class="review-note__placeholder"
         />
-        <button class="review-save" @tap="saveReviewNote">保存复盘</button>
+        <view class="review-actions">
+          <button class="review-save" @tap="saveReviewNote">保存复盘</button>
+          <button class="review-list-button" @tap="openReviewList">复盘列表</button>
+        </view>
       </view>
     </view>
 
@@ -334,6 +337,12 @@ function saveReviewNote() {
   uni.showToast({
     title: '复盘已保存',
     icon: 'success',
+  });
+}
+
+function openReviewList() {
+  uni.navigateTo({
+    url: '/pages/divination/review/index',
   });
 }
 
@@ -841,7 +850,8 @@ onLoad((query) => {
 
 .favorite-button,
 .outcome-button,
-.review-save {
+.review-save,
+.review-list-button {
   padding: 0;
   margin: 0;
   border: 0;
@@ -849,7 +859,8 @@ onLoad((query) => {
 
 .favorite-button::after,
 .outcome-button::after,
-.review-save::after {
+.review-save::after,
+.review-list-button::after {
   border: 0;
 }
 
@@ -903,11 +914,26 @@ onLoad((query) => {
   color: rgba(78, 56, 37, 0.42);
 }
 
+.review-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr);
+  gap: 12rpx;
+}
+
 .review-save {
   height: 68rpx;
   border-radius: 999rpx;
   color: #ffffff;
   background: #4e3825;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.review-list-button {
+  height: 68rpx;
+  border-radius: 999rpx;
+  color: #8b6fd6;
+  background: rgba(139, 111, 214, 0.1);
   font-size: 24rpx;
   font-weight: 700;
 }

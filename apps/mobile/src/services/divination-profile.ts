@@ -642,11 +642,10 @@ function buildProfileInsights(input: {
   dominantElement: string;
 }): DivinationProfileInsight[] {
   const insights: DivinationProfileInsight[] = [];
-  const fiveElementText = summarizeFiveElements(input.user?.fiveElements);
+  const fiveElementSummary = summarizeFiveElements(input.user?.fiveElements);
   const elementTone = input.dominantElement ? getDivinationProfileMapping().elementTone[input.dominantElement] : null;
   const baziEvidence = [
-    fiveElementText ? `五行分布 ${fiveElementText}` : '',
-    input.dominantElement ? `主轴为「${input.dominantElement}」` : '',
+    fiveElementSummary ? `五行倾向：${fiveElementSummary}` : '',
     input.user?.baziSummary || '',
     !input.dominantElement && !input.user?.baziSummary && input.user?.birthday ? '生日已补齐' : '',
     !input.dominantElement && !input.user?.baziSummary && input.user?.birthTime ? '出生时间已补齐' : '',
@@ -874,10 +873,18 @@ function summarizeFiveElements(fiveElements?: Record<string, number> | null) {
     return '';
   }
 
-  return entries
+  const elements = entries
     .slice(0, 3)
-    .map(([key, value]) => `${normalizeElementName(key)}${value}`)
-    .join('、');
+    .map(([key]) => normalizeElementName(key))
+    .filter(Boolean);
+  const [primary, ...secondary] = elements;
+
+  if (!primary) {
+    return '';
+  }
+
+  const secondaryText = secondary.length ? `，其次${secondary.join('、')}` : '';
+  return `${primary}最强${secondaryText}。${resolveElementMeaning(elements)}`;
 }
 
 function pickLatestMood(items: MoodJournalItem[]) {
@@ -904,8 +911,33 @@ function resolveElementHint(element: string) {
   return getDivinationProfileMapping().elementHints[element] || '节奏平衡';
 }
 
+function resolveElementMeaning(elements: string[]) {
+  const meaningTerms: Record<string, string[]> = {
+    木: ['生长启动', '持续推进'],
+    火: ['表达呈现', '外在行动'],
+    土: ['稳定承接', '现实落地'],
+    金: ['边界判断', '事实校准'],
+    水: ['感受', '思考'],
+  };
+  const terms = elements.flatMap((element) => meaningTerms[element] || [resolveElementHint(element)]);
+
+  if (!terms.length) {
+    return '表示你当前画像更偏节奏平衡。';
+  }
+
+  return `表示你当前画像更偏${formatChineseList(unique(terms).slice(0, 4))}。`;
+}
+
 function moodLabel(type: string) {
   return getDivinationProfileMapping().moodLabels[type] || '当前状态';
+}
+
+function formatChineseList(items: string[]) {
+  if (items.length <= 1) {
+    return items[0] || '';
+  }
+
+  return `${items.slice(0, -1).join('、')}与${items[items.length - 1]}`;
 }
 
 function deriveZodiacFromBirthday(birthday?: string | null) {

@@ -42,6 +42,34 @@
       </view>
     </view>
 
+    <view class="casting-action">
+      <button
+        v-if="!isCasting"
+        class="casting-primary-button"
+        hover-class="casting-primary-button--hover"
+        @tap="startCasting"
+      >
+        <text class="casting-primary-button__label">凝神起卦</text>
+        <text class="casting-primary-button__hint">默想所问后点击开始</text>
+      </button>
+      <button
+        v-else-if="castComplete"
+        class="casting-primary-button casting-primary-button--complete"
+        hover-class="casting-primary-button--hover"
+        @tap="openResult"
+      >
+        <text class="casting-primary-button__label">查看卦象</text>
+        <text class="casting-primary-button__hint">本卦、动爻、变卦已生成</text>
+      </button>
+      <view v-else class="casting-status">
+        <view class="status-pulse"></view>
+        <view class="casting-status__copy">
+          <text class="casting-status__title">{{ currentStep?.title || '正在凝神' }}</text>
+          <text class="casting-status__desc">{{ ritualNote }}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="ritual-stage" :class="[`ritual-stage--${selectedMethod}`, { 'ritual-stage--active': isCasting }]">
       <view v-if="selectedMethod === 'split-stalk'" class="stalk-scene">
         <view class="taiji-stick">
@@ -109,15 +137,7 @@
       </view>
     </view>
 
-    <view class="bottom-action">
-      <button v-if="!isCasting" class="primary-button" @tap="startCasting">凝神起卦</button>
-      <button v-else-if="castComplete" class="primary-button" @tap="openResult">查看卦象</button>
-      <view v-else class="casting-status">
-        <text>{{ currentStep?.title || '正在凝神' }}</text>
-        <view class="status-pulse"></view>
-      </view>
-      <text class="ritual-note">{{ ritualNote }}</text>
-    </view>
+    <text v-if="!isCasting" class="ritual-note">{{ ritualNote }}</text>
   </view>
 </template>
 
@@ -328,7 +348,7 @@ onUnload(() => {
   position: relative;
   min-height: 100vh;
   box-sizing: border-box;
-  padding: calc(env(safe-area-inset-top) + 40rpx) 30rpx 180rpx;
+  padding: calc(env(safe-area-inset-top) + 40rpx) 30rpx calc(env(safe-area-inset-bottom) + 44rpx);
   overflow: hidden;
   background:
     radial-gradient(circle at 82% 8%, rgba(216, 166, 78, 0.18), transparent 26%),
@@ -367,9 +387,10 @@ onUnload(() => {
 .question-line,
 .method-grid,
 .flow-switch,
+.casting-action,
 .ritual-stage,
 .step-list,
-.bottom-action {
+.ritual-note {
   position: relative;
   z-index: 1;
 }
@@ -478,7 +499,7 @@ onUnload(() => {
   align-items: center;
   justify-content: space-between;
   gap: 18rpx;
-  margin-bottom: 22rpx;
+  margin-bottom: 18rpx;
 }
 
 .flow-switch__label {
@@ -503,6 +524,69 @@ onUnload(() => {
 .flow-pill--active {
   color: #ffffff;
   background: #8b6fd6;
+}
+
+.casting-action {
+  margin: 8rpx 0 22rpx;
+}
+
+.casting-primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8rpx;
+  width: 100%;
+  min-height: 112rpx;
+  padding: 18rpx 28rpx;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #7d60d0 0%, #9c7be7 48%, #d8a64e 100%);
+  box-shadow:
+    0 20rpx 42rpx rgba(107, 78, 188, 0.26),
+    0 8rpx 18rpx rgba(168, 107, 35, 0.14);
+  font-size: 28rpx;
+  line-height: 1.2;
+  border: 1rpx solid rgba(255, 255, 255, 0.62);
+  transform: translateZ(0);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.casting-primary-button::after {
+  border: 0;
+}
+
+.casting-primary-button--hover {
+  transform: translateY(3rpx) scale(0.99);
+  box-shadow:
+    0 12rpx 26rpx rgba(107, 78, 188, 0.24),
+    0 5rpx 12rpx rgba(168, 107, 35, 0.12);
+}
+
+.casting-primary-button--complete {
+  background: linear-gradient(135deg, #4e3825 0%, #8b6fd6 54%, #d8a64e 100%);
+}
+
+.casting-primary-button__label,
+.casting-primary-button__hint {
+  display: block;
+  text-align: center;
+}
+
+.casting-primary-button__label {
+  font-size: 34rpx;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.casting-primary-button__hint {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .ritual-stage {
@@ -776,46 +860,23 @@ onUnload(() => {
   color: rgba(78, 56, 37, 0.58);
 }
 
-.bottom-action {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  box-sizing: border-box;
-  padding: 22rpx 30rpx calc(env(safe-area-inset-bottom) + 24rpx);
-  background: linear-gradient(180deg, rgba(255, 248, 236, 0), rgba(255, 248, 236, 0.96) 28%);
-}
-
-.primary-button {
-  height: 90rpx;
-  padding: 0;
-  margin: 0;
-  border-radius: 999rpx;
-  color: #ffffff;
-  background: linear-gradient(135deg, #8b6fd6, #d8a64e);
-  font-size: 29rpx;
-  font-weight: 760;
-}
-
-.primary-button::after {
-  border: 0;
-}
-
 .casting-status {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16rpx;
-  height: 90rpx;
-  border-radius: 999rpx;
-  color: #8b6fd6;
-  background: rgba(255, 255, 255, 0.82);
-  font-size: 27rpx;
-  font-weight: 700;
+  min-height: 108rpx;
+  padding: 18rpx 26rpx;
+  box-sizing: border-box;
+  border-radius: 30rpx;
+  color: #4e3825;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid rgba(139, 111, 214, 0.18);
+  box-shadow: 0 16rpx 34rpx rgba(107, 78, 188, 0.12);
 }
 
 .status-pulse {
+  flex: 0 0 auto;
   width: 18rpx;
   height: 18rpx;
   border-radius: 50%;
@@ -823,9 +884,26 @@ onUnload(() => {
   animation: pulse 0.9s ease-in-out infinite;
 }
 
+.casting-status__copy {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.casting-status__title {
+  font-size: 27rpx;
+  font-weight: 760;
+}
+
+.casting-status__desc {
+  font-size: 21rpx;
+  line-height: 1.35;
+  color: rgba(78, 56, 37, 0.58);
+}
+
 .ritual-note {
   display: block;
-  margin-top: 13rpx;
+  margin-top: 18rpx;
   text-align: center;
   font-size: 22rpx;
 }

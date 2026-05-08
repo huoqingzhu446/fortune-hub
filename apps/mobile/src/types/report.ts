@@ -39,12 +39,9 @@ export interface UnifiedReport {
     persistedUnlocked: boolean;
     unlockType: string | null;
     hasVipAccess: boolean;
-    canUnlockByAd: boolean;
     requiresLogin: boolean;
   };
   offers: {
-    adSlotCode: string | null;
-    adTitle: string | null;
     vipProducts: MembershipProduct[];
   };
 }

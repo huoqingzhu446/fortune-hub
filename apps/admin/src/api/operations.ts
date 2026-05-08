@@ -100,14 +100,6 @@ export interface AdminAuditLogItem {
   createdAt: string;
 }
 
-export interface AdminAdUnlockItem {
-  id: string;
-  userId: string;
-  recordType: string;
-  resultTitle: string;
-  unlockedAt: string;
-}
-
 export interface AdminNotificationLogItem {
   id: string;
   userId: string;
@@ -214,10 +206,6 @@ export function updateAdminFeedbackStatus(
 
 export function fetchAdminAuditLogs() {
   return http.get<ListResponse<AdminAuditLogItem>>('/admin/ops/audit-logs').then((r) => r.data);
-}
-
-export function fetchAdminAdUnlocks() {
-  return http.get<ListResponse<AdminAdUnlockItem>>('/admin/ops/ad-unlocks').then((r) => r.data);
 }
 
 export function fetchAdminNotificationLogs() {

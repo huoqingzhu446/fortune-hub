@@ -7,8 +7,8 @@ import { MeditationRecordEntity } from '../database/entities/meditation-record.e
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { FavoritesModule } from '../favorites/favorites.module';
-import { MembershipModule } from '../membership/membership.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -23,8 +23,8 @@ import { UsersService } from './users.service';
       OrderEntity,
     ]),
     AuthModule,
+    EntitlementsModule,
     FavoritesModule,
-    MembershipModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

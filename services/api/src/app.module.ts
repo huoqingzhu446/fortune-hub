@@ -3,7 +3,6 @@ import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AdminCommerceModule } from './admin-commerce/admin-commerce.module';
 import { AdminContentModule } from './admin-content/admin-content.module';
 import { AdminOpsModule } from './admin-ops/admin-ops.module';
-import { AdsModule } from './ads/ads.module';
 import { AssessmentModule } from './assessment/assessment.module';
 import { BaziModule } from './bazi/bazi.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -111,7 +110,6 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     NotificationsModule,
     MembershipModule,
     OrdersModule,
-    AdsModule,
     ReportsModule,
     PostersModule,
     AssessmentModule,

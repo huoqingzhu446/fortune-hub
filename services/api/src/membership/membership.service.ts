@@ -1,22 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DEFAULT_MEMBERSHIP_PRODUCTS } from '../commerce/commerce.defaults';
 import { MembershipProductEntity } from '../database/entities/membership-product.entity';
 import { UserEntity } from '../database/entities/user.entity';
-import { DEFAULT_MEMBERSHIP_PRODUCTS } from '../commerce/commerce.defaults';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 
 @Injectable()
 export class MembershipService {
   constructor(
     @InjectRepository(MembershipProductEntity)
     private readonly membershipProductRepository: Repository<MembershipProductEntity>,
-    @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async getStatus(user: UserEntity) {
     await this.ensureDefaultProducts();
-    const refreshedUser = await this.refreshVipStatus(user);
+    const refreshedUser =
+      await this.entitlementsService.refreshMembershipStatus(user);
     const products = await this.getPublishedProducts();
     const active = this.isVipActive(refreshedUser);
 
@@ -29,7 +30,11 @@ export class MembershipService {
         isVipActive: active,
         rights: active
           ? ['查看全部完整版解读', '历史记录自动解锁', '不限次数海报生成']
-          : ['基础结果查看', '单条广告解锁完整版', '会员开通后自动解锁全部记录'],
+          : [
+              '基础结果查看',
+              '会员开通后自动解锁全部记录',
+              '会员有效期内不限次数生成海报',
+            ],
         products: products.map((product) => this.serializeProduct(product)),
       },
       timestamp: new Date().toISOString(),
@@ -58,32 +63,11 @@ export class MembershipService {
   }
 
   isVipActive(user: UserEntity | null) {
-    if (!user || user.vipStatus !== 'active' || !user.vipExpiredAt) {
-      return false;
-    }
-
-    return user.vipExpiredAt.getTime() > Date.now();
+    return this.entitlementsService.isMembershipActive(user);
   }
 
   async activateMembership(userId: string, product: MembershipProductEntity) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('用户不存在');
-    }
-
-    const now = Date.now();
-    const baseTime = user.vipExpiredAt && user.vipExpiredAt.getTime() > now
-      ? user.vipExpiredAt.getTime()
-      : now;
-    const nextExpiredAt = new Date(baseTime + product.durationDays * 24 * 60 * 60 * 1000);
-
-    user.vipStatus = 'active';
-    user.vipExpiredAt = nextExpiredAt;
-
-    return this.userRepository.save(user);
+    return this.entitlementsService.grantMembershipFromProduct(userId, product);
   }
 
   serializeProduct(product: MembershipProductEntity) {
@@ -97,15 +81,6 @@ export class MembershipService {
       durationDays: product.durationDays,
       benefits: product.benefitsJson ?? [],
     };
-  }
-
-  private async refreshVipStatus(user: UserEntity) {
-    if (this.isVipActive(user) || !user.vipExpiredAt || user.vipStatus === 'inactive') {
-      return user;
-    }
-
-    user.vipStatus = 'inactive';
-    return this.userRepository.save(user);
   }
 
   private async getPublishedProducts() {

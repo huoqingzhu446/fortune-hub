@@ -13,8 +13,8 @@ describe('ReportsService', () => {
     const service = new ReportsService(
       recordRepo as never,
       {} as never,
-      {} as never,
-      { isVipActive: jest.fn(), listProducts: jest.fn() } as never,
+      { listProducts: jest.fn() } as never,
+      { buildFullReportAccess: jest.fn() } as never,
     );
 
     await expect(service.getOwnedRecordOrThrow('r1', 'u1')).resolves.toMatchObject({ id: 'r1' });

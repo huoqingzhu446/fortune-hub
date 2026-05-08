@@ -7,7 +7,7 @@ import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
-import { MembershipModule } from '../membership/membership.module';
+import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { AdminOpsController } from './admin-ops.controller';
 import { AdminOpsService } from './admin-ops.service';
 
@@ -21,7 +21,7 @@ import { AdminOpsService } from './admin-ops.service';
       AuditLogEntity,
     ]),
     AdminAuthModule,
-    MembershipModule,
+    EntitlementsModule,
     CommonModule,
   ],
   controllers: [AdminOpsController],

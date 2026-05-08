@@ -89,14 +89,14 @@ const currentPage = computed(() => {
   if (route.path === '/commerce-center') {
     return {
       title: '商业化配置',
-      subtitle: '管理会员商品、激励广告位和完整版解锁的基础配置。',
+      subtitle: '管理会员商品、订单支付和完整版解锁的基础配置。',
     };
   }
 
   if (route.path === '/operations') {
     return {
       title: '运营中心',
-      subtitle: '查看用户、订单、反馈、通知投递、广告解锁和审计日志。',
+      subtitle: '查看用户、订单、反馈、通知投递和审计日志。',
     };
   }
 

@@ -129,14 +129,14 @@ export class FortuneService {
           title: '报告中心',
           owner: '数据服务',
           status: '已接入',
-          summary: '完整版报告、广告解锁、会员权益和分享海报已经形成最小闭环。',
+          summary: '完整版报告、会员权益和分享海报已经形成最小闭环。',
         },
         {
           id: 'commerce-center',
           title: '商业化配置',
           owner: '增长运营',
           status: '已接入',
-          summary: '会员商品、广告位开关和奖励策略已经支持后台查看与编辑。',
+          summary: '会员商品和订单支付配置已经支持后台查看与编辑。',
         },
       ],
       integrations: {

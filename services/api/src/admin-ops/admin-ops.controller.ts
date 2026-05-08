@@ -49,13 +49,6 @@ export class AdminOpsController {
     });
   }
 
-  @Get('ad-unlocks')
-  listAdUnlocks(@Query('limit') limit?: string) {
-    return this.adminOpsService.listAdUnlocks({
-      limit: Number(limit) || undefined,
-    });
-  }
-
   @Get('notification-logs')
   listNotificationLogs(
     @Query('scene') scene?: string,

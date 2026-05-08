@@ -36,7 +36,7 @@
 
     <view v-else-if="!isLoggedIn" class="section-card empty-card">
       <text class="empty-card__title">先登录再查看完整报告</text>
-      <text class="empty-card__text">历史记录、广告解锁、会员状态和海报生成都需要登录后使用。</text>
+      <text class="empty-card__text">历史记录、会员状态和海报生成都需要登录后使用。</text>
       <button class="hero-button hero-button--primary" @tap="goProfile">去个人中心</button>
     </view>
 
@@ -84,17 +84,9 @@
           </view>
         </view>
 
-        <view class="action-row">
-          <button
-            v-if="report.access.canUnlockByAd && report.offers.adSlotCode"
-            class="hero-button hero-button--primary"
-            :loading="unlocking"
-            @tap="unlockByAd"
-          >
-            观看激励视频解锁
-          </button>
-          <button class="hero-button hero-button--secondary" @tap="goMembership">
-            开通 VIP
+        <view class="action-row action-row--single">
+          <button class="hero-button hero-button--primary" @tap="goMembership">
+            开通会员
           </button>
         </view>
       </view>
@@ -179,7 +171,6 @@
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
-import { verifyRewardUnlock } from '../../api/ads';
 import { generateReportPosterAsync } from '../../api/posters';
 import { fetchUnifiedHistory } from '../../api/records';
 import { fetchReport } from '../../api/reports';
@@ -200,7 +191,6 @@ import type { UnifiedReport } from '../../types/report';
 const authToken = ref(getAuthToken());
 const recordId = ref('');
 const loading = ref(false);
-const unlocking = ref(false);
 const posterLoading = ref(false);
 const report = ref<UnifiedReport | null>(null);
 const poster = ref<GeneratedPoster | null>(null);
@@ -240,7 +230,7 @@ const heroSubtitle = computed(() => {
   }
 
   if (!isLoggedIn.value) {
-    return '登录后可以查看基础版结果、广告解锁入口、VIP 权益和分享海报。';
+    return '登录后可以查看基础版结果、VIP 权益和分享海报。';
   }
 
   if (recordId.value) {
@@ -313,30 +303,6 @@ async function toggleReportFavorite() {
       recordType: report.value.recordType,
     },
   });
-}
-
-async function unlockByAd() {
-  if (!report.value?.offers.adSlotCode) {
-    return;
-  }
-
-  try {
-    unlocking.value = true;
-    const response = await verifyRewardUnlock(recordId.value, report.value.offers.adSlotCode);
-    report.value = response.data.report;
-    uni.showToast({
-      title: '完整版已解锁',
-      icon: 'success',
-    });
-  } catch (error) {
-    console.warn('unlock by ad failed', error);
-    uni.showToast({
-      title: '解锁失败，请稍后再试',
-      icon: 'none',
-    });
-  } finally {
-    unlocking.value = false;
-  }
 }
 
 async function generatePoster() {
@@ -528,6 +494,10 @@ onShow(() => {
 .status-row,
 .action-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.action-row--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .status-pill,

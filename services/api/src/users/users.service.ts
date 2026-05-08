@@ -10,8 +10,8 @@ import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 import { FavoritesService } from '../favorites/favorites.service';
-import { MembershipService } from '../membership/membership.service';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -216,7 +216,7 @@ export class UsersService {
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
     private readonly favoritesService: FavoritesService,
-    private readonly membershipService: MembershipService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   getCurrentProfile(user: UserEntity) {
@@ -236,7 +236,7 @@ export class UsersService {
     const serializedUser = user ? this.authService.serializeUser(user) : null;
     const isLoggedIn = Boolean(user);
     const isProfileCompleted = this.authService.isProfileCompleted(user);
-    const isVipActive = this.membershipService.isVipActive(user);
+    const isVipActive = this.entitlementsService.isMembershipActive(user);
     const recentHistory = user
       ? await this.loadUnifiedHistoryItems(user, 3)
       : [];
@@ -715,7 +715,7 @@ export class UsersService {
         ? testRecords.map((record) =>
             this.serializeUnifiedHistoryItem(
               record,
-              this.membershipService.isVipActive(user),
+              this.entitlementsService.isMembershipActive(user),
             ),
           )
         : [],
@@ -908,7 +908,7 @@ export class UsersService {
   }
 
   private async loadUnifiedHistoryItems(user: UserEntity, take: number) {
-    const hasVipAccess = this.membershipService.isVipActive(user);
+    const hasVipAccess = this.entitlementsService.isMembershipActive(user);
     const records = await this.userRecordRepository.find({
       where: {
         userId: user.id,

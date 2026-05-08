@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
-import { SaveAdConfigDto } from './dto/save-ad-config.dto';
 import { SaveMembershipProductDto } from './dto/save-membership-product.dto';
 import { AdminCommerceService } from './admin-commerce.service';
 
@@ -27,13 +26,4 @@ export class AdminCommerceController {
     return this.adminCommerceService.updateMembershipProduct(code, dto);
   }
 
-  @Get('ad-configs')
-  getAdConfigs() {
-    return this.adminCommerceService.getAdConfigs();
-  }
-
-  @Put('ad-configs/:id')
-  updateAdConfig(@Param('id') id: string, @Body() dto: SaveAdConfigDto) {
-    return this.adminCommerceService.updateAdConfig(id, dto);
-  }
 }

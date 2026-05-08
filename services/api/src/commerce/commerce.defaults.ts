@@ -33,19 +33,3 @@ export const DEFAULT_MEMBERSHIP_PRODUCTS = [
     status: 'published',
   },
 ] as const;
-
-export const DEFAULT_AD_CONFIGS = [
-  {
-    slotCode: 'unlock-full-report',
-    title: '完整版报告激励位',
-    placement: 'report_unlock',
-    rewardType: 'unlock_full_report',
-    rewardDescription: '观看激励视频后可解锁当前报告完整版。',
-    enabled: true,
-    configJson: {
-      maxUnlocksPerDay: 6,
-      rewardScope: 'single_record',
-      CTA: '观看激励视频解锁完整版',
-    },
-  },
-] as const;

@@ -1,12 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AdConfigEntity } from '../database/entities/ad-config.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 import { MembershipService } from '../membership/membership.service';
-import { DEFAULT_AD_CONFIGS } from '../commerce/commerce.defaults';
 
 type ReportSection = {
   title: string;
@@ -21,11 +20,10 @@ export class ReportsService {
   constructor(
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
-    @InjectRepository(AdConfigEntity)
-    private readonly adConfigRepository: Repository<AdConfigEntity>,
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     private readonly membershipService: MembershipService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async getReport(recordId: string, user: UserEntity) {
@@ -56,19 +54,11 @@ export class ReportsService {
   }
 
   async buildReportPayload(record: UserRecordEntity, user: UserEntity) {
-    await this.ensureDefaultAdConfigs();
     const resultData = this.asRecord(record.resultData);
-    const hasVipAccess = this.membershipService.isVipActive(user);
-    const isUnlocked = record.isFullReportUnlocked || hasVipAccess;
+    const access = this.entitlementsService.buildFullReportAccess(record, user);
+    const isUnlocked = access.isFullReportUnlocked;
     const reportTemplate = await this.resolveReportTemplate(record.recordType);
-    const [rewardConfig, products] = await Promise.all([
-      this.adConfigRepository.findOne({
-        where: {
-          slotCode: DEFAULT_AD_CONFIGS[0].slotCode,
-        },
-      }),
-      this.membershipService.listProducts(),
-    ]);
+    const products = await this.membershipService.listProducts();
 
     const sharePoster = this.resolveSharePoster(
       record,
@@ -108,20 +98,8 @@ export class ReportsService {
             summary: item.summary,
           }))
         : [],
-      access: {
-        isFullReportUnlocked: isUnlocked,
-        persistedUnlocked: record.isFullReportUnlocked,
-        unlockType: isUnlocked
-          ? (record.unlockType ?? (hasVipAccess ? 'vip' : 'free'))
-          : null,
-        hasVipAccess,
-        canUnlockByAd: !hasVipAccess && Boolean(rewardConfig?.enabled),
-        requiresLogin: false,
-      },
+      access,
       offers: {
-        adSlotCode:
-          !hasVipAccess && rewardConfig?.enabled ? rewardConfig.slotCode : null,
-        adTitle: rewardConfig?.enabled ? rewardConfig.title : null,
         vipProducts: products.map((product) =>
           this.membershipService.serializeProduct(product),
         ),
@@ -465,22 +443,5 @@ export class ReportsService {
     return value && typeof value === 'object' && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : {};
-  }
-
-  private async ensureDefaultAdConfigs() {
-    const count = await this.adConfigRepository.count();
-
-    if (count > 0) {
-      return;
-    }
-
-    await this.adConfigRepository.save(
-      DEFAULT_AD_CONFIGS.map((item) =>
-        this.adConfigRepository.create({
-          ...item,
-          configJson: { ...item.configJson },
-        }),
-      ),
-    );
   }
 }

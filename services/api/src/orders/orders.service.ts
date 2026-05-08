@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { MembershipService } from '../membership/membership.service';
 import { OrderEntity } from '../database/entities/order.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderPayCallbackDto } from './dto/order-pay-callback.dto';
 
@@ -14,6 +15,7 @@ export class OrdersService {
     @InjectRepository(OrderEntity)
     private readonly orderRepository: Repository<OrderEntity>,
     private readonly membershipService: MembershipService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async createOrder(user: UserEntity, dto: CreateOrderDto) {
@@ -74,8 +76,13 @@ export class OrdersService {
     let membership = null;
 
     if (savedOrder.status === 'paid') {
-      const product = await this.membershipService.getProductByCodeOrThrow(savedOrder.productCode);
-      const user = await this.membershipService.activateMembership(savedOrder.userId, product);
+      const product = await this.membershipService.getProductByCodeOrThrow(
+        savedOrder.productCode,
+      );
+      const user = await this.entitlementsService.grantMembershipFromProduct(
+        savedOrder.userId,
+        product,
+      );
       membership = {
         vipStatus: user.vipStatus,
         vipExpiredAt: user.vipExpiredAt?.toISOString() ?? null,

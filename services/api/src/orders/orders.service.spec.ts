@@ -18,12 +18,18 @@ describe('OrdersService', () => {
         priceFen: 3900,
         durationDays: 30,
       })),
-      activateMembership: jest.fn(async () => ({
+    };
+    const entitlementsService = {
+      grantMembershipFromProduct: jest.fn(async () => ({
         vipStatus: 'active',
         vipExpiredAt: new Date('2026-05-25T00:00:00Z'),
       })),
     };
-    const service = new OrdersService(orderRepo as never, membershipService as never);
+    const service = new OrdersService(
+      orderRepo as never,
+      membershipService as never,
+      entitlementsService as never,
+    );
     const user = { id: 'u1' };
 
     const createResponse = await service.createOrder(user as never, {
@@ -46,6 +52,9 @@ describe('OrdersService', () => {
 
     expect(callbackResponse.data.order.status).toBe('paid');
     expect(callbackResponse.data.membership?.vipStatus).toBe('active');
-    expect(membershipService.activateMembership).toHaveBeenCalledWith('u1', expect.any(Object));
+    expect(entitlementsService.grantMembershipFromProduct).toHaveBeenCalledWith(
+      'u1',
+      expect.any(Object),
+    );
   });
 });

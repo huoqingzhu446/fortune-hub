@@ -34,10 +34,14 @@ describe('AuthService', () => {
     const config = {
       get: jest.fn((_key: string, fallback?: string) => fallback),
     };
+    const entitlements = {
+      isMembershipActive: jest.fn(() => false),
+    };
     const service = new AuthService(
       userRepo as never,
       redis as never,
       config as never,
+      entitlements as never,
     );
 
     const loginResponse = await service.login({
@@ -53,7 +57,12 @@ describe('AuthService', () => {
   });
 
   it('rejects missing bearer token', async () => {
-    const service = new AuthService({} as never, {} as never, {} as never);
+    const service = new AuthService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
 
     await expect(service.requireUserFromAuthorization()).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -61,7 +70,12 @@ describe('AuthService', () => {
   });
 
   it('uses preference birth place when resolving profile completion', () => {
-    const service = new AuthService({} as never, {} as never, {} as never);
+    const service = new AuthService(
+      {} as never,
+      {} as never,
+      {} as never,
+      { isMembershipActive: jest.fn(() => false) } as never,
+    );
     const user = {
       id: 'u1',
       openid: 'mock_openid',

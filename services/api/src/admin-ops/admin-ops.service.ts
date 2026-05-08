@@ -7,7 +7,7 @@ import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
-import { MembershipService } from '../membership/membership.service';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 
 @Injectable()
 export class AdminOpsService {
@@ -22,7 +22,7 @@ export class AdminOpsService {
     private readonly pushDeliveryLogRepository: Repository<PushDeliveryLogEntity>,
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
-    private readonly membershipService: MembershipService,
+    private readonly entitlementsService: EntitlementsService,
     private readonly imageGenerationService: ImageGenerationService,
   ) {}
 
@@ -169,30 +169,6 @@ export class AdminOpsService {
     });
   }
 
-  async listAdUnlocks(query: { limit?: number }) {
-    const records = await this.userRecordRepository.find({
-      where: {
-        unlockType: 'ad_reward',
-      },
-      order: {
-        updatedAt: 'DESC',
-      },
-      take: Math.min(200, Math.max(1, Number(query.limit) || 100)),
-    });
-
-    return this.buildEnvelope({
-      items: records.map((record) => ({
-        id: record.id,
-        userId: record.userId,
-        recordType: record.recordType,
-        sourceCode: record.sourceCode,
-        resultTitle: record.resultTitle,
-        unlockType: record.unlockType,
-        unlockedAt: record.updatedAt.toISOString(),
-      })),
-    });
-  }
-
   async listNotificationLogs(query: {
     scene?: string;
     status?: string;
@@ -323,7 +299,7 @@ export class AdminOpsService {
   }
 
   private resolveVipStatus(user: UserEntity) {
-    return this.membershipService.isVipActive(user) ? 'active' : 'inactive';
+    return this.entitlementsService.isMembershipActive(user) ? 'active' : 'inactive';
   }
 
   private serializeUser(user: UserEntity) {

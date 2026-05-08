@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 import { LuckyService } from '../lucky/lucky.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -104,6 +105,7 @@ export class HomeService {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly luckyService: LuckyService,
+    private readonly entitlementsService: EntitlementsService,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
     @InjectRepository(MoodRecordEntity)
@@ -128,10 +130,7 @@ export class HomeService {
       user?.zodiac &&
       user?.gender !== 'unknown',
     );
-    const isVipActive =
-      user?.vipStatus === 'active' &&
-      user.vipExpiredAt instanceof Date &&
-      user.vipExpiredAt.getTime() > Date.now();
+    const isVipActive = this.entitlementsService.isMembershipActive(user);
 
     const featureEntries = [
       {

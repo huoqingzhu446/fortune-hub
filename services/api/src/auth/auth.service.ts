@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { QueryFailedError, Repository } from 'typeorm';
 import { UserEntity } from '../database/entities/user.entity';
+import { EntitlementsService } from '../entitlements/entitlements.service';
 import { RedisService } from '../redis/redis.service';
 import { WechatLoginDto } from './dto/wechat-login.dto';
 
@@ -34,6 +35,7 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    private readonly entitlementsService: EntitlementsService,
   ) {}
 
   async login(dto: WechatLoginDto) {
@@ -123,10 +125,7 @@ export class AuthService {
   }
 
   serializeUser(user: UserEntity) {
-    const isVipActive =
-      user.vipStatus === 'active' &&
-      user.vipExpiredAt instanceof Date &&
-      user.vipExpiredAt.getTime() > Date.now();
+    const isVipActive = this.entitlementsService.isMembershipActive(user);
 
     return {
       id: user.id,

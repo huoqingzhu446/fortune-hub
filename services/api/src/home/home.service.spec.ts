@@ -19,6 +19,7 @@ describe('HomeService current state score', () => {
           themeName: 'mint',
         })),
       } as never,
+      { isMembershipActive: jest.fn(() => false) } as never,
       { find: jest.fn(async () => options.records ?? []) } as never,
       { find: jest.fn(async () => options.moods ?? []) } as never,
     );

@@ -112,15 +112,6 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="广告解锁" name="adUnlocks">
-        <el-table :data="adUnlocks" stripe v-loading="loading">
-          <el-table-column prop="userId" label="用户" width="100" />
-          <el-table-column prop="recordType" label="类型" width="120" />
-          <el-table-column prop="resultTitle" label="报告" min-width="220" />
-          <el-table-column prop="unlockedAt" label="解锁时间" min-width="180" />
-        </el-table>
-      </el-tab-pane>
-
       <el-tab-pane label="通知" name="notifications">
         <el-table :data="notificationLogs" stripe v-loading="loading">
           <el-table-column prop="scene" label="场景" width="150" />
@@ -281,7 +272,6 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  fetchAdminAdUnlocks,
   fetchAdminAuditLogs,
   fetchAdminFeedback,
   fetchAdminFeedbackDetail,
@@ -295,7 +285,6 @@ import {
   updateAdminFeedbackStatus,
   type AdminUserDetailData,
   type ZhipuImageStatus,
-  type AdminAdUnlockItem,
   type AdminAuditLogItem,
   type AdminFeedbackItem,
   type AdminNotificationLogItem,
@@ -308,7 +297,6 @@ const loading = ref(false);
 const users = ref<AdminUserItem[]>([]);
 const orders = ref<AdminOrderItem[]>([]);
 const feedback = ref<AdminFeedbackItem[]>([]);
-const adUnlocks = ref<AdminAdUnlockItem[]>([]);
 const notificationLogs = ref<AdminNotificationLogItem[]>([]);
 const auditLogs = ref<AdminAuditLogItem[]>([]);
 const userDrawerVisible = ref(false);
@@ -369,7 +357,6 @@ async function loadAll() {
       userResponse,
       orderResponse,
       feedbackResponse,
-      adUnlockResponse,
       notificationResponse,
       auditResponse,
       zhipuStatusResponse,
@@ -377,7 +364,6 @@ async function loadAll() {
       fetchAdminUsers(),
       fetchAdminOrders(),
       fetchAdminFeedback(buildFeedbackFilterParams()),
-      fetchAdminAdUnlocks(),
       fetchAdminNotificationLogs(),
       fetchAdminAuditLogs(),
       fetchZhipuImageStatus(),
@@ -386,7 +372,6 @@ async function loadAll() {
     users.value = userResponse.data.items;
     orders.value = orderResponse.data.items;
     feedback.value = feedbackResponse.data.items;
-    adUnlocks.value = adUnlockResponse.data.items;
     notificationLogs.value = notificationResponse.data.items;
     auditLogs.value = auditResponse.data.items;
     zhipuStatus.value = zhipuStatusResponse.data;

@@ -1,62 +1,93 @@
 <template>
   <view class="page" :style="themeVars">
-    <view class="page-orb page-orb--mint"></view>
-    <view class="page-orb page-orb--amber"></view>
+    <view class="status-hero" :class="`status-hero--${statusOverview.tone}`">
+      <view class="status-hero__header">
+        <view>
+          <text class="eyebrow">mental health check</text>
+          <text class="status-hero__title">心理健康自检</text>
+        </view>
+        <text class="status-hero__badge">{{ statusOverview.badge }}</text>
+      </view>
 
-    <view class="hero-card">
-      <text class="hero-card__eyebrow">emotion check</text>
-      <text class="hero-card__title">情绪自检</text>
-      <text class="hero-card__subtitle">
+      <text class="status-hero__subtitle">
         {{
           screen === 'list'
-            ? '用几道轻量问题先感受最近的低落感或紧张感变化，它不是诊断，只是帮你更早留意自己。'
+            ? '用轻量量表观察最近 7 天的低落、紧张和恢复节奏。这里不做诊断，只帮你判断下一步该先照顾什么。'
             : screen === 'quiz'
               ? '请按最近 7 天的真实体验作答，越接近直觉越好。'
               : '结果已经生成，先看建议和支持信号，再决定下一步怎么照顾自己。'
         }}
       </text>
 
-      <view class="hero-card__status">
-        <view class="status-pill">
-          <text class="status-pill__label">{{ loginStatusLabel }}</text>
-          <text class="status-pill__value">{{ loginStatusValue }}</text>
+      <view class="state-panel">
+        <text class="state-panel__label">{{ statusOverview.label }}</text>
+        <text class="state-panel__value">{{ statusOverview.title }}</text>
+        <text class="state-panel__text">{{ statusOverview.description }}</text>
+      </view>
+
+      <view class="status-grid">
+        <view v-for="item in statusMetrics" :key="item.label" class="status-metric">
+          <text class="status-metric__label">{{ item.label }}</text>
+          <text class="status-metric__value">{{ item.value }}</text>
+          <text class="status-metric__hint">{{ item.hint }}</text>
         </view>
-        <view class="status-pill">
-          <text class="status-pill__label">最近状态</text>
-          <text class="status-pill__value">{{ latestResultLabel }}</text>
-        </view>
+      </view>
+
+      <view v-if="screen === 'list'" class="hero-actions">
+        <button
+          class="hero-button hero-button--primary"
+          :disabled="loadingTests || !tests.length"
+          :loading="loadingTests"
+          @tap="startPrimaryCheck"
+        >
+          开始一次自检
+        </button>
+        <button class="hero-button hero-button--secondary" @tap="goJournal">
+          记录今日心情
+        </button>
       </view>
     </view>
 
-    <view v-if="screen === 'list'" class="section-card disclaimer-card">
-      <text class="disclaimer-card__title">使用说明</text>
-      <text class="disclaimer-card__text">
-        这里是轻量自我观察，不是医学诊断。如果你已经持续失眠、明显失控，或出现伤害自己的想法，请立即联系现实中的家人朋友、医院、急救或当地心理危机干预热线。
-      </text>
+    <view v-if="screen === 'list'" class="safety-strip">
+      <view>
+        <text class="safety-strip__title">安全优先</text>
+        <text class="safety-strip__text">
+          如果已经持续失眠、明显失控，或出现伤害自己的想法，请立即联系现实中的家人朋友、医院、急救或当地心理危机干预热线。
+        </text>
+      </view>
     </view>
 
-    <view v-if="screen === 'list'" class="section-card">
+    <view v-if="screen === 'list'" class="section-block">
       <view class="section-header">
         <view>
-          <text class="section-header__eyebrow">self check list</text>
-          <text class="section-header__title">自检列表</text>
+          <text class="eyebrow">available checks</text>
+          <text class="section-header__title">可用自检</text>
         </view>
-        <text class="section-header__side">{{ tests.length }} 套已开放</text>
+        <text class="section-header__side">{{ tests.length }} 套开放</text>
       </view>
 
-      <view v-if="loadingTests" class="empty-card">
-        <text class="empty-card__title">正在同步自检题库...</text>
-        <text class="empty-card__text">马上就好，稍等一下。</text>
+      <view v-if="loadingTests" class="empty-state">
+        <text class="empty-state__title">正在同步自检题库</text>
+        <text class="empty-state__text">同步完成后会显示可用量表。</text>
       </view>
 
       <view v-else class="test-list">
-        <view v-for="test in tests" :key="test.code" class="test-card">
-          <view class="test-card__top">
+        <view
+          v-for="test in tests"
+          :key="test.code"
+          class="test-card"
+          :class="{ 'test-card--recent': isRecentTest(test.code) }"
+        >
+          <view class="test-card__head">
             <view>
+              <text v-if="isRecentTest(test.code)" class="test-card__marker">最近测过</text>
               <text class="test-card__title">{{ test.title }}</text>
               <text class="test-card__subtitle">{{ test.subtitle }}</text>
             </view>
-            <text class="test-card__meta">{{ test.questionCount }} 题 · {{ test.durationMinutes }} 分钟</text>
+            <view class="test-card__meta">
+              <text>{{ test.questionCount }} 题</text>
+              <text>{{ test.durationMinutes }} 分钟</text>
+            </view>
           </view>
 
           <text class="test-card__description">{{ test.description }}</text>
@@ -65,74 +96,86 @@
             <text v-for="tag in test.tags" :key="tag" class="tag-chip">{{ tag }}</text>
           </view>
 
-          <button class="hero-button hero-button--primary" :loading="loadingDetailCode === test.code" @tap="startEmotionCheck(test.code)">
-            开始自检
+          <button
+            class="hero-button hero-button--primary"
+            :loading="loadingDetailCode === test.code"
+            @tap="startEmotionCheck(test.code)"
+          >
+            {{ getTestActionLabel(test.code) }}
           </button>
         </view>
       </view>
     </view>
 
-    <view v-if="screen === 'list'" class="section-card section-card--soft">
+    <view v-if="screen === 'list'" class="section-block">
       <view class="section-header">
         <view>
-          <text class="section-header__eyebrow">history</text>
+          <text class="eyebrow">saved records</text>
           <text class="section-header__title">最近记录</text>
         </view>
-        <text class="section-header__side">{{ historyItems.length ? '已保存' : '未保存' }}</text>
+        <text class="section-header__side">{{ historyStatusLabel }}</text>
       </view>
 
-      <view v-if="!isLoggedIn" class="empty-card">
-        <text class="empty-card__title">登录后可保存历史</text>
-        <text class="empty-card__text">开发环境可以先去个人中心做快捷登录，之后自检结果会自动进入历史。</text>
+      <view v-if="!isLoggedIn" class="empty-state">
+        <text class="empty-state__title">登录后保存趋势</text>
+        <text class="empty-state__text">也可以先完成自检并查看本次结果，登录后再次提交会写入历史。</text>
         <button class="hero-button hero-button--secondary" @tap="goProfile">去个人中心</button>
       </view>
 
-      <view v-else-if="loadingHistory" class="empty-card">
-        <text class="empty-card__title">正在读取历史记录...</text>
-        <text class="empty-card__text">马上同步完成。</text>
+      <view v-else-if="loadingHistory" class="empty-state">
+        <text class="empty-state__title">正在读取最近记录</text>
+        <text class="empty-state__text">这一步只是在同步历史，不代表结果还在生成。</text>
       </view>
 
       <view v-else-if="historyItems.length" class="history-list">
-        <view v-for="item in historyItems" :key="item.id" class="history-card">
-          <view class="history-card__top">
+        <view
+          v-for="item in historyItems"
+          :key="item.id"
+          class="history-card"
+          :class="`history-card--${normalizeStatusTone(item.level)}`"
+        >
+          <view class="history-card__head">
             <view>
+              <text class="history-card__level">{{ getLevelLabel(item.level) }}</text>
               <text class="history-card__title">{{ item.title }}</text>
-              <text class="history-card__subtitle">{{ item.subtitle }}</text>
             </view>
-            <text class="history-card__score">{{ item.score ?? '--' }}</text>
+            <view class="history-card__scorebox">
+              <text class="history-card__score">{{ item.score ?? '--' }}</text>
+              <text class="history-card__time">{{ formatRelativeTime(item.completedAt) }}</text>
+            </view>
           </view>
           <text class="history-card__summary">{{ item.summary }}</text>
           <text class="history-card__signal">{{ item.supportSignal }}</text>
-          <text class="history-card__time">{{ formatDateTime(item.completedAt) }}</text>
+          <text class="history-card__date">{{ formatDateTime(item.completedAt) }}</text>
         </view>
       </view>
 
-      <view v-else class="empty-card">
-        <text class="empty-card__title">还没有保存的自检记录</text>
-        <text class="empty-card__text">完成一次自检后，这里会展示你最近的结果。</text>
+      <view v-else class="empty-state">
+        <text class="empty-state__title">暂无最近状态</text>
+        <text class="empty-state__text">完成一次自检后，这里会显示结果、时间和后续建议。</text>
       </view>
     </view>
 
-    <view v-if="screen === 'quiz' && activeTest && currentQuestion" class="section-card">
+    <view v-if="screen === 'quiz' && activeTest && currentQuestion" class="work-panel">
       <view class="section-header">
         <view>
-          <text class="section-header__eyebrow">question flow</text>
+          <text class="eyebrow">question flow</text>
           <text class="section-header__title">{{ activeTest.title }}</text>
         </view>
         <text class="section-header__side">{{ currentQuestionIndex + 1 }} / {{ activeTest.questions.length }}</text>
-      </view>
-
-      <view class="disclaimer-inline">
-        <text>{{ activeTest.disclaimer }}</text>
       </view>
 
       <view class="progress-shell">
         <view class="progress-bar" :style="{ width: `${progressPercent}%` }"></view>
       </view>
 
-      <view class="question-card">
-        <text class="question-card__intro">{{ activeTest.intro }}</text>
-        <text class="question-card__prompt">{{ currentQuestion.prompt }}</text>
+      <view class="notice-inline">
+        <text>{{ activeTest.disclaimer }}</text>
+      </view>
+
+      <view class="question-area">
+        <text class="question-area__intro">{{ activeTest.intro }}</text>
+        <text class="question-area__prompt">{{ currentQuestion.prompt }}</text>
 
         <view class="option-list">
           <view
@@ -156,7 +199,7 @@
           返回列表
         </button>
         <text class="action-row__hint">
-          {{ submitting ? '正在生成结果...' : '点击选项后会自动进入下一题' }}
+          {{ submitting ? '正在生成本次结果' : '选择后自动进入下一题' }}
         </text>
       </view>
 
@@ -165,28 +208,28 @@
       </button>
     </view>
 
-    <view v-if="screen === 'result' && latestResult && latestTest" class="section-card">
+    <view v-if="screen === 'result' && latestResult && latestTest" class="work-panel">
       <view class="section-header">
         <view>
-          <text class="section-header__eyebrow">result report</text>
+          <text class="eyebrow">result report</text>
           <text class="section-header__title">{{ latestResult.title }}</text>
         </view>
         <text class="section-header__side">{{ latestResult.scoreRangeLabel }}</text>
       </view>
 
-      <view class="result-hero">
-        <text class="result-hero__subtitle">{{ latestResult.subtitle }}</text>
-        <text class="result-hero__summary">{{ latestResult.summary }}</text>
+      <view class="result-summary" :class="`result-summary--${normalizeStatusTone(latestResult.riskLevel)}`">
+        <text class="result-summary__subtitle">{{ latestResult.subtitle }}</text>
+        <text class="result-summary__text">{{ latestResult.summary }}</text>
       </view>
 
-      <view class="signal-card">
-        <text class="signal-card__title">现在最值得优先做的事</text>
-        <text class="signal-card__text">{{ latestResult.primarySuggestion }}</text>
+      <view class="signal-panel">
+        <text class="signal-panel__title">现在优先做</text>
+        <text class="signal-panel__text">{{ latestResult.primarySuggestion }}</text>
       </view>
 
-      <view class="tips-card">
-        <text class="tips-card__title">放松步骤</text>
-        <text v-for="item in latestResult.relaxSteps" :key="item" class="tips-card__item">{{ item }}</text>
+      <view class="tips-panel">
+        <text class="tips-panel__title">放松步骤</text>
+        <text v-for="item in latestResult.relaxSteps" :key="item" class="tips-panel__item">{{ item }}</text>
       </view>
 
       <view class="favorite-strip">
@@ -197,29 +240,29 @@
           :loading="favoriteLoading"
           @tap="toggleHealingFavorite"
         >
-          {{ favoriteActive ? '已收藏这组练习' : '收藏这组练习' }}
+          {{ favoriteActive ? '已收藏' : '收藏练习' }}
         </button>
       </view>
 
-      <view class="tips-card">
-        <text class="tips-card__title">支持信号</text>
-        <text class="tips-card__text">{{ latestResult.supportSignal }}</text>
+      <view class="tips-panel">
+        <text class="tips-panel__title">支持信号</text>
+        <text class="tips-panel__text">{{ latestResult.supportSignal }}</text>
       </view>
 
-      <view class="disclaimer-inline">
+      <view class="notice-inline">
         <text>{{ latestResult.disclaimer }}</text>
       </view>
 
-      <view class="poster-card">
-        <view class="poster-card__head">
-          <text class="tips-card__title">分享海报</text>
-          <text class="poster-card__theme">{{ latestResult.sharePoster.themeName }}</text>
+      <view class="poster-panel">
+        <view class="poster-panel__head">
+          <text class="tips-panel__title">分享海报</text>
+          <text class="poster-panel__theme">{{ latestResult.sharePoster.themeName }}</text>
         </view>
-        <view class="poster-card__shell">
-          <text class="poster-card__title">{{ latestResult.sharePoster.title }}</text>
-          <text class="poster-card__subtitle">{{ latestResult.sharePoster.subtitle }}</text>
-          <text class="poster-card__accent">{{ latestResult.sharePoster.accentText }}</text>
-          <text class="poster-card__footer">{{ latestResult.sharePoster.footerText }}</text>
+        <view class="poster-panel__preview">
+          <text class="poster-panel__title">{{ latestResult.sharePoster.title }}</text>
+          <text class="poster-panel__subtitle">{{ latestResult.sharePoster.subtitle }}</text>
+          <text class="poster-panel__accent">{{ latestResult.sharePoster.accentText }}</text>
+          <text class="poster-panel__footer">{{ latestResult.sharePoster.footerText }}</text>
         </view>
         <button class="hero-button hero-button--secondary" @tap="copySharePoster">
           复制海报文案
@@ -272,6 +315,7 @@ import type {
 } from '../../types/emotion';
 
 type ScreenMode = 'list' | 'quiz' | 'result';
+type StatusTone = 'neutral' | 'ready' | 'watch' | 'support' | 'urgent' | 'loading';
 
 const screen = ref<ScreenMode>('list');
 const tests = ref<EmotionTestSummary[]>([]);
@@ -311,9 +355,190 @@ const progressPercent = computed(() => {
 
   return Math.round(((currentQuestionIndex.value + 1) / activeTest.value.questions.length) * 100);
 });
-const loginStatusLabel = computed(() => (isLoggedIn.value ? '当前状态' : '保存历史'));
 const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需登录'));
-const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
+const latestHistoryItem = computed(() => historyItems.value[0] ?? null);
+const latestResultLabel = computed(() => {
+  if (submitting.value) {
+    return '生成中';
+  }
+
+  if (latestResult.value) {
+    return latestResult.value.title;
+  }
+
+  if (loadingHistory.value && isLoggedIn.value) {
+    return '同步中';
+  }
+
+  if (latestHistoryItem.value) {
+    return latestHistoryItem.value.title;
+  }
+
+  return isLoggedIn.value ? '未自检' : '未登录';
+});
+const latestFreshnessLabel = computed(() => {
+  if (latestResult.value) {
+    return '本次刚完成';
+  }
+
+  if (loadingHistory.value && isLoggedIn.value) {
+    return '正在同步历史';
+  }
+
+  if (latestHistoryItem.value) {
+    return formatRelativeTime(latestHistoryItem.value.completedAt);
+  }
+
+  return isLoggedIn.value ? '完成后显示最近状态' : '登录后可保存记录';
+});
+const latestStatusTone = computed(() =>
+  normalizeStatusTone(latestResult.value?.riskLevel ?? latestHistoryItem.value?.level),
+);
+const historyStatusLabel = computed(() => {
+  if (!isLoggedIn.value) {
+    return '未登录';
+  }
+
+  if (loadingHistory.value) {
+    return '同步中';
+  }
+
+  return historyItems.value.length ? `${historyItems.value.length} 条` : '暂无';
+});
+const suggestedAction = computed(() => {
+  if (screen.value === 'quiz') {
+    return {
+      value: '完成当前题目',
+      hint: `${currentQuestionIndex.value + 1}/${activeTest.value?.questions.length ?? 0}`,
+    };
+  }
+
+  if (submitting.value) {
+    return {
+      value: '查看结果',
+      hint: '结果生成后自动展示',
+    };
+  }
+
+  if (!latestResult.value && !latestHistoryItem.value) {
+    return {
+      value: '开始自检',
+      hint: '先建立最近状态',
+    };
+  }
+
+  if (latestStatusTone.value === 'urgent') {
+    return {
+      value: '优先求助',
+      hint: '联系现实支持资源',
+    };
+  }
+
+  if (latestStatusTone.value === 'support') {
+    return {
+      value: '增加支持',
+      hint: '减少独自承受',
+    };
+  }
+
+  if (latestStatusTone.value === 'watch') {
+    return {
+      value: '今天减负',
+      hint: '观察睡眠和紧张感',
+    };
+  }
+
+  return {
+    value: '保持记录',
+    hint: '用日记追踪变化',
+  };
+});
+const statusOverview = computed(() => {
+  if (screen.value === 'quiz') {
+    return {
+      tone: 'loading' as StatusTone,
+      badge: '自检中',
+      label: '当前流程',
+      title: activeTest.value?.title ?? '正在自检',
+      description: '按最近 7 天的体验选择即可，不需要把答案想成标准答案。',
+    };
+  }
+
+  if (submitting.value) {
+    return {
+      tone: 'loading' as StatusTone,
+      badge: '生成中',
+      label: '当前流程',
+      title: '正在生成本次结果',
+      description: '这只发生在提交后的短时间内，完成后会自动进入结果页。',
+    };
+  }
+
+  if (latestResult.value) {
+    return {
+      tone: latestStatusTone.value,
+      badge: '本次结果',
+      label: '当前状态',
+      title: latestResult.value.title,
+      description: latestResult.value.primarySuggestion,
+    };
+  }
+
+  if (loadingHistory.value && isLoggedIn.value) {
+    return {
+      tone: 'loading' as StatusTone,
+      badge: '同步中',
+      label: '状态来源',
+      title: '正在读取最近记录',
+      description: '正在确认已保存的最新自检，这不是后台生成排队。',
+    };
+  }
+
+  if (latestHistoryItem.value) {
+    return {
+      tone: latestStatusTone.value,
+      badge: '最近保存',
+      label: '最近状态',
+      title: latestHistoryItem.value.title,
+      description: latestHistoryItem.value.subtitle || latestHistoryItem.value.summary,
+    };
+  }
+
+  if (!isLoggedIn.value) {
+    return {
+      tone: 'neutral' as StatusTone,
+      badge: '可先体验',
+      label: '当前状态',
+      title: '未登录保存',
+      description: '可以先完成自检并查看结果；登录后结果会进入历史趋势。',
+    };
+  }
+
+  return {
+    tone: 'neutral' as StatusTone,
+    badge: '未自检',
+    label: '当前状态',
+    title: '暂无最近结果',
+    description: '完成一次 3 分钟自检后，这里会显示最近状态和建议动作。',
+  };
+});
+const statusMetrics = computed(() => [
+  {
+    label: '登录状态',
+    value: loginStatusValue.value,
+    hint: isLoggedIn.value ? '结果自动保存' : '可先查看本次结果',
+  },
+  {
+    label: '最近结果',
+    value: latestResultLabel.value,
+    hint: latestFreshnessLabel.value,
+  },
+  {
+    label: '建议动作',
+    value: suggestedAction.value.value,
+    hint: suggestedAction.value.hint,
+  },
+]);
 
 async function bootstrap() {
   authToken.value = getAuthToken();
@@ -353,6 +578,64 @@ async function loadHistory() {
   } finally {
     loadingHistory.value = false;
   }
+}
+
+function normalizeStatusTone(level?: string | null): StatusTone {
+  if (level === 'steady') {
+    return 'ready';
+  }
+
+  if (level === 'watch' || level === 'support' || level === 'urgent') {
+    return level;
+  }
+
+  return 'neutral';
+}
+
+function getLevelLabel(level?: string | null) {
+  if (level === 'steady') {
+    return '平稳';
+  }
+
+  if (level === 'watch') {
+    return '需留意';
+  }
+
+  if (level === 'support') {
+    return '需要支持';
+  }
+
+  if (level === 'urgent') {
+    return '尽快求助';
+  }
+
+  return '已完成';
+}
+
+function isRecentTest(code: string) {
+  return Boolean(
+    (latestResult.value && latestTest.value?.code === code) ||
+      latestHistoryItem.value?.testCode === code,
+  );
+}
+
+function getTestActionLabel(code: string) {
+  return isRecentTest(code) ? '重新自检' : '开始自检';
+}
+
+function startPrimaryCheck() {
+  const preferredTest =
+    tests.value.find((test) => test.code === latestHistoryItem.value?.testCode) ?? tests.value[0];
+
+  if (!preferredTest) {
+    uni.showToast({
+      title: '自检题库同步中',
+      icon: 'none',
+    });
+    return;
+  }
+
+  void startEmotionCheck(preferredTest.code);
 }
 
 async function startEmotionCheck(code: string) {
@@ -527,6 +810,12 @@ function goProfile() {
   });
 }
 
+function goJournal() {
+  uni.navigateTo({
+    url: '/pages/journal/index',
+  });
+}
+
 function copySharePoster() {
   if (!latestResult.value) {
     return;
@@ -556,12 +845,53 @@ function formatDateTime(value: string) {
   }
 
   const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   const hours = `${date.getHours()}`.padStart(2, '0');
   const minutes = `${date.getMinutes()}`.padStart(2, '0');
 
   return `${month}-${day} ${hours}:${minutes}`;
+}
+
+function formatRelativeTime(value: string) {
+  if (!value) {
+    return '最近完成';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '最近完成';
+  }
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+
+  if (diffMinutes < 1) {
+    return '刚刚';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} 分钟前`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) {
+    return `${diffHours} 小时前`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays <= 7) {
+    return `${diffDays} 天前`;
+  }
+
+  return '建议复测';
 }
 
 onLoad(() => {
@@ -576,177 +906,332 @@ onShow(() => {
 
 <style lang="scss">
 .page {
-  position: relative;
   min-height: 100vh;
-  padding: 24rpx 24rpx 42rpx;
-  background:
-    radial-gradient(circle at top right, var(--theme-glow), transparent 26%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
-  overflow: hidden;
+  padding: 24rpx 24rpx 48rpx;
+  background: linear-gradient(180deg, var(--theme-page-top) 0%, #f7fbfa 46%, var(--theme-page-bottom) 100%);
 }
 
-.page-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(10rpx);
-  opacity: 0.72;
-  pointer-events: none;
+.status-hero,
+.work-panel,
+.test-card,
+.history-card,
+.empty-state,
+.safety-strip,
+.signal-panel,
+.tips-panel,
+.favorite-strip,
+.poster-panel {
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.08);
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10rpx 28rpx rgba(var(--theme-text-primary-rgb), 0.08);
 }
 
-.page-orb--mint {
-  top: 32rpx;
-  right: -90rpx;
-  width: 280rpx;
-  height: 280rpx;
-  background: radial-gradient(circle, rgba(134, 209, 182, 0.72) 0%, rgba(134, 209, 182, 0) 70%);
-}
-
-.page-orb--amber {
-  top: 300rpx;
-  left: -100rpx;
-  width: 320rpx;
-  height: 320rpx;
-  background: radial-gradient(circle, rgba(255, 194, 143, 0.24) 0%, rgba(255, 194, 143, 0) 74%);
-}
-
-.hero-card,
-.section-card {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 20rpx;
+.status-hero {
+  display: grid;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
   padding: 28rpx;
-  border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.86);
-  box-shadow: var(--apple-shadow);
+  border-color: rgba(var(--theme-primary-rgb), 0.18);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(247, 252, 250, 0.9) 100%);
 }
 
-.section-card--soft {
-  background: rgba(249, 251, 255, 0.82);
+.status-hero--loading .status-hero__badge,
+.status-hero--loading .state-panel {
+  background: rgba(var(--theme-primary-rgb), 0.08);
 }
 
-.hero-card {
-  display: grid;
-  gap: 18rpx;
+.status-hero--watch .status-hero__badge,
+.status-hero--watch .state-panel {
+  background: #fff6e6;
+  color: #9a620e;
 }
 
-.hero-card__eyebrow,
-.section-header__eyebrow {
-  font-size: 20rpx;
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
-  color: var(--apple-subtle);
+.status-hero--watch .state-panel {
+  border-left-color: #d99a2b;
 }
 
-.hero-card__title,
-.section-header__title,
-.test-card__title,
-.history-card__title,
-.tips-card__title,
-.signal-card__title,
-.disclaimer-card__title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: var(--apple-text);
+.status-hero--support .status-hero__badge,
+.status-hero--support .state-panel {
+  background: #fff1ec;
+  color: #9a4d3d;
 }
 
-.hero-card__subtitle,
-.test-card__description,
-.history-card__summary,
-.question-card__intro,
-.result-hero__summary,
-.save-note,
-.empty-card__text,
-.disclaimer-card__text,
-.signal-card__text,
-.tips-card__text {
-  font-size: 26rpx;
-  line-height: 1.7;
-  color: var(--apple-muted);
+.status-hero--support .state-panel {
+  border-left-color: #c47762;
 }
 
-.hero-card__status,
-.test-list,
-.history-list,
-.option-list {
-  display: grid;
-  gap: 14rpx;
+.status-hero--urgent .status-hero__badge,
+.status-hero--urgent .state-panel {
+  background: #fff0f0;
+  color: #a64242;
 }
 
-.hero-card__status {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.status-hero--urgent .state-panel {
+  border-left-color: #c95858;
 }
 
-.status-pill,
-.history-card,
-.test-card,
-.question-card,
-.tips-card,
-.empty-card,
-.signal-card,
-.disclaimer-card {
-  display: grid;
-  gap: 10rpx;
-  padding: 22rpx;
-  border-radius: 28rpx;
-}
-
-.status-pill,
-.history-card,
-.test-card,
-.question-card,
-.tips-card,
-.empty-card,
-.signal-card {
-  background: rgba(246, 249, 255, 0.84);
-}
-
-.disclaimer-card,
-.disclaimer-inline {
-  background: rgba(255, 245, 230, 0.88);
-  color: #8a5d22;
-}
-
-.status-pill__label,
-.section-header__side,
-.test-card__subtitle,
-.history-card__subtitle,
-.question-card__intro,
-.empty-card__title,
-.result-hero__subtitle {
-  font-size: 22rpx;
-  color: var(--apple-subtle);
-}
-
-.status-pill__value,
-.history-card__score,
-.question-card__prompt,
-.option-card__label {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--apple-text);
-}
-
+.status-hero__header,
 .section-header,
-.test-card__top,
-.history-card__top,
+.test-card__head,
+.history-card__head,
+.poster-panel__head,
 .action-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 18rpx;
 }
 
-.action-row__hint {
-  flex: 1;
-  text-align: right;
+.eyebrow,
+.status-hero__title,
+.status-hero__subtitle,
+.status-hero__badge,
+.state-panel__label,
+.state-panel__value,
+.state-panel__text,
+.status-metric__label,
+.status-metric__value,
+.status-metric__hint,
+.section-header__title,
+.section-header__side,
+.safety-strip__title,
+.safety-strip__text,
+.test-card__marker,
+.test-card__title,
+.test-card__subtitle,
+.test-card__description,
+.history-card__level,
+.history-card__title,
+.history-card__summary,
+.history-card__signal,
+.history-card__date,
+.history-card__score,
+.history-card__time,
+.empty-state__title,
+.empty-state__text,
+.question-area__intro,
+.question-area__prompt,
+.result-summary__subtitle,
+.result-summary__text,
+.signal-panel__title,
+.signal-panel__text,
+.tips-panel__title,
+.tips-panel__text,
+.tips-panel__item,
+.poster-panel__title,
+.poster-panel__subtitle,
+.poster-panel__accent,
+.poster-panel__footer,
+.poster-panel__theme,
+.favorite-strip__text,
+.save-note {
+  display: block;
+}
+
+.eyebrow {
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  text-transform: uppercase;
+  color: var(--theme-text-tertiary);
+}
+
+.status-hero__title {
+  font-size: 46rpx;
+  line-height: 1.18;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.status-hero__subtitle,
+.test-card__description,
+.history-card__summary,
+.question-area__intro,
+.result-summary__text,
+.save-note,
+.empty-state__text,
+.safety-strip__text,
+.signal-panel__text,
+.tips-panel__text {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.status-hero__badge,
+.history-card__level,
+.test-card__marker {
+  flex-shrink: 0;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(var(--theme-primary-rgb), 0.1);
+  color: var(--theme-primary);
   font-size: 22rpx;
-  line-height: 1.6;
-  color: var(--apple-subtle);
+  font-weight: 600;
+}
+
+.state-panel {
+  display: grid;
+  gap: 8rpx;
+  padding: 22rpx;
+  border-left: 6rpx solid var(--theme-primary);
+  border-radius: 12rpx;
+  background: rgba(var(--theme-primary-rgb), 0.07);
+}
+
+.state-panel__label,
+.status-metric__label,
+.section-header__side,
+.test-card__subtitle,
+.history-card__time,
+.empty-state__title,
+.question-area__intro,
+.result-summary__subtitle {
+  font-size: 22rpx;
+  color: var(--theme-text-tertiary);
+}
+
+.empty-state__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.state-panel__value {
+  font-size: 34rpx;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.state-panel__text {
+  font-size: 25rpx;
+  line-height: 1.65;
+  color: var(--theme-text-secondary);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.status-metric {
+  min-width: 0;
+  padding: 18rpx 16rpx;
+  border-radius: 12rpx;
+  background: rgba(var(--theme-text-primary-rgb), 0.035);
+}
+
+.status-metric__value,
+.history-card__score,
+.question-area__prompt,
+.option-card__label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+}
+
+.status-metric__value {
+  margin-top: 6rpx;
+  line-height: 1.3;
+}
+
+.status-metric__hint {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  line-height: 1.45;
+  color: var(--theme-text-tertiary);
+}
+
+.hero-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.section-block {
+  margin-bottom: 28rpx;
 }
 
 .section-header {
   margin-bottom: 18rpx;
+}
+
+.section-header__title,
+.test-card__title,
+.history-card__title,
+.tips-panel__title,
+.signal-panel__title {
+  font-size: 34rpx;
+  line-height: 1.28;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.safety-strip,
+.work-panel,
+.empty-state,
+.test-card,
+.history-card,
+.signal-panel,
+.tips-panel,
+.favorite-strip,
+.poster-panel {
+  display: grid;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+  padding: 22rpx;
+}
+
+.safety-strip {
+  border-color: rgba(161, 107, 32, 0.16);
+  background: #fff8eb;
+}
+
+.safety-strip__title {
+  margin-bottom: 6rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #7e5520;
+}
+
+.test-list,
+.history-list,
+.option-list {
+  display: grid;
+  gap: 16rpx;
+}
+
+.test-card--recent {
+  border-color: rgba(var(--theme-primary-rgb), 0.28);
+}
+
+.test-card__head,
+.history-card__head,
+.poster-panel__head {
+  align-items: flex-start;
+}
+
+.test-card__title {
+  margin-top: 4rpx;
+}
+
+.test-card__description {
+  margin-top: 2rpx;
+}
+
+.test-card__meta {
+  display: grid;
+  gap: 6rpx;
+  flex-shrink: 0;
+  padding: 12rpx 14rpx;
+  border-radius: 12rpx;
+  background: rgba(var(--theme-primary-rgb), 0.08);
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--theme-primary);
 }
 
 .tag-row {
@@ -758,15 +1243,13 @@ onShow(() => {
 .tag-chip {
   padding: 10rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(229, 242, 236, 0.96);
+  background: var(--theme-tag-bg);
   font-size: 22rpx;
-  color: #2f8471;
+  color: var(--theme-primary);
 }
 
 .hero-button {
   min-height: 84rpx;
-  border-radius: 999rpx;
-  line-height: 84rpx;
   font-size: 26rpx;
 }
 
@@ -777,40 +1260,96 @@ onShow(() => {
 }
 
 .hero-button--primary {
-  background: linear-gradient(135deg, #54b59a 0%, #76cdb5 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
   color: #ffffff;
 }
 
 .hero-button--secondary {
   background: rgba(255, 255, 255, 0.88);
-  color: var(--apple-text);
+  color: var(--theme-text-primary);
+}
+
+.history-card {
+  border-left: 6rpx solid rgba(var(--theme-primary-rgb), 0.28);
+}
+
+.history-card--watch {
+  border-left-color: #d99a2b;
+}
+
+.history-card--support {
+  border-left-color: #c47762;
+}
+
+.history-card--urgent {
+  border-left-color: #c95858;
+}
+
+.history-card__scorebox {
+  display: grid;
+  gap: 4rpx;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.history-card__summary {
+  margin-top: 2rpx;
+}
+
+.history-card__signal,
+.history-card__date {
+  font-size: 23rpx;
+  line-height: 1.6;
+  color: var(--theme-text-tertiary);
+}
+
+.empty-state {
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .progress-shell {
-  height: 14rpx;
-  margin-bottom: 18rpx;
+  height: 12rpx;
   border-radius: 999rpx;
-  background: rgba(222, 231, 245, 0.9);
+  background: rgba(var(--theme-primary-rgb), 0.12);
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #76cdb5 0%, #f0c17e 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
   transition: width 220ms ease;
 }
 
-.disclaimer-inline {
-  margin-bottom: 16rpx;
+.notice-inline {
   padding: 18rpx 20rpx;
-  border-radius: 22rpx;
+  border-radius: 12rpx;
+  background: #fff8eb;
   font-size: 22rpx;
   line-height: 1.7;
+  color: #7e5520;
 }
 
-.question-card__prompt {
-  line-height: 1.5;
+.question-area {
+  display: grid;
+  gap: 18rpx;
+}
+
+.question-area__prompt {
+  line-height: 1.55;
+}
+
+.action-row {
+  align-items: center;
+  margin-top: 2rpx;
+}
+
+.action-row__hint {
+  flex: 1;
+  text-align: right;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--theme-text-tertiary);
 }
 
 .option-card {
@@ -818,9 +1357,9 @@ onShow(() => {
   gap: 16rpx;
   align-items: flex-start;
   padding: 22rpx;
-  border-radius: 24rpx;
+  border-radius: 14rpx;
   background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid transparent;
+  border: 2rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
 }
 
 .option-card--locked {
@@ -828,8 +1367,8 @@ onShow(() => {
 }
 
 .option-card--active {
-  border-color: rgba(84, 181, 154, 0.68);
-  background: rgba(238, 251, 247, 0.96);
+  border-color: rgba(var(--theme-primary-rgb), 0.62);
+  background: rgba(var(--theme-primary-rgb), 0.08);
 }
 
 .option-card__key {
@@ -838,131 +1377,113 @@ onShow(() => {
   width: 42rpx;
   height: 42rpx;
   border-radius: 999rpx;
-  background: rgba(84, 181, 154, 0.14);
-  color: #279477;
+  background: rgba(var(--theme-primary-rgb), 0.12);
+  color: var(--theme-primary);
   font-size: 22rpx;
   font-weight: 700;
 }
 
-.result-hero {
+.result-summary {
   display: grid;
   gap: 12rpx;
-  margin-bottom: 18rpx;
+  padding: 22rpx;
+  border-radius: 14rpx;
+  background: rgba(var(--theme-primary-rgb), 0.07);
+  border-left: 6rpx solid var(--theme-primary);
 }
 
-.signal-card,
-.tips-card {
-  margin-bottom: 16rpx;
+.result-summary--watch {
+  background: #fff6e6;
+  border-left-color: #d99a2b;
 }
 
-.favorite-strip {
-  display: grid;
-  gap: 12rpx;
-  margin-bottom: 16rpx;
-  padding: 20rpx 22rpx;
-  border-radius: 24rpx;
-  background: rgba(246, 249, 255, 0.84);
+.result-summary--support {
+  background: #fff1ec;
+  border-left-color: #c47762;
+}
+
+.result-summary--urgent {
+  background: #fff0f0;
+  border-left-color: #c95858;
 }
 
 .favorite-strip__text {
   font-size: 24rpx;
   line-height: 1.7;
-  color: var(--apple-muted);
+  color: var(--theme-text-secondary);
 }
 
 .favorite-strip__button {
-  width: fit-content;
+  align-self: flex-start;
   min-height: 68rpx;
   margin: 0;
-  padding: 0 22rpx;
-  border-radius: 999rpx;
-  line-height: 68rpx;
+  padding: 0 24rpx;
   font-size: 24rpx;
-  color: var(--apple-text);
-  background: rgba(255, 255, 255, 0.9);
 }
 
 .favorite-strip__button--active {
-  color: #2f8471;
-  background: rgba(229, 242, 236, 0.96);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
-.poster-card {
-  display: grid;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
-  padding: 22rpx;
-  border-radius: 28rpx;
-  background:
-    radial-gradient(circle at top left, rgba(118, 205, 181, 0.18), transparent 42%),
-    radial-gradient(circle at bottom right, rgba(240, 193, 126, 0.22), transparent 36%),
-    rgba(246, 249, 255, 0.88);
-}
-
-.poster-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.poster-card__theme {
-  font-size: 22rpx;
-  color: var(--apple-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-}
-
-.poster-card__shell {
-  display: grid;
-  gap: 10rpx;
-  padding: 20rpx;
-  border-radius: 24rpx;
+.poster-panel {
   background: rgba(255, 255, 255, 0.78);
 }
 
-.poster-card__title {
+.poster-panel__theme {
+  font-size: 22rpx;
+  color: var(--theme-text-tertiary);
+  text-transform: uppercase;
+}
+
+.poster-panel__preview {
+  display: grid;
+  gap: 10rpx;
+  padding: 20rpx;
+  border-radius: 14rpx;
+  background: rgba(var(--theme-primary-rgb), 0.06);
+}
+
+.poster-panel__title {
   font-size: 34rpx;
   font-weight: 700;
-  color: var(--apple-text);
+  color: var(--theme-text-primary);
   line-height: 1.25;
 }
 
-.poster-card__subtitle,
-.poster-card__footer {
+.poster-panel__subtitle,
+.poster-panel__footer {
   font-size: 24rpx;
   line-height: 1.7;
-  color: var(--apple-muted);
+  color: var(--theme-text-secondary);
 }
 
-.poster-card__accent {
+.poster-panel__accent {
   font-size: 24rpx;
   font-weight: 600;
-  color: #279477;
+  color: var(--theme-primary);
 }
 
-.tips-card__item {
+.tips-panel__item {
   font-size: 25rpx;
   line-height: 1.7;
-  color: var(--apple-muted);
+  color: var(--theme-text-secondary);
 }
 
-.tips-card__item::before {
+.tips-panel__item::before {
   content: '• ';
 }
 
-.history-card__signal,
-.history-card__time,
 .save-note {
   font-size: 23rpx;
-  color: var(--apple-subtle);
+  color: var(--theme-text-tertiary);
 }
 
 .inline-back {
   margin-top: 18rpx;
   padding: 0;
   background: transparent;
-  color: var(--apple-subtle);
+  color: var(--theme-text-tertiary);
   font-size: 24rpx;
   text-align: left;
 }

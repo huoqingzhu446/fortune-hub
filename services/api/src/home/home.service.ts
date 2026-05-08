@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { LuckyService } from '../lucky/lucky.service';
@@ -49,8 +50,19 @@ type BaziSignal = {
   ageDays: number;
 };
 
+type MoodSignal = {
+  moodType: string;
+  moodScore: number;
+  emotionTags: string[];
+  content: string;
+  recordDate: string;
+  updatedAt: string;
+  ageDays: number;
+};
+
 type HomeSignals = {
   emotion: EmotionSignal[];
+  mood: MoodSignal[];
   personality: PersonalitySignal | null;
   bazi: BaziSignal | null;
 };
@@ -72,10 +84,18 @@ const HOME_STATE_DISCLAIMER =
   '指数用于帮助你观察当前节奏与自我认知进度，不构成医学或心理诊断。';
 
 const EMOTION_BASE_SCORES: Record<string, number> = {
-  steady: 88,
-  watch: 72,
-  support: 54,
-  urgent: 36,
+  steady: 84,
+  watch: 66,
+  support: 48,
+  urgent: 30,
+};
+
+const MOOD_TYPE_SCORE_ADJUSTMENTS: Record<string, number> = {
+  calm: 4,
+  happy: 5,
+  tired: -6,
+  low: -9,
+  anxious: -10,
 };
 
 @Injectable()
@@ -86,6 +106,8 @@ export class HomeService {
     private readonly luckyService: LuckyService,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
+    @InjectRepository(MoodRecordEntity)
+    private readonly moodRecordRepository: Repository<MoodRecordEntity>,
   ) {}
 
   async getHomeIndex(user: UserEntity | null) {
@@ -343,15 +365,27 @@ export class HomeService {
   }
 
   private async loadHomeSignals(userId: string): Promise<HomeSignals> {
-    const records = await this.userRecordRepository.find({
-      where: {
-        userId,
-      },
-      order: {
-        createdAt: 'DESC',
-      },
-      take: 16,
-    });
+    const [records, moodRecords] = await Promise.all([
+      this.userRecordRepository.find({
+        where: {
+          userId,
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+        take: 16,
+      }),
+      this.moodRecordRepository.find({
+        where: {
+          userId,
+        },
+        order: {
+          recordDate: 'DESC',
+          updatedAt: 'DESC',
+        },
+        take: 14,
+      }),
+    ]);
 
     const emotionBySource = new Map<string, EmotionSignal>();
     let personality: PersonalitySignal | null = null;
@@ -443,6 +477,15 @@ export class HomeService {
 
     return {
       emotion: [...emotionBySource.values()],
+      mood: moodRecords.map((record) => ({
+        moodType: record.moodType,
+        moodScore: this.clampScore(record.moodScore, 0, 100, 60),
+        emotionTags: record.emotionTags ?? [],
+        content: record.content ?? '',
+        recordDate: record.recordDate,
+        updatedAt: record.updatedAt.toISOString(),
+        ageDays: this.diffDays(record.recordDate),
+      })),
       personality,
       bazi,
     };
@@ -452,21 +495,29 @@ export class HomeService {
     user: UserEntity | null,
     signals: HomeSignals,
   ): StateOverview {
-    const emotionFactor = this.buildEmotionFactor(signals.emotion);
+    const emotionFactor = this.buildEmotionFactor(signals);
     const personalityFactor = this.buildPersonalityFactor(signals.personality);
     const completionFactor = this.buildCompletionFactor(user, signals);
     const contextScore = this.buildContextScore(user, signals.bazi);
-    // Keep self-report signals in the lead; profile-based context is capped to a small share.
+    const momentumScore = this.buildSelfCareMomentumScore(signals);
+    const rawCurrentScore = Math.round(
+      emotionFactor.numericValue * 0.62 +
+        personalityFactor.numericValue * 0.18 +
+        momentumScore * 0.12 +
+        contextScore * 0.08,
+    );
+    const confidenceWeight = this.resolveCurrentStateConfidence(
+      signals,
+      completionFactor.numericValue,
+    );
+    // The score follows current self-report first. Static profile and bazi context only nudge it.
     const currentScore = this.clampScore(
       Math.round(
-        emotionFactor.numericValue * 0.45 +
-          personalityFactor.numericValue * 0.25 +
-          completionFactor.numericValue * 0.2 +
-          contextScore * 0.1,
+        rawCurrentScore * confidenceWeight + 62 * (1 - confidenceWeight),
       ),
-      36,
-      93,
-      68,
+      28,
+      this.resolveCurrentScoreCeiling(signals),
+      62,
     );
 
     const basisTags = this.buildBasisTags(user, signals);
@@ -502,36 +553,88 @@ export class HomeService {
         hint: this.buildCurrentScoreHint(currentScore, signals),
       },
       completionScore: {
-        label: '自我认知完成度',
+        label: '状态可信度',
         value: String(Math.round(completionFactor.numericValue)),
         hint: completionFactor.hint,
       },
     };
   }
 
-  private buildEmotionFactor(signals: EmotionSignal[]): StateFactor {
-    if (!signals.length) {
+  private buildEmotionFactor(signals: HomeSignals): StateFactor {
+    const assessmentState = this.buildAssessmentEmotionState(signals.emotion);
+    const moodState = this.buildMoodState(signals.mood);
+
+    if (!assessmentState && !moodState) {
       return {
         id: 'emotion',
-        label: '情绪稳定度',
-        value: '68',
-        hint: '还没有最近的情绪自检，建议先做一次 3 分钟短测。',
+        label: '当下情绪温度',
+        value: '60',
+        hint: '还没有今日心情或最近情绪自检，当前指数会保持保守估算。',
         tone: 'steady',
-        numericValue: 68,
+        numericValue: 60,
       };
+    }
+
+    const moodWeight = moodState
+      ? moodState.latest.ageDays <= 3
+        ? 0.58
+        : 0.42
+      : 0;
+    const assessmentWeight = assessmentState
+      ? moodState
+        ? 1 - moodWeight
+        : 1
+      : 0;
+    const moodOnlyWeight = moodState && !assessmentState ? 1 : moodWeight;
+    const score = this.clampScore(
+      Math.round(
+        (assessmentState?.score ?? 0) * assessmentWeight +
+          (moodState?.score ?? 0) * moodOnlyWeight,
+      ),
+      24,
+      92,
+      60,
+    );
+    const tone = score >= 78 ? 'positive' : score >= 62 ? 'steady' : 'watch';
+
+    return {
+      id: 'emotion',
+      label: '当下情绪温度',
+      value: String(score),
+      hint: this.buildEmotionFactorHint(assessmentState, moodState),
+      tone,
+      numericValue: score,
+    };
+  }
+
+  private buildAssessmentEmotionState(signals: EmotionSignal[]) {
+    if (!signals.length) {
+      return null;
     }
 
     const normalized = signals.slice(0, 2).map((signal) => {
       const base = EMOTION_BASE_SCORES[signal.riskLevel ?? ''] ?? 68;
       const freshnessPenalty =
-        signal.ageDays > 45
+        signal.ageDays > 30
           ? 12
-          : signal.ageDays > 21
-            ? 8
+          : signal.ageDays > 14
+            ? 7
             : signal.ageDays > 7
               ? 4
               : 0;
-      return this.clampScore(base - freshnessPenalty, 30, 92, 68);
+      const adjustedScore = this.clampScore(
+        base - freshnessPenalty,
+        24,
+        90,
+        60,
+      );
+      const freshnessWeight = this.resolveAssessmentFreshnessWeight(
+        signal.ageDays,
+      );
+
+      return Math.round(
+        adjustedScore * freshnessWeight + 60 * (1 - freshnessWeight),
+      );
     });
     const averageScore = Math.round(
       normalized.reduce((sum, item) => sum + item, 0) / normalized.length,
@@ -541,20 +644,244 @@ export class HomeService {
       const rightWeight = EMOTION_BASE_SCORES[right.riskLevel ?? ''] ?? 68;
       return leftWeight - rightWeight;
     })[0];
-    const tone =
-      averageScore >= 80 ? 'positive' : averageScore >= 66 ? 'steady' : 'watch';
 
     return {
-      id: 'emotion',
-      label: '情绪稳定度',
-      value: String(averageScore),
-      hint:
-        strongestSignal.riskLevel === 'steady'
-          ? `最近情绪自检整体平稳，先维持当前节奏就好。`
-          : `最近一次情绪自检提示：${strongestSignal.primarySuggestion}`,
-      tone,
-      numericValue: averageScore,
+      score: averageScore,
+      strongestSignal,
     };
+  }
+
+  private buildMoodState(signals: MoodSignal[]) {
+    if (!signals.length) {
+      return null;
+    }
+
+    const weighted = signals.slice(0, 7).map((signal) => {
+      const adjustedScore = this.clampScore(
+        signal.moodScore + (MOOD_TYPE_SCORE_ADJUSTMENTS[signal.moodType] ?? 0),
+        20,
+        96,
+        60,
+      );
+      const weight = this.resolveMoodFreshnessWeight(signal.ageDays);
+      return {
+        adjustedScore,
+        weight,
+      };
+    });
+    const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+    const weightedAverage = Math.round(
+      weighted.reduce(
+        (sum, item) => sum + item.adjustedScore * item.weight,
+        0,
+      ) / Math.max(totalWeight, 0.01),
+    );
+    const latest = signals[0];
+    const latestScore = this.clampScore(
+      latest.moodScore + (MOOD_TYPE_SCORE_ADJUSTMENTS[latest.moodType] ?? 0),
+      20,
+      96,
+      60,
+    );
+    const volatilityPenalty = this.resolveMoodVolatilityPenalty(signals);
+    const score = this.clampScore(
+      Math.round(
+        latestScore * 0.56 + weightedAverage * 0.44 - volatilityPenalty,
+      ),
+      20,
+      94,
+      60,
+    );
+
+    return {
+      score,
+      latest,
+      volatilityPenalty,
+    };
+  }
+
+  private buildEmotionFactorHint(
+    assessmentState: {
+      score: number;
+      strongestSignal: EmotionSignal;
+    } | null,
+    moodState: {
+      score: number;
+      latest: MoodSignal;
+      volatilityPenalty: number;
+    } | null,
+  ) {
+    if (moodState) {
+      const latest = moodState.latest;
+      const moodText = this.resolveMoodLabel(latest.moodType);
+      const volatilityText = moodState.volatilityPenalty
+        ? '，近期波动也需要被看见'
+        : '';
+
+      if (latest.moodScore <= 52) {
+        return `最近一次心情是${moodText}，分数偏低${volatilityText}，今天先以恢复为主。`;
+      }
+
+      if (assessmentState?.strongestSignal.riskLevel === 'support') {
+        return `心情记录已有更新，但情绪自检仍提示需要支持：${assessmentState.strongestSignal.primarySuggestion}`;
+      }
+
+      if (assessmentState?.strongestSignal.riskLevel === 'urgent') {
+        return `心情记录已有更新，但情绪自检提示风险较高：${assessmentState.strongestSignal.primarySuggestion}`;
+      }
+
+      return `最近一次心情是${moodText}，状态分 ${latest.moodScore}${volatilityText}。`;
+    }
+
+    if (assessmentState?.strongestSignal.riskLevel === 'steady') {
+      return '最近情绪自检整体平稳，先维持当前节奏就好。';
+    }
+
+    return assessmentState
+      ? `最近一次情绪自检提示：${assessmentState.strongestSignal.primarySuggestion}`
+      : '还没有近期心情记录，先保持保守估算。';
+  }
+
+  private resolveMoodFreshnessWeight(ageDays: number) {
+    if (ageDays <= 1) {
+      return 1;
+    }
+
+    if (ageDays <= 3) {
+      return 0.82;
+    }
+
+    if (ageDays <= 7) {
+      return 0.62;
+    }
+
+    if (ageDays <= 14) {
+      return 0.42;
+    }
+
+    return 0.22;
+  }
+
+  private resolveAssessmentFreshnessWeight(ageDays: number) {
+    if (ageDays <= 7) {
+      return 1;
+    }
+
+    if (ageDays <= 14) {
+      return 0.85;
+    }
+
+    if (ageDays <= 30) {
+      return 0.65;
+    }
+
+    if (ageDays <= 60) {
+      return 0.45;
+    }
+
+    return 0.25;
+  }
+
+  private resolveMoodVolatilityPenalty(signals: MoodSignal[]) {
+    const recent = signals.slice(0, 7);
+
+    if (recent.length < 3) {
+      return 0;
+    }
+
+    const deltas = recent
+      .slice(1)
+      .map((signal, index) =>
+        Math.abs(recent[index].moodScore - signal.moodScore),
+      );
+    const averageDelta =
+      deltas.reduce((sum, delta) => sum + delta, 0) / deltas.length;
+
+    if (averageDelta >= 30) {
+      return 10;
+    }
+
+    if (averageDelta >= 22) {
+      return 6;
+    }
+
+    if (averageDelta >= 15) {
+      return 3;
+    }
+
+    return 0;
+  }
+
+  private buildSelfCareMomentumScore(signals: HomeSignals) {
+    const recentMoods = signals.mood.filter((item) => item.ageDays <= 14);
+    const latestMood = signals.mood[0];
+
+    if (!recentMoods.length && !signals.emotion.length) {
+      return 55;
+    }
+
+    const latestStateScore =
+      latestMood?.moodScore ??
+      this.buildAssessmentEmotionState(signals.emotion)?.score ??
+      60;
+    const continuityBonus = Math.min(recentMoods.length, 5) * 2;
+    const volatilityPenalty = this.resolveMoodVolatilityPenalty(recentMoods);
+
+    return this.clampScore(
+      Math.round(
+        latestStateScore * 0.64 +
+          62 * 0.36 +
+          continuityBonus -
+          volatilityPenalty,
+      ),
+      34,
+      88,
+      58,
+    );
+  }
+
+  private resolveCurrentStateConfidence(
+    signals: HomeSignals,
+    completionScore: number,
+  ) {
+    let confidence = 0.38;
+
+    if (signals.mood.some((item) => item.ageDays <= 1)) {
+      confidence += 0.28;
+    } else if (signals.mood.some((item) => item.ageDays <= 7)) {
+      confidence += 0.18;
+    } else if (signals.mood.length) {
+      confidence += 0.08;
+    }
+
+    if (signals.emotion.some((item) => item.ageDays <= 14)) {
+      confidence += 0.22;
+    } else if (signals.emotion.length) {
+      confidence += 0.1;
+    }
+
+    if (signals.personality) {
+      confidence += 0.07;
+    }
+
+    confidence += Math.min(0.07, completionScore / 1200);
+
+    return this.clampRatio(confidence, 0.42, 0.92);
+  }
+
+  private resolveCurrentScoreCeiling(signals: HomeSignals) {
+    if (!signals.mood.length && !signals.emotion.length) {
+      return 68;
+    }
+
+    if (
+      !signals.mood.some((item) => item.ageDays <= 7) &&
+      !signals.emotion.some((item) => item.ageDays <= 30)
+    ) {
+      return 76;
+    }
+
+    return 94;
   }
 
   private buildPersonalityFactor(
@@ -563,11 +890,11 @@ export class HomeService {
     if (!signal) {
       return {
         id: 'personality',
-        label: '节奏掌控度',
-        value: '66',
-        hint: '还没有最近的性格测评结果，完成后会更清楚你更适合怎样推进事情。',
+        label: '节奏复原力',
+        value: '58',
+        hint: '还没有最近的性格测评结果，暂时不把长期性格当成当前状态依据。',
         tone: 'steady',
-        numericValue: 66,
+        numericValue: 58,
       };
     }
 
@@ -580,10 +907,10 @@ export class HomeService {
             ? 2
             : 0;
     const normalized = this.clampScore(
-      Math.round(58 + signal.score * 0.28 - freshnessPenalty),
-      48,
-      88,
-      72,
+      Math.round(55 + signal.score * 0.24 - freshnessPenalty),
+      46,
+      84,
+      64,
     );
     const dimensionText = signal.dominantDimensionLabel
       ? `最近更突出的${signal.dominantDimensionLabel}可以继续作为今天的推进抓手。`
@@ -591,7 +918,7 @@ export class HomeService {
 
     return {
       id: 'personality',
-      label: '节奏掌控度',
+      label: '节奏复原力',
       value: String(normalized),
       hint: dimensionText,
       tone:
@@ -604,31 +931,32 @@ export class HomeService {
     user: UserEntity | null,
     signals: HomeSignals,
   ): StateFactor {
+    const hasFreshMood = signals.mood.some((item) => item.ageDays <= 3);
     const score =
-      (user?.birthday && user?.zodiac ? 25 : 0) +
-      (user?.birthTime ? 8 : 0) +
-      (this.resolveUserBirthPlace(user) ? 7 : 0) +
-      (signals.personality ? 20 : 0) +
-      (signals.emotion.length ? 25 : 0) +
-      (signals.bazi ? 15 : 0);
+      (user ? 10 : 0) +
+      (user?.birthday && user?.zodiac ? 14 : 0) +
+      (user?.birthTime ? 5 : 0) +
+      (this.resolveUserBirthPlace(user) ? 5 : 0) +
+      (hasFreshMood ? 25 : signals.mood.length ? 14 : 0) +
+      (signals.emotion.length ? 24 : 0) +
+      (signals.personality ? 12 : 0) +
+      (signals.bazi ? 5 : 0);
     const normalized = this.clampScore(score, 20, 100, 28);
     const missingItems = [
       !user ? '登录账号' : '',
       !user?.birthday || !user?.zodiac ? '补齐生日资料' : '',
-      !user?.birthTime ? '补齐出生时间' : '',
-      !this.resolveUserBirthPlace(user) ? '补齐出生地' : '',
+      !hasFreshMood ? '记录今日心情' : '',
       !signals.personality ? '完成性格测评' : '',
       !signals.emotion.length ? '完成情绪自检' : '',
-      !signals.bazi ? '补一份八字解读' : '',
     ].filter(Boolean);
 
     return {
       id: 'completion',
-      label: '认知完善度',
+      label: '状态可信度',
       value: String(normalized),
       hint: missingItems.length
-        ? `还差 ${missingItems.slice(0, 2).join('、')}，首页判断会更完整。`
-        : '资料与核心测评都比较齐，首页解释会更稳定。',
+        ? `还差 ${missingItems.slice(0, 2).join('、')}，当前指数会更贴近真实状态。`
+        : '近期自述和核心测评都比较完整，当前指数可信度较高。',
       tone:
         normalized >= 82 ? 'positive' : normalized >= 56 ? 'steady' : 'watch',
       numericValue: normalized,
@@ -652,6 +980,7 @@ export class HomeService {
 
   private buildBasisTags(user: UserEntity | null, signals: HomeSignals) {
     const tags = [
+      this.buildMoodTag(signals.mood[0]),
       user?.zodiac ?? '',
       this.resolveDominantElement(user, signals.bazi)
         ? `${this.resolveDominantElement(user, signals.bazi)}元素`
@@ -665,28 +994,29 @@ export class HomeService {
 
   private buildConfidenceLabel(signals: HomeSignals, completionScore: number) {
     if (
+      signals.mood.some((item) => item.ageDays <= 3) &&
       signals.emotion.length &&
       signals.personality &&
       completionScore >= 80
     ) {
-      return '依据较完整：近 30 天自检 + 资料档案';
+      return '依据较完整：近期心情 + 情绪自检 + 资料档案';
     }
 
-    if (signals.emotion.length || signals.personality) {
-      return '依据中等：已接入部分测评结果';
+    if (signals.mood.length || signals.emotion.length || signals.personality) {
+      return '依据中等：已接入部分近期状态';
     }
 
-    return '依据偏少：先补 1-2 项测评，判断会更稳定';
+    return '依据偏少：先记录今日心情或完成一次自检';
   }
 
   private buildStateTitle(score: number, signals: HomeSignals) {
-    const riskLevels = signals.emotion.map((item) => item.riskLevel);
+    const pressureLevel = this.resolvePressureLevel(signals);
 
-    if (riskLevels.some((item) => item === 'urgent' || item === 'support')) {
+    if (pressureLevel === 'urgent' || pressureLevel === 'support') {
       return '今天先把恢复和支持排在第一位';
     }
 
-    if (riskLevels.some((item) => item === 'watch')) {
+    if (pressureLevel === 'watch') {
       return '今天更适合稳住节奏，再推进重点';
     }
 
@@ -703,20 +1033,23 @@ export class HomeService {
 
   private buildStateSummary(score: number, signals: HomeSignals) {
     const strongestEmotion = signals.emotion[0];
+    const latestMood = signals.mood[0];
+    const pressureLevel = this.resolvePressureLevel(signals);
 
-    if (
-      strongestEmotion?.riskLevel === 'urgent' ||
-      strongestEmotion?.riskLevel === 'support'
-    ) {
-      return '最近的情绪自检提示当前压力偏高，首页会优先把恢复、减压和支持资源放在建议前面。';
+    if (pressureLevel === 'urgent' || pressureLevel === 'support') {
+      return '最近的自述状态提示当前压力偏高，首页会优先把恢复、减压和支持资源放在建议前面。';
     }
 
-    if (strongestEmotion?.riskLevel === 'watch') {
+    if (pressureLevel === 'watch') {
       return '最近的情绪波动有一点偏高，今天更建议先把多线程收回来，再决定要不要继续加码。';
     }
 
-    if (!signals.emotion.length && !signals.personality) {
-      return '当前更多依赖基础资料和最近行为线索做估算，建议先完成性格和情绪两项短测。';
+    if (!signals.mood.length && !signals.emotion.length) {
+      return '当前缺少近期自述状态，首页会先保持保守估算，建议先记录今日心情或完成一次情绪自检。';
+    }
+
+    if (latestMood?.ageDays <= 3 && latestMood.moodScore >= 78) {
+      return '最近的心情记录比较积极，情绪状态也更容易承接现实任务，可以稳稳推进重要事项。';
     }
 
     if (score >= 82) {
@@ -732,16 +1065,22 @@ export class HomeService {
     user: UserEntity | null,
   ) {
     const strongestEmotion = signals.emotion[0];
+    const latestMood = signals.mood[0];
+    const pressureLevel = this.resolvePressureLevel(signals);
 
-    if (
-      strongestEmotion?.riskLevel === 'urgent' ||
-      strongestEmotion?.riskLevel === 'support'
-    ) {
-      return strongestEmotion.primarySuggestion;
+    if (pressureLevel === 'urgent' || pressureLevel === 'support') {
+      return (
+        strongestEmotion?.primarySuggestion ||
+        '今天先暂停加码，把休息、饮水、求助和一件能落地的小事放在前面。'
+      );
     }
 
-    if (strongestEmotion?.riskLevel === 'watch') {
+    if (pressureLevel === 'watch') {
       return '把今天的目标先缩到一件最关键的小事，先完成再决定是否继续加码。';
+    }
+
+    if (latestMood?.ageDays <= 3 && latestMood.content) {
+      return '把今天心情记录里最在意的那件事单独拿出来，先给它一个温和但明确的处理动作。';
     }
 
     if (signals.personality?.dominantDimensionLabel) {
@@ -762,8 +1101,14 @@ export class HomeService {
   private buildEvidenceLabel(signals: HomeSignals) {
     const evidence: string[] = [];
 
-    if (signals.emotion.length) {
+    if (signals.mood.length) {
+      evidence.push('最近心情日记');
+    }
+
+    if (signals.emotion.some((item) => item.ageDays <= 30)) {
       evidence.push('近 30 天情绪自检');
+    } else if (signals.emotion.length) {
+      evidence.push('历史情绪自检');
     }
 
     if (signals.personality) {
@@ -775,14 +1120,14 @@ export class HomeService {
     }
 
     if (!evidence.length) {
-      return '当前主要基于基础资料和完成情况做估算。';
+      return '当前缺少近期自述状态，只做保守估算。';
     }
 
     return `当前分数优先参考 ${evidence.join(' + ')}。`;
   }
 
   private buildCurrentScoreHint(score: number, signals: HomeSignals) {
-    const riskLevel = signals.emotion[0]?.riskLevel ?? '';
+    const riskLevel = this.resolvePressureLevel(signals);
 
     if (riskLevel === 'urgent' || riskLevel === 'support') {
       return '近期优先看稳定感和支持，不建议继续硬撑。';
@@ -790,6 +1135,10 @@ export class HomeService {
 
     if (riskLevel === 'watch') {
       return '最近有一定起伏，更适合先减压再推进。';
+    }
+
+    if (!signals.mood.length && !signals.emotion.length) {
+      return '缺少近期自述状态，分数先保持保守。';
     }
 
     if (score >= 84) {
@@ -882,6 +1231,67 @@ export class HomeService {
     return '状态观察中';
   }
 
+  private buildMoodTag(mood?: MoodSignal) {
+    if (!mood) {
+      return '';
+    }
+
+    if (mood.moodScore <= 45) {
+      return '先照顾情绪';
+    }
+
+    if (mood.moodScore <= 62) {
+      return '慢一点推进';
+    }
+
+    if (mood.moodScore >= 80) {
+      return '状态可承接';
+    }
+
+    return `${this.resolveMoodLabel(mood.moodType)}状态`;
+  }
+
+  private resolveMoodLabel(moodType: string) {
+    const mapping: Record<string, string> = {
+      calm: '平静',
+      low: '低落',
+      anxious: '焦虑',
+      happy: '愉悦',
+      tired: '疲惫',
+    };
+
+    return mapping[moodType] || '当前';
+  }
+
+  private resolvePressureLevel(signals: HomeSignals) {
+    const rankedLevels: Record<string, number> = {
+      steady: 1,
+      watch: 2,
+      support: 3,
+      urgent: 4,
+    };
+    const freshEmotionLevels = signals.emotion
+      .filter((item) => item.ageDays <= 30)
+      .map((item) => item.riskLevel || 'steady');
+    const latestMood = signals.mood[0];
+    const moodLevel = latestMood
+      ? latestMood.moodScore <= 38
+        ? 'urgent'
+        : latestMood.moodScore <= 52
+          ? 'support'
+          : latestMood.moodScore <= 66 ||
+              latestMood.moodType === 'anxious' ||
+              latestMood.moodType === 'low'
+            ? 'watch'
+            : 'steady'
+      : 'steady';
+    const levels = [...freshEmotionLevels, moodLevel];
+
+    return levels.sort(
+      (left, right) => (rankedLevels[right] ?? 1) - (rankedLevels[left] ?? 1),
+    )[0];
+  }
+
   private resolveDominantElement(
     user: UserEntity | null,
     baziSignal: BaziSignal | null,
@@ -903,6 +1313,7 @@ export class HomeService {
   private createEmptySignals(): HomeSignals {
     return {
       emotion: [],
+      mood: [],
       personality: null,
       bazi: null,
     };
@@ -952,6 +1363,14 @@ export class HomeService {
     }
 
     return Math.max(min, Math.min(max, Math.round(value)));
+  }
+
+  private clampRatio(value: number, min: number, max: number) {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+
+    return Math.max(min, Math.min(max, value));
   }
 
   private asRecord(value: unknown) {

@@ -2,16 +2,8 @@
   <view class="page" :style="themeVars">
     <view class="hero-card">
       <text class="hero-card__eyebrow">full report</text>
-      <text class="hero-card__title">{{ report?.title || (recordId ? '完整版报告' : '选择一份报告') }}</text>
-      <text class="hero-card__subtitle">
-        {{
-          report
-            ? report.summary || '这里会展示基础版结果、完整版解读和海报能力。'
-            : recordId
-              ? '正在整理这份报告的基础结果、完整解读和分享海报能力。'
-            : '登录后可以查看基础版结果、广告解锁入口、VIP 权益和分享海报。'
-        }}
-      </text>
+      <text class="hero-card__title">{{ heroTitle }}</text>
+      <text class="hero-card__subtitle">{{ heroSubtitle }}</text>
 
       <view v-if="report" class="status-row">
         <view class="status-pill">
@@ -189,6 +181,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { verifyRewardUnlock } from '../../api/ads';
 import { generateReportPosterAsync } from '../../api/posters';
+import { fetchUnifiedHistory } from '../../api/records';
 import { fetchReport } from '../../api/reports';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
@@ -226,6 +219,36 @@ const isLoggedIn = computed(() => Boolean(authToken.value));
 const posterImageSource = computed(() =>
   poster.value ? resolvePreferredImageSource(poster.value) : '',
 );
+const heroTitle = computed(() => {
+  if (report.value) {
+    return report.value.title;
+  }
+
+  if (loading.value) {
+    return '正在同步报告';
+  }
+
+  return recordId.value ? '完整版报告' : '选择一份报告';
+});
+const heroSubtitle = computed(() => {
+  if (report.value) {
+    return report.value.summary || '这里会展示基础版结果、完整版解读和海报能力。';
+  }
+
+  if (loading.value) {
+    return '正在读取你最近保存的测评结果和权益状态。';
+  }
+
+  if (!isLoggedIn.value) {
+    return '登录后可以查看基础版结果、广告解锁入口、VIP 权益和分享海报。';
+  }
+
+  if (recordId.value) {
+    return '正在整理这份报告的基础结果、完整解读和分享海报能力。';
+  }
+
+  return '还没有找到可查看的报告。可以先做一次情绪自检，或从记录页选择已有结果。';
+});
 const reportTypeLabel = computed(() => {
   const mapping: Record<string, string> = {
     personality: '性格测评',
@@ -237,7 +260,7 @@ const reportTypeLabel = computed(() => {
 });
 
 async function loadReport() {
-  if (!recordId.value || !isLoggedIn.value) {
+  if (!isLoggedIn.value) {
     report.value = null;
     favoriteActive.value = false;
     return;
@@ -245,19 +268,33 @@ async function loadReport() {
 
   try {
     loading.value = true;
-    const response = await fetchReport(recordId.value);
+    const targetRecordId = recordId.value || (await resolveLatestRecordId());
+
+    if (!targetRecordId) {
+      report.value = null;
+      favoriteActive.value = false;
+      return;
+    }
+
+    recordId.value = targetRecordId;
+    const response = await fetchReport(targetRecordId);
     report.value = response.data.report;
-    await syncFavoriteState(`report:${recordId.value}`);
+    await syncFavoriteState(`report:${targetRecordId}`);
   } catch (error) {
     console.warn('load report failed', error);
     report.value = null;
     uni.showToast({
-      title: '报告读取失败',
+      title: getErrorMessage(error, '报告读取失败'),
       icon: 'none',
     });
   } finally {
     loading.value = false;
   }
+}
+
+async function resolveLatestRecordId() {
+  const response = await fetchUnifiedHistory(1);
+  return response.data.items[0]?.id || '';
 }
 
 async function toggleReportFavorite() {
@@ -413,8 +450,14 @@ onLoad((options) => {
 });
 
 onShow(() => {
+  const previousToken = authToken.value;
   authToken.value = getAuthToken();
-  if (recordId.value) {
+
+  if (loading.value) {
+    return;
+  }
+
+  if (recordId.value || (authToken.value && authToken.value !== previousToken)) {
     void loadReport();
   }
 });

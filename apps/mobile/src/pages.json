@@ -74,6 +74,12 @@
       }
     },
     {
+      "path": "pages/poster/generate/index",
+      "style": {
+        "navigationBarTitleText": "生成分享海报"
+      }
+    },
+    {
       "path": "pages/personality/index",
       "style": {
         "navigationBarTitleText": "性格测评"

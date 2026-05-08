@@ -497,7 +497,7 @@ function openPoster() {
   }
 
   uni.navigateTo({
-    url: `/pages/divination/poster/index?id=${encodeURIComponent(result.value.id)}`,
+    url: `/pages/poster/generate/index?type=divination&id=${encodeURIComponent(result.value.id)}&auto=1`,
   });
 }
 

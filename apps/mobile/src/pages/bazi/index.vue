@@ -399,6 +399,32 @@
         <text>{{ latestResult.complianceNotice }}</text>
       </view>
 
+      <view class="poster-card">
+        <view class="sheet-header sheet-header--compact">
+          <view>
+            <text class="sheet-header__eyebrow">share poster</text>
+            <text class="sheet-header__title">分享海报</text>
+          </view>
+          <text class="sheet-header__side">{{ latestResult.sharePoster.themeName }}</text>
+        </view>
+
+        <view class="poster-card__shell">
+          <text class="poster-card__title">{{ latestResult.sharePoster.title }}</text>
+          <text class="poster-card__subtitle">{{ latestResult.sharePoster.subtitle }}</text>
+          <text class="poster-card__accent">{{ latestResult.sharePoster.accentText }}</text>
+          <text class="poster-card__footer">{{ latestResult.sharePoster.footerText }}</text>
+        </view>
+
+        <view class="poster-action-row">
+          <button class="poster-button poster-button--primary" @tap="openSharePoster">
+            生成分享海报
+          </button>
+          <button class="poster-button poster-button--secondary" @tap="copySharePoster">
+            复制海报文案
+          </button>
+        </view>
+      </view>
+
       <view class="save-note">
         <text>
           {{
@@ -418,7 +444,7 @@
       </button>
 
       <button class="primary-button" @tap="openFullReport">
-        {{ latestRecordId ? '查看完整版 / 生成海报' : '登录后查看完整版' }}
+        {{ latestRecordId ? '查看完整版' : '登录后查看完整版' }}
       </button>
     </view>
 
@@ -1565,6 +1591,43 @@ function formatAnnualRelation(
   return labels[value];
 }
 
+function openSharePoster() {
+  if (!latestRecordId.value) {
+    uni.showToast({
+      title: '请先登录并保存结果',
+      icon: 'none',
+    });
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/poster/generate/index?type=report&recordId=${encodeURIComponent(latestRecordId.value)}&size=941x1672&auto=1`,
+  });
+}
+
+function copySharePoster() {
+  if (!latestResult.value) {
+    return;
+  }
+
+  const lines = [
+    latestResult.value.sharePoster.title,
+    latestResult.value.sharePoster.subtitle,
+    latestResult.value.sharePoster.accentText,
+    latestResult.value.sharePoster.footerText,
+  ].filter(Boolean);
+
+  uni.setClipboardData({
+    data: lines.join('\n'),
+    success: () => {
+      uni.showToast({
+        title: '海报文案已复制',
+        icon: 'success',
+      });
+    },
+  });
+}
+
 function openFullReport() {
   if (!latestRecordId.value) {
     uni.showToast({
@@ -1575,7 +1638,7 @@ function openFullReport() {
   }
 
   uni.navigateTo({
-    url: `/pages/report/index?recordId=${latestRecordId.value}`,
+    url: `/pages/report/index?recordId=${encodeURIComponent(latestRecordId.value)}`,
   });
 }
 
@@ -1961,6 +2024,75 @@ onShow(() => {
   padding: 18rpx 20rpx;
   border-radius: 22rpx;
   background: rgba(244, 236, 220, 0.9);
+}
+
+.poster-card {
+  display: grid;
+  gap: 16rpx;
+  padding: 22rpx;
+  border-radius: 26rpx;
+  background: rgba(248, 243, 233, 0.92);
+}
+
+.poster-card__shell {
+  display: grid;
+  gap: 12rpx;
+  padding: 22rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, rgba(255, 252, 247, 0.96) 0%, rgba(236, 223, 200, 0.86) 100%);
+}
+
+.poster-card__title,
+.poster-card__subtitle,
+.poster-card__accent,
+.poster-card__footer {
+  display: block;
+}
+
+.poster-card__title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #312618;
+}
+
+.poster-card__subtitle,
+.poster-card__footer {
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: #6c5b43;
+}
+
+.poster-card__accent {
+  font-size: 26rpx;
+  color: #8d6a3d;
+}
+
+.poster-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.poster-button {
+  min-height: 82rpx;
+  border-radius: 999rpx;
+  line-height: 82rpx;
+  font-size: 26rpx;
+  font-weight: 650;
+}
+
+.poster-button::after {
+  border: none;
+}
+
+.poster-button--primary {
+  background: linear-gradient(135deg, #8d6a3d 0%, #c29a63 100%);
+  color: #ffffff;
+}
+
+.poster-button--secondary {
+  background: rgba(255, 252, 247, 0.95);
+  color: #735b36;
 }
 
 .primary-button {

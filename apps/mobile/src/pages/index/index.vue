@@ -354,11 +354,11 @@ const quickTools = computed<QuickToolItem[]>(() => [
     route: '/pages/explore/index',
   },
   {
-    id: 'tools',
-    title: '更多工具',
-    description: '探索更多',
-    icon: 'compass',
-    route: '/pages/explore/index',
+    id: 'poster',
+    title: '今日海报',
+    description: '一键分享',
+    icon: 'poster',
+    route: '/pages/poster/generate/index?type=today&auto=1',
   },
 ]);
 

@@ -23,7 +23,7 @@ export interface QuickToolItem {
   id: string;
   title: string;
   description: string;
-  icon: 'leaf' | 'journal' | 'orbit' | 'compass';
+  icon: 'leaf' | 'journal' | 'orbit' | 'compass' | 'poster';
   route: string;
 }
 
@@ -183,6 +183,37 @@ defineEmits<{
   border-bottom: 12rpx solid currentColor;
   background: transparent;
   transform: translate(-50%, -50%) rotate(32deg) translateY(-8rpx);
+}
+
+.tool-strip__item--poster .tool-strip__icon-mark {
+  width: 24rpx;
+  height: 30rpx;
+  border: 2rpx solid currentColor;
+  border-radius: 6rpx;
+}
+
+.tool-strip__item--poster .tool-strip__icon-mark::before,
+.tool-strip__item--poster .tool-strip__icon-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.tool-strip__item--poster .tool-strip__icon-mark::before {
+  top: 5rpx;
+  width: 10rpx;
+  height: 2rpx;
+}
+
+.tool-strip__item--poster .tool-strip__icon-mark::after {
+  top: 13rpx;
+  width: 14rpx;
+  height: 8rpx;
+  border: 2rpx solid currentColor;
+  border-radius: 2rpx;
+  background: transparent;
 }
 
 .tool-strip__title {

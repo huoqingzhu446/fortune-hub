@@ -264,9 +264,14 @@
           <text class="poster-card__accent">{{ latestResult.sharePoster.accentText }}</text>
           <text class="poster-card__footer">{{ latestResult.sharePoster.footerText }}</text>
         </view>
-        <button class="hero-button hero-button--secondary" @tap="copySharePoster">
-          复制海报文案
-        </button>
+        <view class="action-row">
+          <button class="hero-button hero-button--primary" @tap="openSharePoster">
+            生成分享海报
+          </button>
+          <button class="hero-button hero-button--secondary" @tap="copySharePoster">
+            复制海报文案
+          </button>
+        </view>
       </view>
 
       <view class="save-note">
@@ -280,7 +285,7 @@
       </view>
 
       <button class="hero-button hero-button--primary" @tap="openFullReport">
-        {{ latestRecordId ? '查看完整版 / 生成海报' : '登录后查看完整版' }}
+        {{ latestRecordId ? '查看完整版' : '登录后查看完整版' }}
       </button>
 
       <view class="action-row">
@@ -571,6 +576,24 @@ function restartLatestTest() {
   void startAssessment(latestTest.value.code);
 }
 
+function openSharePoster() {
+  if (!latestRecordId.value) {
+    uni.showToast({
+      title: '请先登录并保存结果',
+      icon: 'none',
+    });
+
+    if (!isLoggedIn.value) {
+      goProfile();
+    }
+    return;
+  }
+
+  uni.navigateTo({
+    url: `/pages/poster/generate/index?type=report&recordId=${encodeURIComponent(latestRecordId.value)}&auto=1`,
+  });
+}
+
 function openFullReport() {
   if (!latestRecordId.value) {
     uni.showToast({
@@ -585,7 +608,7 @@ function openFullReport() {
   }
 
   uni.navigateTo({
-    url: `/pages/report/index?recordId=${latestRecordId.value}`,
+    url: `/pages/report/index?recordId=${encodeURIComponent(latestRecordId.value)}`,
   });
 }
 

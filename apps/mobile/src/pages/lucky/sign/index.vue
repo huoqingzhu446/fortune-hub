@@ -63,21 +63,10 @@
       </view>
 
       <view class="action-row">
-        <button class="hero-button hero-button--primary" :loading="posterLoading" @tap="generatePoster">
+        <button class="hero-button hero-button--primary" @tap="openPosterGenerate">
           生成分享海报
         </button>
         <button class="hero-button hero-button--secondary" @tap="copySharePoster">复制海报文案</button>
-      </view>
-
-      <view v-if="poster" class="poster-result">
-        <image class="poster-image" :src="posterImageSource" mode="widthFix" />
-        <view class="action-row">
-          <button class="hero-button hero-button--secondary" @tap="previewPoster">全屏预览</button>
-          <button class="hero-button hero-button--primary" @tap="downloadPoster">保存到手机</button>
-        </view>
-        <view v-if="isMpWeixin" class="action-row">
-          <button class="hero-button hero-button--ghost" @tap="sharePosterToWechat">微信发好友</button>
-        </view>
       </view>
     </view>
 
@@ -90,20 +79,10 @@
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app';
-import { computed, ref } from 'vue';
-import { generateLuckySignPosterAsync } from '../../../api/posters';
+import { ref } from 'vue';
 import { fetchLuckySignDetail } from '../../../api/lucky';
 import { useFavoriteToggle } from '../../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../../composables/useThemePreference';
-import { getErrorMessage } from '../../../services/errors';
-import {
-  handlePosterImageError,
-  previewPosterImage,
-  resolvePreferredImageSource,
-  savePosterImage,
-  sharePosterImageToWechat,
-} from '../../../services/poster-image';
-import type { GeneratedPoster } from '../../../types/poster';
 import type { LuckySignDetailData } from '../../../types/lucky';
 
 const fallbackDetail: LuckySignDetailData = {
@@ -134,13 +113,8 @@ const fallbackDetail: LuckySignDetailData = {
 };
 
 const detail = ref<LuckySignDetailData>(fallbackDetail);
-const poster = ref<GeneratedPoster | null>(null);
-const posterLoading = ref(false);
 const { favoriteActive, favoriteLoading, syncFavoriteState, toggleCurrent } = useFavoriteToggle();
 const { themeVars } = useThemePreference();
-const isMpWeixin =
-  String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '').toLowerCase() === 'mp-weixin';
-const posterImageSource = computed(() => (poster.value ? resolvePreferredImageSource(poster.value) : ''));
 
 async function loadDetail(bizCode: string) {
   try {
@@ -196,72 +170,10 @@ function copySharePoster() {
   });
 }
 
-async function generatePoster() {
-  try {
-    posterLoading.value = true;
-    poster.value = await generateLuckySignPosterAsync(detail.value.sign.bizCode);
-    uni.showToast({
-      title: '海报已生成',
-      icon: 'success',
-    });
-  } catch (error) {
-    console.warn('generate lucky sign poster failed', error);
-    uni.showToast({
-      title: getErrorMessage(error, '海报生成失败'),
-      icon: 'none',
-    });
-  } finally {
-    posterLoading.value = false;
-  }
-}
-
-async function previewPoster() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '预览失败，请稍后再试'),
-      icon: 'none',
-    });
-  }
-}
-
-async function downloadPoster() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
-    uni.showToast({
-      title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
-      icon: 'success',
-    });
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '保存失败，请稍后再试'),
-      icon: 'none',
-    });
-  }
-}
-
-async function sharePosterToWechat() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
-      icon: 'none',
-    });
-  }
+function openPosterGenerate() {
+  uni.navigateTo({
+    url: `/pages/poster/generate/index?type=lucky_sign&bizCode=${encodeURIComponent(detail.value.sign.bizCode)}&auto=1`,
+  });
 }
 
 function backHome() {

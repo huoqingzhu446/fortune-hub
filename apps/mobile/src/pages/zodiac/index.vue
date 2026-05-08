@@ -44,27 +44,7 @@
         <view class="tag-row">
           <text v-for="keyword in heroKeywords" :key="keyword" class="tag-chip">{{ keyword }}</text>
         </view>
-        <button class="share-button" :loading="posterLoading" @tap="generateZodiacPoster">生成分享图</button>
-      </view>
-    </view>
-
-    <view v-if="poster" class="panel poster-preview-panel">
-      <view class="section-head">
-        <view class="section-head__copy">
-          <text class="section-kicker">分享图预览</text>
-          <text class="section-title">{{ poster.title }}</text>
-        </view>
-        <text class="section-note">{{ poster.width }} × {{ poster.height }}</text>
-      </view>
-
-      <image class="poster-image" :src="posterImageSource" mode="widthFix" @tap="previewGeneratedPoster" />
-
-      <view class="poster-actions">
-        <button class="poster-button poster-button--secondary" @tap="previewGeneratedPoster">大图预览</button>
-        <button class="poster-button poster-button--primary" @tap="saveGeneratedPoster">保存到手机</button>
-        <button v-if="isMpWeixin" class="poster-button poster-button--ghost" @tap="shareGeneratedPoster">
-          微信发好友
-        </button>
+        <button class="share-button" @tap="openPosterGenerate">生成星座海报</button>
       </view>
     </view>
 
@@ -395,17 +375,8 @@ import {
   fetchZodiacWeekly,
   fetchZodiacYearly,
 } from '../../api/zodiac';
-import { generateZodiacTodayPosterAsync } from '../../api/posters';
 import { useThemePreference } from '../../composables/useThemePreference';
-import {
-  handlePosterImageError,
-  previewPosterImage,
-  resolvePreferredImageSource,
-  savePosterImage,
-  sharePosterImageToWechat,
-} from '../../services/poster-image';
 import { getCachedUser } from '../../services/session';
-import type { GeneratedPoster } from '../../types/poster';
 import type {
   ZodiacCompatibilityData,
   ZodiacDailyData,
@@ -987,19 +958,14 @@ const selectedPartner = ref<ZodiacSign | string>('白羊座');
 const activeView = ref<ZodiacViewMode>('daily');
 const loading = ref(false);
 const compatibilityLoading = ref(false);
-const posterLoading = ref(false);
-const poster = ref<GeneratedPoster | null>(null);
 const actionChecked = ref(false);
 const { themeVars } = useThemePreference();
-const isMpWeixin =
-  String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '').toLowerCase() === 'mp-weixin';
 const todayFortune = ref<ZodiacTodayData>(buildTodayFallback('狮子座'));
 const weeklyFortune = ref<ZodiacWeeklyData>(buildWeeklyFallback('狮子座'));
 const monthlyFortune = ref<ZodiacMonthlyData>(buildMonthlyFallback('狮子座'));
 const yearlyFortune = ref<ZodiacYearlyData>(buildYearlyFallback('狮子座'));
 const compatibility = ref<ZodiacCompatibilityData>(buildCompatibilityFallback('狮子座', '白羊座'));
 const knowledge = ref<ZodiacKnowledgeData>(buildKnowledgeFallback('狮子座'));
-const posterImageSource = computed(() => (poster.value ? resolvePreferredImageSource(poster.value) : ''));
 
 const zodiacVisual = computed(() => {
   const sign = String(selectedSign.value) as ZodiacSign;
@@ -1169,7 +1135,6 @@ async function selectSign(sign: string) {
   }
 
   selectedSign.value = sign;
-  poster.value = null;
   await loadModule(sign);
 }
 
@@ -1190,78 +1155,10 @@ function toggleActionCheck() {
   });
 }
 
-async function generateZodiacPoster() {
-  if (posterLoading.value) {
-    return;
-  }
-
-  try {
-    posterLoading.value = true;
-    poster.value = await generateZodiacTodayPosterAsync(String(selectedSign.value));
-    if (!posterImageSource.value) {
-      throw new Error('星座分享图生成失败，请稍后再试');
-    }
-    uni.showToast({
-      title: '分享图已生成',
-      icon: 'success',
-    });
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '星座分享图生成失败'),
-      icon: 'none',
-    });
-  } finally {
-    posterLoading.value = false;
-  }
-}
-
-async function previewGeneratedPoster() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await previewPosterImage(posterImageSource.value, poster.value.downloadFileName);
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '预览失败，请稍后再试'),
-      icon: 'none',
-    });
-  }
-}
-
-async function saveGeneratedPoster() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await savePosterImage(posterImageSource.value, poster.value.downloadFileName);
-    uni.showToast({
-      title: typeof window !== 'undefined' ? '已开始下载' : '已保存到相册',
-      icon: 'success',
-    });
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '保存失败，请稍后再试'),
-      icon: 'none',
-    });
-  }
-}
-
-async function shareGeneratedPoster() {
-  if (!poster.value || !posterImageSource.value) {
-    return;
-  }
-
-  try {
-    await sharePosterImageToWechat(posterImageSource.value, poster.value.downloadFileName);
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
-      icon: 'none',
-    });
-  }
+function openPosterGenerate() {
+  uni.navigateTo({
+    url: `/pages/poster/generate/index?type=zodiac&bizCode=${encodeURIComponent(String(selectedSign.value))}&auto=1`,
+  });
 }
 
 function decodeRouteValue(value: string) {

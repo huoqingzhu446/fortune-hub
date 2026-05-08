@@ -135,6 +135,13 @@ export interface BaziResult {
     supportiveColor: string;
     dailyFocus: string;
   };
+  sharePoster: {
+    themeName: string;
+    title: string;
+    subtitle: string;
+    accentText: string;
+    footerText: string;
+  };
   complianceNotice: string;
   professional?: {
     mode: 'professional';

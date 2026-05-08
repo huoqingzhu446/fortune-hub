@@ -85,6 +85,36 @@ export type ZodiacPosterDetails = {
   quote: string;
 };
 
+export type EmotionPosterDimension = {
+  label: string;
+  value: number;
+  hint: string;
+};
+
+export type EmotionPosterAdvice = {
+  title: string;
+  text: string;
+  icon: 'rest' | 'talk' | 'move' | 'task' | 'growth';
+};
+
+export type EmotionPosterDetails = {
+  nickname: string;
+  avatarInitial: string;
+  completedDate: string;
+  testTitle: string;
+  resultTitle: string;
+  score: number;
+  scoreLabel: string;
+  statusLabel: string;
+  subtitle: string;
+  summary: string;
+  supportSignal: string;
+  keywords: string[];
+  dimensions: EmotionPosterDimension[];
+  adviceItems: EmotionPosterAdvice[];
+  footerTags: string[];
+};
+
 export type PosterRenderSource = {
   sourceType: string;
   title: string;
@@ -104,6 +134,7 @@ export type PosterRenderSource = {
   energyValue?: string;
   zodiacPoster?: ZodiacPosterDetails;
   baziPoster?: BaziPosterDetails;
+  emotionPoster?: EmotionPosterDetails;
   miniProgramCodeDataUrl?: string | null;
 };
 
@@ -145,13 +176,16 @@ export class PosterRendererService {
     requestedSize: PosterLayout['size'] | undefined,
     sourceType: string,
   ): PosterLayout {
+    const prefersTallTemplate =
+      sourceType === 'bazi' ||
+      sourceType === 'zodiac_today' ||
+      sourceType === 'emotion';
     const prefersPortrait =
       sourceType === 'today_index' ||
-      sourceType === 'zodiac_today' ||
-      sourceType === 'bazi';
+      prefersTallTemplate;
     const size =
       requestedSize ??
-      (sourceType === 'bazi' || sourceType === 'zodiac_today'
+      (prefersTallTemplate
         ? '941x1672'
         : prefersPortrait
           ? '1088x1472'
@@ -223,6 +257,20 @@ export class PosterRendererService {
   ): Promise<RenderedPosterImage> {
     if (layout.kind === 'portrait' && source.sourceType === 'zodiac_today') {
       return this.renderZodiacTemplatePoster(source, layout);
+    }
+
+    if (layout.kind === 'portrait' && source.sourceType === 'emotion') {
+      const templateMarkup = this.buildEmotionAssessmentPosterSvg(
+        source,
+        layout,
+      );
+      const imageBuffer = await this.renderPng(templateMarkup);
+
+      return {
+        imageBuffer,
+        imageDataUrl: this.toPngDataUrl(imageBuffer),
+        usedProviderBackground: false,
+      };
     }
 
     const build = (background: string | null) =>
@@ -863,6 +911,500 @@ export class PosterRendererService {
     <text x="404" y="1565" font-size="33" font-weight="680" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}">查看你的专属星运报告</text>
   </g>
 </svg>`.trim();
+  }
+
+  private buildEmotionAssessmentPosterSvg(
+    source: PosterRenderSource,
+    layout: PosterLayout,
+  ) {
+    const details = this.resolveEmotionPosterDetails(source);
+    const scaleX = layout.width / 941;
+    const scaleY = layout.height / 1672;
+    const subtitleLines = this.renderTextTspans(
+      details.subtitle,
+      18,
+      0,
+      42,
+      66,
+    );
+    const summaryLines = this.renderTextTspans(
+      details.summary,
+      12,
+      0,
+      38,
+      602,
+    );
+    const supportLines = this.renderTextTspans(
+      details.supportSignal,
+      12,
+      0,
+      40,
+      602,
+    );
+    const keywordText = details.keywords.slice(0, 3).join(' · ');
+    const keywordFit = this.buildSvgTextFitAttributes(keywordText, 42, 240);
+
+    return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
+  <defs>
+    <linearGradient id="emotion-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF7E8" />
+      <stop offset="44%" stop-color="#F7FBED" />
+      <stop offset="100%" stop-color="#DDEFB0" />
+    </linearGradient>
+    <linearGradient id="emotion-card" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.92" />
+      <stop offset="100%" stop-color="#F5FAE7" stop-opacity="0.82" />
+    </linearGradient>
+    <linearGradient id="emotion-green" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#8BCB63" />
+      <stop offset="100%" stop-color="#4A983F" />
+    </linearGradient>
+    <linearGradient id="emotion-soft-green" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#D9F0C8" />
+      <stop offset="100%" stop-color="#F8FBEE" />
+    </linearGradient>
+    <filter id="emotion-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#6D9F50" flood-opacity="0.13" />
+    </filter>
+    <filter id="emotion-soft-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#6D9F50" flood-opacity="0.1" />
+    </filter>
+    <style>
+      .emotion-text { font-family: ${POSTER_FONT_FAMILY}; fill: #3E4A43; }
+      .emotion-serif { font-family: 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', 'Songti SC', serif; }
+    </style>
+  </defs>
+  <g transform="scale(${scaleX} ${scaleY})">
+    <rect width="941" height="1672" fill="url(#emotion-bg)" />
+    <circle cx="-18" cy="78" r="170" fill="#FFFFFF" fill-opacity="0.5" />
+    <circle cx="886" cy="1462" r="210" fill="#A7D46C" fill-opacity="0.22" />
+    <circle cx="768" cy="448" r="188" fill="#EAF7D8" fill-opacity="0.58" />
+    <path d="M0 1488 C160 1412 302 1458 462 1518 C640 1584 788 1570 941 1488 L941 1672 L0 1672 Z" fill="#CFE996" fill-opacity="0.42" />
+    <path d="M36 1586 C218 1526 390 1542 568 1588 C714 1626 832 1614 920 1576" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-opacity="0.42" />
+    ${this.renderEmotionLeafCanopy()}
+
+    ${this.renderEmotionLogo(66, 70, 42)}
+    <text x="128" y="92" font-size="30" font-weight="720" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">心理健康评测</text>
+    <text x="66" y="204" font-size="70" font-weight="760" fill="#4C9A3F" font-family="'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', serif">了解自己</text>
+    <text x="66" y="306" font-size="70" font-weight="760" fill="#4C9A3F" font-family="'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', serif">关爱心灵</text>
+    <path d="M458 268 C462 218 516 212 520 260 C558 230 590 270 548 306 C522 328 492 328 458 268 Z" fill="none" stroke="#F2D266" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="66" y="400" font-size="28" font-weight="500" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">${subtitleLines}</text>
+
+    <g>
+      <circle cx="628" cy="234" r="58" fill="#FFFFFF" fill-opacity="0.72" filter="url(#emotion-soft-shadow)" />
+      <circle cx="628" cy="232" r="45" fill="#F9D2B5" fill-opacity="0.72" />
+      <path d="M590 242 C606 188 662 188 678 234 C660 216 636 216 614 232 C606 238 596 242 590 242 Z" fill="#7B4A30" fill-opacity="0.82" />
+      <circle cx="626" cy="236" r="25" fill="#FFE5CC" />
+      <path d="M612 250 C624 260 644 256 653 244" fill="none" stroke="#D77D62" stroke-width="4" stroke-linecap="round" />
+      <text x="710" y="224" font-size="27" font-weight="760" fill="#2F7A31" font-family="${POSTER_FONT_FAMILY}">@ ${this.escapeXml(details.nickname)}</text>
+      <text x="710" y="278" font-size="26" fill="#9B9F9C" font-family="${POSTER_FONT_FAMILY}">评测完成于</text>
+      <text x="710" y="326" font-size="30" font-weight="620" fill="#9B9F9C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.completedDate)}</text>
+    </g>
+
+    <g filter="url(#emotion-shadow)">
+      <rect x="568" y="328" width="323" height="182" rx="24" fill="#FFFFFF" fill-opacity="0.72" />
+      <text x="602" y="405" font-size="28" fill="#7D837E" font-family="${POSTER_FONT_FAMILY}">总分</text>
+      <text x="656" y="420" font-size="94" font-weight="780" fill="#78BF52" font-family="${POSTER_FONT_FAMILY}">${details.score}</text>
+      <text x="774" y="420" font-size="30" fill="#7D837E" font-family="${POSTER_FONT_FAMILY}">/100</text>
+      <rect x="650" y="446" width="160" height="48" rx="24" fill="url(#emotion-green)" />
+      <text x="730" y="479" text-anchor="middle" font-size="25" font-weight="720" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.statusLabel)} ☺</text>
+    </g>
+
+    <g filter="url(#emotion-shadow)">
+      <rect x="51" y="492" width="505" height="538" rx="24" fill="#FFFFFF" fill-opacity="0.62" />
+      <path d="M51 470 H330 L316 516 H51 Z" fill="url(#emotion-green)" />
+      <text x="70" y="506" font-size="28" font-weight="760" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">· 你的心理健康维度 ·</text>
+      ${this.renderEmotionRadar(details.dimensions, 304, 766, 156)}
+    </g>
+
+    <g filter="url(#emotion-shadow)">
+      <rect x="568" y="544" width="323" height="496" rx="26" fill="#F5FAE7" fill-opacity="0.76" />
+      <text x="606" y="620" font-size="27" font-weight="700" fill="#5B635C" font-family="${POSTER_FONT_FAMILY}">你的心灵状态关键词</text>
+      <text x="600" y="694" font-size="42" font-weight="760" fill="#4C9A3F" font-family="'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', serif" ${keywordFit}>${this.escapeXml(keywordText)}</text>
+      <path d="M598 724 C682 706 754 704 842 688" fill="none" stroke="#F2D266" stroke-width="5" stroke-linecap="round" />
+      <text x="598" y="784" font-size="54" fill="#B4D994" fill-opacity="0.72" font-family="Georgia, serif">“</text>
+      <text x="602" y="832" font-size="28" font-weight="580" fill="#445048" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
+      <text x="602" y="946" font-size="23" fill="#5D665F" fill-opacity="0.86" font-family="${POSTER_FONT_FAMILY}">${supportLines}</text>
+      ${this.renderEmotionCareIllustration(672, 875, 0.9)}
+    </g>
+
+    <path d="M51 1076 H326 L314 1122 H51 Z" fill="url(#emotion-green)" />
+    <text x="70" y="1112" font-size="28" font-weight="760" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">· 给你的贴心建议 ·</text>
+    ${this.renderEmotionAdviceGrid(details.adviceItems)}
+
+    <g filter="url(#emotion-shadow)">
+      <rect x="32" y="1414" width="877" height="220" rx="28" fill="#FFFFFF" fill-opacity="0.72" stroke="#FFFFFF" stroke-width="2" />
+      <rect x="76" y="1476" width="108" height="108" rx="24" fill="url(#emotion-green)" />
+      ${this.renderEmotionLogo(103, 1502, 54, '#FFFFFF')}
+      <text x="214" y="1508" font-size="31" font-weight="760" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">心理健康评测</text>
+      <text x="214" y="1552" font-size="24" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">认识自己，拥抱更好的生活</text>
+      ${this.renderEmotionFooterTags(details.footerTags, 214, 1582)}
+      <text x="492" y="1514" font-size="24" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">长按识别二维码</text>
+      <text x="492" y="1568" font-size="27" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">开启你的心灵探索之旅</text>
+      <path d="M586 1596 C616 1640 676 1626 692 1580" fill="none" stroke="#91C85A" stroke-width="4" stroke-linecap="round" />
+      <path d="M690 1580 L714 1592 L692 1606" fill="none" stroke="#91C85A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      ${this.renderEmotionMiniProgramCode(source.miniProgramCodeDataUrl ?? null, 786, 1524, 152)}
+    </g>
+  </g>
+</svg>`.trim();
+  }
+
+  private resolveEmotionPosterDetails(
+    source: PosterRenderSource,
+  ): EmotionPosterDetails {
+    return (
+      source.emotionPoster ?? {
+        nickname: '心灵探索者',
+        avatarInitial: '心',
+        completedDate: '今日',
+        testTitle: '心理健康评测',
+        resultTitle: source.title || '情绪照护档案',
+        score: 86,
+        scoreLabel: '86/100',
+        statusLabel: '状态良好',
+        subtitle: source.subtitle || '每一次自我观察，都是成长的开始。',
+        summary: source.summary || '你正在用积极的方式照顾自己，继续保持。',
+        supportSignal: source.footerText || '结果仅用于日常自我观察，请按现实支持优先。',
+        keywords: source.chips.length ? source.chips : ['自信', '平衡', '成长'],
+        dimensions: [
+          { label: '情绪状态', value: 85, hint: '情绪稳定，积极乐观' },
+          { label: '压力管理', value: 90, hint: '压力可控，应对得当' },
+          { label: '社交关系', value: 90, hint: '人际和谐，支持良好' },
+          { label: '自我认知', value: 88, hint: '自我接纳，认知清晰' },
+          { label: '生活习惯', value: 78, hint: '作息规律，习惯良好' },
+        ],
+        adviceItems: [
+          { title: '保持规律作息', text: '充足的睡眠是情绪稳定的基础', icon: 'rest' },
+          { title: '表达真实感受', text: '与信任的人倾诉，可以减轻心理负担', icon: 'talk' },
+          { title: '适度运动放松', text: '运动能有效缓解压力，提升幸福感', icon: 'move' },
+          { title: '持续自我成长', text: '学习新知识，探索兴趣，让自己不断进步', icon: 'growth' },
+        ],
+        footerTags: ['专业', '科学', '隐私', '可靠'],
+      }
+    );
+  }
+
+  private renderEmotionLeafCanopy() {
+    const leaves = [
+      [640, 10, -24, 46, 22, '#B9D975'],
+      [684, 18, 18, 48, 24, '#93C95A'],
+      [728, 12, -16, 58, 26, '#6BAE44'],
+      [782, 34, 20, 62, 28, '#5B9B39'],
+      [842, 68, -18, 60, 28, '#7AB84D'],
+      [904, 108, 16, 58, 26, '#629B3E'],
+      [694, 76, -18, 50, 23, '#9CCB62'],
+      [752, 86, 14, 56, 24, '#77B94C'],
+      [814, 126, -20, 62, 28, '#4E8E37'],
+      [882, 162, 18, 58, 25, '#7DBA4C'],
+    ];
+
+    return `
+  <path d="M636 24 C716 58 786 92 930 152" fill="none" stroke="#6D6A36" stroke-width="4" stroke-opacity="0.36" />
+  ${leaves
+    .map(
+      ([cx, cy, rotate, rx, ry, color]) =>
+        `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" fill-opacity="0.72" transform="rotate(${rotate} ${cx} ${cy})" />`,
+    )
+    .join('')}
+  <circle cx="612" cy="54" r="96" fill="#F7E7B8" fill-opacity="0.18" />`.trim();
+  }
+
+  private renderEmotionLogo(
+    x: number,
+    y: number,
+    size: number,
+    color = '#FFFFFF',
+  ) {
+    const stroke = color;
+    const fill = color === '#FFFFFF' ? 'url(#emotion-green)' : color;
+
+    return `
+  <g transform="translate(${x} ${y})">
+    <rect x="0" y="0" width="${size}" height="${size}" rx="${Math.round(size * 0.2)}" fill="${fill}" />
+    <path d="M${size * 0.27} ${size * 0.36} C${size * 0.27} ${size * 0.18}, ${size * 0.48} ${size * 0.18}, ${size * 0.5} ${size * 0.36} C${size * 0.55} ${size * 0.18}, ${size * 0.76} ${size * 0.2}, ${size * 0.76} ${size * 0.38} C${size * 0.76} ${size * 0.58}, ${size * 0.5} ${size * 0.74}, ${size * 0.5} ${size * 0.78} C${size * 0.5} ${size * 0.74}, ${size * 0.27} ${size * 0.58}, ${size * 0.27} ${size * 0.36} Z" fill="none" stroke="${stroke}" stroke-width="${Math.max(3, size * 0.08)}" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M${size * 0.28} ${size * 0.72} C${size * 0.42} ${size * 0.6}, ${size * 0.62} ${size * 0.6}, ${size * 0.74} ${size * 0.72}" fill="none" stroke="${stroke}" stroke-width="${Math.max(3, size * 0.07)}" stroke-linecap="round" />
+  </g>`.trim();
+  }
+
+  private renderEmotionRadar(
+    dimensions: EmotionPosterDimension[],
+    cx: number,
+    cy: number,
+    radius: number,
+  ) {
+    const normalized = this.normalizeEmotionDimensions(dimensions);
+    const angleOffset = -Math.PI / 2;
+    const pointFor = (index: number, value: number) => {
+      const angle = angleOffset + (Math.PI * 2 * index) / normalized.length;
+      const distance = radius * (Math.max(0, Math.min(100, value)) / 100);
+
+      return {
+        x: cx + Math.cos(angle) * distance,
+        y: cy + Math.sin(angle) * distance,
+      };
+    };
+    const ringPolygon = (scale: number) =>
+      normalized
+        .map((_, index) => {
+          const angle = angleOffset + (Math.PI * 2 * index) / normalized.length;
+          return `${cx + Math.cos(angle) * radius * scale},${cy + Math.sin(angle) * radius * scale}`;
+        })
+        .join(' ');
+    const values = normalized
+      .map((item, index) => pointFor(index, item.value))
+      .map((point) => `${point.x},${point.y}`)
+      .join(' ');
+    const axes = normalized
+      .map((_, index) => {
+        const angle = angleOffset + (Math.PI * 2 * index) / normalized.length;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#A4D489" stroke-opacity="0.36" stroke-width="1.4" />`;
+      })
+      .join('');
+
+    return `
+  <g>
+    <polygon points="${ringPolygon(1)}" fill="#95CD66" fill-opacity="0.06" stroke="#A4D489" stroke-opacity="0.5" />
+    <polygon points="${ringPolygon(0.72)}" fill="none" stroke="#A4D489" stroke-opacity="0.28" />
+    <polygon points="${ringPolygon(0.44)}" fill="none" stroke="#A4D489" stroke-opacity="0.2" />
+    ${axes}
+    <polygon points="${values}" fill="#83C65B" fill-opacity="0.36" stroke="#57A348" stroke-width="3" />
+    ${normalized
+      .map((item, index) => {
+        const point = pointFor(index, item.value);
+        return `<circle cx="${point.x}" cy="${point.y}" r="7" fill="#4F9B42" />`;
+      })
+      .join('')}
+    ${this.renderEmotionDimensionLabels(normalized)}
+  </g>`.trim();
+  }
+
+  private normalizeEmotionDimensions(dimensions: EmotionPosterDimension[]) {
+    const fallback = [
+      { label: '情绪状态', value: 85, hint: '情绪稳定，积极乐观' },
+      { label: '压力管理', value: 90, hint: '压力可控，应对得当' },
+      { label: '社交关系', value: 90, hint: '人际和谐，支持良好' },
+      { label: '自我认知', value: 88, hint: '自我接纳，认知清晰' },
+      { label: '生活习惯', value: 78, hint: '作息规律，习惯良好' },
+    ];
+    const merged = dimensions.length ? dimensions : fallback;
+
+    return merged.slice(0, 5).map((item, index) => {
+      const value = Number(item.value);
+
+      return {
+        ...fallback[index],
+        ...item,
+        value: Math.round(
+          Math.max(
+            0,
+            Math.min(
+              100,
+              Number.isFinite(value) ? value : fallback[index].value,
+            ),
+          ),
+        ),
+      };
+    });
+  }
+
+  private renderEmotionDimensionLabels(dimensions: EmotionPosterDimension[]) {
+    const positions = [
+      { x: 304, y: 602, anchor: 'middle' },
+      { x: 430, y: 720, anchor: 'start' },
+      { x: 400, y: 934, anchor: 'start' },
+      { x: 210, y: 934, anchor: 'end' },
+      { x: 178, y: 720, anchor: 'end' },
+    ];
+
+    return dimensions
+      .map((item, index) => {
+        const position = positions[index];
+        const hintLines = this.splitTextByDisplayUnits(item.hint, 8, 2);
+
+        return `
+  <g>
+    <circle cx="${position.x + (position.anchor === 'end' ? -34 : position.anchor === 'start' ? 34 : -58)}" cy="${position.y - 8}" r="16" fill="url(#emotion-green)" fill-opacity="0.92" />
+    <text x="${position.x}" y="${position.y}" text-anchor="${position.anchor}" font-size="25" font-weight="740" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(item.label)} ${item.value}</text>
+    ${hintLines
+      .map(
+        (line, lineIndex) =>
+          `<text x="${position.x}" y="${position.y + 34 + lineIndex * 28}" text-anchor="${position.anchor}" font-size="21" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(line)}</text>`,
+      )
+      .join('')}
+  </g>`.trim();
+      })
+      .join('');
+  }
+
+  private renderEmotionCareIllustration(
+    x: number,
+    y: number,
+    scale: number,
+  ) {
+    return `
+  <g transform="translate(${x} ${y}) scale(${scale})">
+    <ellipse cx="50" cy="268" rx="174" ry="34" fill="#9CC96B" fill-opacity="0.28" />
+    <path d="M-92 266 C-44 236, 0 232, 60 250 C118 266, 164 252, 212 224" fill="none" stroke="#72AD42" stroke-width="9" stroke-opacity="0.42" stroke-linecap="round" />
+    <path d="M-62 282 C-10 260, 56 264, 112 276" fill="none" stroke="#A8D56E" stroke-width="8" stroke-opacity="0.42" stroke-linecap="round" />
+    <circle cx="52" cy="72" r="42" fill="#FFE6CD" />
+    <path d="M18 76 C18 20, 76 4, 104 52 C76 40, 56 54, 48 84 C38 76, 28 74, 18 76 Z" fill="#7B4329" />
+    <path d="M72 92 C98 118, 108 170, 94 226 C62 234, 18 224, -8 202 C12 160, 16 112, 72 92 Z" fill="#FFFFFF" />
+    <path d="M20 148 C-12 174, -28 214, -16 246" fill="none" stroke="#FFFFFF" stroke-width="32" stroke-linecap="round" />
+    <path d="M92 152 C126 180, 156 210, 184 232" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" />
+    <path d="M16 226 C-18 258, -52 280, -104 282" fill="none" stroke="#4F8D3D" stroke-width="30" stroke-linecap="round" />
+    <path d="M76 226 C98 260, 134 280, 180 282" fill="none" stroke="#4F8D3D" stroke-width="30" stroke-linecap="round" />
+    <path d="M44 160 C68 128, 104 150, 98 184 C94 212, 62 230, 44 244 C24 226, -2 206, 4 176 C10 148, 34 140, 44 160 Z" fill="#F6A49B" fill-opacity="0.86" />
+    <path d="M34 74 C42 86, 60 88, 72 76" fill="none" stroke="#D77D62" stroke-width="4" stroke-linecap="round" />
+    <circle cx="88" cy="66" r="4" fill="#78442B" />
+    <path d="M-126 252 C-128 226, -104 212, -84 230 C-62 250, -84 276, -126 252 Z" fill="#FFFFFF" fill-opacity="0.9" />
+    <path d="M166 252 C166 226, 194 214, 212 236 C230 258, 204 280, 166 252 Z" fill="#FFFFFF" fill-opacity="0.92" />
+    <circle cx="-132" cy="204" r="8" fill="#F4D56A" />
+    <circle cx="206" cy="188" r="8" fill="#F4D56A" />
+    <path d="M-150 206 H-114 M-132 188 V224" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+    <path d="M188 188 H224 M206 170 V206" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  </g>`.trim();
+  }
+
+  private renderEmotionAdviceGrid(adviceItems: EmotionPosterAdvice[]) {
+    const normalized = (adviceItems.length ? adviceItems : [
+      { title: '保持规律作息', text: '充足的睡眠是情绪稳定的基础', icon: 'rest' as const },
+      { title: '表达真实感受', text: '与信任的人倾诉，可以减轻心理负担', icon: 'talk' as const },
+      { title: '适度运动放松', text: '运动能有效缓解压力，提升幸福感', icon: 'move' as const },
+      { title: '持续自我成长', text: '学习新知识，探索兴趣，让自己不断进步', icon: 'growth' as const },
+    ]).slice(0, 4);
+    const positions = [
+      { x: 66, y: 1160 },
+      { x: 376, y: 1160 },
+      { x: 66, y: 1286 },
+      { x: 376, y: 1286 },
+    ];
+
+    return normalized
+      .map((item, index) => {
+        const position = positions[index];
+        const textLines = this.splitTextByDisplayUnits(item.text, 13, 2);
+
+        return `
+  <g filter="url(#emotion-soft-shadow)">
+    <rect x="${position.x}" y="${position.y}" width="272" height="100" rx="20" fill="#F3F8E7" fill-opacity="0.74" />
+    ${this.renderEmotionAdviceIcon(item.icon, position.x + 36, position.y + 50)}
+    <text x="${position.x + 86}" y="${position.y + 34}" font-size="24" font-weight="760" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(item.title)}</text>
+    ${textLines
+      .map(
+        (line, lineIndex) =>
+          `<text x="${position.x + 86}" y="${position.y + 66 + lineIndex * 27}" font-size="20" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(line)}</text>`,
+      )
+      .join('')}
+  </g>`.trim();
+      })
+      .join('');
+  }
+
+  private renderEmotionAdviceIcon(
+    icon: EmotionPosterAdvice['icon'],
+    cx: number,
+    cy: number,
+  ) {
+    const base = `<circle cx="${cx}" cy="${cy}" r="28" fill="#9BD26B" fill-opacity="0.72" />`;
+
+    if (icon === 'talk') {
+      return `${base}<path d="M${cx - 12} ${cy - 10} H${cx + 12} A9 9 0 0 1 ${cx + 12} ${cy + 8} H${cx - 2} L${cx - 14} ${cy + 18} V${cy + 8} H${cx - 12} A9 9 0 0 1 ${cx - 12} ${cy - 10} Z" fill="#FFFFFF" fill-opacity="0.92" />`;
+    }
+
+    if (icon === 'move') {
+      return `${base}<circle cx="${cx - 4}" cy="${cy - 15}" r="7" fill="#FFFFFF" /><path d="M${cx - 14} ${cy + 16} L${cx - 2} ${cy - 2} L${cx + 12} ${cy + 6}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /><path d="M${cx - 2} ${cy - 2} L${cx + 8} ${cy - 16}" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />`;
+    }
+
+    if (icon === 'task') {
+      return `${base}<path d="M${cx - 13} ${cy - 8} H${cx + 13} V${cy + 14} H${cx - 13} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" /><path d="M${cx - 6} ${cy + 2} L${cx - 1} ${cy + 8} L${cx + 10} ${cy - 6}" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />`;
+    }
+
+    if (icon === 'growth') {
+      return `${base}<path d="M${cx - 12} ${cy + 14} V${cy - 6} C${cx - 2} ${cy - 18}, ${cx + 8} ${cy - 16}, ${cx + 14} ${cy - 6} C${cx + 2} ${cy - 5}, ${cx - 6} ${cy + 2}, ${cx - 12} ${cy + 14} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M${cx - 12} ${cy + 8} C${cx - 22} ${cy - 4}, ${cx - 18} ${cy - 14}, ${cx - 4} ${cy - 14}" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />`;
+    }
+
+    return `${base}<path d="M${cx - 13} ${cy + 8} C${cx - 4} ${cy - 10}, ${cx + 10} ${cy - 10}, ${cx + 14} ${cy + 7}" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" /><path d="M${cx - 14} ${cy + 2} C${cx - 1} ${cy + 14}, ${cx + 12} ${cy + 12}, ${cx + 18} ${cy}" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />`;
+  }
+
+  private renderEmotionFooterTags(tags: string[], x: number, y: number) {
+    const normalized = (tags.length ? tags : ['专业', '科学', '隐私', '可靠']).slice(
+      0,
+      4,
+    );
+    let cursor = x;
+
+    return normalized
+      .map((tag) => {
+        const width = Math.max(46, tag.length * 23 + 24);
+        const markup = `
+  <rect x="${cursor}" y="${y}" width="${width}" height="32" rx="12" fill="#C9DFB4" fill-opacity="0.72" />
+  <text x="${cursor + width / 2}" y="${y + 23}" text-anchor="middle" font-size="18" fill="#628B4B" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(tag)}</text>`.trim();
+        cursor += width + 10;
+        return markup;
+      })
+      .join('');
+  }
+
+  private renderEmotionMiniProgramCode(
+    codeDataUrl: string | null,
+    cx: number,
+    cy: number,
+    size: number,
+  ) {
+    const x = cx - size / 2;
+    const y = cy - size / 2;
+
+    if (codeDataUrl) {
+      return `
+  <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="14" fill="#FFFFFF" filter="url(#emotion-soft-shadow)" />
+  <image href="${this.escapeXml(codeDataUrl)}" x="${x + 10}" y="${y + 10}" width="${size - 20}" height="${size - 20}" preserveAspectRatio="xMidYMid meet" />`.trim();
+    }
+
+    return this.renderEmotionMiniProgramCodePlaceholder(x, y, size);
+  }
+
+  private renderEmotionMiniProgramCodePlaceholder(
+    x: number,
+    y: number,
+    size: number,
+  ) {
+    const modules = [
+      [14, 14, 18],
+      [38, 14, 10],
+      [70, 14, 18],
+      [104, 14, 10],
+      [124, 14, 16],
+      [14, 42, 12],
+      [46, 42, 18],
+      [82, 40, 10],
+      [112, 44, 18],
+      [16, 74, 20],
+      [52, 76, 12],
+      [78, 74, 18],
+      [118, 74, 18],
+      [14, 112, 16],
+      [42, 110, 20],
+      [80, 112, 12],
+      [112, 108, 24],
+      [20, 134, 12],
+      [58, 134, 18],
+      [94, 132, 12],
+      [126, 132, 14],
+    ];
+
+    return `
+  <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="14" fill="#FFFFFF" filter="url(#emotion-soft-shadow)" />
+  ${modules
+    .map(
+      ([mx, my, ms]) =>
+        `<rect x="${x + mx}" y="${y + my}" width="${ms}" height="${ms}" rx="3" fill="#1F2524" />`,
+    )
+    .join('')}
+  <rect x="${x + size / 2 - 25}" y="${y + size / 2 - 25}" width="50" height="50" rx="12" fill="url(#emotion-green)" />
+  <path d="M${x + size / 2 - 12} ${y + size / 2 - 2} C${x + size / 2 - 12} ${y + size / 2 - 16}, ${x + size / 2 + 3} ${y + size / 2 - 16}, ${x + size / 2} ${y + size / 2 - 2} C${x + size / 2 + 12} ${y + size / 2 - 16}, ${x + size / 2 + 24} ${y + size / 2 - 2}, ${x + size / 2} ${y + size / 2 + 17} C${x + size / 2 - 22} ${y + size / 2}, ${x + size / 2 - 14} ${y + size / 2 - 2}, ${x + size / 2 - 12} ${y + size / 2 - 2} Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />`.trim();
   }
 
   private resolveZodiacArchiveDetails(

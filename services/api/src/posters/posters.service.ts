@@ -16,6 +16,9 @@ import {
 } from '../common/file-url.util';
 import {
   BaziPosterDetails,
+  EmotionPosterAdvice,
+  EmotionPosterDetails,
+  EmotionPosterDimension,
   PosterMetric,
   PosterRendererService,
   ZodiacPosterDetails,
@@ -25,6 +28,7 @@ import { ReportTemplateEntity } from '../database/entities/report-template.entit
 import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { LuckyService } from '../lucky/lucky.service';
 import { ReportsService } from '../reports/reports.service';
 import { ZodiacService } from '../zodiac/zodiac.service';
@@ -53,6 +57,7 @@ type PosterSource = {
   energyValue?: string;
   zodiacPoster?: ZodiacPosterDetails;
   baziPoster?: BaziPosterDetails;
+  emotionPoster?: EmotionPosterDetails;
 };
 
 @Injectable()
@@ -288,21 +293,39 @@ export class PostersService {
         record.recordType === 'bazi'
           ? this.buildBaziPosterDetails(this.asRecord(record.resultData))
           : undefined;
+      const emotionPoster =
+        record.recordType === 'emotion'
+          ? this.buildEmotionPosterDetails(
+              record,
+              this.asRecord(record.resultData),
+              user,
+            )
+          : undefined;
 
       return {
         sourceType: record.recordType,
         sourceCode: record.sourceCode,
         recordId: record.id,
-        title: baziPoster ? '我的八字命盘' : report.sharePoster.title,
+        title: baziPoster
+          ? '我的八字命盘'
+          : emotionPoster
+            ? '心理健康评测'
+            : report.sharePoster.title,
         subtitle: baziPoster
           ? '根据出生日期与出生地生成的专属命理画像'
-          : report.sharePoster.subtitle,
+          : emotionPoster
+            ? emotionPoster.subtitle
+            : report.sharePoster.subtitle,
         accentText: baziPoster
           ? `${baziPoster.dayMaster}日主 · ${baziPoster.wuxingTrend} · 喜用${baziPoster.favorableElements}`
-          : report.sharePoster.accentText,
+          : emotionPoster
+            ? emotionPoster.keywords.join(' · ')
+            : report.sharePoster.accentText,
         footerText: baziPoster
           ? baziPoster.bottomSlogan
-          : report.sharePoster.footerText,
+          : emotionPoster
+            ? emotionPoster.supportSignal
+            : report.sharePoster.footerText,
         summary: report.summary,
         promptKeywords: [
           report.recordType,
@@ -313,21 +336,30 @@ export class PostersService {
         themeName: report.sharePoster.themeName,
         promptHint: '',
         eyebrowText: 'FORTUNE HUB SHARE POSTER',
-        chips: baziPoster
-          ? [
-              baziPoster.dayMaster,
-              baziPoster.wuxingTrend,
-              `喜用${baziPoster.favorableElements}`,
-            ]
-          : [],
-        metrics: baziPoster
-          ? baziPoster.fortunes.map((item) => ({
+        chips: emotionPoster
+          ? emotionPoster.keywords
+          : baziPoster
+            ? [
+                baziPoster.dayMaster,
+                baziPoster.wuxingTrend,
+                `喜用${baziPoster.favorableElements}`,
+              ]
+            : [],
+        metrics: emotionPoster
+          ? emotionPoster.dimensions.slice(0, 3).map((item) => ({
               label: item.label,
               value: String(item.value),
+              hint: item.hint,
             }))
-          : [],
+          : baziPoster
+            ? baziPoster.fortunes.map((item) => ({
+                label: item.label,
+                value: String(item.value),
+              }))
+            : [],
         highlightLines: [],
         baziPoster,
+        emotionPoster,
       };
     }
 
@@ -594,6 +626,300 @@ export class PostersService {
       energyValue: String(data.score.overall),
       zodiacPoster,
     };
+  }
+
+  private buildEmotionPosterDetails(
+    record: UserRecordEntity,
+    resultData: Record<string, unknown>,
+    user: UserEntity,
+  ): EmotionPosterDetails {
+    const rawScore = Number(resultData.score ?? record.score ?? 0);
+    const scoreRange = this.parseEmotionScoreRange(
+      this.pickString(resultData.scoreRangeLabel, ''),
+      Number.isFinite(rawScore) ? rawScore : 0,
+    );
+    const riskLevel = this.pickString(
+      resultData.riskLevel,
+      record.resultLevel ?? 'watch',
+    );
+    const posterScore = this.resolveEmotionPosterScore(
+      scoreRange.score,
+      scoreRange.maxScore,
+      riskLevel,
+    );
+    const testTitle = this.pickString(
+      resultData.testTitle,
+      this.pickString(record.sourceCode, '心理健康评测'),
+    );
+    const resultTitle = this.pickString(
+      resultData.title,
+      record.resultTitle || '心理健康自检',
+    );
+    const summary = this.truncateText(
+      this.pickString(
+        resultData.summary,
+        this.pickString(resultData.primarySuggestion, '每一次自我观察，都是成长的开始。'),
+      ),
+      56,
+    );
+    const supportSignal = this.truncateText(
+      this.pickString(
+        resultData.supportSignal,
+        '结果仅用于日常自我观察，请按现实支持优先。',
+      ),
+      56,
+    );
+    const nickname = this.truncateText(
+      this.pickString(user.nickname, '心灵探索者'),
+      8,
+    );
+    const completedAt = this.pickString(
+      resultData.completedAt,
+      record.createdAt?.toISOString?.() ?? new Date().toISOString(),
+    );
+
+    return {
+      nickname,
+      avatarInitial: nickname.slice(0, 1) || '心',
+      completedDate: this.formatPosterDate(completedAt),
+      testTitle,
+      resultTitle,
+      score: posterScore,
+      scoreLabel: `${posterScore}/100`,
+      statusLabel: this.resolveEmotionPosterStatusLabel(riskLevel),
+      subtitle: this.resolveEmotionPosterSubtitle(riskLevel),
+      summary,
+      supportSignal,
+      keywords: this.resolveEmotionPosterKeywords(riskLevel, posterScore),
+      dimensions: this.buildEmotionPosterDimensions(
+        posterScore,
+        riskLevel,
+        this.pickString(record.sourceCode, ''),
+      ),
+      adviceItems: this.buildEmotionPosterAdviceItems(resultData, riskLevel),
+      footerTags: ['专业', '科学', '隐私', '可靠'],
+    };
+  }
+
+  private parseEmotionScoreRange(value: string, fallbackScore: number) {
+    const match = value.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+    const score = match ? Number(match[1]) : fallbackScore;
+    const maxScore = match ? Number(match[2]) : 15;
+
+    return {
+      score: Number.isFinite(score) ? score : 0,
+      maxScore: Number.isFinite(maxScore) && maxScore > 0 ? maxScore : 15,
+    };
+  }
+
+  private resolveEmotionPosterScore(
+    score: number,
+    maxScore: number,
+    riskLevel: string,
+  ) {
+    if (maxScore > 0 && Number.isFinite(score)) {
+      return this.clampEmotionPosterValue(96 - (score / maxScore) * 50);
+    }
+
+    const fallback: Record<string, number> = {
+      steady: 88,
+      watch: 76,
+      support: 64,
+      urgent: 50,
+    };
+
+    return fallback[riskLevel] ?? 76;
+  }
+
+  private resolveEmotionPosterStatusLabel(riskLevel: string) {
+    const map: Record<string, string> = {
+      steady: '状态良好',
+      watch: '需要关照',
+      support: '建议支持',
+      urgent: '优先求助',
+    };
+
+    return map[riskLevel] ?? '持续观察';
+  }
+
+  private resolveEmotionPosterSubtitle(riskLevel: string) {
+    if (riskLevel === 'steady') {
+      return '每一次自我观察，都是成长的开始';
+    }
+
+    if (riskLevel === 'urgent') {
+      return '先把安全与现实支持放在第一位';
+    }
+
+    if (riskLevel === 'support') {
+      return '看见自己的消耗，及时获得支持';
+    }
+
+    return '照顾当下的自己，就是恢复的开始';
+  }
+
+  private resolveEmotionPosterKeywords(riskLevel: string, posterScore: number) {
+    if (riskLevel === 'urgent') {
+      return ['安全', '支持', '陪伴'];
+    }
+
+    if (riskLevel === 'support') {
+      return ['安顿', '支持', '修复'];
+    }
+
+    if (riskLevel === 'watch') {
+      return ['觉察', '平衡', '恢复'];
+    }
+
+    return posterScore >= 88
+      ? ['自信', '平衡', '成长']
+      : ['稳定', '自洽', '成长'];
+  }
+
+  private buildEmotionPosterDimensions(
+    posterScore: number,
+    riskLevel: string,
+    sourceCode: string,
+  ): EmotionPosterDimension[] {
+    const isAnxiety = sourceCode.includes('anxiety');
+    const needsSupport = riskLevel === 'support' || riskLevel === 'urgent';
+
+    return [
+      {
+        label: '情绪状态',
+        value: this.clampEmotionPosterValue(
+          posterScore +
+            (riskLevel === 'steady' ? 2 : riskLevel === 'urgent' ? -6 : 0),
+        ),
+        hint: riskLevel === 'steady' ? '情绪稳定，积极乐观' : '留意波动，温和安顿',
+      },
+      {
+        label: '压力管理',
+        value: this.clampEmotionPosterValue(posterScore + (isAnxiety ? -5 : 2)),
+        hint: isAnxiety ? '先降节奏，减少消耗' : '压力可控，继续复盘',
+      },
+      {
+        label: '社交关系',
+        value: this.clampEmotionPosterValue(
+          posterScore + (needsSupport ? -7 : 3),
+        ),
+        hint: needsSupport ? '主动连接现实支持' : '人际支持较为稳定',
+      },
+      {
+        label: '自我认知',
+        value: this.clampEmotionPosterValue(posterScore + 8),
+        hint: '完成自检，觉察更清晰',
+      },
+      {
+        label: '生活习惯',
+        value: this.clampEmotionPosterValue(
+          posterScore + (riskLevel === 'steady' ? 4 : -3),
+        ),
+        hint: '优先睡眠、饮食与恢复',
+      },
+    ];
+  }
+
+  private buildEmotionPosterAdviceItems(
+    resultData: Record<string, unknown>,
+    riskLevel: string,
+  ): EmotionPosterAdvice[] {
+    const candidates = [
+      this.pickString(resultData.primarySuggestion, ''),
+      ...this.pickStringArray(resultData.relaxSteps, []),
+      this.pickString(resultData.supportSignal, ''),
+    ]
+      .map((item) => this.truncateText(item, 28))
+      .filter((item, index, array) => item && array.indexOf(item) === index);
+    const fallback =
+      riskLevel === 'steady'
+        ? [
+            '继续保持作息、饮食和基础运动节奏。',
+            '把今天最重要的一件事做完，减少额外分心。',
+            '给自己留 10 分钟安静呼吸或散步时间。',
+            '记录一次让你感觉稳定的小事。',
+          ]
+        : [
+            '先把今天最耗能的一件事拆成更小的一步。',
+            '找一个信任的人，说出最近最累的一件事。',
+            '给自己留 10 分钟安静呼吸或散步时间。',
+            '如果状态持续影响生活，优先联系专业支持。',
+          ];
+    const lines = (candidates.length ? candidates : fallback).slice(0, 4);
+
+    return lines.map((line, index) => ({
+      title: this.resolveEmotionAdviceTitle(line, index),
+      text: line,
+      icon: this.resolveEmotionAdviceIcon(line, index),
+    }));
+  }
+
+  private resolveEmotionAdviceTitle(value: string, index: number) {
+    if (/睡眠|作息|吃饭|饮食|休息/.test(value)) {
+      return '保持规律作息';
+    }
+
+    if (/信任|聊|联系|支持|家人|朋友|专业/.test(value)) {
+      return '表达真实感受';
+    }
+
+    if (/呼吸|散步|运动|拉伸|走动|放松/.test(value)) {
+      return '适度运动放松';
+    }
+
+    if (/写|目标|任务|一步|动作|完成/.test(value)) {
+      return '拆小当前任务';
+    }
+
+    return (
+      ['照顾当下自己', '表达真实感受', '适度运动放松', '持续自我成长'][
+        index
+      ] ?? '持续自我成长'
+    );
+  }
+
+  private resolveEmotionAdviceIcon(
+    value: string,
+    index: number,
+  ): EmotionPosterAdvice['icon'] {
+    if (/睡眠|作息|吃饭|饮食|休息/.test(value)) {
+      return 'rest';
+    }
+
+    if (/信任|聊|联系|支持|家人|朋友|专业/.test(value)) {
+      return 'talk';
+    }
+
+    if (/呼吸|散步|运动|拉伸|走动|放松/.test(value)) {
+      return 'move';
+    }
+
+    if (/写|目标|任务|一步|动作|完成/.test(value)) {
+      return 'task';
+    }
+
+    return (['rest', 'talk', 'move', 'growth'] as const)[index] ?? 'growth';
+  }
+
+  private clampEmotionPosterValue(value: number) {
+    if (!Number.isFinite(value)) {
+      return 76;
+    }
+
+    return Math.min(96, Math.max(42, Math.round(value)));
+  }
+
+  private formatPosterDate(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value || '今日';
+    }
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}.${month}.${day}`;
   }
 
   private buildZodiacPosterDetails(
@@ -1091,6 +1417,10 @@ export class PostersService {
       return 'bazi-share-poster-941x1672-v1';
     }
 
+    if (sourceType === 'emotion') {
+      return 'emotion-care-assessment-poster-941x1672-v1';
+    }
+
     if (kind === 'portrait') {
       return 'portrait-share-template-v1';
     }
@@ -1541,7 +1871,11 @@ export class PostersService {
       return 'pages/lucky/sign/index';
     }
 
-    if (source.sourceType === 'bazi') {
+    if (
+      source.sourceType === 'bazi' ||
+      source.sourceType === 'emotion' ||
+      source.sourceType === 'personality'
+    ) {
       return 'pages/report/index';
     }
 
@@ -1563,7 +1897,11 @@ export class PostersService {
       };
     }
 
-    if (source.sourceType === 'bazi') {
+    if (
+      source.sourceType === 'bazi' ||
+      source.sourceType === 'emotion' ||
+      source.sourceType === 'personality'
+    ) {
       return {
         recordId: source.recordId ?? '',
       };
@@ -2006,6 +2344,18 @@ export class PostersService {
 
   private pickString(value: unknown, fallback: string) {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  private pickStringArray(value: unknown, fallback: string[]) {
+    if (!Array.isArray(value)) {
+      return fallback;
+    }
+
+    const items = value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+
+    return items.length ? items : fallback;
   }
 
   private safeDecodeURIComponent(value: string) {

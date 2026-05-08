@@ -20,6 +20,29 @@ export interface LockedPreviewSection {
   summary: string;
 }
 
+export interface ReportStatusIndex {
+  label: string;
+  value: number;
+  maxValue: number;
+  levelLabel: string;
+  rawLabel: string;
+  formula: string;
+  sourceLabel: string;
+  updatedAt: string;
+  notes: string[];
+}
+
+export interface ReportStateDimension {
+  key: string;
+  label: string;
+  value: number;
+  maxValue: number;
+  percent: number;
+  tone: 'positive' | 'steady' | 'watch';
+  summary: string;
+  evidence: string;
+}
+
 export interface UnifiedReport {
   recordId: string;
   recordType: string;
@@ -30,6 +53,8 @@ export interface UnifiedReport {
   score: number | null;
   level: string | null;
   completedAt: string;
+  statusIndex: ReportStatusIndex;
+  stateDimensions: ReportStateDimension[];
   sharePoster: SharePosterMeta;
   baseSections: ReportSection[];
   fullSections: ReportSection[];

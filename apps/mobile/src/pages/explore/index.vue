@@ -1,18 +1,7 @@
 <template>
-  <view class="page-shell" :style="themeVars">
-    <view class="page">
-      <view class="ambient ambient--glow"></view>
-      <view class="ambient ambient--moon"></view>
-
-      <view class="page-header">
-        <view>
-          <text class="page-header__title">探索</text>
-          <text class="page-header__subtitle">发现适合当下自己的疗愈与指引</text>
-        </view>
-        <text class="page-header__theme">{{ themePalette.name }}</text>
-      </view>
-
-      <view class="search-row">
+  <view class="explore-shell" :style="themeVars">
+    <view class="explore-page">
+      <view class="explore-top">
         <view class="search-box">
           <text class="search-box__icon">⌕</text>
           <input
@@ -26,83 +15,110 @@
           <text v-if="keyword" class="search-box__clear" @tap="clearKeyword">清除</text>
         </view>
 
-        <view class="filter-button" @tap="showFilter = true">
+        <button class="filter-button" @tap="showFilter = true">
           <text class="filter-button__icon">筛</text>
-          <text>筛选</text>
+        </button>
+      </view>
+
+      <view class="focus-panel" @tap="open(exploreData.banner.route)">
+        <view class="focus-panel__content">
+          <view class="focus-panel__topline">
+            <text class="focus-panel__eyebrow">{{ exploreData.banner.eyebrow }}</text>
+            <text class="focus-panel__fit">{{ exploreData.todayFit.text }}</text>
+          </view>
+          <text class="focus-panel__title">{{ exploreData.banner.title }}</text>
+          <text class="focus-panel__summary">{{ exploreData.banner.summary }}</text>
+          <view class="focus-panel__action">
+            <text>{{ exploreData.banner.ctaText }}</text>
+            <text>→</text>
+          </view>
+        </view>
+
+        <view class="focus-panel__visual">
+          <text>{{ exploreData.banner.icon }}</text>
         </view>
       </view>
 
-      <view class="fit-pill" @tap="open(exploreData.todayFit.route)">
-        <text class="fit-pill__icon">{{ exploreData.todayFit.icon }}</text>
-        <text>{{ exploreData.todayFit.text }}</text>
-        <text class="fit-pill__arrow">›</text>
-      </view>
-
-      <view class="sort-row">
-        <text class="sort-row__label">排序方式</text>
-        <view class="sort-row__chips">
+      <scroll-view class="type-strip" scroll-x :show-scrollbar="false">
+        <view class="type-strip__track">
           <view
-            v-for="item in sortFilters"
+            v-for="item in typeFilters"
             :key="item.value"
-            class="sort-chip"
-            :class="{ 'sort-chip--active': selectedSort === item.value }"
-            @tap="selectedSort = item.value"
+            class="type-chip"
+            :class="{ 'type-chip--active': selectedType === item.value }"
+            @tap="selectedType = item.value"
           >
             <text>{{ item.label }}</text>
           </view>
         </view>
+      </scroll-view>
+
+      <view v-if="hasActiveFilters" class="result-note">
+        <text>{{ visibleResultCount }} 项匹配当前条件</text>
+        <text class="result-note__reset" @tap="resetDiscovery">清空</text>
       </view>
 
-      <view class="hero-banner" @tap="open(exploreData.banner.route)">
-        <view class="hero-banner__copy">
-          <text class="hero-banner__eyebrow">{{ exploreData.banner.eyebrow }}</text>
-          <text class="hero-banner__title">{{ exploreData.banner.title }}</text>
-          <text class="hero-banner__summary">{{ exploreData.banner.summary }}</text>
-          <text class="hero-banner__cta">{{ exploreData.banner.ctaText }} →</text>
+      <view class="explore-section">
+        <view class="explore-section__head">
+          <text class="explore-section__title">常用工具</text>
+          <text class="explore-section__meta">{{ filteredFeatures.length }} 项</text>
         </view>
 
-        <view class="hero-banner__art">
-          <view class="hero-banner__moon"></view>
-          <view class="hero-banner__lotus">{{ exploreData.banner.icon }}</view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">功能入口</text>
-          <text class="section__meta">{{ filteredFeatures.length }} 项</text>
-        </view>
-
-        <view class="feature-grid">
-          <view
-            v-for="item in filteredFeatures"
-            :key="item.id"
-            class="feature-card"
-            @tap="open(item.route)"
-          >
-            <view class="feature-card__icon">{{ item.icon }}</view>
-            <view class="feature-card__copy">
-              <text class="feature-card__title">{{ item.title }}</text>
-              <text class="feature-card__desc">{{ item.description }}</text>
-            </view>
-            <view class="feature-card__actions">
+        <view v-if="filteredFeatures.length" class="tool-stack">
+          <view class="tool-grid">
+            <view
+              v-for="item in primaryFeatures"
+              :key="item.id"
+              class="tool-tile"
+              @tap="open(item.route)"
+            >
               <button
-                class="feature-card__favorite"
-                :class="{ 'feature-card__favorite--active': isFavorited(`feature:${item.id}`) }"
+                class="favorite-icon"
+                :class="{ 'favorite-icon--active': isFavorited(`feature:${item.id}`) }"
                 @tap.stop="handleFeatureFavorite(item)"
               >
-                {{ isFavorited(`feature:${item.id}`) ? '已藏' : '收藏' }}
+                {{ isFavorited(`feature:${item.id}`) ? '★' : '☆' }}
               </button>
-              <text class="feature-card__arrow">›</text>
+              <view class="tool-tile__icon">{{ item.icon }}</view>
+              <text class="tool-tile__title">{{ item.title }}</text>
+              <text class="tool-tile__desc">{{ item.description }}</text>
+            </view>
+          </view>
+
+          <view v-if="secondaryFeatures.length" class="tool-list">
+            <view
+              v-for="item in secondaryFeatures"
+              :key="item.id"
+              class="tool-row"
+              @tap="open(item.route)"
+            >
+              <view class="tool-row__icon">{{ item.icon }}</view>
+              <view class="tool-row__body">
+                <text class="tool-row__title">{{ item.title }}</text>
+                <text class="tool-row__desc">{{ item.description }}</text>
+              </view>
+              <button
+                class="favorite-icon favorite-icon--row"
+                :class="{ 'favorite-icon--active': isFavorited(`feature:${item.id}`) }"
+                @tap.stop="handleFeatureFavorite(item)"
+              >
+                {{ isFavorited(`feature:${item.id}`) ? '★' : '☆' }}
+              </button>
+              <text class="tool-row__arrow">›</text>
             </view>
           </view>
         </view>
+
+        <view v-else class="empty-state">
+          <text class="empty-state__title">没有匹配的工具</text>
+          <text class="empty-state__text">换一个分类或清空筛选后再看看。</text>
+        </view>
       </view>
 
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">热门专题</text>
-          <text class="section__link">全部专题 ›</text>
+      <view v-if="topics.length" class="explore-section">
+        <view class="explore-section__head">
+          <text class="explore-section__title">今日专题</text>
+          <text class="explore-section__link">全部专题 ›</text>
         </view>
 
         <scroll-view class="topic-scroll" scroll-x>
@@ -110,65 +126,66 @@
             <view
               v-for="topic in topics"
               :key="topic.id"
-              class="topic-card"
+              class="topic-pill"
               @tap="open(topic.route)"
             >
-              <text class="topic-card__title">{{ topic.title }}</text>
-              <text class="topic-card__summary">{{ topic.summary }}</text>
-              <view class="topic-card__footer">
-                <text class="topic-card__tag">{{ topic.tag }}</text>
+              <view class="topic-pill__head">
+                <text class="topic-pill__tag">{{ topic.tag }}</text>
                 <button
-                  class="topic-card__favorite"
-                  :class="{ 'topic-card__favorite--active': isFavorited(`topic:${topic.id}`) }"
+                  class="favorite-icon favorite-icon--topic"
+                  :class="{ 'favorite-icon--active': isFavorited(`topic:${topic.id}`) }"
                   @tap.stop="handleTopicFavorite(topic)"
                 >
-                  {{ isFavorited(`topic:${topic.id}`) ? '已藏' : '收藏' }}
+                  {{ isFavorited(`topic:${topic.id}`) ? '★' : '☆' }}
                 </button>
               </view>
+              <text class="topic-pill__title">{{ topic.title }}</text>
+              <text class="topic-pill__summary">{{ topic.summary }}</text>
             </view>
           </view>
         </scroll-view>
       </view>
 
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">精选内容</text>
-          <text class="section__link">更多内容 ›</text>
+      <view class="explore-section">
+        <view class="explore-section__head">
+          <text class="explore-section__title">精选内容</text>
+          <text class="explore-section__link">更多内容 ›</text>
         </view>
 
-        <view class="content-list">
+        <view v-if="filteredContents.length" class="content-list">
           <view
             v-for="item in filteredContents"
             :key="item.id"
-            class="content-card"
+            class="content-row"
             @tap="open(item.route)"
           >
-            <view class="content-card__cover">
+            <view class="content-row__cover">
               <text>{{ item.icon }}</text>
             </view>
 
-            <view class="content-card__body">
-              <view class="content-card__head">
-                <text class="content-card__title">{{ item.title }}</text>
-                <text class="content-card__tag">{{ item.type }}</text>
+            <view class="content-row__body">
+              <view class="content-row__head">
+                <text class="content-row__title">{{ item.title }}</text>
+                <text class="content-row__tag">{{ item.type }}</text>
               </view>
-              <text class="content-card__desc">{{ item.description }}</text>
-              <text class="content-card__meta">{{ item.sourceLabel }} · {{ item.duration }} · {{ item.stat }}</text>
+              <text class="content-row__desc">{{ item.description }}</text>
+              <text class="content-row__meta">{{ item.sourceLabel }} · {{ item.duration }} · {{ item.stat }}</text>
             </view>
 
-            <view class="content-card__actions">
-              <button
-                class="content-card__favorite"
-                :class="{ 'content-card__favorite--active': isFavorited(item.id) }"
-                @tap.stop="handleFavorite(item)"
-              >
-                {{ isFavorited(item.id) ? '已藏' : '收藏' }}
-              </button>
-              <button class="content-card__button" @tap.stop="open(item.route)">
-                {{ item.buttonText }}
-              </button>
-            </view>
+            <button
+              class="favorite-icon favorite-icon--row"
+              :class="{ 'favorite-icon--active': isFavorited(item.id) }"
+              @tap.stop="handleFavorite(item)"
+            >
+              {{ isFavorited(item.id) ? '★' : '☆' }}
+            </button>
+            <text class="content-row__arrow">›</text>
           </view>
+        </view>
+
+        <view v-else class="empty-state">
+          <text class="empty-state__title">没有匹配的内容</text>
+          <text class="empty-state__text">调整筛选条件，或尝试搜索其他关键词。</text>
         </view>
       </view>
     </view>
@@ -210,8 +227,23 @@
           </view>
         </view>
 
+        <view class="filter-group">
+          <text class="filter-group__title">排序</text>
+          <view class="filter-options">
+            <view
+              v-for="item in sortFilters"
+              :key="item.value"
+              class="filter-chip"
+              :class="{ 'filter-chip--active': selectedSort === item.value }"
+              @tap="selectedSort = item.value"
+            >
+              <text>{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+
         <view class="filter-actions">
-          <button class="filter-actions__reset" @tap="resetFilters">重置</button>
+          <button class="filter-actions__reset" @tap="resetDiscovery">重置</button>
           <button class="filter-actions__confirm" @tap="showFilter = false">确定</button>
         </view>
       </view>
@@ -242,7 +274,7 @@ import type {
 type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
 type SortType = ExploreIndexData['defaultSort'];
 
-const { themePalette, themeVars } = useThemePreference();
+const { themeVars } = useThemePreference();
 const pageStateStore = usePageStateStore();
 let lastExploreVersion = pageStateStore.versionOf('explore');
 
@@ -364,6 +396,9 @@ const filteredFeatures = computed(() =>
   }),
 );
 
+const primaryFeatures = computed(() => filteredFeatures.value.slice(0, 4));
+const secondaryFeatures = computed(() => filteredFeatures.value.slice(4));
+
 const filteredContents = computed(() =>
   sortContentItems(
     contents.value.filter((item) => {
@@ -378,6 +413,18 @@ const filteredContents = computed(() =>
       return matchesType && matchesGoal && matchesKeyword;
     }),
   ),
+);
+
+const visibleResultCount = computed(
+  () => filteredFeatures.value.length + topics.value.length + filteredContents.value.length,
+);
+
+const hasActiveFilters = computed(
+  () =>
+    Boolean(normalizedKeyword.value) ||
+    selectedType.value !== 'all' ||
+    selectedGoals.value.length > 0 ||
+    selectedSort.value !== (exploreData.value.defaultSort || 'recommended'),
 );
 
 async function loadExploreIndex() {
@@ -452,6 +499,13 @@ function toggleGoal(value: string) {
 function resetFilters() {
   selectedType.value = 'all';
   selectedGoals.value = [];
+}
+
+function resetDiscovery() {
+  resetFilters();
+  clearKeyword();
+  selectedSort.value = exploreData.value.defaultSort || 'recommended';
+  showFilter.value = false;
 }
 
 async function loadExploreSearch(nextKeyword: string) {
@@ -1228,5 +1282,695 @@ onShow(() => {
 .filter-actions__reset::after,
 .filter-actions__confirm::after {
   border: none;
+}
+
+</style>
+
+<style lang="scss" scoped>
+
+.explore-shell {
+  min-height: 100vh;
+  padding-bottom: 148rpx;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 36%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+}
+
+.explore-page {
+  min-height: 100vh;
+  padding: 22rpx 24rpx 0;
+  box-sizing: border-box;
+}
+
+.explore-shell button {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.explore-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82rpx;
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+}
+
+.explore-page .search-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14rpx;
+  min-height: 78rpx;
+  padding: 0 22rpx;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  backdrop-filter: blur(18rpx);
+}
+
+.explore-page .search-box__icon {
+  font-size: 28rpx;
+  color: var(--theme-primary);
+}
+
+.explore-page .search-box__input {
+  min-width: 0;
+  height: 78rpx;
+  font-size: 26rpx;
+  color: var(--theme-text-primary);
+}
+
+.explore-page .search-box__placeholder {
+  color: var(--theme-text-tertiary);
+}
+
+.explore-page .search-box__clear {
+  font-size: 23rpx;
+  color: var(--theme-primary);
+}
+
+.explore-page .filter-button {
+  display: grid;
+  place-items: center;
+  width: 82rpx;
+  height: 78rpx;
+  min-height: 0;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 24rpx;
+  color: var(--theme-primary);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  backdrop-filter: blur(18rpx);
+}
+
+.explore-page .filter-button__icon {
+  font-size: 25rpx;
+  color: var(--theme-primary);
+}
+
+.focus-panel {
+  position: relative;
+  min-height: 286rpx;
+  padding: 30rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1rpx solid rgba(255, 255, 255, 0.86);
+  border-radius: 32rpx;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.72) 48%, var(--theme-soft) 100%);
+  box-shadow: 0 22rpx 52rpx rgba(var(--theme-text-primary-rgb), 0.08);
+  animation: exploreRise 360ms ease both;
+}
+
+.focus-panel__content {
+  display: grid;
+  gap: 12rpx;
+  padding-right: 128rpx;
+}
+
+.focus-panel__topline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.focus-panel__eyebrow,
+.focus-panel__fit {
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.focus-panel__eyebrow {
+  color: var(--theme-primary);
+  font-weight: 600;
+}
+
+.focus-panel__fit {
+  max-width: 420rpx;
+  color: var(--theme-text-secondary);
+}
+
+.focus-panel__title {
+  font-size: 42rpx;
+  font-weight: 650;
+  line-height: 1.22;
+  color: var(--theme-text-primary);
+  word-break: break-word;
+}
+
+.focus-panel__summary {
+  font-size: 25rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.focus-panel__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  width: fit-content;
+  min-height: 58rpx;
+  margin-top: 6rpx;
+  padding: 0 22rpx;
+  border-radius: 18rpx;
+  font-size: 25rpx;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--theme-primary);
+}
+
+.focus-panel__visual {
+  position: absolute;
+  right: 30rpx;
+  bottom: 28rpx;
+  display: grid;
+  place-items: center;
+  width: 106rpx;
+  height: 106rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.88);
+  border-radius: 34rpx;
+  color: var(--theme-primary);
+  font-size: 38rpx;
+  font-weight: 650;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.type-strip {
+  width: 100%;
+  margin: 18rpx 0 22rpx;
+  white-space: nowrap;
+  animation: exploreRise 360ms 40ms ease both;
+}
+
+.type-strip__track {
+  display: inline-flex;
+  gap: 12rpx;
+  padding: 2rpx 2rpx 6rpx;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56rpx;
+  padding: 0 22rpx;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  color: var(--theme-text-secondary);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.type-chip--active {
+  color: #ffffff;
+  border-color: var(--theme-primary);
+  background: var(--theme-primary);
+}
+
+.result-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin: -4rpx 2rpx 22rpx;
+  font-size: 23rpx;
+  color: var(--theme-text-secondary);
+}
+
+.result-note__reset {
+  color: var(--theme-primary);
+}
+
+.explore-section {
+  margin-top: 30rpx;
+  animation: exploreRise 360ms 80ms ease both;
+}
+
+.explore-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 16rpx;
+}
+
+.explore-section__title {
+  font-size: 34rpx;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--theme-text-primary);
+}
+
+.explore-section__meta,
+.explore-section__link {
+  font-size: 23rpx;
+  line-height: 1.5;
+  color: var(--theme-text-secondary);
+}
+
+.explore-section__link {
+  color: var(--theme-primary);
+}
+
+.tool-stack {
+  display: grid;
+  gap: 14rpx;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.tool-tile {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10rpx;
+  min-height: 178rpx;
+  padding: 22rpx;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 10rpx 28rpx rgba(var(--theme-text-primary-rgb), 0.055);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.tool-tile:active,
+.tool-row:active,
+.topic-pill:active,
+.content-row:active,
+.focus-panel:active {
+  transform: scale(0.985);
+}
+
+.tool-tile__icon,
+.tool-row__icon,
+.content-row__cover {
+  display: grid;
+  place-items: center;
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.tool-tile__icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 18rpx;
+  font-size: 26rpx;
+  font-weight: 650;
+}
+
+.tool-tile__title,
+.tool-row__title,
+.topic-pill__title,
+.content-row__title,
+.empty-state__title {
+  color: var(--theme-text-primary);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.tool-tile__title {
+  padding-right: 48rpx;
+  font-size: 29rpx;
+  line-height: 1.34;
+}
+
+.tool-tile__desc,
+.tool-row__desc,
+.topic-pill__summary,
+.content-row__desc,
+.content-row__meta,
+.empty-state__text {
+  color: var(--theme-text-secondary);
+  word-break: break-word;
+}
+
+.tool-tile__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 22rpx;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.favorite-icon {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  display: grid;
+  place-items: center;
+  width: 46rpx;
+  height: 46rpx;
+  min-height: 0;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  color: var(--theme-text-tertiary);
+  background: transparent;
+}
+
+.favorite-icon--active {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.favorite-icon--row,
+.favorite-icon--topic {
+  position: static;
+}
+
+.tool-list,
+.content-list {
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 10rpx 28rpx rgba(var(--theme-text-primary-rgb), 0.045);
+}
+
+.tool-list {
+  padding: 4rpx 18rpx;
+}
+
+.tool-row {
+  display: grid;
+  grid-template-columns: 56rpx minmax(0, 1fr) 46rpx auto;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 92rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.tool-row:last-child,
+.content-row:last-child {
+  border-bottom: 0;
+}
+
+.tool-row__icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.tool-row__body,
+.content-row__body {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.tool-row__title {
+  font-size: 28rpx;
+  line-height: 1.35;
+}
+
+.tool-row__desc {
+  overflow: hidden;
+  font-size: 22rpx;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-row__arrow,
+.content-row__arrow {
+  color: var(--theme-text-tertiary);
+  font-size: 32rpx;
+}
+
+.explore-page .topic-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.explore-page .topic-track {
+  display: inline-flex;
+  gap: 14rpx;
+  padding: 2rpx 2rpx 8rpx;
+}
+
+.topic-pill {
+  display: inline-grid;
+  gap: 12rpx;
+  width: 270rpx;
+  min-height: 156rpx;
+  padding: 22rpx;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.68);
+  white-space: normal;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.topic-pill__head,
+.content-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.topic-pill__tag,
+.content-row__tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 38rpx;
+  padding: 0 12rpx;
+  border-radius: 12rpx;
+  font-size: 20rpx;
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.topic-pill__title {
+  font-size: 29rpx;
+  line-height: 1.3;
+}
+
+.topic-pill__summary {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 22rpx;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.content-list {
+  display: grid;
+  gap: 0;
+  padding: 4rpx 18rpx;
+}
+
+.content-row {
+  display: grid;
+  grid-template-columns: 72rpx minmax(0, 1fr) 46rpx auto;
+  gap: 16rpx;
+  align-items: center;
+  min-height: 118rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.content-row__cover {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 22rpx;
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.content-row__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 28rpx;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-row__tag {
+  flex: 0 0 auto;
+}
+
+.content-row__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 22rpx;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.content-row__meta {
+  overflow: hidden;
+  font-size: 20rpx;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explore-page .empty-state {
+  display: grid;
+  gap: 10rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 26rpx;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: none;
+}
+
+.explore-page .empty-state__title {
+  font-size: 28rpx;
+  line-height: 1.4;
+}
+
+.explore-page .empty-state__text {
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
+.explore-shell .filter-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  padding: 24rpx;
+  box-sizing: border-box;
+  background: rgba(var(--theme-text-primary-rgb), 0.22);
+}
+
+.explore-shell .filter-sheet {
+  display: grid;
+  gap: 26rpx;
+  width: 100%;
+  padding: 30rpx;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(255, 255, 255, 0.86);
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24rpx 60rpx rgba(var(--theme-text-primary-rgb), 0.14);
+  animation: sheetUp 220ms ease both;
+}
+
+.explore-shell .filter-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.explore-shell .filter-sheet__title,
+.explore-shell .filter-group__title {
+  font-size: 31rpx;
+  font-weight: 650;
+  color: var(--theme-text-primary);
+}
+
+.explore-shell .filter-sheet__close {
+  font-size: 24rpx;
+  color: var(--theme-primary);
+}
+
+.explore-shell .filter-group {
+  display: grid;
+  gap: 14rpx;
+}
+
+.explore-shell .filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.explore-shell .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 58rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid rgba(var(--theme-text-primary-rgb), 0.06);
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  color: var(--theme-text-secondary);
+  background: rgba(var(--theme-text-primary-rgb), 0.03);
+}
+
+.explore-shell .filter-chip--active {
+  color: #ffffff;
+  border-color: var(--theme-primary);
+  background: var(--theme-primary);
+}
+
+.explore-shell .filter-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.explore-shell .filter-actions__reset,
+.explore-shell .filter-actions__confirm {
+  display: grid;
+  place-items: center;
+  min-height: 78rpx;
+  border-radius: 22rpx;
+  font-size: 26rpx;
+}
+
+.explore-shell .filter-actions__reset {
+  color: var(--theme-primary);
+  background: var(--theme-tag-bg);
+}
+
+.explore-shell .filter-actions__confirm {
+  color: #ffffff;
+  background: var(--theme-primary);
+}
+
+.explore-shell .filter-button::after,
+.explore-shell .favorite-icon::after,
+.explore-shell .filter-actions__reset::after,
+.explore-shell .filter-actions__confirm::after {
+  border: none;
+}
+
+@keyframes exploreRise {
+  from {
+    opacity: 0;
+    transform: translateY(14rpx);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(28rpx);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

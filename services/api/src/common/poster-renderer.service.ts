@@ -920,29 +920,36 @@ export class PosterRendererService {
     const details = this.resolveEmotionPosterDetails(source);
     const scaleX = layout.width / 941;
     const scaleY = layout.height / 1672;
-    const subtitleLines = this.renderTextTspans(
-      details.subtitle,
-      18,
-      0,
-      42,
-      66,
-    );
-    const summaryLines = this.renderTextTspans(
-      details.summary,
-      12,
-      0,
-      38,
-      602,
-    );
-    const supportLines = this.renderTextTspans(
-      details.supportSignal,
-      12,
+    const subtitleLines = this.renderTextTspansFromLines(
+      this.splitTextByDisplayUnits(details.subtitle, 14, 2),
       0,
       40,
+      66,
+    );
+    const summaryLines = this.renderTextTspansFromLines(
+      this.splitTextByDisplayUnits(details.summary, 10, 3),
+      0,
+      30,
+      602,
+    );
+    const supportLines = this.renderTextTspansFromLines(
+      this.splitTextByDisplayUnits(details.supportSignal, 10, 2),
+      0,
+      28,
       602,
     );
     const keywordText = details.keywords.slice(0, 3).join(' · ');
     const keywordFit = this.buildSvgTextFitAttributes(keywordText, 42, 240);
+    const footerLeadFit = this.buildSvgTextFitAttributes(
+      '长按识别二维码',
+      24,
+      240,
+    );
+    const footerActionFit = this.buildSvgTextFitAttributes(
+      '开启你的心灵探索之旅',
+      27,
+      240,
+    );
 
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
@@ -1024,9 +1031,9 @@ export class PosterRendererService {
       <text x="600" y="694" font-size="42" font-weight="760" fill="#4C9A3F" font-family="'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', serif" ${keywordFit}>${this.escapeXml(keywordText)}</text>
       <path d="M598 724 C682 706 754 704 842 688" fill="none" stroke="#F2D266" stroke-width="5" stroke-linecap="round" />
       <text x="598" y="784" font-size="54" fill="#B4D994" fill-opacity="0.72" font-family="Georgia, serif">“</text>
-      <text x="602" y="832" font-size="28" font-weight="580" fill="#445048" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
-      <text x="602" y="946" font-size="23" fill="#5D665F" fill-opacity="0.86" font-family="${POSTER_FONT_FAMILY}">${supportLines}</text>
-      ${this.renderEmotionCareIllustration(672, 875, 0.9)}
+      ${this.renderEmotionCareIllustration(724, 986, 0.44)}
+      <text x="602" y="832" font-size="25" font-weight="580" fill="#445048" font-family="${POSTER_FONT_FAMILY}">${summaryLines}</text>
+      <text x="602" y="946" font-size="20" fill="#5D665F" fill-opacity="0.86" font-family="${POSTER_FONT_FAMILY}">${supportLines}</text>
     </g>
 
     <path d="M51 1076 H326 L314 1122 H51 Z" fill="url(#emotion-green)" />
@@ -1040,8 +1047,8 @@ export class PosterRendererService {
       <text x="214" y="1508" font-size="31" font-weight="760" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">心理健康评测</text>
       <text x="214" y="1552" font-size="24" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">认识自己，拥抱更好的生活</text>
       ${this.renderEmotionFooterTags(details.footerTags, 214, 1582)}
-      <text x="492" y="1514" font-size="24" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">长按识别二维码</text>
-      <text x="492" y="1568" font-size="27" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">开启你的心灵探索之旅</text>
+      <text x="492" y="1514" font-size="24" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}" ${footerLeadFit}>长按识别二维码</text>
+      <text x="492" y="1568" font-size="25" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}" ${footerActionFit}>开启你的心灵探索之旅</text>
       <path d="M586 1596 C616 1640 676 1626 692 1580" fill="none" stroke="#91C85A" stroke-width="4" stroke-linecap="round" />
       <path d="M690 1580 L714 1592 L692 1606" fill="none" stroke="#91C85A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
       ${this.renderEmotionMiniProgramCode(source.miniProgramCodeDataUrl ?? null, 786, 1524, 152)}
@@ -1285,17 +1292,17 @@ export class PosterRendererService {
     return normalized
       .map((item, index) => {
         const position = positions[index];
-        const textLines = this.splitTextByDisplayUnits(item.text, 13, 2);
+        const textLines = this.splitTextByDisplayUnits(item.text, 9, 2);
 
         return `
   <g filter="url(#emotion-soft-shadow)">
     <rect x="${position.x}" y="${position.y}" width="272" height="100" rx="20" fill="#F3F8E7" fill-opacity="0.74" />
     ${this.renderEmotionAdviceIcon(item.icon, position.x + 36, position.y + 50)}
-    <text x="${position.x + 86}" y="${position.y + 34}" font-size="24" font-weight="760" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(item.title)}</text>
+    <text x="${position.x + 86}" y="${position.y + 34}" font-size="22" font-weight="760" fill="#418D3C" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(item.title)}</text>
     ${textLines
       .map(
         (line, lineIndex) =>
-          `<text x="${position.x + 86}" y="${position.y + 66 + lineIndex * 27}" font-size="20" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(line)}</text>`,
+          `<text x="${position.x + 86}" y="${position.y + 64 + lineIndex * 24}" font-size="18" fill="#5D665F" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(line)}</text>`,
       )
       .join('')}
   </g>`.trim();

@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="941" height="1672" viewBox="0 0 941 1672">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F8F4EC"/>
+      <stop offset="46%" stop-color="#EEF7F3"/>
+      <stop offset="100%" stop-color="#DDEDF0"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="4%" x2="96%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94"/>
+      <stop offset="45%" stop-color="#E6F1ED" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#CFDFE4" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="sage" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#87B5A7"/>
+      <stop offset="100%" stop-color="#547D75"/>
+    </linearGradient>
+    <linearGradient id="warm" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5D4B4"/>
+      <stop offset="100%" stop-color="#E8B68A"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#6E8F8A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="tinyShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#527A72" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      text {
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+        fill: #26313A;
+      }
+      .serif {
+        font-family: "Songti SC", "Noto Serif CJK SC", "SimSun", serif;
+      }
+      .muted {
+        fill: #6F7E87;
+      }
+      .sage {
+        fill: #5E8B80;
+      }
+      .white {
+        fill: #FFFFFF;
+      }
+    </style>
+  </defs>
+
+  <rect width="941" height="1672" fill="url(#bg)"/>
+  <circle cx="94" cy="124" r="168" fill="#FFFFFF" opacity="0.52"/>
+  <circle cx="846" cy="268" r="210" fill="#D7ECEA" opacity="0.48"/>
+  <circle cx="156" cy="1218" r="220" fill="#F4D5B8" opacity="0.22"/>
+  <path d="M0 1474 C148 1400 292 1452 446 1508 C618 1571 782 1555 941 1464 L941 1672 L0 1672 Z" fill="#BFD9DD" opacity="0.3"/>
+  <path d="M66 1350 C202 1280 336 1306 470 1374 C622 1452 774 1452 894 1364" fill="none" stroke="#FFFFFF" stroke-width="5" opacity="0.46"/>
+  <path d="M710 72 C666 136 690 186 760 232 C838 284 850 352 796 432" fill="none" stroke="#8EB4AC" stroke-width="2" stroke-dasharray="9 12" opacity="0.36"/>
+
+  <g transform="translate(72 62)">
+    <rect x="0" y="0" width="60" height="60" rx="18" fill="url(#sage)" filter="url(#tinyShadow)"/>
+    <path d="M18 34 C18 24 27 17 37 20 C48 24 48 38 36 45 C27 50 18 43 18 34 Z" fill="#FFFFFF" opacity="0.92"/>
+    <path d="M31 22 C31 32 38 36 48 35" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.92"/>
+    <text x="82" y="38" font-size="26" font-weight="600" letter-spacing="2" class="sage">FORTUNE HUB</text>
+    <text x="82" y="72" font-size="22" class="muted">MENTAL CARE ARCHIVE</text>
+  </g>
+
+  <text x="72" y="205" font-size="64" font-weight="760" class="serif">情绪照护档案</text>
+  <text x="72" y="259" font-size="27" class="muted">基于最近一次心理健康自检生成</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="72" y="315" width="797" height="454" rx="56" fill="url(#hero)" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="668" cy="403" r="118" fill="#FFFFFF" opacity="0.56"/>
+    <circle cx="668" cy="403" r="82" fill="none" stroke="#8EB4AC" stroke-width="2" opacity="0.36"/>
+    <circle cx="668" cy="403" r="48" fill="#FFFFFF" opacity="0.42"/>
+    <path d="M154 498 C252 424 342 426 438 492 C520 548 604 550 708 472" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.62"/>
+    <path d="M158 537 C278 482 382 502 496 564 C598 620 720 618 802 558" fill="none" stroke="#7FA89F" stroke-width="3" stroke-linecap="round" opacity="0.22"/>
+
+    <text x="128" y="394" font-size="24" font-weight="600" letter-spacing="5" class="sage">TODAY CARE NOTE</text>
+    <text x="128" y="486" font-size="56" font-weight="760" class="serif">先照顾自己</text>
+    <text x="128" y="554" font-size="56" font-weight="760" class="serif">再处理世界</text>
+    <text x="128" y="628" font-size="28" class="muted">当前更适合放慢节奏，</text>
+    <text x="128" y="672" font-size="28" class="muted">把现实支持放在优先级前面。</text>
+    <rect x="128" y="704" width="286" height="54" rx="20" fill="url(#sage)"/>
+    <text x="157" y="740" font-size="24" font-weight="650" class="white">轻量自检 · 非诊断</text>
+  </g>
+
+  <g>
+    <rect x="72" y="834" width="797" height="170" rx="36" fill="#FFFFFF" opacity="0.72" stroke="#FFFFFF" stroke-width="2" filter="url(#tinyShadow)"/>
+    <line x1="338" y1="866" x2="338" y2="972" stroke="#DDE8E5" stroke-width="2"/>
+    <line x1="604" y1="866" x2="604" y2="972" stroke="#DDE8E5" stroke-width="2"/>
+    <text x="122" y="895" font-size="22" class="muted">当前状态</text>
+    <text x="122" y="948" font-size="35" font-weight="700" class="sage">需要安顿</text>
+    <text x="384" y="895" font-size="22" class="muted">照护重点</text>
+    <text x="384" y="948" font-size="35" font-weight="700" class="sage">降低压力</text>
+    <text x="650" y="895" font-size="22" class="muted">行动建议</text>
+    <text x="650" y="948" font-size="35" font-weight="700" class="sage">联系支持</text>
+  </g>
+
+  <text x="72" y="1082" font-size="28" font-weight="650" letter-spacing="2" class="sage">SELF OBSERVATION</text>
+  <g filter="url(#tinyShadow)">
+    <rect x="72" y="1122" width="233" height="170" rx="34" fill="#FFFFFF" opacity="0.74"/>
+    <rect x="354" y="1122" width="233" height="170" rx="34" fill="#FFFFFF" opacity="0.74"/>
+    <rect x="636" y="1122" width="233" height="170" rx="34" fill="#FFFFFF" opacity="0.74"/>
+    <text x="116" y="1176" font-size="24" class="muted">情绪负荷</text>
+    <text x="116" y="1244" font-size="58" font-weight="760" class="sage">偏高</text>
+    <text x="398" y="1176" font-size="24" class="muted">睡眠修复</text>
+    <text x="398" y="1244" font-size="58" font-weight="760" fill="#8D765F">优先</text>
+    <text x="680" y="1176" font-size="24" class="muted">支持优先级</text>
+    <text x="680" y="1244" font-size="58" font-weight="760" fill="#B8845D">高</text>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="72" y="1360" width="797" height="158" rx="38" fill="#FFFFFF" opacity="0.7" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M136 1438 C144 1408 176 1398 202 1416 C228 1434 228 1472 188 1488 C162 1498 128 1476 136 1438 Z" fill="url(#warm)" opacity="0.42"/>
+    <text x="470" y="1432" text-anchor="middle" font-size="35" font-weight="560" class="serif">你不需要一个人撑完整个晚上。</text>
+    <text x="470" y="1484" text-anchor="middle" font-size="24" class="muted">自检不是诊断，是一次看见自己的开始。</text>
+  </g>
+
+  <g>
+    <rect x="132" y="1526" width="677" height="124" rx="38" fill="#FFFFFF" opacity="0.74" stroke="#FFFFFF" stroke-width="2" filter="url(#tinyShadow)"/>
+    <g transform="translate(180 1518) scale(1.18)">
+      <circle cx="54" cy="54" r="50" fill="#FFFFFF" stroke="#DDE8E5" stroke-width="2"/>
+      <rect x="26" y="26" width="12" height="12" rx="2" fill="#26313A"/>
+      <rect x="44" y="26" width="18" height="18" rx="3" fill="#26313A"/>
+      <rect x="70" y="26" width="12" height="12" rx="2" fill="#26313A"/>
+      <rect x="26" y="52" width="16" height="16" rx="3" fill="#26313A"/>
+      <rect x="54" y="56" width="10" height="10" rx="2" fill="#26313A"/>
+      <rect x="74" y="50" width="12" height="24" rx="3" fill="#26313A"/>
+      <rect x="34" y="78" width="16" height="10" rx="2" fill="#26313A"/>
+      <rect x="58" y="78" width="28" height="12" rx="3" fill="#26313A"/>
+      <circle cx="54" cy="54" r="18" fill="#6F9A8D"/>
+      <path d="M45 56 C49 47 60 47 64 56 C60 64 50 64 45 56 Z" fill="#FFFFFF" opacity="0.92"/>
+    </g>
+    <text x="330" y="1578" font-size="30" font-weight="560">长按识别小程序码</text>
+    <text x="330" y="1624" font-size="34" font-weight="760" class="sage">查看你的情绪照护建议</text>
+  </g>
+</svg>

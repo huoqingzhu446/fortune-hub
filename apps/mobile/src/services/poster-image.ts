@@ -9,8 +9,8 @@ type WechatRuntime = {
   getFileSystemManager?: () => {
     writeFile: (options: {
       filePath: string;
-      data: string;
-      encoding: 'base64';
+      data: string | ArrayBuffer;
+      encoding?: 'base64';
       success?: () => void;
       fail?: (error: unknown) => void;
     }) => void;
@@ -108,6 +108,72 @@ function getImageExtension(imageSource: string) {
   return 'png';
 }
 
+function getHeaderValue(headers: unknown, name: string) {
+  if (!headers || typeof headers !== 'object') {
+    return '';
+  }
+
+  const normalizedName = name.toLowerCase();
+  const record = headers as Record<string, string | string[] | undefined>;
+  const key = Object.keys(record).find((item) => item.toLowerCase() === normalizedName);
+  const value = key ? record[key] : undefined;
+
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return typeof value === 'string' ? value : '';
+}
+
+function getImageExtensionFromContentType(contentType: string) {
+  const normalized = contentType.split(';')[0]?.trim().toLowerCase();
+
+  if (normalized === 'image/jpeg' || normalized === 'image/jpg') {
+    return 'jpg';
+  }
+
+  if (normalized === 'image/webp') {
+    return 'webp';
+  }
+
+  if (normalized === 'image/gif') {
+    return 'gif';
+  }
+
+  if (normalized === 'image/png') {
+    return 'png';
+  }
+
+  return '';
+}
+
+function getImageExtensionFromRemoteUrl(imageSource: string) {
+  const supportedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+  let pathname = imageSource;
+
+  try {
+    pathname = new URL(imageSource, 'https://fortune-hub.local').pathname;
+  } catch {
+    pathname = imageSource.split(/[?#]/)[0] ?? imageSource;
+  }
+
+  const extension = pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+
+  if (!extension || !supportedExtensions.includes(extension)) {
+    return '';
+  }
+
+  return extension === 'jpeg' ? 'jpg' : extension;
+}
+
+function getRemoteImageExtension(imageSource: string, contentType: string) {
+  return getImageExtensionFromContentType(contentType) || getImageExtensionFromRemoteUrl(imageSource) || 'png';
+}
+
+function isArrayBuffer(value: unknown): value is ArrayBuffer {
+  return Object.prototype.toString.call(value) === '[object ArrayBuffer]';
+}
+
 function triggerBrowserDownload(imageSource: string, fileName: string) {
   if (typeof document === 'undefined') {
     return;
@@ -121,44 +187,94 @@ function triggerBrowserDownload(imageSource: string, fileName: string) {
   document.body.removeChild(anchor);
 }
 
-function downloadRemoteImage(imageSource: string) {
+function writeWechatFile(
+  data: string | ArrayBuffer,
+  fileName: string,
+  extension: string,
+  encoding?: 'base64',
+) {
+  const wxRuntime = getWechatRuntime();
+  const userDataPath = wxRuntime?.env?.USER_DATA_PATH;
+  const fileSystemManager = wxRuntime?.getFileSystemManager?.();
+
+  if (!userDataPath || !fileSystemManager) {
+    throw new Error('当前微信环境暂不支持直接处理分享图');
+  }
+
+  const safeExtension = extension.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+  const filePath = `${userDataPath}/${sanitizeFileName(fileName)}-${Date.now()}.${safeExtension}`;
+
   return new Promise<string>((resolve, reject) => {
-    uni.downloadFile({
+    fileSystemManager.writeFile({
+      filePath,
+      data,
+      ...(encoding ? { encoding } : {}),
+      success: () => resolve(filePath),
+      fail: reject,
+    });
+  });
+}
+
+function requestRemoteImageToWechatFile(imageSource: string, fileName: string) {
+  return new Promise<string>((resolve, reject) => {
+    uni.request({
       url: imageSource,
+      method: 'GET',
+      responseType: 'arraybuffer',
       success: (response) => {
-        if (response.statusCode >= 200 && response.statusCode < 300 && response.tempFilePath) {
-          resolve(response.tempFilePath);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          reject(new Error('图片下载失败，请稍后再试'));
           return;
         }
 
-        reject(new Error('图片下载失败，请稍后再试'));
+        if (!isArrayBuffer(response.data) || response.data.byteLength <= 0) {
+          reject(new Error('图片内容读取失败，请稍后再试'));
+          return;
+        }
+
+        const contentType = getHeaderValue(response.header, 'content-type');
+        const extension = getRemoteImageExtension(imageSource, contentType);
+
+        void writeWechatFile(response.data, fileName, extension).then(resolve).catch(reject);
       },
       fail: reject,
     });
   });
 }
 
-function writeDataUrlToWechatFile(imageSource: string, fileName: string) {
-  const wxRuntime = getWechatRuntime();
-  const base64 = imageSource.split(',')[1];
-  const userDataPath = wxRuntime?.env?.USER_DATA_PATH;
-  const fileSystemManager = wxRuntime?.getFileSystemManager?.();
+async function downloadRemoteImage(imageSource: string, fileName: string) {
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      uni.downloadFile({
+        url: imageSource,
+        success: (response) => {
+          if (response.statusCode >= 200 && response.statusCode < 300 && response.tempFilePath) {
+            resolve(response.tempFilePath);
+            return;
+          }
 
-  if (!base64 || !userDataPath || !fileSystemManager) {
-    throw new Error('当前微信环境暂不支持直接处理分享图');
-  }
-
-  const extension = getImageExtension(imageSource);
-  const filePath = `${userDataPath}/${sanitizeFileName(fileName)}.${extension}`;
-
-  return new Promise<string>((resolve, reject) => {
-    fileSystemManager.writeFile({
-      filePath,
-      data: base64,
-      encoding: 'base64',
-      success: () => resolve(filePath),
-      fail: reject,
+          reject(new Error('图片下载失败，请稍后再试'));
+        },
+        fail: reject,
+      });
     });
+  } catch {
+    return requestRemoteImageToWechatFile(imageSource, fileName);
+  }
+}
+
+function writeDataUrlToWechatFile(imageSource: string, fileName: string) {
+  return new Promise<string>((resolve, reject) => {
+    const base64 = imageSource.split(',')[1];
+
+    if (!base64) {
+      reject(new Error('图片内容读取失败，请稍后再试'));
+      return;
+    }
+
+    const extension = getImageExtension(imageSource);
+
+    void writeWechatFile(base64, fileName, extension, 'base64').then(resolve).catch(reject);
   });
 }
 
@@ -168,7 +284,7 @@ async function resolveUsableImagePath(imageSource: string, fileName: string) {
       return writeDataUrlToWechatFile(imageSource, fileName);
     }
 
-    return downloadRemoteImage(imageSource);
+    return downloadRemoteImage(imageSource, fileName);
   }
 
   return imageSource;

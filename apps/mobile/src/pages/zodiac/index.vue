@@ -143,7 +143,7 @@
               v-for="item in todayFortune.dayparts"
               :key="item.label"
               class="daypart-item"
-              :class="`daypart-item--${item.label}`"
+              :class="`daypart-item--${getDaypartKey(item.label)}`"
             >
               <view class="daypart-item__icon">
                 <text>{{ getDaypartIcon(item.label) }}</text>
@@ -1006,6 +1006,18 @@ function getDaypartIcon(label: string) {
   }
 
   return '☾';
+}
+
+function getDaypartKey(label: string) {
+  if (label.includes('上午')) {
+    return 'morning';
+  }
+
+  if (label.includes('下午')) {
+    return 'afternoon';
+  }
+
+  return 'evening';
 }
 
 const heroSummary = computed(() => {
@@ -2091,17 +2103,17 @@ onPullDownRefresh(async () => {
   box-shadow: 0 8rpx 20rpx rgba(70, 78, 140, 0.08);
 }
 
-.daypart-item--上午 .daypart-item__icon {
+.daypart-item--morning .daypart-item__icon {
   color: #8b65ef;
   background: #f0eaff;
 }
 
-.daypart-item--下午 .daypart-item__icon {
+.daypart-item--afternoon .daypart-item__icon {
   color: #ef9d29;
   background: #fff4de;
 }
 
-.daypart-item--晚上 .daypart-item__icon {
+.daypart-item--evening .daypart-item__icon {
   color: #5a83d9;
   background: #eaf2ff;
 }

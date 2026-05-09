@@ -59,13 +59,25 @@ export function request<TResponse, TData extends RequestPayload = RequestPayload
       fail: (error) => {
         reject({
           statusCode: 0,
-          message: (error as { errMsg?: string }).errMsg || '网络请求失败，请稍后重试',
+          message: readUniErrorMessage(error, '网络请求失败，请稍后重试'),
           authExpired: false,
           raw: error,
         });
       },
     });
   });
+}
+
+function readUniErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === 'object') {
+    const errMsg = (error as { errMsg?: unknown }).errMsg;
+
+    if (typeof errMsg === 'string' && errMsg.trim()) {
+      return errMsg;
+    }
+  }
+
+  return fallback;
 }
 
 export const http = {

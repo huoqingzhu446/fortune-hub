@@ -50,7 +50,7 @@ export function uploadFeedbackAttachment(filePath: string) {
       fail: (error) => {
         reject({
           statusCode: 0,
-          message: (error as { errMsg?: string }).errMsg || '附件上传失败，请稍后再试',
+          message: readUniUploadErrorMessage(error),
           raw: error,
         });
       },
@@ -87,4 +87,16 @@ function parseUploadResponse(value: unknown) {
   }
 
   return value as (FeedbackAttachmentResponse & { message?: string }) | null;
+}
+
+function readUniUploadErrorMessage(error: unknown) {
+  if (error && typeof error === 'object') {
+    const errMsg = (error as { errMsg?: unknown }).errMsg;
+
+    if (typeof errMsg === 'string' && errMsg.trim()) {
+      return errMsg;
+    }
+  }
+
+  return '附件上传失败，请稍后再试';
 }

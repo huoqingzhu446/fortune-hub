@@ -112,13 +112,13 @@
     {
       "path": "pages/profile/index",
       "style": {
-        "navigationBarTitleText": "我的"
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/records/index",
       "style": {
-        "navigationBarTitleText": "记录"
+        "navigationStyle": "custom"
       }
     },
     {

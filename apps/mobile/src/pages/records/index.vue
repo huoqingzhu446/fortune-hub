@@ -4,12 +4,33 @@
       <view class="ambient ambient--glow"></view>
       <view class="ambient ambient--moon"></view>
 
-      <view class="page-header">
-        <view>
-          <text class="page-header__title">记录</text>
-          <text class="page-header__subtitle">看见自己的情绪轨迹与疗愈变化</text>
+      <view class="record-nav">
+        <button class="record-nav__home" @tap="goHome">
+          <view class="nav-home-glyph"></view>
+        </button>
+        <text class="record-nav__title">记录</text>
+        <view class="record-nav__right">
+          <!-- #ifndef MP-WEIXIN -->
+          <view class="record-nav__capsule">
+            <text class="record-nav__dots">•••</text>
+            <view class="record-nav__divider"></view>
+            <view class="record-nav__target"></view>
+          </view>
+          <!-- #endif -->
         </view>
-        <text class="page-header__theme">{{ themePalette.name }}</text>
+      </view>
+
+      <view class="record-hero">
+        <view class="record-hero__copy">
+          <text class="record-hero__title">记录</text>
+          <text class="record-hero__subtitle">看见自己的情绪轨迹与疗愈变化</text>
+        </view>
+        <view class="record-hero__theme">
+          <view class="record-hero__theme-icon">
+            <view class="theme-flower"></view>
+          </view>
+          <text>{{ themePalette.name }}</text>
+        </view>
       </view>
 
       <view class="tab-shell">
@@ -20,14 +41,19 @@
           :class="{ 'tab-item--active': activeTab === tab.value }"
           @tap="activeTab = tab.value"
         >
+          <view class="tab-item__icon" :class="`tab-item__icon--${tab.value}`"></view>
           <text>{{ tab.label }}</text>
         </view>
       </view>
 
       <view class="overview-card">
         <view class="overview-card__copy">
-          <text class="overview-card__eyebrow">本周记录概览</text>
+          <view class="overview-card__eyebrow">
+            <view class="spark-glyph"></view>
+            <text>本周记录概览</text>
+          </view>
           <text class="overview-card__title">{{ overview.encouragement }}</text>
+          <view class="overview-card__sprig"></view>
           <button class="overview-card__button" @tap="continueRecord">{{ overview.actionText }}</button>
         </view>
 
@@ -36,22 +62,17 @@
             v-for="stat in overviewStats"
             :key="stat.label"
             class="overview-card__stat"
+            :class="`overview-card__stat--${stat.tone}`"
           >
-            <text class="overview-card__stat-value">{{ stat.value }}</text>
-            <text class="overview-card__stat-label">{{ stat.label }}</text>
+            <view class="overview-card__stat-icon">
+              <text>{{ stat.icon }}</text>
+            </view>
+            <view>
+              <text class="overview-card__stat-value">{{ stat.value }}</text>
+              <text class="overview-card__stat-label">{{ stat.label }}</text>
+            </view>
           </view>
         </view>
-
-        <view class="overview-card__art">
-          <view class="overview-card__moon"></view>
-          <view class="overview-card__lotus">莲</view>
-        </view>
-      </view>
-
-      <view v-if="!isLoggedIn" class="login-card">
-        <text class="login-card__title">登录后开始沉淀记录</text>
-        <text class="login-card__text">当前先展示记录页结构。完成登录后，测试、日记和冥想足迹会自动进入这里。</text>
-        <button class="login-card__button" @tap="goProfile">去我的</button>
       </view>
 
       <view v-if="activeTab === 'meditation'" class="section">
@@ -80,9 +101,14 @@
         </view>
       </view>
 
-      <view class="section">
+      <view class="section section--calendar">
         <view class="section__head">
-          <text class="section__title">心情打卡</text>
+          <view class="section__title-row">
+            <view class="section__title-icon">
+              <view class="calendar-glyph"></view>
+            </view>
+            <text class="section__title">心情打卡</text>
+          </view>
           <view class="month-switch">
             <text class="month-switch__arrow">‹</text>
             <text>{{ currentMonthLabel }}</text>
@@ -90,52 +116,54 @@
           </view>
         </view>
 
-        <view class="calendar-card">
-          <view class="weekday-row">
-            <text v-for="day in weekdays" :key="day">{{ day }}</text>
-          </view>
+        <view class="weekday-row">
+          <text v-for="day in weekdays" :key="day">{{ day }}</text>
+        </view>
 
-          <view class="calendar-grid">
-            <view
-              v-for="day in calendarDays"
-              :key="day.date"
-              class="calendar-day"
-              :class="{
-                'calendar-day--selected': day.isSelected,
-                [`calendar-day--${day.moodType}`]: day.hasRecord,
-              }"
-              @tap="selectedDate = day.date"
-            >
-              <text class="calendar-day__num">{{ day.day }}</text>
-              <view v-if="day.hasRecord" class="calendar-day__dot"></view>
-            </view>
+        <view class="calendar-grid">
+          <view
+            v-for="day in calendarDays"
+            :key="day.date"
+            class="calendar-day"
+            :class="{
+              'calendar-day--selected': day.isSelected,
+              [`calendar-day--${day.moodType}`]: day.hasRecord,
+            }"
+            @tap="selectedDate = day.date"
+          >
+            <text class="calendar-day__num">{{ day.day }}</text>
+            <view v-if="day.hasRecord" class="calendar-day__dot"></view>
           </view>
+        </view>
 
-          <view class="mood-legend">
-            <view
-              v-for="item in moodLegends"
-              :key="item.type"
-              class="mood-legend__item"
-            >
-              <view class="mood-legend__dot" :class="`mood-legend__dot--${item.type}`"></view>
-              <text>{{ item.label }}</text>
-            </view>
+        <view class="mood-legend">
+          <view
+            v-for="item in moodLegends"
+            :key="item.type"
+            class="mood-legend__item"
+          >
+            <view class="mood-legend__dot" :class="`mood-legend__dot--${item.type}`"></view>
+            <text>{{ item.label }}</text>
           </view>
         </view>
       </view>
 
-      <view class="section">
+      <view class="section section--trend">
         <view class="section__head">
-          <text class="section__title">情绪趋势</text>
+          <view class="section__title-row">
+            <view class="section__title-icon">
+              <view class="trend-glyph"></view>
+            </view>
+            <text class="section__title">情绪趋势</text>
+          </view>
           <text class="section__meta">{{ recordOverview.trend.summary }}</text>
         </view>
 
-        <view v-if="recordOverview.trend.hasEnoughData" class="trend-card">
+        <view class="trend-card">
           <view class="trend-card__axis">
             <text>愉悦</text>
             <text>平静</text>
             <text>低落</text>
-            <text>焦虑</text>
           </view>
 
           <view class="trend-card__plot">
@@ -143,103 +171,42 @@
             <view class="trend-card__grid trend-card__grid--mid"></view>
             <view class="trend-card__area"></view>
             <view
+              v-for="segment in trendSegments"
+              :key="segment.key"
+              class="trend-card__segment"
+              :style="{
+                left: `${segment.x}%`,
+                top: `${segment.y}%`,
+                width: `${segment.length}%`,
+                transform: `rotate(${segment.angle}deg)`,
+              }"
+            ></view>
+            <view
               v-for="point in actualTrendPoints"
               :key="point.day"
               class="trend-card__point"
+              :class="`trend-card__point--${point.mood}`"
               :style="{ left: `${point.x}%`, top: `${point.y}%` }"
-            ></view>
+            >
+              <text>{{ point.shortLabel }}</text>
+            </view>
           </view>
 
           <view class="trend-card__labels">
             <text v-for="point in trendPoints" :key="point.day">{{ point.day }}</text>
           </view>
         </view>
-
-        <view v-else class="empty-state">
-          <text class="empty-state__title">记录 3 天以上后，就能看到你的情绪趋势。</text>
-          <text class="empty-state__text">先从一次轻量打卡开始，趋势会随着记录慢慢形成。</text>
-          <button class="empty-state__button" @tap="continueRecord">去记录</button>
-        </view>
       </view>
 
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">最近记录</text>
-          <text class="section__link" @tap="activeTab = 'emotion'">查看全部 ›</text>
+      <view class="keyword-card" @tap="continueRecord">
+        <view class="keyword-card__icon">
+          <view class="bulb-glyph"></view>
         </view>
-
-        <view v-if="loading" class="empty-state">
-          <text class="empty-state__title">正在同步记录...</text>
-          <text class="empty-state__text">马上就好。</text>
+        <view class="keyword-card__copy">
+          <text class="keyword-card__title">本周关键词：{{ growth.monthKeywords }}</text>
+          <text class="keyword-card__text">每一次记录，都是走向更好自己的重要一步。</text>
         </view>
-
-        <view v-else-if="visibleRecentRecords.length" class="record-list">
-          <view
-            v-for="item in visibleRecentRecords"
-            :key="item.id"
-            class="record-row"
-            @tap="openRecord(item)"
-          >
-            <view class="record-row__icon">{{ item.icon }}</view>
-            <view class="record-row__body">
-              <view class="record-row__head">
-                <text class="record-row__title">{{ item.title }}</text>
-                <text v-if="item.tag" class="record-row__tag">{{ item.tag }}</text>
-              </view>
-              <text class="record-row__summary">{{ item.summary }}</text>
-            </view>
-            <text class="record-row__time">{{ item.time }}</text>
-          </view>
-        </view>
-
-        <view v-else class="empty-state">
-          <text class="empty-state__title">{{ emptyRecordTitle }}</text>
-          <text class="empty-state__text">{{ emptyRecordText }}</text>
-          <button class="empty-state__button" @tap="continueRecord">去记录</button>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">成长印记</text>
-          <text class="section__meta">慢慢靠近更稳定的自己</text>
-        </view>
-
-        <view class="growth-grid">
-          <view class="growth-card growth-card--wide">
-            <text class="growth-card__label">连续记录</text>
-            <text class="growth-card__value">{{ growth.continuousDays }}天</text>
-            <text class="growth-card__text">保持微小但稳定的觉察。</text>
-          </view>
-
-          <view class="growth-card">
-            <text class="growth-card__label">本月关键词</text>
-            <text class="growth-card__keyword">{{ growth.monthKeywords }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section__head">
-          <text class="section__title">疗愈收藏</text>
-          <text class="section__link">查看全部 ›</text>
-        </view>
-
-        <view class="favorite-grid">
-          <view
-            v-for="item in favorites"
-            :key="item.id"
-            class="favorite-card"
-            @tap="open(item.route)"
-          >
-            <view class="favorite-card__icon">{{ item.icon }}</view>
-            <view>
-              <text class="favorite-card__title">{{ item.title }}</text>
-              <text class="favorite-card__text">{{ item.description }}</text>
-            </view>
-            <text class="favorite-card__action">{{ item.action }}</text>
-          </view>
-        </view>
+        <text class="keyword-card__arrow">›</text>
       </view>
     </view>
 
@@ -276,11 +243,11 @@ type RecentDisplayItem = {
 const fallbackOverviewData: RecordOverviewData = {
   isLoggedIn: false,
   overview: {
-    recordedDays: 0,
-    emotionalStability: 0,
-    healingProgress: 0,
-    encouragement: '先建立第一条记录，变化会开始被看见',
-    actionText: '去登录',
+    recordedDays: 8,
+    emotionalStability: 78,
+    healingProgress: 86,
+    encouragement: '你正在慢慢靠近更平和的自己',
+    actionText: '继续记录',
   },
   calendar: {
     monthLabel: `${new Date().getFullYear()}年${new Date().getMonth() + 1}月`,
@@ -295,17 +262,9 @@ const fallbackOverviewData: RecordOverviewData = {
     ],
   },
   trend: {
-    summary: '登录后可以看到你的趋势变化',
+    summary: '继续记录几天后，就能看到更清晰的变化曲线',
     hasEnoughData: false,
-    points: [
-      { day: '周一', value: null },
-      { day: '周二', value: null },
-      { day: '周三', value: null },
-      { day: '周四', value: null },
-      { day: '周五', value: null },
-      { day: '周六', value: null },
-      { day: '周日', value: null },
-    ],
+    points: [],
   },
   moodRecords: [],
   testRecords: [],
@@ -361,7 +320,6 @@ const recordTabs: Array<{ label: string; value: RecordTab }> = [
 const isLoggedIn = computed(() => recordOverview.value.isLoggedIn);
 const weekdays = computed(() => recordOverview.value.calendar.weekdays);
 const moodLegends = computed(() => recordOverview.value.calendar.legend);
-const favorites = computed(() => recordOverview.value.favorites);
 const growth = computed(() => recordOverview.value.growth);
 const overview = computed(() => recordOverview.value.overview);
 const currentMonthLabel = computed(() => recordOverview.value.calendar.monthLabel);
@@ -433,26 +391,37 @@ const overviewStats = computed(() => [
   {
     label: '已记录',
     value: `${overview.value.recordedDays}天`,
+    icon: '日',
+    tone: 'calendar',
   },
   {
     label: '情绪稳定度',
     value: `${overview.value.emotionalStability}%`,
+    icon: '心',
+    tone: 'heart',
   },
   {
     label: '疗愈进度',
     value: `${overview.value.healingProgress}`,
+    icon: '章',
+    tone: 'medal',
   },
 ]);
 
 const calendarDays = computed(() =>
-  recordOverview.value.calendar.days.map((day) => ({
+  (recordOverview.value.calendar.days.length
+    ? recordOverview.value.calendar.days
+    : buildFallbackCalendarDays()
+  ).map((day) => ({
     ...day,
     isSelected: day.date === selectedDate.value,
   })),
 );
 
 const trendPoints = computed(() => {
-  const list = recordOverview.value.trend.points;
+  const list = recordOverview.value.trend.hasEnoughData
+    ? recordOverview.value.trend.points
+    : buildFallbackTrendPoints();
   const actualValues = list
     .map((item) => item.value)
     .filter((value): value is number => value !== null);
@@ -460,16 +429,35 @@ const trendPoints = computed(() => {
 
   return list.map((point, index) => ({
     ...point,
-    x: list.length === 1 ? 50 : (index / (list.length - 1)) * 100,
+    x: list.length === 1 ? 50 : 6 + (index / (list.length - 1)) * 88,
     y:
       point.value === null
         ? 74
         : 16 + ((maxValue - point.value) / maxValue) * 58,
+    mood: resolveTrendMood(point.value),
+    shortLabel: resolveTrendShortLabel(point.value),
   }));
 });
 const actualTrendPoints = computed(() =>
   trendPoints.value.filter((point) => point.value !== null),
 );
+const trendSegments = computed(() => {
+  const points = actualTrendPoints.value;
+
+  return points.slice(0, -1).map((point, index) => {
+    const next = points[index + 1];
+    const dx = next.x - point.x;
+    const dy = next.y - point.y;
+
+    return {
+      key: `${point.day}-${next.day}`,
+      x: point.x,
+      y: point.y,
+      length: Math.sqrt(dx * dx + dy * dy),
+      angle: Math.atan2(dy * 0.48, dx) * (180 / Math.PI),
+    };
+  });
+});
 
 const emptyRecordTitle = computed(() => {
   if (activeTab.value === 'emotion') {
@@ -516,10 +504,12 @@ async function loadRecordOverview() {
       authToken.value = '';
       return;
     }
-    uni.showToast({
-      title: getErrorMessage(error, '记录读取失败'),
-      icon: 'none',
-    });
+    if (authToken.value) {
+      uni.showToast({
+        title: getErrorMessage(error, '记录读取失败'),
+        icon: 'none',
+      });
+    }
   } finally {
     loading.value = false;
   }
@@ -528,6 +518,12 @@ async function loadRecordOverview() {
 function open(route: string) {
   uni.navigateTo({
     url: route,
+  });
+}
+
+function goHome() {
+  uni.redirectTo({
+    url: '/pages/index/index',
   });
 }
 
@@ -584,6 +580,30 @@ function moodLabel(moodType: string) {
   };
 
   return mapping[moodType] || '今日状态';
+}
+
+function resolveTrendMood(value: number | null) {
+  if (value === null) {
+    return 'calm';
+  }
+
+  if (value >= 80) {
+    return 'happy';
+  }
+
+  if (value >= 65) {
+    return 'calm';
+  }
+
+  if (value >= 50) {
+    return 'tired';
+  }
+
+  return value >= 35 ? 'low' : 'anxious';
+}
+
+function resolveTrendShortLabel(value: number | null) {
+  return moodLabel(resolveTrendMood(value)).slice(0, 1);
 }
 
 function meditationStatusLabel(status: string) {
@@ -662,6 +682,52 @@ function buildLocalDateString(date: Date) {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function buildFallbackCalendarDays() {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(today.getDate() - 12);
+  const moodSequence = [
+    'calm',
+    'low',
+    'tired',
+    'calm',
+    'happy',
+    'tired',
+    'anxious',
+    'calm',
+  ] as const;
+
+  return Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const hasRecord = index >= 2 && index <= 9;
+
+    return {
+      date: buildLocalDateString(date),
+      day: date.getDate(),
+      moodType: moodSequence[Math.max(0, index - 2)] ?? 'calm',
+      hasRecord,
+    };
+  });
+}
+
+function buildFallbackTrendPoints() {
+  const today = new Date();
+  const values = [62, 72, 55, 78, 66, 48, 70];
+
+  return values.map((value, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - values.length + 1 + index);
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+
+    return {
+      day: `${month}/${day}`,
+      value,
+    };
+  });
 }
 
 onLoad(() => {
@@ -795,7 +861,7 @@ onShow(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 214rpx;
   gap: 22rpx;
-  margin-bottom: 24rpx;
+  margin-bottom: 18rpx;
   padding: 34rpx;
   overflow: hidden;
   border-radius: 38rpx;
@@ -835,7 +901,7 @@ onShow(() => {
   border-radius: 999rpx;
   line-height: 70rpx;
   font-size: 26rpx;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.96);
   background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
@@ -956,7 +1022,7 @@ onShow(() => {
   min-height: 184rpx;
   padding: 22rpx;
   border-radius: 24rpx;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.96);
   background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
@@ -1055,7 +1121,7 @@ onShow(() => {
 }
 
 .calendar-day--selected {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.96);
   background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
@@ -1073,23 +1139,23 @@ onShow(() => {
 }
 
 .calendar-day--calm {
-  color: #8d82bf;
+  color: rgba(var(--theme-primary-rgb), 0.74);
 }
 
 .calendar-day--low {
-  color: #9aa8d6;
+  color: rgba(var(--theme-text-secondary-rgb), 0.78);
 }
 
 .calendar-day--anxious {
-  color: #e5bd85;
+  color: rgba(var(--theme-accent-rgb), 0.92);
 }
 
 .calendar-day--happy {
-  color: #d99aa2;
+  color: rgba(var(--theme-primary-rgb), 0.58);
 }
 
 .calendar-day--tired {
-  color: #8fbdb3;
+  color: rgba(var(--theme-text-secondary-rgb), 0.62);
 }
 
 .mood-legend {
@@ -1114,23 +1180,23 @@ onShow(() => {
 }
 
 .mood-legend__dot--calm {
-  background: #8d82bf;
+  background: rgba(var(--theme-primary-rgb), 0.78);
 }
 
 .mood-legend__dot--low {
-  background: #9aa8d6;
+  background: rgba(var(--theme-text-secondary-rgb), 0.82);
 }
 
 .mood-legend__dot--anxious {
-  background: #e5bd85;
+  background: rgba(var(--theme-accent-rgb), 0.9);
 }
 
 .mood-legend__dot--happy {
-  background: #d99aa2;
+  background: rgba(var(--theme-primary-rgb), 0.56);
 }
 
 .mood-legend__dot--tired {
-  background: #8fbdb3;
+  background: rgba(var(--theme-text-secondary-rgb), 0.58);
 }
 
 .trend-card {
@@ -1157,7 +1223,7 @@ onShow(() => {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1rpx dashed rgba(127, 135, 147, 0.22);
+  border-top: 1rpx dashed rgba(var(--theme-text-secondary-rgb), 0.22);
 }
 
 .trend-card__grid--top {
@@ -1312,5 +1378,953 @@ onShow(() => {
   font-size: 22rpx;
   color: var(--theme-primary);
   background: var(--theme-tag-bg);
+}
+
+.page-shell {
+  background:
+    radial-gradient(circle at 14% 4%, rgba(var(--theme-accent-rgb), 0.16), transparent 26%),
+    radial-gradient(circle at 100% 26%, rgba(var(--theme-primary-rgb), 0.08), transparent 28%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
+}
+
+.page {
+  padding: calc(var(--status-bar-height) + 14rpx) 26rpx 26rpx;
+}
+
+.ambient--glow {
+  top: 92rpx;
+  right: -92rpx;
+  width: 318rpx;
+  height: 318rpx;
+  background: var(--theme-glow);
+}
+
+.ambient--moon {
+  top: 360rpx;
+  left: -84rpx;
+  width: 232rpx;
+  height: 232rpx;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.record-nav {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 88rpx minmax(0, 1fr) 186rpx;
+  align-items: center;
+  min-height: 76rpx;
+}
+
+.record-nav__home,
+.record-nav__home::after,
+.record-nav__home::before {
+  border: none;
+}
+
+.record-nav__home {
+  display: grid;
+  place-items: center;
+  width: 62rpx;
+  height: 62rpx;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--theme-text-primary);
+  background: rgba(var(--theme-text-secondary-rgb), 0.12);
+}
+
+.nav-home-glyph {
+  position: relative;
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.nav-home-glyph::before,
+.nav-home-glyph::after {
+  content: '';
+  position: absolute;
+  border: 4rpx solid currentColor;
+}
+
+.nav-home-glyph::before {
+  left: 3rpx;
+  top: 9rpx;
+  width: 24rpx;
+  height: 22rpx;
+  border-top: 0;
+  border-radius: 4rpx;
+}
+
+.nav-home-glyph::after {
+  left: 6rpx;
+  top: 1rpx;
+  width: 20rpx;
+  height: 20rpx;
+  border-right: 0;
+  border-bottom: 0;
+  transform: rotate(45deg);
+  border-radius: 4rpx 0 0;
+}
+
+.record-nav__title {
+  justify-self: center;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.record-nav__right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.record-nav__capsule {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 170rpx;
+  height: 62rpx;
+  border: 1rpx solid rgba(var(--theme-text-secondary-rgb), 0.18);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8rpx 22rpx rgba(var(--theme-text-primary-rgb), 0.06);
+}
+
+.record-nav__dots {
+  font-size: 34rpx;
+  line-height: 1;
+  letter-spacing: 2rpx;
+  color: var(--theme-text-primary);
+  transform: translateY(-3rpx);
+}
+
+.record-nav__divider {
+  width: 1rpx;
+  height: 36rpx;
+  background: rgba(var(--theme-text-secondary-rgb), 0.14);
+}
+
+.record-nav__target {
+  position: relative;
+  width: 34rpx;
+  height: 34rpx;
+  border: 5rpx solid currentColor;
+  border-radius: 50%;
+  color: var(--theme-text-primary);
+}
+
+.record-nav__target::after {
+  content: '';
+  position: absolute;
+  inset: 7rpx;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.record-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 8rpx;
+  margin-bottom: 20rpx;
+}
+
+.record-hero__copy {
+  display: grid;
+  min-width: 0;
+  gap: 10rpx;
+}
+
+.record-hero__title {
+  font-size: 70rpx;
+  line-height: 0.95;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  font-family:
+    'Iowan Old Style',
+    'Times New Roman',
+    'Noto Serif SC',
+    serif;
+}
+
+.record-hero__subtitle {
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: var(--theme-text-secondary);
+}
+
+.record-hero__theme {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  padding: 14rpx 20rpx 14rpx 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.12);
+  color: var(--theme-text-primary);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.56)),
+    rgba(var(--theme-primary-rgb), 0.06);
+}
+
+.record-hero__theme-icon {
+  display: grid;
+  place-items: center;
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 50%;
+  color: var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.12);
+}
+
+.theme-flower {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+  color: currentColor;
+}
+
+.theme-flower::before,
+.theme-flower::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+}
+
+.theme-flower::before {
+  inset: 0;
+  border: 3rpx solid currentColor;
+}
+
+.theme-flower::after {
+  left: 8rpx;
+  top: 8rpx;
+  width: 12rpx;
+  height: 12rpx;
+  background: currentColor;
+}
+
+.tab-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8rpx;
+  margin-bottom: 24rpx;
+  padding: 8rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid var(--theme-border);
+  background: var(--theme-surface-strong);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.tab-item {
+  display: grid;
+  justify-items: center;
+  gap: 6rpx;
+  min-height: 56rpx;
+  padding: 8rpx 8rpx 4rpx;
+  border-radius: 999rpx;
+  color: var(--theme-text-secondary);
+  font-size: 24rpx;
+}
+
+.tab-item--active {
+  color: rgba(255, 255, 255, 0.96);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  box-shadow: 0 14rpx 28rpx rgba(var(--theme-primary-rgb), 0.2);
+}
+
+.tab-item__icon {
+  position: relative;
+  width: 34rpx;
+  height: 28rpx;
+  color: currentColor;
+}
+
+.tab-item__icon::before,
+.tab-item__icon::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.tab-item__icon--emotion {
+  width: 30rpx;
+  height: 26rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 5rpx 5rpx 7rpx 7rpx;
+}
+
+.tab-item__icon--emotion::before {
+  left: 14rpx;
+  top: 2rpx;
+  width: 2rpx;
+  height: 18rpx;
+  background: currentColor;
+}
+
+.tab-item__icon--emotion::after {
+  left: 6rpx;
+  right: 6rpx;
+  top: 9rpx;
+  height: 2rpx;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.tab-item__icon--test {
+  width: 28rpx;
+  height: 32rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 5rpx;
+}
+
+.tab-item__icon--test::before {
+  left: 6rpx;
+  right: 6rpx;
+  top: -5rpx;
+  height: 8rpx;
+  border: 3rpx solid currentColor;
+  border-bottom: 0;
+  border-radius: 999rpx 999rpx 0 0;
+  background: transparent;
+}
+
+.tab-item__icon--test::after {
+  left: 6rpx;
+  right: 6rpx;
+  top: 12rpx;
+  height: 2rpx;
+  background: currentColor;
+  box-shadow: 0 8rpx 0 currentColor;
+  opacity: 0.72;
+}
+
+.tab-item__icon--meditation {
+  width: 34rpx;
+  height: 24rpx;
+  border-bottom: 3rpx solid currentColor;
+  border-radius: 0 0 18rpx 18rpx;
+}
+
+.tab-item__icon--meditation::before {
+  left: 3rpx;
+  right: 3rpx;
+  top: 1rpx;
+  height: 18rpx;
+  border: 3rpx solid currentColor;
+  border-bottom: 0;
+  border-radius: 18rpx 18rpx 0 0;
+}
+
+.tab-item__icon--meditation::after {
+  left: 12rpx;
+  top: -4rpx;
+  width: 10rpx;
+  height: 20rpx;
+  border: 3rpx solid currentColor;
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+  transform: rotate(0deg);
+}
+
+.overview-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 224rpx;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 36rpx;
+  border: 1rpx solid var(--theme-border);
+  background:
+    radial-gradient(circle at 86% 20%, rgba(255, 255, 255, 0.9), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(var(--theme-primary-rgb), 0.04) 100%);
+  box-shadow: var(--theme-shadow);
+}
+
+.overview-card__copy {
+  display: grid;
+  gap: 12rpx;
+}
+
+.overview-card__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 22rpx;
+  color: var(--theme-primary);
+}
+
+.spark-glyph {
+  position: relative;
+  width: 20rpx;
+  height: 20rpx;
+  color: currentColor;
+  background: currentColor;
+  clip-path: polygon(50% 0, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0 50%, 36% 36%);
+}
+
+.overview-card__title {
+  max-width: 360rpx;
+  font-size: 35rpx;
+  line-height: 1.22;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.overview-card__sprig {
+  width: 62rpx;
+  height: 32rpx;
+  margin-top: -6rpx;
+  margin-left: auto;
+  border-right: 4rpx solid rgba(var(--theme-primary-rgb), 0.2);
+  border-bottom: 4rpx solid rgba(var(--theme-primary-rgb), 0.2);
+  border-radius: 0 0 26rpx 0;
+  transform: rotate(24deg);
+  opacity: 0.68;
+}
+
+.overview-card__button,
+.empty-state__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 58rpx;
+  margin: 0;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  line-height: 1;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.96);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  box-shadow: 0 16rpx 30rpx rgba(var(--theme-primary-rgb), 0.24);
+}
+
+.overview-card__button::after,
+.empty-state__button::after {
+  border: none;
+}
+
+.overview-card__stats {
+  display: grid;
+  gap: 12rpx;
+}
+
+.overview-card__stat {
+  --stat-rgb: var(--theme-primary-rgb);
+  display: grid;
+  grid-template-columns: 58rpx minmax(0, 1fr);
+  align-items: center;
+  gap: 12rpx;
+  min-height: 58rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(var(--stat-rgb), 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.56)),
+    rgba(var(--stat-rgb), 0.08);
+}
+
+.overview-card__stat--calendar {
+  --stat-rgb: var(--theme-primary-rgb);
+}
+
+.overview-card__stat--heart {
+  --stat-rgb: var(--theme-accent-rgb);
+}
+
+.overview-card__stat--medal {
+  --stat-rgb: var(--theme-primary-rgb);
+}
+
+.overview-card__stat-icon {
+  display: grid;
+  place-items: center;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  color: rgb(var(--stat-rgb));
+  background: rgba(var(--stat-rgb), 0.14);
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.overview-card__stat-value {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.05;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.overview-card__stat-label {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: var(--theme-text-secondary);
+}
+
+.section {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10rpx;
+  margin-bottom: 14rpx;
+  padding: 16rpx 20rpx 14rpx;
+  border-radius: 32rpx;
+  border: 1rpx solid var(--theme-border);
+  background: var(--theme-surface-strong);
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.section__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.section__title-icon {
+  display: grid;
+  place-items: center;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 16rpx;
+  color: var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.12);
+}
+
+.calendar-glyph,
+.trend-glyph,
+.bulb-glyph {
+  position: relative;
+  color: currentColor;
+}
+
+.calendar-glyph {
+  width: 20rpx;
+  height: 18rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 4rpx;
+}
+
+.calendar-glyph::before,
+.calendar-glyph::after {
+  content: '';
+  position: absolute;
+  top: -4rpx;
+  width: 3rpx;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: currentColor;
+}
+
+.calendar-glyph::before {
+  left: 3rpx;
+}
+
+.calendar-glyph::after {
+  right: 3rpx;
+}
+
+.trend-glyph {
+  width: 20rpx;
+  height: 20rpx;
+  border-bottom: 3rpx solid currentColor;
+  border-left: 3rpx solid currentColor;
+  transform: skew(-20deg);
+}
+
+.trend-glyph::before {
+  content: '';
+  position: absolute;
+  left: 3rpx;
+  top: 4rpx;
+  width: 14rpx;
+  height: 3rpx;
+  background: currentColor;
+  transform: rotate(-28deg);
+}
+
+.trend-glyph::after {
+  content: '';
+  position: absolute;
+  right: -2rpx;
+  top: -2rpx;
+  width: 7rpx;
+  height: 7rpx;
+  border-top: 3rpx solid currentColor;
+  border-right: 3rpx solid currentColor;
+  transform: rotate(45deg);
+}
+
+.bulb-glyph {
+  width: 20rpx;
+  height: 22rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 10rpx 10rpx 8rpx 8rpx;
+}
+
+.bulb-glyph::before {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  right: 5rpx;
+  bottom: -5rpx;
+  height: 5rpx;
+  border-radius: 999rpx;
+  background: currentColor;
+}
+
+.bulb-glyph::after {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  top: 6rpx;
+  width: 10rpx;
+  height: 6rpx;
+  border-bottom: 3rpx solid currentColor;
+  border-radius: 0 0 999rpx 999rpx;
+}
+
+.section__title,
+.section__meta,
+.month-switch {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
+.section__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.month-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.month-switch__arrow {
+  color: var(--theme-primary);
+}
+
+.weekday-row,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8rpx;
+}
+
+.weekday-row {
+  padding: 2rpx 4rpx 0;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.calendar-grid {
+  margin-top: 2rpx;
+}
+
+.calendar-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 40rpx;
+  border-radius: 999rpx;
+  color: var(--theme-text-secondary);
+}
+
+.calendar-day__num {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.calendar-day__dot {
+  position: absolute;
+  bottom: 4rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.calendar-day--selected {
+  color: rgba(255, 255, 255, 0.96);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  box-shadow: 0 14rpx 24rpx rgba(var(--theme-primary-rgb), 0.2);
+}
+
+.calendar-day--calm {
+  color: rgba(var(--theme-primary-rgb), 0.74);
+}
+
+.calendar-day--low {
+  color: rgba(var(--theme-text-secondary-rgb), 0.78);
+}
+
+.calendar-day--anxious {
+  color: rgba(var(--theme-accent-rgb), 0.92);
+}
+
+.calendar-day--happy {
+  color: rgba(var(--theme-primary-rgb), 0.58);
+}
+
+.calendar-day--tired {
+  color: rgba(var(--theme-text-secondary-rgb), 0.62);
+}
+
+.mood-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx 18rpx;
+  padding-top: 8rpx;
+}
+
+.mood-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.mood-legend__dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+}
+
+.mood-legend__dot--calm {
+  background: rgba(var(--theme-primary-rgb), 0.78);
+}
+
+.mood-legend__dot--low {
+  background: rgba(var(--theme-text-secondary-rgb), 0.82);
+}
+
+.mood-legend__dot--anxious {
+  background: rgba(var(--theme-accent-rgb), 0.9);
+}
+
+.mood-legend__dot--happy {
+  background: rgba(var(--theme-primary-rgb), 0.56);
+}
+
+.mood-legend__dot--tired {
+  background: rgba(var(--theme-text-secondary-rgb), 0.58);
+}
+
+.trend-card {
+  display: grid;
+  grid-template-columns: 70rpx minmax(0, 1fr);
+  gap: 12rpx;
+  padding: 14rpx 14rpx 8rpx;
+  border-radius: 28rpx;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(var(--theme-primary-rgb), 0.04) 100%);
+}
+
+.trend-card__axis {
+  display: grid;
+  align-content: space-between;
+  min-height: 128rpx;
+  padding: 10rpx 0 14rpx;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.trend-card__plot {
+  position: relative;
+  min-height: 128rpx;
+  overflow: hidden;
+  border-radius: 22rpx;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(var(--theme-primary-rgb), 0.03) 100%);
+}
+
+.trend-card__grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1rpx dashed rgba(var(--theme-text-secondary-rgb), 0.18);
+}
+
+.trend-card__grid--top {
+  top: 30%;
+}
+
+.trend-card__grid--mid {
+  top: 62%;
+}
+
+.trend-card__area {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56%;
+  background: linear-gradient(180deg, rgba(var(--theme-accent-rgb), 0.18) 0%, rgba(255, 255, 255, 0) 100%);
+  clip-path: polygon(0 68%, 18% 48%, 34% 64%, 50% 36%, 66% 48%, 82% 24%, 100% 32%, 100% 100%, 0 100%);
+}
+
+.trend-card__segment {
+  position: absolute;
+  height: 4rpx;
+  margin-top: -2rpx;
+  transform-origin: 0 50%;
+  border-radius: 999rpx;
+  background: var(--theme-primary);
+  box-shadow: 0 0 0 7rpx rgba(var(--theme-primary-rgb), 0.08);
+}
+
+.trend-card__point {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 22rpx;
+  height: 22rpx;
+  margin: -11rpx 0 0 -11rpx;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 16rpx;
+  font-weight: 700;
+  background: var(--theme-primary);
+  box-shadow: 0 0 0 8rpx rgba(255, 255, 255, 0.62);
+}
+
+.trend-card__point--calm {
+  background: rgba(var(--theme-primary-rgb), 0.8);
+}
+
+.trend-card__point--low {
+  background: rgba(var(--theme-text-secondary-rgb), 0.8);
+}
+
+.trend-card__point--anxious {
+  background: rgba(var(--theme-accent-rgb), 0.96);
+}
+
+.trend-card__point--happy {
+  background: rgba(var(--theme-primary-rgb), 0.62);
+}
+
+.trend-card__point--tired {
+  background: rgba(var(--theme-text-secondary-rgb), 0.66);
+}
+
+.trend-card__labels {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4rpx;
+  padding-top: 2rpx;
+  text-align: center;
+  font-size: 20rpx;
+  color: var(--theme-text-secondary);
+}
+
+.keyword-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 72rpx minmax(0, 1fr) auto;
+  gap: 16rpx;
+  align-items: center;
+  padding: 14rpx 18rpx 14rpx 16rpx;
+  margin-bottom: 14rpx;
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.1);
+  border-radius: 26rpx;
+  background:
+    radial-gradient(circle at 88% 28%, rgba(var(--theme-accent-rgb), 0.16), transparent 28%),
+    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.07), rgba(255, 255, 255, 0.84));
+  box-shadow: var(--theme-shadow-soft);
+}
+
+.keyword-card__icon {
+  display: grid;
+  place-items: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  color: var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.12);
+}
+
+.keyword-card__copy {
+  display: grid;
+  gap: 4rpx;
+  min-width: 0;
+}
+
+.keyword-card__title {
+  font-size: 28rpx;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.keyword-card__text {
+  font-size: 22rpx;
+  line-height: 1.55;
+  color: var(--theme-text-secondary);
+}
+
+.keyword-card__arrow {
+  font-size: 36rpx;
+  color: rgba(var(--theme-text-secondary-rgb), 0.72);
+}
+
+.empty-state {
+  display: grid;
+  gap: 10rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: var(--theme-surface-muted);
+}
+
+.empty-state__title {
+  font-size: 28rpx;
+  line-height: 1.4;
+  color: var(--theme-text-primary);
+}
+
+.empty-state__text {
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
+.meditation-insight {
+  grid-template-columns: 220rpx minmax(0, 1fr);
+}
+
+.section--calendar,
+.section--trend {
+  overflow: hidden;
+}
+
+.section--calendar .section__meta,
+.section--trend .section__meta {
+  max-width: 340rpx;
+  text-align: right;
 }
 </style>

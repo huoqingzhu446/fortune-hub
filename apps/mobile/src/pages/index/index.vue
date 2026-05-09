@@ -6,27 +6,15 @@
       <view class="ambient ambient--mist-left"></view>
       <view class="ambient ambient--mist-right"></view>
 
-      <view class="hero">
-        <view class="hero__scene">
-          <view class="hero__mountain-backdrop" :style="heroMountainStyle"></view>
+      <HomeHero
+        class="home-page__hero"
+        :title="pageTitle"
+        :subtitle="pageSubtitle"
+        :display-date="displayDate"
+        :lunar-date="lunarDate"
+      />
 
-          <view class="hero__top">
-            <view class="hero__brand">
-              <view class="hero__copy">
-                <text class="hero__title">{{ pageTitle }}</text>
-                <text class="hero__subtitle">{{ pageSubtitle }}</text>
-              </view>
-            </view>
-
-            <view class="hero__meta">
-              <text class="hero__meta-line">{{ displayDate }}</text>
-              <text class="hero__meta-line hero__meta-line--secondary">{{ lunarDate }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <FortuneScoreCard
+      <StatusIndexCard
         class="home-page__main-card"
         :label="fortuneCardLabel"
         :score="fortuneScore"
@@ -34,50 +22,40 @@
         :title="fortuneTitle"
         :summary="fortuneSummary"
         :tags="fortuneTags"
-        :orbital-src="fortuneOrbitalSrc"
         @select="goToReport"
       />
 
-      <view class="home-page__divination divination-entry">
-        <view class="divination-entry__copy" @tap="openDivinationHome">
-          <text class="divination-entry__eyebrow">周易占卜</text>
-          <text class="divination-entry__title">今日占卜</text>
-          <text class="divination-entry__summary">结合八字、星座与心情，给当下一个温柔方向。</text>
-          <view class="divination-entry__tags">
-            <text>宜沟通</text>
-            <text>忌冲动</text>
-          </view>
-        </view>
-        <view class="divination-entry__visual" @tap="openDivinationHome">
-          <view class="divination-entry__moon"></view>
-          <view class="divination-entry__crystal"></view>
-          <view class="divination-entry__rings"></view>
-        </view>
-        <button class="divination-entry__button" @tap.stop="startHomeDivination">立即占卜</button>
-      </view>
+      <FortuneActionCard
+        class="home-page__divination"
+        eyebrow="周易占卜"
+        title="今日占卜"
+        summary="结合八字、星座与心情，给当下一个温柔方向。"
+        :tags="divinationTags"
+        button-text="立即占卜"
+        @open="openDivinationHome"
+        @action="startHomeDivination"
+      />
 
       <view class="insight-grid">
-        <view
-          v-for="card in homeCards"
+        <InsightMiniCard
+          v-for="(card, index) in homeCards"
           :key="card.id"
           class="insight-grid__item"
-          @tap="handleRoute(card.route)"
-        >
-            <HomeStatusCard
-              :variant="card.variant"
-              :icon-color="card.iconColor"
-              :title="card.title"
-              :subtitle="card.subtitle"
-              :value="card.value"
-              :metric-mode="card.metricMode"
-              :suffix="card.suffix"
-              :badge="card.badge"
-              :description="card.description"
-              :note="card.note"
-              :progress="card.progress"
-              :stars="card.stars"
-            />
-        </view>
+          :style="{ animationDelay: `${220 + index * 55}ms` }"
+          :variant="card.variant"
+          :icon-color="card.iconColor"
+          :title="card.title"
+          :subtitle="card.subtitle"
+          :value="card.value"
+          :metric-mode="card.metricMode"
+          :suffix="card.suffix"
+          :badge="card.badge"
+          :description="card.description"
+          :progress="card.progress"
+          :stars="card.stars"
+          :action-text="card.actionText"
+          @select="handleRoute(card.route)"
+        />
       </view>
 
       <TodayAdviceCard
@@ -95,21 +73,21 @@
       />
     </view>
 
-    <AppTabBar current-tab="home" />
+    <HomeTabBar current-tab="home" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick } from 'vue';
-import AppTabBar from '../../components/AppTabBar.vue';
-import FortuneScoreCard, { type FortuneCardTag } from '../../components/FortuneScoreCard.vue';
-import HomeStatusCard from '../../components/HomeStatusCard.vue';
+import FortuneActionCard from '../../components/FortuneActionCard.vue';
+import HomeHero from '../../components/HomeHero.vue';
+import HomeTabBar from '../../components/HomeTabBar.vue';
+import InsightMiniCard from '../../components/InsightMiniCard.vue';
 import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolStrip.vue';
+import StatusIndexCard, { type StatusIndexTag } from '../../components/StatusIndexCard.vue';
 import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
-import heroMountainsSvg from '../../static/illustrations/hero_mountains.svg?raw';
 import { useThemePreference } from '../../composables/useThemePreference';
-import { getFortuneOrbitalDataUrl } from '../../theme/fortune-orbital';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
 import {
@@ -133,6 +111,7 @@ type InsightCard = {
   note: string;
   progress: number;
   stars: number;
+  actionText: string;
   route: string;
 };
 
@@ -185,11 +164,12 @@ const displayDate = computed(() => {
 
 const lunarDate = computed(() => {
   try {
-    return new Intl.DateTimeFormat('zh-Hans-CN-u-ca-chinese', {
+    const formatted = new Intl.DateTimeFormat('zh-Hans-CN-u-ca-chinese', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     }).format(new Date());
+    return `农历 ${formatLunarText(formatted)}`;
   } catch (error) {
     console.warn('chinese calendar fallback', error);
     return `今日宜 · ${resolveLuckyDo(stateOverview.value.basisTags)}`;
@@ -197,14 +177,6 @@ const lunarDate = computed(() => {
 });
 
 const fortuneCardLabel = computed(() => todayLuckyScore.value.label || '综合气运指数');
-
-const heroMountainSrc = computed(() => buildSvgDataUrl(heroMountainsSvg, themePalette.value.primary));
-
-const heroMountainStyle = computed(() => ({
-  backgroundImage: `url("${heroMountainSrc.value}")`,
-}));
-
-const fortuneOrbitalSrc = computed(() => getFortuneOrbitalDataUrl(themePalette.value.key));
 
 const fortuneTitle = computed(
   () => stateOverview.value.title || todayLuckyScore.value.hint || '状态平稳，适合自我疗愈与整理内心',
@@ -218,20 +190,22 @@ const fortuneStatus = computed(
   () => stateOverview.value.confidenceLabel || `今日宜 · ${resolveLuckyDo(stateOverview.value.basisTags)}`,
 );
 
-const fortuneTags = computed<FortuneCardTag[]>(() => [
+const fortuneTags = computed<StatusIndexTag[]>(() => [
   {
-    label: '幸运色',
+    label: '今日色',
     value: `${themePalette.value.name}色`,
   },
   {
-    label: '幸运数字',
+    label: '幸运数',
     value: String(resolveLuckyNumber(fortuneScore.value)),
   },
   {
-    label: '宜',
-    value: resolveLuckyDo(stateOverview.value.basisTags),
+    label: '今日节奏',
+    value: fortuneStatus.value,
   },
 ]);
+
+const divinationTags = ['宜沟通', '忌冲动'];
 
 const emotionScore = computed(() =>
   resolveNumericFactor(['emotion'], clamp(fortuneScore.value - 4, 0, 100)),
@@ -256,14 +230,15 @@ const homeCards = computed<InsightCard[]>(() => {
       iconColor: themePalette.value.primary,
       title: '心情情绪评分',
       subtitle: emotionFactor?.label || '情绪稳定度',
-      value: String(emotionScore.value),
-      metricMode: 'score',
-      suffix: '分',
+      value: '',
+      metricMode: 'stars',
+      suffix: '',
       badge: resolveScoreBadge(emotionScore.value),
       description: emotionFactor?.hint || '情绪稳定，内心平和。',
       note: '保持呼吸，继续保持哦',
       progress: emotionScore.value,
-      stars: 0,
+      stars: resolveScoreStars(emotionScore.value),
+      actionText: '记录心情',
       route: '/pages/emotion/index',
     },
     {
@@ -272,14 +247,15 @@ const homeCards = computed<InsightCard[]>(() => {
       iconColor: themePalette.value.primary,
       title: '心理健康',
       subtitle: mentalFactor?.label || resolveMentalSubtitle(),
-      value: String(mentalScore.value),
-      metricMode: 'score',
-      suffix: '分',
+      value: '',
+      metricMode: 'stars',
+      suffix: '',
       badge: resolveMentalBadge(mentalScore.value),
       description: mentalFactor?.hint || todayLuckyScore.value.hint || '完成一次情绪自检后，会给出更贴近你的心理状态参考。',
       note: '适当放松，寻找支持',
       progress: mentalScore.value,
-      stars: 0,
+      stars: resolveScoreStars(mentalScore.value),
+      actionText: '了解更多',
       route: '/pages/emotion/index',
     },
     {
@@ -288,14 +264,15 @@ const homeCards = computed<InsightCard[]>(() => {
       iconColor: themePalette.value.accent,
       title: '八字气运',
       subtitle: '',
-      value: baziLevel,
-      metricMode: 'level',
+      value: '',
+      metricMode: 'stars',
       suffix: '',
-      badge: resolveBaziBadge(fortuneScore.value),
+      badge: baziLevel || resolveBaziBadge(fortuneScore.value),
       description: baziFactor?.hint || '五行平衡，运势稳中有升。',
       note: '宜静不宜动，守成待时',
       progress: 0,
-      stars: 0,
+      stars: resolveScoreStars(fortuneScore.value),
+      actionText: '查看八字',
       route: '/pages/bazi/index',
     },
     {
@@ -312,6 +289,7 @@ const homeCards = computed<InsightCard[]>(() => {
       note: '相信直觉，勇敢向前',
       progress: 0,
       stars: zodiacStars,
+      actionText: '查看星座',
       route: '/pages/zodiac/index',
     },
   ];
@@ -472,6 +450,45 @@ function resolveLuckyDo(tags: string[]) {
   return '静心 · 整理 · 呼吸';
 }
 
+function formatLunarText(input: string) {
+  const withoutEra = input.replace(/^\d+/, '').trim();
+  const dayMatch = withoutEra.match(/(\d{1,2})$/);
+
+  if (!dayMatch) {
+    return withoutEra.replace(/年(?=\S)/, '年 ');
+  }
+
+  return withoutEra
+    .replace(dayMatch[1], formatLunarDay(Number(dayMatch[1])))
+    .replace(/年(?=\S)/, '年 ');
+}
+
+function formatLunarDay(day: number) {
+  const digits = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+
+  if (day <= 0 || day > 30) {
+    return String(day);
+  }
+
+  if (day <= 10) {
+    return `初${digits[day - 1]}`;
+  }
+
+  if (day < 20) {
+    return `十${digits[day - 11]}`;
+  }
+
+  if (day === 20) {
+    return '二十';
+  }
+
+  if (day < 30) {
+    return `廿${digits[day - 21]}`;
+  }
+
+  return '三十';
+}
+
 function resolveScoreBadge(score: number) {
   if (score >= 90) {
     return '极佳';
@@ -544,6 +561,22 @@ function resolveZodiacStars(rawValue: string | undefined, score: number) {
   return 2;
 }
 
+function resolveScoreStars(score: number) {
+  if (score >= 88) {
+    return 5;
+  }
+  if (score >= 72) {
+    return 4;
+  }
+  if (score >= 56) {
+    return 3;
+  }
+  if (score >= 42) {
+    return 2;
+  }
+  return 1;
+}
+
 function resolveZodiacBadge(stars: number) {
   if (stars >= 5) {
     return '极佳';
@@ -559,12 +592,6 @@ function resolveZodiacBadge(stars: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function buildSvgDataUrl(markup: string, color: string) {
-  const normalizedColor = color || '#6F91B7';
-  const nextMarkup = markup.replace(/currentColor/g, normalizedColor);
-  return `data:image/svg+xml;utf8,${encodeURIComponent(nextMarkup)}`;
 }
 
 onLoad(() => {
@@ -595,15 +622,15 @@ onPullDownRefresh(async () => {
   min-height: 100vh;
   overflow: hidden;
   background:
-    radial-gradient(circle at 16% 0%, rgba(var(--theme-accent-rgb), 0.26), transparent 22%),
-    radial-gradient(circle at 88% 18%, rgba(var(--theme-primary-rgb), 0.18), transparent 28%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, rgba(255, 255, 255, 0.92) 52%, var(--theme-page-bottom) 100%);
+    radial-gradient(circle at 12% 0%, rgba(var(--theme-accent-rgb), 0.18), transparent 22%),
+    radial-gradient(circle at 90% 18%, rgba(var(--theme-primary-rgb), 0.12), transparent 28%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, rgba(255, 255, 255, 0.78) 46%, var(--theme-page-bottom) 100%);
 }
 
 .home-page {
   position: relative;
   min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 26rpx) 0rpx 250rpx;
+  padding: calc(env(safe-area-inset-top) + 18rpx) 32rpx 278rpx;
   overflow: hidden;
 }
 
@@ -615,48 +642,48 @@ onPullDownRefresh(async () => {
 .ambient--paper {
   inset: 0;
   background:
-    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.86), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.42), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
     repeating-linear-gradient(
       125deg,
-      rgba(214, 205, 183, 0.05) 0,
-      rgba(214, 205, 183, 0.05) 2rpx,
+      rgba(80, 88, 104, 0.035) 0,
+      rgba(80, 88, 104, 0.035) 2rpx,
       transparent 2rpx,
       transparent 22rpx
     );
 }
 
 .ambient--glow {
-  top: 196rpx;
+  top: 180rpx;
   left: -84rpx;
   width: 260rpx;
   height: 160rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.24) 0%, rgba(255, 255, 255, 0) 76%);
-  filter: blur(28rpx);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.14) 0%, rgba(255, 255, 255, 0) 76%);
+  filter: blur(12rpx);
 }
 
 .ambient--mist-left {
-  top: 290rpx;
+  top: 360rpx;
   left: -34rpx;
   width: 286rpx;
   height: 128rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.16) 0%, rgba(255, 255, 255, 0) 72%);
-  filter: blur(18rpx);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.08) 0%, rgba(255, 255, 255, 0) 72%);
+  filter: blur(8rpx);
 }
 
 .ambient--mist-right {
   right: -40rpx;
-  top: 444rpx;
+  top: 520rpx;
   width: 320rpx;
   height: 180rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.18) 0%, rgba(255, 255, 255, 0) 76%);
-  filter: blur(24rpx);
+  background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.1) 0%, rgba(255, 255, 255, 0) 76%);
+  filter: blur(10rpx);
 }
 
-.hero,
+.home-page__hero,
 .home-page__main-card,
 .home-page__divination,
 .insight-grid,
@@ -666,290 +693,58 @@ onPullDownRefresh(async () => {
   z-index: 1;
 }
 
-.hero {
-  position: relative;
-  //margin-bottom: 10rpx;
-}
-
-.hero__scene {
-  position: relative;
-  min-height: 214rpx;
-  padding: 10rpx 8rpx 0;
-  overflow: hidden;
-}
-
-.hero__scene::before,
-.hero__scene::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.hero__scene::before {
-  inset: 0 12rpx auto;
-  height: 80rpx;
-  background: radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.5) 18%, rgba(255, 255, 255, 0) 72%);
-}
-
-.hero__scene::after {
-  inset: auto 0 0;
-  height: 68rpx;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.16) 38%, var(--theme-page-bottom) 100%);
-}
-
-.hero__mountain-backdrop {
-  position: absolute;
-  inset: 42rpx -36rpx 0;
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: 104% auto;
-  opacity: 0.84;
-  transform: translateY(0);
-}
-
-.hero__top {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  margin-top: 20rpx;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20rpx;
-  padding: 0 14rpx 0 10rpx;
-}
-
-.hero__brand {
-  display: flex;
-  align-items: flex-start;
-  gap: 14rpx;
-  min-width: 0;
-  margin-top: 0;
-}
-
-.hero__copy {
-  display: grid;
-  gap: 10rpx;
-  max-width: 430rpx;
-  margin-top: 20rpx;
-}
-
-.hero__title {
-  font-size: 74rpx;
-  line-height: 1;
-  color: var(--theme-text-primary);
-  font-family:
-    'Iowan Old Style',
-    'Times New Roman',
-    'Noto Serif SC',
-    serif;
-}
-
-.hero__subtitle {
-  font-size: 24rpx;
-  line-height: 1.6;
-  letter-spacing: 0.18em;
-  color: var(--theme-text-secondary);
-}
-
-.hero__meta {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  justify-items: end;
-  gap: 6rpx;
-  margin-top: 120rpx;
-  flex: 0 0 auto;
-}
-
-.hero__meta-line {
-  font-size: 20rpx;
-  color: rgba(var(--theme-text-primary-rgb), 0.62);
-}
-
-.hero__meta-line--secondary {
-  color: var(--theme-text-secondary);
+.home-page__hero {
+  margin: -6rpx 0 8rpx;
 }
 
 .home-page__main-card {
-  margin-top: -5rpx;
-  margin-bottom: 26rpx;
+  margin: 0 0 28rpx;
 }
 
 .home-page__divination {
-  margin: 0 20rpx 24rpx;
-}
-
-.divination-entry {
-  position: relative;
-  min-height: 236rpx;
-  display: flex;
-  align-items: stretch;
-  gap: 20rpx;
-  padding: 28rpx;
-  overflow: hidden;
-  border-radius: 34rpx;
-  background:
-    radial-gradient(circle at 74% 10%, rgba(255, 255, 255, 0.58), transparent 28%),
-    linear-gradient(135deg, rgba(139, 111, 214, 0.92), rgba(216, 166, 78, 0.46));
-  color: #ffffff;
-  box-shadow:
-    0 20rpx 52rpx rgba(var(--theme-text-primary-rgb), 0.12),
-    0 0 0 1rpx rgba(255, 255, 255, 0.24) inset;
-}
-
-.divination-entry::before,
-.divination-entry::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-}
-
-.divination-entry::before {
-  left: -30rpx;
-  right: -30rpx;
-  bottom: -20rpx;
-  height: 112rpx;
-  border-radius: 50%;
-  border: 2rpx solid rgba(255, 255, 255, 0.28);
-}
-
-.divination-entry::after {
-  right: 130rpx;
-  top: 30rpx;
-  width: 18rpx;
-  height: 18rpx;
-  background: #fff3d8;
-  clip-path: polygon(50% 0, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0 50%, 36% 36%);
-}
-
-.divination-entry__copy {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: start;
-  gap: 10rpx;
-  flex: 1;
-  min-width: 0;
-  padding-bottom: 66rpx;
-}
-
-.divination-entry__eyebrow,
-.divination-entry__summary,
-.divination-entry__tags {
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.divination-entry__eyebrow {
-  font-size: 22rpx;
-}
-
-.divination-entry__title {
-  font-size: 42rpx;
-  font-weight: 700;
-  font-family:
-    'Iowan Old Style',
-    'Times New Roman',
-    'Noto Serif SC',
-    serif;
-}
-
-.divination-entry__summary {
-  max-width: 390rpx;
-  font-size: 23rpx;
-  line-height: 1.55;
-}
-
-.divination-entry__tags {
-  display: flex;
-  gap: 10rpx;
-  margin-top: 4rpx;
-}
-
-.divination-entry__tags text {
-  padding: 7rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.18);
-  font-size: 20rpx;
-}
-
-.divination-entry__visual {
-  position: relative;
-  z-index: 1;
-  flex: 0 0 178rpx;
-}
-
-.divination-entry__moon {
-  position: absolute;
-  right: 8rpx;
-  top: 4rpx;
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 50%;
-  background: rgba(255, 243, 216, 0.9);
-  box-shadow: -22rpx 0 0 rgba(139, 111, 214, 0.28) inset;
-}
-
-.divination-entry__crystal {
-  position: absolute;
-  left: 40rpx;
-  top: 76rpx;
-  width: 76rpx;
-  height: 100rpx;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(238, 218, 255, 0.48));
-  clip-path: polygon(50% 0, 100% 36%, 72% 100%, 28% 100%, 0 36%);
-}
-
-.divination-entry__rings {
-  position: absolute;
-  left: 2rpx;
-  top: 146rpx;
-  width: 156rpx;
-  height: 42rpx;
-  border-radius: 50%;
-  border: 2rpx solid rgba(255, 255, 255, 0.42);
-}
-
-.divination-entry__button {
-  position: absolute;
-  left: 28rpx;
-  bottom: 26rpx;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 176rpx;
-  height: 58rpx;
-  padding: 0;
-  margin: 0;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.92);
-  color: #8b6fd6;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.divination-entry__button::after {
-  border: 0;
+  margin: 0 0 28rpx;
 }
 
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
-  margin-left: 20rpx;
-  margin-right: 20rpx;
+  margin: 0;
 }
 
 .insight-grid__item {
   min-width: 0;
-  height: 280rpx;
+  height: auto;
+  animation: homeInsightIn 440ms ease both;
 }
 
 .home-page__advice {
-  margin-top: 24rpx;
+  margin-top: 28rpx;
 }
 
 .home-page__tools {
   margin-top: 24rpx;
+}
+
+@keyframes homeInsightIn {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 360px) {
+  .home-page {
+    padding-left: 26rpx;
+    padding-right: 26rpx;
+  }
+
+  .insight-grid {
+    gap: 14rpx;
+  }
 }
 </style>

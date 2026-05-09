@@ -77,13 +77,13 @@ const orbitalStyle = computed(() => ({
   overflow: hidden;
   border-radius: 0rpx;
   background:
-    radial-gradient(circle at 76% 36%, rgba(var(--theme-accent-rgb), 0.18), transparent 18%),
-    radial-gradient(circle at 18% 18%, rgba(var(--theme-primary-rgb), 0.18), transparent 26%),
-    linear-gradient(112deg, rgba(var(--theme-primary-rgb), 0.12) 0%, rgba(255, 252, 246, 0.94) 54%, rgba(var(--theme-accent-rgb), 0.08) 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.88);
+    radial-gradient(circle at 78% 34%, rgba(var(--theme-accent-rgb), 0.18), transparent 20%),
+    radial-gradient(circle at 16% 16%, rgba(var(--theme-primary-rgb), 0.12), transparent 24%),
+    linear-gradient(112deg, rgba(255, 255, 255, 0.98) 0%, var(--theme-soft) 48%, rgba(255, 255, 255, 0.96) 100%);
+  border: 1rpx solid var(--theme-border);
   box-shadow:
-    0 26rpx 68rpx rgba(143, 156, 180, 0.14),
-    0 0 0 1rpx rgba(255, 255, 255, 0.42) inset;
+    0 26rpx 68rpx rgba(var(--theme-text-primary-rgb), 0.1),
+    0 0 0 1rpx rgba(255, 255, 255, 0.72) inset;
 }
 
 .fortune-card__wash {
@@ -92,8 +92,8 @@ const orbitalStyle = computed(() => ({
   width: 340rpx;
   height: 180rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.18) 0%, rgba(255, 255, 255, 0) 74%);
-  filter: blur(26rpx);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.1) 0%, rgba(255, 255, 255, 0) 74%);
+  filter: blur(10rpx);
 }
 
 .fortune-card__spark {
@@ -167,7 +167,7 @@ const orbitalStyle = computed(() => ({
 .fortune-card__score {
   font-size: 180rpx;
   line-height: 0.82;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--theme-text-primary);
   font-family:
     'Iowan Old Style',
@@ -178,7 +178,7 @@ const orbitalStyle = computed(() => ({
 
 .fortune-card__denominator {
   font-size: 30rpx;
-  color: var(--theme-text-secondary);
+  color: rgba(var(--theme-text-primary-rgb), 0.64);
 }
 
 .fortune-card__score-track {
@@ -186,13 +186,13 @@ const orbitalStyle = computed(() => ({
   width: 206rpx;
   height: 8rpx;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, rgba(var(--theme-accent-rgb), 0.42) 0%, rgba(var(--theme-accent-rgb), 0.08) 100%);
+  background: linear-gradient(90deg, rgba(var(--theme-primary-rgb), 0.22) 0%, rgba(var(--theme-primary-rgb), 0.08) 100%);
 }
 
 .fortune-card__score-track-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--theme-accent) 0%, var(--theme-primary) 100%);
+  background: linear-gradient(90deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
 }
 
 .fortune-card__score-track-dot {
@@ -203,8 +203,8 @@ const orbitalStyle = computed(() => ({
   height: 16rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
-  border: 2rpx solid rgba(var(--theme-accent-rgb), 0.8);
-  box-shadow: 0 0 12rpx rgba(var(--theme-accent-rgb), 0.26);
+  border: 2rpx solid rgba(var(--theme-primary-rgb), 0.52);
+  box-shadow: 0 0 12rpx rgba(var(--theme-primary-rgb), 0.2);
   transform: translate(-50%, -50%);
 }
 
@@ -222,7 +222,7 @@ const orbitalStyle = computed(() => ({
   background-position: center center;
   background-repeat: no-repeat;
   background-size: 104%;
-  filter: drop-shadow(0 18rpx 40rpx rgba(var(--theme-primary-rgb), 0.14));
+  filter: saturate(1.14) contrast(1.08) drop-shadow(0 18rpx 40rpx rgba(var(--theme-primary-rgb), 0.12));
   transform: none;
 }
 
@@ -259,8 +259,8 @@ const orbitalStyle = computed(() => ({
   gap: 8rpx;
   padding: 12rpx 16rpx;
   border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.46);
-  box-shadow: 0 0 0 1rpx rgba(255, 255, 255, 0.48) inset;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 0 0 1rpx var(--theme-border) inset;
 }
 
 .fortune-card__tag {
@@ -278,12 +278,12 @@ const orbitalStyle = computed(() => ({
   letter-spacing: 0;
   font-size: 21rpx;
   font-weight: 400;
-  color: var(--theme-accent);
+  color: var(--theme-text-secondary);
 }
 
 .fortune-card__tag-value {
   font-size: 21rpx;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--theme-primary);
 }
 </style>

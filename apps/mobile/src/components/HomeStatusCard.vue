@@ -111,12 +111,12 @@ function buildSvgDataUrl(markup: string, color: string) {
   align-content: start;
   overflow: hidden;
   background:
-    radial-gradient(circle at 100% 0%, rgba(var(--theme-accent-rgb), 0.18), transparent 36%),
-    linear-gradient(150deg, rgba(255, 255, 255, 0.96) 0%, rgba(var(--theme-primary-rgb), 0.04) 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.94);
+    radial-gradient(circle at 100% 0%, rgba(var(--theme-accent-rgb), 0.14), transparent 34%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.98) 0%, var(--theme-surface-muted) 100%);
+  border: 1rpx solid var(--theme-border);
   box-shadow:
-    0 18rpx 48rpx rgba(149, 157, 176, 0.12),
-    0 0 0 1rpx rgba(255, 255, 255, 0.5) inset;
+    0 18rpx 48rpx rgba(var(--theme-text-primary-rgb), 0.08),
+    0 0 0 1rpx rgba(255, 255, 255, 0.68) inset;
 }
 
 .status-card__art {
@@ -135,16 +135,16 @@ function buildSvgDataUrl(markup: string, color: string) {
 
 .status-card__art-orb {
   background:
-    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.96), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(var(--theme-primary-rgb), 0.18) 100%);
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.98), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(var(--theme-primary-rgb), 0.16) 100%);
   box-shadow:
     0 0 0 1rpx rgba(255, 255, 255, 0.76) inset,
-    0 18rpx 34rpx rgba(var(--theme-primary-rgb), 0.14);
+    0 18rpx 34rpx rgba(var(--theme-primary-rgb), 0.12);
 }
 
 .status-card__art-ring {
   inset: 8rpx;
-  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.26);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.34);
 }
 
 .status-card__art::before,
@@ -153,7 +153,7 @@ function buildSvgDataUrl(markup: string, color: string) {
   position: absolute;
   inset: 8rpx;
   border-radius: 50%;
-  border: 1rpx solid rgba(var(--theme-accent-rgb), 0.28);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.22);
 }
 
 .status-card__art::before {
@@ -220,6 +220,7 @@ function buildSvgDataUrl(markup: string, color: string) {
   font-size: 18rpx;
   color: var(--theme-primary);
   background: var(--theme-tag-bg);
+  font-weight: 600;
 }
 
 .status-card__metric,
@@ -249,7 +250,7 @@ function buildSvgDataUrl(markup: string, color: string) {
   width: 92rpx;
   height: 10rpx;
   border-radius: 999rpx;
-  background: rgba(var(--theme-text-secondary-rgb), 0.16);
+  background: rgba(var(--theme-text-secondary-rgb), 0.18);
   overflow: hidden;
 }
 
@@ -304,8 +305,8 @@ function buildSvgDataUrl(markup: string, color: string) {
 
 .status-card--bagua .status-card__art-orb {
   background:
-    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.96), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(var(--theme-accent-rgb), 0.2) 100%);
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.98), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(var(--theme-accent-rgb), 0.22) 100%);
 }
 
 .status-card--bagua .status-card__art-mark {

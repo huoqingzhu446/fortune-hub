@@ -49,7 +49,7 @@ defineEmits<{
 const swatches = computed(() => [
   props.palette.primary,
   props.palette.accent,
-  props.palette.soft,
+  props.palette.pageBottom,
 ]);
 </script>
 
@@ -59,18 +59,18 @@ const swatches = computed(() => [
   gap: 18rpx;
   padding: 24rpx;
   border-radius: 28rpx;
-  background: var(--theme-surface);
-  border: 1rpx solid transparent;
+  background: var(--theme-surface-strong);
+  border: 1rpx solid var(--theme-border);
   box-shadow: var(--theme-shadow-soft);
 }
 
 .theme-card--active {
   border-color: var(--theme-primary);
-  background: var(--theme-surface-strong);
+  background: #ffffff;
 }
 
 .theme-card--muted {
-  opacity: 0.76;
+  opacity: 0.88;
 }
 
 .theme-card__swatches {
@@ -82,6 +82,7 @@ const swatches = computed(() => [
 .theme-card__swatch {
   height: 64rpx;
   border-radius: 18rpx;
+  box-shadow: 0 0 0 1rpx rgba(var(--theme-text-primary-rgb), 0.08) inset;
 }
 
 .theme-card__meta {

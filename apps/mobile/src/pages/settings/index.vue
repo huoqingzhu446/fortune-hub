@@ -251,7 +251,7 @@ onShow(() => {
 .page-shell {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, var(--theme-glow), transparent 32%),
+    radial-gradient(circle at top left, var(--theme-glow), transparent 26%),
     linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
 }
 
@@ -268,7 +268,7 @@ onShow(() => {
   border-radius: 32rpx;
   background: var(--theme-surface);
   border: 1rpx solid var(--theme-border);
-  box-shadow: var(--theme-shadow);
+  box-shadow: var(--theme-shadow-soft);
 }
 
 .eyebrow {

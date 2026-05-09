@@ -42,12 +42,12 @@ defineEmits<{
   padding: 28rpx 30rpx;
   border-radius: 36rpx;
   background:
-    radial-gradient(circle at 82% 20%, rgba(var(--theme-accent-rgb), 0.18), transparent 24%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(var(--theme-primary-rgb), 0.08) 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.92);
+    radial-gradient(circle at 82% 20%, rgba(var(--theme-accent-rgb), 0.14), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, var(--theme-surface-muted) 100%);
+  border: 1rpx solid var(--theme-border);
   box-shadow:
     0 20rpx 54rpx rgba(var(--theme-text-primary-rgb), 0.08),
-    0 0 0 1rpx rgba(255, 255, 255, 0.44) inset;
+    0 0 0 1rpx rgba(255, 255, 255, 0.68) inset;
 }
 
 .advice-card__illustration {
@@ -68,18 +68,18 @@ defineEmits<{
   width: 110rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.18) 0%, rgba(255, 255, 255, 0) 74%);
-  filter: blur(10rpx);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.1) 0%, rgba(255, 255, 255, 0) 74%);
+  filter: blur(6rpx);
 }
 
 .advice-card__orb {
   border-radius: 34rpx;
   background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.94), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(var(--theme-primary-rgb), 0.18) 100%);
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.98), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(var(--theme-primary-rgb), 0.16) 100%);
   box-shadow:
     0 0 0 1rpx rgba(255, 255, 255, 0.76) inset,
-    0 22rpx 44rpx rgba(var(--theme-primary-rgb), 0.12);
+    0 22rpx 44rpx rgba(var(--theme-primary-rgb), 0.1);
 }
 
 .advice-card__silhouette {
@@ -88,7 +88,7 @@ defineEmits<{
   inset: 30rpx;
   font-size: 42rpx;
   color: var(--theme-primary);
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.44);
   border-radius: 50%;
 }
 
@@ -131,8 +131,8 @@ defineEmits<{
   border-radius: 999rpx;
   font-size: 26rpx;
   color: var(--theme-text-primary);
-  background: rgba(255, 255, 255, 0.82);
-  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.22);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.24);
   box-shadow: 0 14rpx 28rpx rgba(var(--theme-primary-rgb), 0.08);
 }
 

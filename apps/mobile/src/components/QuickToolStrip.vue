@@ -43,11 +43,11 @@ defineEmits<{
   gap: 0;
   padding: 16rpx 12rpx;
   border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid var(--theme-border);
   box-shadow:
     0 18rpx 46rpx rgba(var(--theme-text-primary-rgb), 0.08),
-    0 0 0 1rpx rgba(255, 255, 255, 0.44) inset;
+    0 0 0 1rpx rgba(255, 255, 255, 0.66) inset;
 }
 
 .tool-strip__item {
@@ -75,8 +75,9 @@ defineEmits<{
   width: 62rpx;
   height: 62rpx;
   border-radius: 50%;
-  border: 1.5rpx solid rgba(var(--theme-primary-rgb), 0.58);
+  border: 1.5rpx solid rgba(var(--theme-primary-rgb), 0.62);
   color: var(--theme-primary);
+  background: var(--theme-tag-bg);
 }
 
 .tool-strip__icon-mark {

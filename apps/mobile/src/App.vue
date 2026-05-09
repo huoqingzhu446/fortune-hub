@@ -16,22 +16,26 @@ onHide(() => {
 
 <style lang="scss">
 page {
-  --theme-primary: #5ea6e3;
-  --theme-soft: #eef5fa;
-  --theme-accent: #a9d4f7;
-  --theme-page-top: #fbf9f5;
-  --theme-page-bottom: #eef5fa;
-  --theme-surface: rgba(255, 255, 255, 0.76);
-  --theme-surface-strong: rgba(255, 255, 255, 0.9);
-  --theme-surface-muted: rgba(244, 248, 252, 0.92);
-  --theme-text-primary: #2f3a4a;
-  --theme-text-secondary: #7f8793;
-  --theme-text-tertiary: #aeb4bd;
-  --theme-border: rgba(255, 255, 255, 0.82);
-  --theme-tag-bg: rgba(238, 245, 250, 0.96);
-  --theme-glow: rgba(169, 212, 247, 0.44);
-  --theme-shadow: 0 16rpx 48rpx rgba(92, 112, 140, 0.12);
-  --theme-shadow-soft: 0 8rpx 24rpx rgba(92, 112, 140, 0.12);
+  --theme-primary: #2f7fbd;
+  --theme-primary-rgb: 47, 127, 189;
+  --theme-soft: #eaf4fb;
+  --theme-accent: #8cc5ee;
+  --theme-accent-rgb: 140, 197, 238;
+  --theme-page-top: #f9fcfe;
+  --theme-page-bottom: #eaf4fb;
+  --theme-surface: rgba(255, 255, 255, 0.94);
+  --theme-surface-strong: rgba(255, 255, 255, 0.98);
+  --theme-surface-muted: rgba(238, 246, 252, 0.96);
+  --theme-text-primary: #252a36;
+  --theme-text-primary-rgb: 37, 42, 54;
+  --theme-text-secondary: #5e6878;
+  --theme-text-secondary-rgb: 94, 104, 120;
+  --theme-text-tertiary: #8a94a3;
+  --theme-border: rgba(39, 48, 66, 0.1);
+  --theme-tag-bg: rgba(225, 240, 250, 0.96);
+  --theme-glow: rgba(80, 151, 207, 0.22);
+  --theme-shadow: 0 16rpx 48rpx rgba(43, 76, 108, 0.14);
+  --theme-shadow-soft: 0 8rpx 24rpx rgba(43, 76, 108, 0.14);
   --apple-bg-top: var(--theme-page-top);
   --apple-bg-bottom: var(--theme-page-bottom);
   --apple-surface: var(--theme-surface);
@@ -48,8 +52,8 @@ page {
   --apple-sun-soft: var(--theme-soft);
   --apple-shadow: var(--theme-shadow);
   background:
-    radial-gradient(circle at top left, var(--theme-glow), transparent 30%),
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.72), transparent 24%),
+    radial-gradient(circle at top left, var(--theme-glow), transparent 26%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.5), transparent 22%),
     linear-gradient(180deg, var(--theme-page-top) 0%, var(--theme-page-bottom) 100%);
   color: var(--theme-text-primary);
   font-family:
@@ -100,16 +104,16 @@ button::after,
 .app-button--primary {
   color: #ffffff;
   background:
-    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.96) 0%, rgba(var(--theme-accent-rgb), 0.94) 100%);
+    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 1) 0%, rgba(var(--theme-primary-rgb), 0.84) 100%);
   box-shadow:
-    0 16rpx 30rpx rgba(var(--theme-primary-rgb), 0.22),
+    0 16rpx 30rpx rgba(var(--theme-primary-rgb), 0.24),
     0 0 0 1rpx rgba(255, 255, 255, 0.18) inset;
 }
 
 .app-button--secondary {
   color: var(--theme-text-primary);
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(var(--theme-primary-rgb), 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--theme-border);
   box-shadow:
     0 12rpx 26rpx rgba(var(--theme-text-primary-rgb), 0.08),
     0 0 0 1rpx rgba(255, 255, 255, 0.44) inset;
@@ -193,9 +197,9 @@ button.hero-login-row__button--primary,
 button.advice-card__button {
   color: #ffffff !important;
   background:
-    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.96) 0%, rgba(var(--theme-accent-rgb), 0.94) 100%) !important;
+    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 1) 0%, rgba(var(--theme-primary-rgb), 0.84) 100%) !important;
   box-shadow:
-    0 16rpx 30rpx rgba(var(--theme-primary-rgb), 0.22),
+    0 16rpx 30rpx rgba(var(--theme-primary-rgb), 0.24),
     0 0 0 1rpx rgba(255, 255, 255, 0.18) inset !important;
 }
 
@@ -204,8 +208,8 @@ button.ghost-button,
 button.filter-actions__reset,
 button.hero-login-row__button--secondary {
   color: var(--theme-text-primary) !important;
-  background: rgba(255, 255, 255, 0.86) !important;
-  border-color: rgba(var(--theme-primary-rgb), 0.12) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: var(--theme-border) !important;
   box-shadow:
     0 12rpx 26rpx rgba(var(--theme-text-primary-rgb), 0.08),
     0 0 0 1rpx rgba(255, 255, 255, 0.44) inset !important;
@@ -240,7 +244,7 @@ button.topic-card__favorite--active,
 button.favorite-strip__button--active {
   color: #ffffff !important;
   background:
-    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.92) 0%, rgba(var(--theme-accent-rgb), 0.88) 100%) !important;
+    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.98) 0%, rgba(var(--theme-primary-rgb), 0.78) 100%) !important;
   box-shadow: 0 12rpx 24rpx rgba(var(--theme-primary-rgb), 0.18) !important;
 }
 

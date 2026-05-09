@@ -16,7 +16,8 @@
     {
       "path": "pages/zodiac/index",
       "style": {
-        "navigationBarTitleText": "星座运势"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {

@@ -121,7 +121,7 @@
           <text class="explore-section__link">全部专题 ›</text>
         </view>
 
-        <scroll-view class="topic-scroll" scroll-x>
+        <scroll-view class="topic-scroll" scroll-x :show-scrollbar="false">
           <view class="topic-track">
             <view
               v-for="topic in topics"

@@ -64,6 +64,42 @@ page {
     sans-serif;
 }
 
+page,
+uni-page-wrapper,
+uni-page-body,
+uni-scroll-view,
+.uni-scroll-view {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+page::-webkit-scrollbar,
+uni-page-wrapper::-webkit-scrollbar,
+uni-page-body::-webkit-scrollbar,
+uni-scroll-view::-webkit-scrollbar,
+.uni-scroll-view::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+/* #ifdef H5 */
+html,
+body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+/* #endif */
+
 button,
 .app-button {
   box-sizing: border-box;

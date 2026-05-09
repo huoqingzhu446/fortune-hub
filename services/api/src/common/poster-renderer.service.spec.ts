@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { PosterRendererService } from './poster-renderer.service';
 
 describe('PosterRendererService', () => {
-  it('renders zodiac today templates as 1088x1472 PNG images', async () => {
+  it('renders zodiac today templates as 1088x1472 JPG images', async () => {
     const service = new PosterRendererService();
     const layout = service.resolvePosterLayout('1088x1472', 'zodiac_today');
     const rendered = await service.renderPoster(
@@ -54,10 +54,13 @@ describe('PosterRendererService', () => {
         height: 1472,
       }),
     );
-    expect(metadata.format).toBe('png');
+    expect(metadata.format).toBe('jpeg');
     expect(metadata.width).toBe(1088);
     expect(metadata.height).toBe(1472);
-    expect(rendered.imageDataUrl).toMatch(/^data:image\/png;base64,/);
+    expect(rendered.format).toBe('jpg');
+    expect(rendered.mimeType).toBe('image/jpeg');
+    expect(rendered.extension).toBe('jpg');
+    expect(rendered.imageDataUrl).toMatch(/^data:image\/jpeg;base64,/);
     expect(rendered.usedProviderBackground).toBe(false);
   });
 
@@ -121,6 +124,9 @@ describe('PosterRendererService', () => {
     expect(metadata.format).toBe('png');
     expect(metadata.width).toBe(941);
     expect(metadata.height).toBe(1672);
+    expect(rendered.format).toBe('png');
+    expect(rendered.mimeType).toBe('image/png');
+    expect(rendered.extension).toBe('png');
     expect(rendered.imageDataUrl).toMatch(/^data:image\/png;base64,/);
   });
 });

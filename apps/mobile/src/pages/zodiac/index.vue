@@ -18,16 +18,6 @@
         <text class="page-title">星座运势</text>
         <text class="page-subtitle">探索星空 · 发现更好的自己</text>
       </view>
-      <view class="menu-capsule">
-        <view class="menu-dots">
-          <view class="menu-dot"></view>
-          <view class="menu-dot"></view>
-          <view class="menu-dot"></view>
-        </view>
-        <view class="menu-separator"></view>
-        <view class="menu-dash"></view>
-        <view class="menu-target"></view>
-      </view>
     </view>
 
     <view class="fortune-shell">

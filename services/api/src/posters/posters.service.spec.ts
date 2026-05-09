@@ -57,8 +57,11 @@ describe('PostersService', () => {
         kind: 'portrait',
       })),
       renderPoster: jest.fn(async () => ({
-        imageBuffer: Buffer.from('png'),
-        imageDataUrl: 'data:image/png;base64,cG5n',
+        imageBuffer: Buffer.from('jpg'),
+        imageDataUrl: 'data:image/jpeg;base64,anBn',
+        format: 'jpg',
+        mimeType: 'image/jpeg',
+        extension: 'jpg',
         usedProviderBackground: false,
       })),
     };
@@ -114,7 +117,9 @@ describe('PostersService', () => {
         providerImageUrl: null,
         providerRequestId: null,
         providerError: null,
-        format: 'png',
+        format: 'jpg',
+        imageDataUrl: 'data:image/jpeg;base64,anBn',
+        downloadFileName: expect.stringMatching(/\.jpg$/),
       }),
     );
     expect(shareRecordRepository.save).toHaveBeenCalledWith(

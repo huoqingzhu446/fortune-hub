@@ -108,11 +108,15 @@ export class PostersService {
       source.sourceType,
       layout.kind,
     );
-    const downloadFileName = `fortune-hub-${source.sourceType}-${posterId}.png`;
+    const imageFormat = rendered.format ?? 'png';
+    const imageMimeType = rendered.mimeType ?? 'image/png';
+    const imageExtension = rendered.extension ?? imageFormat;
+    const downloadFileName = `fortune-hub-${source.sourceType}-${posterId}.${imageExtension}`;
 
     const fileUrl = await this.persistPosterFile(
       rendered.imageBuffer,
       downloadFileName,
+      imageMimeType,
     );
     const payload = {
       posterId,
@@ -137,7 +141,7 @@ export class PostersService {
       size: layout.size,
       downloadFileName,
       generatedAt: new Date().toISOString(),
-      format: 'png',
+      format: imageFormat,
       imageDataUrl: rendered.imageDataUrl,
       fileUrl,
     };
@@ -2007,7 +2011,11 @@ export class PostersService {
     return Math.min(86400, Math.round(ttl));
   }
 
-  private async persistPosterFile(imageBuffer: Buffer, fileName: string) {
+  private async persistPosterFile(
+    imageBuffer: Buffer,
+    fileName: string,
+    mimeType = 'image/png',
+  ) {
     const uploadUrl = this.resolveFileServiceUploadUrl();
 
     if (!uploadUrl) {
@@ -2017,7 +2025,7 @@ export class PostersService {
     const token = this.configService.get<string>('FILE_SERVICE_TOKEN');
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(imageBuffer)], {
-      type: 'image/png',
+      type: mimeType,
     });
 
     formData.append('appCode', 'fortune-hub');
@@ -2139,7 +2147,9 @@ export class PostersService {
 
     if (
       typeof publicPayload.imageDataUrl === 'string' &&
-      !publicPayload.imageDataUrl.startsWith('data:image/png;base64,')
+      !/^data:image\/(?:png|jpe?g|webp);base64,/i.test(
+        publicPayload.imageDataUrl,
+      )
     ) {
       delete publicPayload.imageDataUrl;
     }

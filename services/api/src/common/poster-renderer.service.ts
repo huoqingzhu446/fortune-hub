@@ -154,6 +154,9 @@ export type WallpaperLayout = {
 export type RenderedPosterImage = {
   imageBuffer: Buffer;
   imageDataUrl: string;
+  format: 'png' | 'jpg' | 'webp';
+  mimeType: string;
+  extension: string;
   usedProviderBackground: boolean;
 };
 
@@ -268,7 +271,10 @@ export class PosterRendererService {
 
       return {
         imageBuffer,
-        imageDataUrl: this.toPngDataUrl(imageBuffer),
+        imageDataUrl: this.toImageDataUrl(imageBuffer, 'image/png'),
+        format: 'png',
+        mimeType: 'image/png',
+        extension: 'png',
         usedProviderBackground: false,
       };
     }
@@ -285,7 +291,10 @@ export class PosterRendererService {
     const imageBuffer = await this.renderPng(templateMarkup);
     return {
       imageBuffer,
-      imageDataUrl: this.toPngDataUrl(imageBuffer),
+      imageDataUrl: this.toImageDataUrl(imageBuffer, 'image/png'),
+      format: 'png',
+      mimeType: 'image/png',
+      extension: 'png',
       usedProviderBackground: Boolean(backgroundDataUrl),
     };
   }
@@ -303,7 +312,10 @@ export class PosterRendererService {
     const imageBuffer = await this.renderPng(templateMarkup);
     return {
       imageBuffer,
-      imageDataUrl: this.toPngDataUrl(imageBuffer),
+      imageDataUrl: this.toImageDataUrl(imageBuffer, 'image/png'),
+      format: 'png',
+      mimeType: 'image/png',
+      extension: 'png',
       usedProviderBackground: Boolean(input.backgroundDataUrl),
     };
   }
@@ -325,12 +337,15 @@ export class PosterRendererService {
     const imageBuffer = await sharp(templateBuffer)
       .resize(layout.width, layout.height, { fit: 'fill' })
       .composite([{ input: Buffer.from(overlay), top: 0, left: 0 }])
-      .png({ compressionLevel: 9 })
+      .jpeg({ quality: 98, mozjpeg: true, progressive: true })
       .toBuffer();
 
     return {
       imageBuffer,
-      imageDataUrl: this.toPngDataUrl(imageBuffer),
+      imageDataUrl: this.toImageDataUrl(imageBuffer, 'image/jpeg'),
+      format: 'jpg',
+      mimeType: 'image/jpeg',
+      extension: 'jpg',
       usedProviderBackground: false,
     };
   }
@@ -2990,8 +3005,8 @@ export class PosterRendererService {
       .toBuffer();
   }
 
-  private toPngDataUrl(imageBuffer: Buffer) {
-    return `data:image/png;base64,${imageBuffer.toString('base64')}`;
+  private toImageDataUrl(imageBuffer: Buffer, mimeType: string) {
+    return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
   }
 
   private escapeXml(value: string) {

@@ -39,27 +39,31 @@ export const DIVINATION_POSTER_HEIGHT = 1472;
 const FONT_FAMILY = 'PingFang SC, Microsoft YaHei, sans-serif';
 const SERIF_FONT_FAMILY = 'Songti SC, STSong, Noto Serif SC, serif';
 
-export interface DivinationPosterScoreMetric {
-  key: 'overall' | 'emotion' | 'action';
+export interface DivinationPosterInfoChip {
   label: string;
-  value: number;
-  color: string;
+  value: string;
 }
 
 export interface DivinationPosterViewModel {
   dateText: string;
-  hexagramNo: string;
-  title: string;
+  eyebrowText: string;
+  hexagramTitle: string;
   meaning: string;
   level: string;
-  topicLabel: string;
+  trigramText: string;
+  changedName: string;
+  changedButtonText: string;
   movingText: string;
-  changedText: string;
-  keywordText: string;
-  summaryText: string;
-  suitableText: string;
-  avoidText: string;
-  scoreMetrics: DivinationPosterScoreMetric[];
+  infoChips: DivinationPosterInfoChip[];
+  oracleTitle: string;
+  oracleSubject: string;
+  oracleSituation: string;
+  movingTitle: string;
+  movingBody: string;
+  movingAdvice: string;
+  changedTitle: string;
+  changedBody: string;
+  changedAdvice: string;
 }
 
 export interface DivinationPosterFile {
@@ -74,31 +78,48 @@ export function getWechatPosterRuntime() {
 }
 
 export function buildDivinationPosterViewModel(result: DivinationResult): DivinationPosterViewModel {
+  const movingLine = result.casting?.movingLine || result.changingLines?.[0] || 1;
+  const movingLineReading = result.hexagram.lineReadings?.[movingLine - 1];
+  const methodText = normalizePosterText(result.casting?.methodLabel || '略筮法');
+  const movingText = normalizePosterText(result.casting?.movingLineLabel || resolveMovingLineText(movingLine));
+  const changedName = normalizePosterText(result.changedHexagram?.name || '本卦不变');
+  const oracle = result.oracle;
+  const fallbackAction = joinPosterItems(result.advice, '宜先修细节、积小成势。', '，', 1);
+
   return {
     dateText: formatDivinationDate(result.createdAt),
-    hexagramNo: String(result.hexagram.sequence ?? result.hexagram.id).padStart(2, '0'),
-    title: normalizePosterText(result.hexagram.name),
+    eyebrowText: `${normalizePosterText(result.topicLabel || '今日占卜')} · ${methodText}`,
+    hexagramTitle: `本卦：${normalizePosterText(result.hexagram.name)}`,
     meaning: normalizePosterText(result.hexagram.meaning),
     level: normalizePosterText(result.hexagram.level),
-    topicLabel: normalizePosterText(result.topicLabel || '今日占卜'),
-    movingText: normalizePosterText(result.casting?.movingLineLabel || resolveMovingLineText(result.changingLines[0])),
-    changedText: result.changedHexagram
-      ? `变卦 ${normalizePosterText(result.changedHexagram.name)}`
-      : '本卦不变',
-    keywordText: joinPosterItems(result.keywords, '顺势 / 调整 / 收束', ' / ', 4),
-    summaryText: normalizePosterText(
-      result.summary ||
-        result.oracle?.action ||
-        result.topicReading?.summary ||
-        '先看清局势，再把今天最确定的一步做稳。',
-    ),
-    suitableText: joinPosterItems(result.suitable, '整理、复盘、沟通', '、', 3),
-    avoidText: joinPosterItems(result.avoid, '急进、纠缠、过度消耗', '、', 3),
-    scoreMetrics: [
-      { key: 'overall', label: '综合', value: clampScore(result.scores.overall), color: '#A04735' },
-      { key: 'emotion', label: '情绪', value: clampScore(result.scores.emotion), color: '#6F7F6B' },
-      { key: 'action', label: '行动', value: clampScore(result.scores.action), color: '#B17A32' },
+    trigramText: `${normalizePosterText(result.hexagram.upperTrigram)}上 · ${normalizePosterText(result.hexagram.lowerTrigram)}下`,
+    changedName,
+    changedButtonText: result.changedHexagram ? `查看变卦：${changedName}` : '本卦不变',
+    movingText,
+    infoChips: [
+      { label: '起法', value: methodText },
+      { label: '动爻', value: movingText },
+      { label: '变卦', value: changedName },
     ],
+    oracleTitle: normalizePosterText(oracle?.title || '高岛式断曰'),
+    oracleSubject: normalizePosterText(oracle?.subject || result.question || result.topicLabel || result.hexagram.name),
+    oracleSituation: normalizePosterText(oracle?.situation || result.summary),
+    movingTitle: movingText,
+    movingBody: normalizePosterText(
+      oracle?.moving ||
+        movingLineReading?.takashimaText ||
+        movingLineReading?.text ||
+        `${movingText}为本次关键，宜看清眼前最容易失衡的位置。`,
+    ),
+    movingAdvice: normalizePosterText(movingLineReading?.advice || fallbackAction),
+    changedTitle: changedName,
+    changedBody: normalizePosterText(
+      oracle?.tendency ||
+        result.changedHexagram?.decision ||
+        result.changedHexagram?.meaning ||
+        '本卦不变，宜守住当前判断，先把眼前一步做稳。',
+    ),
+    changedAdvice: normalizePosterText(oracle?.action || result.topicReading?.action || fallbackAction),
   };
 }
 
@@ -148,230 +169,137 @@ function drawPoster(ctx: CanvasRenderingContext2D, result: DivinationResult) {
   const poster = buildDivinationPosterViewModel(result);
 
   drawBackground(ctx);
-  drawFrame(ctx);
-  drawHeader(ctx, poster);
-  drawTitleBlock(ctx, poster);
-  drawOraclePanel(ctx, result, poster);
-  drawScores(ctx, poster);
-  drawSummary(ctx, poster);
-  drawSuitableAvoid(ctx, poster);
+  drawPageTitle(ctx, poster);
+  drawResultCard(ctx, result, poster);
+  drawOracleCard(ctx, poster);
+  drawDetailPanels(ctx, poster);
   drawFooter(ctx);
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D) {
   const gradient = ctx.createLinearGradient(0, 0, 0, DIVINATION_POSTER_HEIGHT);
-  gradient.addColorStop(0, '#F8F0E3');
-  gradient.addColorStop(0.55, '#F3ECE2');
-  gradient.addColorStop(1, '#EDF2E9');
+  gradient.addColorStop(0, '#FCF7EE');
+  gradient.addColorStop(0.56, '#F7EFE4');
+  gradient.addColorStop(1, '#F3EADD');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, DIVINATION_POSTER_WIDTH, DIVINATION_POSTER_HEIGHT);
-
-  ctx.save();
-  ctx.globalAlpha = 0.42;
-  ctx.fillStyle = '#D8C7AD';
-  for (let index = 0; index < 42; index += 1) {
-    const x = (index * 113) % DIVINATION_POSTER_WIDTH;
-    const y = 42 + ((index * 191) % (DIVINATION_POSTER_HEIGHT - 96));
-    const width = 34 + ((index * 17) % 76);
-    ctx.fillRect(x, y, width, 1);
-  }
-  ctx.restore();
 }
 
-function drawFrame(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(118,88,55,0.34)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(64, 56, 960, 1360);
-
-  ctx.strokeStyle = 'rgba(160,71,53,0.56)';
-  ctx.beginPath();
-  ctx.moveTo(88, 166);
-  ctx.lineTo(88, 1224);
-  ctx.stroke();
-
-  ctx.strokeStyle = 'rgba(118,88,55,0.24)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(1000, 166);
-  ctx.lineTo(1000, 1224);
-  ctx.stroke();
-
-  drawCorner(ctx, 64, 56, 46, 46);
-  drawCorner(ctx, 1024, 56, -46, 46);
-  drawCorner(ctx, 64, 1416, 46, -46);
-  drawCorner(ctx, 1024, 1416, -46, -46);
-  ctx.restore();
-}
-
-function drawHeader(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  setFont(ctx, 22, '700');
-  ctx.fillStyle = '#A04735';
-  ctx.textAlign = 'left';
-  ctx.fillText('FORTUNE HUB', 112, 112);
-
-  setFont(ctx, 34, '600');
-  ctx.fillStyle = '#35291F';
-  ctx.fillText('今日占卜签', 112, 154);
-
-  setFont(ctx, 28, '500');
-  ctx.fillStyle = '#6F6253';
-  ctx.textAlign = 'right';
-  ctx.fillText(poster.dateText, 976, 116);
-
-  setFont(ctx, 20, '700');
-  ctx.fillStyle = '#A04735';
-  ctx.fillText(`HEXAGRAM NO.${poster.hexagramNo}`, 976, 154);
-}
-
-function drawTitleBlock(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  ctx.save();
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#35291F';
-  drawFitText(ctx, poster.title, 112, 260, 680, 92, 62, '700', SERIF_FONT_FAMILY);
-
-  setFont(ctx, 30, '400');
-  ctx.fillStyle = '#6F6253';
-  ctx.fillText(poster.meaning, 116, 316);
-
-  const levelWidth = Math.max(92, ctx.measureText(poster.level).width + 46);
-  drawRoundRect(ctx, 116, 344, levelWidth, 48, 24, '#A04735');
-  setFont(ctx, 24, '700');
-  ctx.fillStyle = '#FFF6EA';
+function drawPageTitle(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
+  setFont(ctx, 44, '700');
+  ctx.fillStyle = '#181512';
   ctx.textAlign = 'center';
-  ctx.fillText(poster.level, 116 + levelWidth / 2, 376);
+  ctx.fillText('占卜结果', DIVINATION_POSTER_WIDTH / 2, 92);
 
-  ctx.textAlign = 'left';
-  setFont(ctx, 25, '500');
-  ctx.fillStyle = '#7A6A58';
-  ctx.fillText(`${poster.topicLabel} · ${poster.movingText}`, 116 + levelWidth + 24, 376);
-
-  drawSeal(ctx, 884, 238, 104);
-  ctx.restore();
+  setFont(ctx, 24, '500');
+  ctx.fillStyle = '#9A8B7D';
+  ctx.textAlign = 'right';
+  ctx.fillText(poster.dateText, 1008, 92);
 }
 
-function drawOraclePanel(
+function drawResultCard(
   ctx: CanvasRenderingContext2D,
   result: DivinationResult,
   poster: DivinationPosterViewModel,
 ) {
-  ctx.save();
-  ctx.shadowColor = 'rgba(45,58,52,0.18)';
-  ctx.shadowBlur = 34;
-  ctx.shadowOffsetY = 18;
-  drawRoundRect(ctx, 112, 438, 864, 328, 36, '#2D3A34');
-  ctx.restore();
-
-  ctx.save();
-  setFont(ctx, 20, '700');
-  ctx.textAlign = 'left';
-  drawRoundRect(ctx, 156, 474, 82, 36, 18, 'rgba(250,240,220,0.12)', 'rgba(250,240,220,0.22)');
-  ctx.fillStyle = '#EEDDC4';
-  ctx.fillText('本卦', 176, 498);
-
-  drawHexagram(ctx, result.hexagram.lines, 164, 548, 350, 24, 24, '#F6ECDD');
-
-  setFont(ctx, 168, '400', SERIF_FONT_FAMILY);
-  ctx.fillStyle = 'rgba(246,236,221,0.09)';
-  ctx.textAlign = 'center';
-  ctx.fillText(result.hexagram.symbol, 830, 578);
-
-  setFont(ctx, 22, '700');
-  ctx.fillStyle = '#C69A5B';
-  ctx.textAlign = 'left';
-  ctx.fillText('卦象关键词', 610, 492);
-
-  setFont(ctx, 36, '600');
-  ctx.fillStyle = '#FFF6EA';
-  wrapText(ctx, poster.keywordText, 610, 544, 290, 48, 2);
-
-  drawInfoLine(ctx, '动爻', poster.movingText, 610, 662);
-  drawInfoLine(ctx, '后势', poster.changedText, 610, 708);
-  ctx.restore();
-}
-
-function drawScores(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(118,88,55,0.25)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(112, 830);
-  ctx.lineTo(976, 830);
-  ctx.moveTo(112, 990);
-  ctx.lineTo(976, 990);
-  ctx.stroke();
-
-  poster.scoreMetrics.forEach((item, index) => {
-    const x = 112 + index * 288;
-    const centerX = x + 144;
-
-    if (index > 0) {
-      ctx.strokeStyle = 'rgba(118,88,55,0.16)';
-      ctx.beginPath();
-      ctx.moveTo(x, 864);
-      ctx.lineTo(x, 956);
-      ctx.stroke();
-    }
-
-    setFont(ctx, 24, '600');
-    ctx.fillStyle = '#6F6253';
-    ctx.textAlign = 'center';
-    ctx.fillText(item.label, centerX, 874);
-
-    setFont(ctx, 58, '700');
-    ctx.fillStyle = '#35291F';
-    ctx.fillText(String(item.value), centerX, 932);
-
-    setFont(ctx, 21, '500');
-    ctx.fillStyle = '#8B7B67';
-    ctx.fillText('/100', centerX + 54, 932);
-
-    drawScoreTrack(ctx, x + 48, 958, 192, item.value, item.color);
-  });
-  ctx.restore();
-}
-
-function drawSummary(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  ctx.save();
-  ctx.fillStyle = '#A04735';
-  ctx.fillRect(112, 1052, 8, 144);
+  drawCard(ctx, 48, 132, 992, 596, 42);
 
   setFont(ctx, 30, '700');
-  ctx.fillStyle = '#35291F';
+  ctx.fillStyle = '#8D73E6';
   ctx.textAlign = 'left';
-  ctx.fillText('一句话结论', 146, 1084);
+  ctx.fillText(poster.eyebrowText, 88, 204);
 
-  setFont(ctx, 34, '500');
-  ctx.fillStyle = '#5D5044';
-  wrapText(ctx, poster.summaryText, 146, 1136, 780, 48, 3);
-  ctx.restore();
+  drawRoundRect(ctx, 892, 166, 104, 66, 33, '#FFF3D8', 'rgba(216,178,103,0.45)');
+  setFont(ctx, 28, '700');
+  ctx.fillStyle = '#B67C25';
+  ctx.textAlign = 'center';
+  ctx.fillText(poster.level, 944, 209);
+
+  ctx.fillStyle = '#4B382A';
+  ctx.textAlign = 'left';
+  drawFitText(ctx, poster.hexagramTitle, 88, 300, 740, 64, 46, '700', FONT_FAMILY);
+
+  setFont(ctx, 34, '400');
+  ctx.fillStyle = '#8E8174';
+  ctx.fillText(poster.meaning, 88, 374);
+
+  drawHexagram(ctx, result.hexagram.lines, 88, 390, 276, 21, 21, '#3E3345');
+
+  setFont(ctx, 54, '700', SERIF_FONT_FAMILY);
+  ctx.fillStyle = '#C9BDF1';
+  ctx.textAlign = 'center';
+  ctx.fillText(result.hexagram.symbol, 494, 466);
+
+  setFont(ctx, 30, '500');
+  ctx.fillStyle = '#9A8B7D';
+  ctx.textAlign = 'left';
+  ctx.fillText(poster.trigramText, 430, 520);
+
+  drawRoundRect(ctx, 430, 552, 564, 72, 36, '#F1EEF8');
+  setFont(ctx, 30, '600');
+  ctx.fillStyle = '#8D73E6';
+  ctx.textAlign = 'center';
+  ctx.fillText(poster.changedButtonText, 712, 598);
+
+  poster.infoChips.forEach((item, index) => {
+    const x = 88 + index * 304;
+    drawInfoChip(ctx, x, 628, 280, item.label, item.value);
+  });
 }
 
-function drawSuitableAvoid(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  drawAdviceBlock(ctx, 112, 1244, 400, 108, '宜', poster.suitableText, '#EEF4E9', '#58735A');
-  drawAdviceBlock(ctx, 576, 1244, 400, 108, '忌', poster.avoidText, '#F8E8E2', '#A04735');
+function drawOracleCard(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
+  drawCard(ctx, 48, 762, 992, 226, 36);
+
+  setFont(ctx, 30, '500');
+  ctx.fillStyle = '#8D73E6';
+  ctx.textAlign = 'left';
+  ctx.fillText(poster.oracleTitle, 88, 834);
+
+  setFont(ctx, 42, '700');
+  ctx.fillStyle = '#4B382A';
+  wrapText(ctx, poster.oracleSubject, 88, 898, 860, 52, 1);
+
+  setFont(ctx, 32, '400');
+  ctx.fillStyle = '#766A60';
+  wrapText(ctx, poster.oracleSituation, 88, 956, 850, 44, 2);
+}
+
+function drawDetailPanels(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
+  drawDetailPanel(ctx, {
+    x: 48,
+    y: 1018,
+    width: 472,
+    height: 322,
+    eyebrow: '动爻',
+    title: poster.movingTitle,
+    body: poster.movingBody,
+    advice: poster.movingAdvice,
+  });
+
+  drawDetailPanel(ctx, {
+    x: 568,
+    y: 1018,
+    width: 472,
+    height: 322,
+    eyebrow: '变卦',
+    title: poster.changedTitle,
+    body: poster.changedBody,
+    advice: poster.changedAdvice,
+  });
 }
 
 function drawFooter(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(118,88,55,0.23)';
-  ctx.beginPath();
-  ctx.moveTo(112, 1370);
-  ctx.lineTo(760, 1370);
-  ctx.stroke();
-
   setFont(ctx, 24, '400');
-  ctx.fillStyle = '#6F6253';
+  ctx.fillStyle = '#8E8174';
   ctx.textAlign = 'left';
-  ctx.fillText('长按识别，生成你的今日占卜', 112, 1410);
+  ctx.fillText('长按识别，生成你的今日占卜', 64, 1394);
 
   setFont(ctx, 34, '700');
-  ctx.fillStyle = '#35291F';
-  ctx.fillText('Fortune Hub', 112, 1450);
+  ctx.fillStyle = '#4B382A';
+  ctx.fillText('Fortune Hub', 64, 1434);
 
-  drawRoundRect(ctx, 830, 1340, 142, 142, 24, '#FFF9F0', 'rgba(118,88,55,0.26)');
-  drawQrPlaceholder(ctx, 856, 1366, 90);
-  ctx.restore();
+  drawRoundRect(ctx, 884, 1328, 116, 116, 20, '#FFFFFF', 'rgba(228,218,207,0.9)');
+  drawQrPlaceholder(ctx, 906, 1350, 72);
 }
 
 function drawHexagram(
@@ -428,84 +356,70 @@ function drawRoundRect(
   }
 }
 
-function drawCorner(
+function drawCard(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   width: number,
   height: number,
+  radius: number,
 ) {
-  ctx.beginPath();
-  ctx.moveTo(x + width, y);
-  ctx.lineTo(x, y);
-  ctx.lineTo(x, y + height);
-  ctx.stroke();
-}
-
-function drawSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.08);
-  ctx.strokeStyle = 'rgba(160,71,53,0.78)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(-size / 2, -size / 2, size, size);
-  setFont(ctx, size * 0.28, '700', SERIF_FONT_FAMILY);
-  ctx.fillStyle = '#A04735';
-  ctx.textAlign = 'center';
-  ctx.fillText('占', 0, -size * 0.08);
-  ctx.fillText('签', 0, size * 0.28);
+  ctx.shadowColor = 'rgba(84,64,45,0.08)';
+  ctx.shadowBlur = 28;
+  ctx.shadowOffsetY = 12;
+  drawRoundRect(ctx, x, y, width, height, radius, '#FFFFFF');
   ctx.restore();
 }
 
-function drawInfoLine(
+function drawInfoChip(
   ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
   label: string,
   value: string,
-  x: number,
-  y: number,
 ) {
-  setFont(ctx, 20, '700');
-  ctx.fillStyle = '#C69A5B';
+  drawRoundRect(ctx, x, y, width, 86, 20, '#F6F2FA');
+  setFont(ctx, 24, '500');
+  ctx.fillStyle = '#A49A90';
   ctx.textAlign = 'left';
-  ctx.fillText(label, x, y);
+  ctx.fillText(label, x + 24, y + 33);
 
-  setFont(ctx, 25, '500');
-  ctx.fillStyle = '#F6ECDD';
-  ctx.fillText(value, x + 66, y);
+  setFont(ctx, 30, '700');
+  ctx.fillStyle = '#4B382A';
+  drawFitText(ctx, value, x + 24, y + 66, width - 48, 30, 22, '700');
 }
 
-function drawScoreTrack(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  value: number,
-  color: string,
-) {
-  drawRoundRect(ctx, x, y, width, 10, 5, 'rgba(118,88,55,0.12)');
-  drawRoundRect(ctx, x, y, width * (value / 100), 10, 5, color);
-}
+function drawDetailPanel(ctx: CanvasRenderingContext2D, input: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  eyebrow: string;
+  title: string;
+  body: string;
+  advice: string;
+}) {
+  drawCard(ctx, input.x, input.y, input.width, input.height, 34);
 
-function drawAdviceBlock(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  label: string,
-  text: string,
-  fillStyle: string,
-  accentColor: string,
-) {
-  drawRoundRect(ctx, x, y, width, height, 28, fillStyle, 'rgba(118,88,55,0.16)');
-  setFont(ctx, 36, '700', SERIF_FONT_FAMILY);
-  ctx.fillStyle = accentColor;
+  setFont(ctx, 30, '500');
+  ctx.fillStyle = '#8D73E6';
   ctx.textAlign = 'left';
-  ctx.fillText(label, x + 34, y + 66);
+  ctx.fillText(input.eyebrow, input.x + 36, input.y + 64);
 
-  setFont(ctx, 26, '500');
-  ctx.fillStyle = '#5D5044';
-  wrapText(ctx, text, x + 90, y + 50, width - 122, 36, 2);
+  ctx.fillStyle = '#4B382A';
+  drawFitText(ctx, input.title, input.x + 36, input.y + 128, input.width - 72, 42, 30, '700');
+
+  setFont(ctx, 30, '400');
+  ctx.fillStyle = '#766A60';
+  wrapText(ctx, input.body, input.x + 36, input.y + 178, input.width - 72, 42, 3);
+
+  if (input.advice) {
+    setFont(ctx, 28, '500');
+    ctx.fillStyle = '#8D73E6';
+    wrapText(ctx, input.advice, input.x + 36, input.y + 298, input.width - 72, 38, 1);
+  }
 }
 
 function drawFitText(
@@ -591,14 +505,6 @@ function joinPosterItems(
     .join(separator);
 
   return text || fallback;
-}
-
-function clampScore(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function resolveMovingLineText(line?: number) {

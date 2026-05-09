@@ -10,42 +10,22 @@
     </view>
 
     <view v-if="poster" class="poster-preview">
-      <view class="poster-preview__rule poster-preview__rule--left"></view>
-      <view class="poster-preview__rule poster-preview__rule--right"></view>
-      <view class="poster-corner poster-corner--tl"></view>
-      <view class="poster-corner poster-corner--tr"></view>
-      <view class="poster-corner poster-corner--bl"></view>
-      <view class="poster-corner poster-corner--br"></view>
-
-      <view class="poster-preview__header">
-        <view>
-          <text class="poster-preview__brand">FORTUNE HUB</text>
-          <text class="poster-preview__eyebrow">今日占卜签</text>
-        </view>
-        <view class="poster-preview__date-group">
-          <text class="poster-preview__date">{{ poster.dateText }}</text>
-          <text class="poster-preview__serial">HEXAGRAM NO.{{ poster.hexagramNo }}</text>
-        </view>
+      <view class="poster-nav">
+        <text class="poster-nav__title">占卜结果</text>
+        <text class="poster-nav__date">{{ poster.dateText }}</text>
       </view>
 
-      <view class="poster-preview__title-block">
-        <view class="poster-preview__title-copy">
-          <text class="poster-preview__name">{{ poster.title }}</text>
-          <text class="poster-preview__meaning">{{ poster.meaning }}</text>
-          <view class="poster-preview__meta">
-            <text class="poster-preview__level">{{ poster.level }}</text>
-            <text class="poster-preview__topic">{{ poster.topicLabel }} · {{ poster.movingText }}</text>
+      <view class="poster-result-card">
+        <view class="poster-result-card__head">
+          <view class="poster-result-card__copy">
+            <text class="poster-eyebrow">{{ poster.eyebrowText }}</text>
+            <text class="poster-title-main">{{ poster.hexagramTitle }}</text>
+            <text class="poster-meaning">{{ poster.meaning }}</text>
           </view>
+          <text class="poster-level">{{ poster.level }}</text>
         </view>
-        <view class="poster-seal">
-          <text>占</text>
-          <text>签</text>
-        </view>
-      </view>
 
-      <view class="poster-oracle">
-        <view class="poster-oracle__left">
-          <text class="poster-oracle__tag">本卦</text>
+        <view class="poster-hexagram-area">
           <view class="poster-hexagram">
             <view
               v-for="(solid, index) in displayLines"
@@ -57,45 +37,39 @@
               <view class="poster-line__segment"></view>
             </view>
           </view>
-        </view>
-        <view class="poster-oracle__right">
-          <text class="poster-preview__symbol">{{ result.hexagram.symbol }}</text>
-          <text class="poster-oracle__label">卦象关键词</text>
-          <text class="poster-keywords">{{ poster.keywordText }}</text>
-          <text class="poster-oracle__row">动爻 {{ poster.movingText }}</text>
-          <text class="poster-oracle__row">后势 {{ poster.changedText }}</text>
-        </view>
-      </view>
-
-      <view class="poster-score-row">
-        <view v-for="item in poster.scoreMetrics" :key="item.key" class="poster-score">
-          <text class="poster-score__label">{{ item.label }}</text>
-          <view class="poster-score__number">
-            <text class="poster-score__value">{{ item.value }}</text>
-            <text class="poster-score__unit">/100</text>
+          <view class="poster-hexagram-copy">
+            <text class="poster-preview__symbol">{{ result.hexagram.symbol }}</text>
+            <text class="poster-trigram">{{ poster.trigramText }}</text>
+            <text class="poster-changed-button">{{ poster.changedButtonText }}</text>
           </view>
-          <view class="poster-score__track">
-            <view
-              class="poster-score__fill"
-              :style="{ width: `${item.value}%`, background: item.color }"
-            ></view>
+        </view>
+
+        <view class="poster-casting-strip">
+          <view v-for="item in poster.infoChips" :key="item.label" class="poster-casting-chip">
+            <text class="poster-casting-chip__label">{{ item.label }}</text>
+            <text class="poster-casting-chip__value">{{ item.value }}</text>
           </view>
         </view>
       </view>
 
-      <view class="poster-summary">
-        <text class="poster-summary__title">一句话结论</text>
-        <text class="poster-sentence">{{ poster.summaryText }}</text>
+      <view class="poster-oracle-card">
+        <text class="poster-oracle-card__eyebrow">{{ poster.oracleTitle }}</text>
+        <text class="poster-oracle-card__title">{{ poster.oracleSubject }}</text>
+        <text class="poster-oracle-card__text">{{ poster.oracleSituation }}</text>
       </view>
 
-      <view class="poster-preview__bottom">
-        <view class="poster-yi-ji">
-          <text class="poster-yi-ji__label">宜</text>
-          <text>{{ poster.suitableText }}</text>
+      <view class="poster-panel-row">
+        <view class="poster-panel">
+          <text class="poster-panel__label">动爻</text>
+          <text class="poster-panel__title">{{ poster.movingTitle }}</text>
+          <text class="poster-panel__body">{{ poster.movingBody }}</text>
+          <text class="poster-panel__advice">{{ poster.movingAdvice }}</text>
         </view>
-        <view class="poster-yi-ji poster-yi-ji--avoid">
-          <text class="poster-yi-ji__label">忌</text>
-          <text>{{ poster.avoidText }}</text>
+        <view class="poster-panel">
+          <text class="poster-panel__label">变卦</text>
+          <text class="poster-panel__title">{{ poster.changedTitle }}</text>
+          <text class="poster-panel__body">{{ poster.changedBody }}</text>
+          <text class="poster-panel__advice">{{ poster.changedAdvice }}</text>
         </view>
       </view>
 
@@ -335,268 +309,145 @@ onLoad((query) => {
   width: 640rpx;
   height: 866rpx;
   margin: 0 auto;
-  padding: 34rpx 40rpx 26rpx;
   overflow: hidden;
-  border-radius: 18rpx;
-  background:
-    repeating-linear-gradient(0deg, rgba(118, 88, 55, 0.045) 0, rgba(118, 88, 55, 0.045) 1rpx, transparent 1rpx, transparent 42rpx),
-    linear-gradient(180deg, #f8f0e3 0%, #f3ece2 56%, #edf2e9 100%);
-  border: 1rpx solid rgba(118, 88, 55, 0.28);
-  box-shadow: 0 28rpx 68rpx rgba(45, 58, 52, 0.18);
+  border-radius: 22rpx;
+  background: #fcf7ee;
+  box-shadow: 0 28rpx 68rpx rgba(84, 64, 45, 0.12);
 }
 
-.poster-preview::before {
-  position: absolute;
-  inset: 24rpx;
-  border: 1rpx solid rgba(118, 88, 55, 0.34);
-  content: '';
-  pointer-events: none;
-}
-
-.poster-preview__rule {
-  position: absolute;
-  top: 98rpx;
-  bottom: 112rpx;
-  width: 1rpx;
-  pointer-events: none;
-}
-
-.poster-preview__rule--left {
-  left: 38rpx;
-  background: rgba(160, 71, 53, 0.56);
-}
-
-.poster-preview__rule--right {
-  right: 38rpx;
-  background: rgba(118, 88, 55, 0.2);
-}
-
-.poster-corner {
-  position: absolute;
-  width: 30rpx;
-  height: 30rpx;
-  border-color: rgba(118, 88, 55, 0.42);
-  pointer-events: none;
-}
-
-.poster-corner--tl {
-  left: 24rpx;
-  top: 24rpx;
-  border-left: 2rpx solid;
-  border-top: 2rpx solid;
-}
-
-.poster-corner--tr {
-  right: 24rpx;
-  top: 24rpx;
-  border-right: 2rpx solid;
-  border-top: 2rpx solid;
-}
-
-.poster-corner--bl {
-  left: 24rpx;
-  bottom: 24rpx;
-  border-left: 2rpx solid;
-  border-bottom: 2rpx solid;
-}
-
-.poster-corner--br {
-  right: 24rpx;
-  bottom: 24rpx;
-  border-right: 2rpx solid;
-  border-bottom: 2rpx solid;
-}
-
-.poster-preview__header,
-.poster-preview__title-block,
-.poster-oracle,
-.poster-score-row,
-.poster-summary,
-.poster-preview__bottom,
+.poster-nav,
+.poster-result-card,
+.poster-oracle-card,
+.poster-panel-row,
 .poster-footer {
   position: absolute;
-  z-index: 1;
+  left: 28rpx;
+  right: 28rpx;
 }
 
-.poster-preview__header {
+.poster-nav {
+  top: 30rpx;
+  display: grid;
+  place-items: center;
+}
+
+.poster-nav__title {
+  color: #181512;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+
+.poster-nav__date {
+  position: absolute;
+  right: 8rpx;
+  top: 4rpx;
+  color: #9a8b7d;
+  font-size: 14rpx;
+  font-weight: 600;
+}
+
+.poster-result-card,
+.poster-oracle-card,
+.poster-panel {
+  box-sizing: border-box;
+  background: #ffffff;
+  box-shadow: 0 12rpx 34rpx rgba(84, 64, 45, 0.06);
+}
+
+.poster-result-card {
+  top: 78rpx;
+  height: 351rpx;
+  padding: 24rpx;
+  border-radius: 26rpx;
+}
+
+.poster-result-card__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  left: 66rpx;
-  right: 66rpx;
-  top: 58rpx;
+  gap: 20rpx;
 }
 
-.poster-preview__brand,
-.poster-preview__eyebrow,
-.poster-preview__date,
-.poster-preview__serial,
-.poster-preview__name,
-.poster-preview__meaning,
-.poster-preview__topic,
+.poster-result-card__copy {
+  min-width: 0;
+}
+
+.poster-eyebrow,
+.poster-title-main,
+.poster-meaning,
+.poster-level,
+.poster-trigram,
+.poster-changed-button,
+.poster-casting-chip__label,
+.poster-casting-chip__value,
+.poster-oracle-card__eyebrow,
+.poster-oracle-card__title,
+.poster-oracle-card__text,
+.poster-panel__label,
+.poster-panel__title,
+.poster-panel__body,
+.poster-panel__advice,
 .poster-footer__text,
 .poster-footer__brand {
   display: block;
 }
 
-.poster-preview__brand {
-  font-size: 14rpx;
-  color: #a04735;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.poster-preview__eyebrow {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: #35291f;
-  font-weight: 700;
-}
-
-.poster-preview__date-group {
-  text-align: right;
-}
-
-.poster-preview__date {
+.poster-eyebrow {
+  color: #8d73e6;
   font-size: 18rpx;
-  color: rgba(53, 41, 31, 0.64);
-}
-
-.poster-preview__serial {
-  margin-top: 8rpx;
-  font-size: 12rpx;
-  color: #a04735;
   font-weight: 700;
 }
 
-.poster-preview__title-block {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20rpx;
-  left: 66rpx;
-  right: 66rpx;
-  top: 128rpx;
-}
-
-.poster-preview__title-copy {
-  min-width: 0;
-}
-
-.poster-preview__name {
-  font-size: 48rpx;
-  font-weight: 800;
-  font-family:
-    'Songti SC',
-    'STSong',
-    'Noto Serif SC',
-    serif;
-  line-height: 1;
-}
-
-.poster-preview__meaning {
-  margin-top: 12rpx;
-  color: #6f6253;
-  font-size: 18rpx;
-}
-
-.poster-preview__meta {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
+.poster-title-main {
   margin-top: 14rpx;
+  color: #4b382a;
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 1.12;
 }
 
-.poster-preview__level {
-  min-width: 60rpx;
-  padding: 6rpx 16rpx;
+.poster-meaning {
+  margin-top: 8rpx;
+  color: #8e8174;
+  font-size: 18rpx;
+}
+
+.poster-level {
+  flex: 0 0 auto;
+  min-width: 56rpx;
+  padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: #a04735;
-  color: #fff6ea;
-  font-size: 16rpx;
+  background: #fff3d8;
+  border: 1rpx solid rgba(216, 178, 103, 0.45);
+  color: #b67c25;
+  font-size: 18rpx;
   font-weight: 700;
   text-align: center;
 }
 
-.poster-preview__topic {
-  min-width: 0;
-  color: #7a6a58;
-  font-size: 17rpx;
-  white-space: nowrap;
-}
-
-.poster-seal {
-  display: grid;
-  place-items: center;
-  flex: 0 0 66rpx;
-  width: 66rpx;
-  height: 66rpx;
-  margin-top: 2rpx;
-  border: 3rpx solid rgba(160, 71, 53, 0.78);
-  transform: rotate(-5deg);
-}
-
-.poster-seal text {
-  color: #a04735;
-  font-family:
-    'Songti SC',
-    'STSong',
-    serif;
-  font-size: 19rpx;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.poster-oracle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  box-sizing: border-box;
-  gap: 28rpx;
-  left: 66rpx;
-  right: 66rpx;
-  top: 258rpx;
-  height: 193rpx;
-  padding: 18rpx 28rpx;
-  border-radius: 22rpx;
-  background: #2d3a34;
-  box-shadow: 0 16rpx 38rpx rgba(45, 58, 52, 0.18);
-}
-
-.poster-oracle__left,
-.poster-oracle__right {
-  position: relative;
-}
-
-.poster-oracle__tag {
-  display: inline-flex;
+.poster-hexagram-area {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: 54rpx;
-  height: 26rpx;
-  border-radius: 999rpx;
-  color: #eedcc4;
-  background: rgba(250, 240, 220, 0.12);
-  font-size: 14rpx;
-  font-weight: 700;
+  gap: 48rpx;
+  margin-top: 22rpx;
 }
 
 .poster-hexagram {
   display: grid;
-  gap: 10rpx;
-  width: 208rpx;
-  margin-top: 16rpx;
+  gap: 8rpx;
+  width: 154rpx;
 }
 
 .poster-line {
   display: flex;
-  gap: 36rpx;
+  gap: 20rpx;
   height: 10rpx;
 }
 
 .poster-line__segment {
   flex: 1;
   border-radius: 2rpx;
-  background: #f6ecdd;
+  background: #3e3345;
 }
 
 .poster-line:not(.poster-line--broken) .poster-line__segment:first-child {
@@ -608,166 +459,150 @@ onLoad((query) => {
 }
 
 .poster-preview__symbol {
-  position: absolute;
-  right: 10rpx;
-  top: 0;
-  color: rgba(246, 236, 221, 0.08);
+  color: #c9bdf1;
   font-family:
     'Songti SC',
     'STSong',
     serif;
-  font-size: 94rpx;
+  font-size: 34rpx;
+  font-weight: 800;
   line-height: 1;
 }
 
-.poster-oracle__label {
-  display: block;
-  margin-top: 12rpx;
-  color: #c69a5b;
-  font-size: 16rpx;
+.poster-trigram {
+  margin-top: 16rpx;
+  color: #9a8b7d;
+  font-size: 18rpx;
+}
+
+.poster-changed-button {
+  min-width: 290rpx;
+  margin-top: 16rpx;
+  padding: 13rpx 24rpx;
+  border-radius: 999rpx;
+  background: #f1eef8;
+  color: #8d73e6;
+  font-size: 18rpx;
   font-weight: 700;
-}
-
-.poster-keywords {
-  display: block;
-  margin-top: 14rpx;
-  color: #fff6ea;
-  font-size: 22rpx;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.poster-oracle__row {
-  display: block;
-  margin-top: 10rpx;
-  color: #f6ecdd;
-  font-size: 16rpx;
-}
-
-.poster-score-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  left: 66rpx;
-  right: 66rpx;
-  top: 488rpx;
-  padding: 16rpx 0;
-  border-top: 1rpx solid rgba(118, 88, 55, 0.23);
-  border-bottom: 1rpx solid rgba(118, 88, 55, 0.23);
-}
-
-.poster-score {
-  min-width: 0;
-  padding: 0 18rpx;
   text-align: center;
 }
 
-.poster-score + .poster-score {
-  border-left: 1rpx solid rgba(118, 88, 55, 0.16);
+.poster-casting-strip {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 20rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
 }
 
-.poster-score__label {
-  color: #6f6253;
+.poster-casting-chip {
+  min-width: 0;
+  padding: 10rpx 14rpx;
+  border-radius: 16rpx;
+  background: #f6f2fa;
+}
+
+.poster-casting-chip__label {
+  color: #a49a90;
+  font-size: 13rpx;
+}
+
+.poster-casting-chip__value {
+  margin-top: 6rpx;
+  overflow: hidden;
+  color: #4b382a;
   font-size: 17rpx;
-  font-weight: 700;
-}
-
-.poster-score__number {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  margin-top: 8rpx;
-}
-
-.poster-score__value {
-  color: #35291f;
-  font-size: 38rpx;
   font-weight: 800;
-  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.poster-score__unit {
-  margin-left: 4rpx;
-  color: #8b7b67;
-  font-size: 14rpx;
+.poster-oracle-card {
+  top: 448rpx;
+  height: 133rpx;
+  padding: 26rpx 24rpx;
+  border-radius: 22rpx;
 }
 
-.poster-score__track {
-  position: relative;
-  height: 8rpx;
+.poster-oracle-card__eyebrow,
+.poster-panel__label {
+  color: #8d73e6;
+  font-weight: 600;
+}
+
+.poster-oracle-card__eyebrow {
+  font-size: 18rpx;
+}
+
+.poster-oracle-card__title {
   margin-top: 14rpx;
   overflow: hidden;
-  border-radius: 999rpx;
-  background: rgba(118, 88, 55, 0.12);
+  color: #4b382a;
+  font-size: 25rpx;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.poster-score__fill {
-  height: 100%;
-  border-radius: inherit;
+.poster-oracle-card__text {
+  margin-top: 12rpx;
+  overflow: hidden;
+  color: #766a60;
+  font-size: 19rpx;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.poster-summary {
-  left: 66rpx;
-  right: 66rpx;
-  top: 618rpx;
-  padding-left: 24rpx;
-  border-left: 6rpx solid #a04735;
-}
-
-.poster-summary__title {
-  display: block;
-  color: #35291f;
-  font-size: 21rpx;
-  font-weight: 700;
-}
-
-.poster-sentence {
-  display: block;
-  margin-top: 14rpx;
-  color: #5d5044;
-  font-size: 22rpx;
-  line-height: 1.36;
-}
-
-.poster-preview__bottom {
+.poster-panel-row {
+  top: 604rpx;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 26rpx;
-  left: 66rpx;
-  right: 66rpx;
-  top: 732rpx;
+  gap: 18rpx;
 }
 
-.poster-yi-ji {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  min-height: 64rpx;
-  padding: 14rpx 20rpx;
-  border: 1rpx solid rgba(118, 88, 55, 0.14);
-  border-radius: 18rpx;
-  background: #eef4e9;
-  color: #5d5044;
-  font-size: 17rpx;
-  line-height: 1.4;
+.poster-panel {
+  min-height: 190rpx;
+  padding: 22rpx;
+  border-radius: 22rpx;
 }
 
-.poster-yi-ji--avoid {
-  background: #f8e8e2;
+.poster-panel__label {
+  font-size: 18rpx;
 }
 
-.poster-yi-ji__label {
-  flex: 0 0 auto;
-  color: #58735a;
-  font-family:
-    'Songti SC',
-    'STSong',
-    serif;
-  font-size: 28rpx;
+.poster-panel__title {
+  margin-top: 18rpx;
+  overflow: hidden;
+  color: #4b382a;
+  font-size: 27rpx;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.poster-yi-ji--avoid .poster-yi-ji__label {
-  color: #a04735;
+.poster-panel__body {
+  display: -webkit-box;
+  margin-top: 18rpx;
+  overflow: hidden;
+  color: #766a60;
+  font-size: 19rpx;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.poster-panel__advice {
+  display: -webkit-box;
+  margin-top: 16rpx;
+  overflow: hidden;
+  color: #8d73e6;
+  font-size: 18rpx;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .poster-footer {
@@ -775,11 +610,7 @@ onLoad((query) => {
   align-items: flex-end;
   justify-content: space-between;
   gap: 24rpx;
-  left: 66rpx;
-  right: 66rpx;
-  top: 788rpx;
-  padding-top: 12rpx;
-  border-top: 1rpx solid rgba(118, 88, 55, 0.23);
+  top: 790rpx;
 }
 
 .poster-footer__text {
@@ -832,10 +663,10 @@ onLoad((query) => {
   place-items: center;
   height: 72rpx;
   border-radius: 999rpx;
-  color: #a04735;
+  color: #8d73e6;
   background: rgba(255, 249, 240, 0.9);
   font-size: 23rpx;
-  border: 1rpx solid rgba(160, 71, 53, 0.18);
+  border: 1rpx solid rgba(141, 115, 230, 0.18);
 }
 
 .poster-button--primary {
@@ -843,8 +674,8 @@ onLoad((query) => {
   color: #ffffff;
   font-size: 27rpx;
   font-weight: 700;
-  background: linear-gradient(135deg, #a04735, #c69a5b);
-  box-shadow: 0 14rpx 32rpx rgba(160, 71, 53, 0.22);
+  background: linear-gradient(135deg, #8d73e6, #a88deb);
+  box-shadow: 0 14rpx 32rpx rgba(141, 115, 230, 0.24);
 }
 
 .poster-button[disabled] {

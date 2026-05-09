@@ -14,27 +14,29 @@
         :lunar-date="lunarDate"
       />
 
-      <StatusIndexCard
-        class="home-page__main-card"
-        :label="fortuneCardLabel"
-        :score="fortuneScore"
-        :status="fortuneStatus"
-        :title="fortuneTitle"
-        :summary="fortuneSummary"
-        :tags="fortuneTags"
-        @select="goToReport"
-      />
+      <view class="home-page__main-card">
+        <StatusIndexCard
+          :label="fortuneCardLabel"
+          :score="fortuneScore"
+          :status="fortuneStatus"
+          :title="fortuneTitle"
+          :summary="fortuneSummary"
+          :tags="fortuneTags"
+          @select="goToReport"
+        />
+      </view>
 
-      <FortuneActionCard
-        class="home-page__divination"
-        eyebrow="周易占卜"
-        title="今日占卜"
-        summary="结合八字、星座与心情，给当下一个温柔方向。"
-        :tags="divinationTags"
-        button-text="立即占卜"
-        @open="openDivinationHome"
-        @action="startHomeDivination"
-      />
+      <view class="home-page__divination">
+        <FortuneActionCard
+          eyebrow="周易占卜"
+          title="今日占卜"
+          summary="结合八字、星座与心情，给当下一个温柔方向。"
+          :tags="divinationTags"
+          button-text="立即占卜"
+          @open="openDivinationHome"
+          @action="startHomeDivination"
+        />
+      </view>
 
       <view class="insight-grid">
         <InsightMiniCard
@@ -58,13 +60,14 @@
         />
       </view>
 
-      <TodayAdviceCard
-        class="home-page__advice"
-        :title="adviceTitle"
-        :summary="adviceSummary"
-        :action-text="adviceAction.label"
-        @action="handleRoute(adviceAction.route)"
-      />
+      <view class="home-page__advice">
+        <TodayAdviceCard
+          :title="adviceTitle"
+          :summary="adviceSummary"
+          :action-text="adviceAction.label"
+          @action="handleRoute(adviceAction.route)"
+        />
+      </view>
 
       <QuickToolStrip
         class="home-page__tools"
@@ -630,7 +633,8 @@ onPullDownRefresh(async () => {
 .home-page {
   position: relative;
   min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 18rpx) 32rpx 278rpx;
+  --home-page-gutter: 32rpx;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -694,14 +698,18 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__hero {
-  margin: -6rpx 0 8rpx;
+  margin: 0 0 8rpx;
 }
 
 .home-page__main-card {
+  box-sizing: border-box;
+  padding: 0 32rpx;
   margin: 0 0 28rpx;
 }
 
 .home-page__divination {
+  box-sizing: border-box;
+  padding: 0 32rpx;
   margin: 0 0 28rpx;
 }
 
@@ -709,7 +717,7 @@ onPullDownRefresh(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
-  margin: 0;
+  margin: 0 var(--home-page-gutter);
 }
 
 .insight-grid__item {
@@ -719,11 +727,13 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__advice {
-  margin-top: 28rpx;
+  box-sizing: border-box;
+  padding: 0 32rpx;
+  margin: 28rpx 0 0;
 }
 
 .home-page__tools {
-  margin-top: 24rpx;
+  margin: 24rpx var(--home-page-gutter) 278rpx;
 }
 
 @keyframes homeInsightIn {
@@ -739,8 +749,14 @@ onPullDownRefresh(async () => {
 
 @media (max-width: 360px) {
   .home-page {
-    padding-left: 26rpx;
+    --home-page-gutter: 26rpx;
+  }
+
+  .home-page__main-card,
+  .home-page__divination,
+  .home-page__advice {
     padding-right: 26rpx;
+    padding-left: 26rpx;
   }
 
   .insight-grid {

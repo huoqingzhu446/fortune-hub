@@ -37,7 +37,9 @@ defineProps<{
 <style lang="scss">
 .home-hero {
   position: relative;
+  box-sizing: border-box;
   min-height: 296rpx;
+  padding-top: calc(env(safe-area-inset-top) + 18rpx);
   overflow: hidden;
   border-radius: 0 0 42rpx 42rpx;
   animation: homeHeroIn 460ms ease both;
@@ -150,10 +152,10 @@ defineProps<{
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 22rpx;
+  grid-template-columns: minmax(0, 1fr) minmax(236rpx, 302rpx);
+  gap: 18rpx;
   align-items: start;
-  padding: 56rpx 4rpx 0;
+  padding: 56rpx 32rpx 0;
 }
 
 .home-hero__copy {
@@ -186,15 +188,21 @@ defineProps<{
   display: grid;
   justify-items: end;
   gap: 8rpx;
-  max-width: 258rpx;
+  width: 100%;
+  min-width: 0;
   padding-top: 108rpx;
+  overflow: hidden;
 }
 
 .home-hero__date-line {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 22rpx;
   line-height: 1.35;
   color: rgba(var(--theme-text-primary-rgb), 0.66);
   text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -226,12 +234,15 @@ defineProps<{
 }
 
 @media (max-width: 360px) {
-  .home-hero__title {
-    font-size: 66rpx;
+  .home-hero__content {
+    grid-template-columns: minmax(0, 1fr) minmax(210rpx, 280rpx);
+    gap: 14rpx;
+    padding-right: 26rpx;
+    padding-left: 26rpx;
   }
 
-  .home-hero__date {
-    max-width: 220rpx;
+  .home-hero__title {
+    font-size: 66rpx;
   }
 
   .home-hero__date-line {

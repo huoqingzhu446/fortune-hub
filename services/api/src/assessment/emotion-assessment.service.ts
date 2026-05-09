@@ -107,7 +107,7 @@ const EMOTION_TESTS: EmotionTestDefinition[] = [
       {
         maxScore: 3,
         level: 'steady',
-        title: '平稳观察区',
+        title: '情绪良好',
         subtitle: '最近整体还算稳定，可以继续保持日常节奏。',
         summary: '你的情绪波动目前不算明显，更适合通过规律休息和轻量活动维持状态。',
         primarySuggestion: '继续保持作息、饮食和基础运动节奏。',
@@ -188,7 +188,7 @@ const EMOTION_TESTS: EmotionTestDefinition[] = [
       {
         maxScore: 3,
         level: 'steady',
-        title: '平稳观察区',
+        title: '情绪良好',
         subtitle: '你的紧张感目前在可调节范围内。',
         summary: '现在更多像是日常压力波动，适合通过呼吸、运动和节奏管理继续维持稳定。',
         primarySuggestion: '把注意力放回当下能完成的一件事上，减少多线程消耗。',
@@ -603,7 +603,7 @@ export class EmotionAssessmentService {
               {
                 maxScore: 3,
                 level: 'steady',
-                title: '平稳观察区',
+                title: '情绪良好',
                 subtitle: '近期整体波动不大，适合继续保持自己的节奏。',
                 summary: '当前更像日常压力起伏，先维持作息与能量恢复即可。',
                 primarySuggestion: '先把今天最重要的一件事做完，减少额外分心。',

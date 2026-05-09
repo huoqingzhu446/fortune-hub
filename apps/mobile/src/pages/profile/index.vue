@@ -357,9 +357,7 @@
                 item.summary || item.detailHint
               }}</text>
             </view>
-            <text class="history-row__score">{{
-              item.score !== null ? item.score : '--'
-            }}</text>
+            <text class="history-row__score">{{ formatHistoryScore(item) }}</text>
           </view>
         </view>
 
@@ -979,6 +977,14 @@ function goSettings() {
 
 function goFeedback() {
   open('/pages/settings/feedback/index');
+}
+
+function formatHistoryScore(item: UnifiedRecordItem) {
+  if (item.recordType === 'bazi') {
+    return item.level ? `${item.level}主轴` : '已排盘';
+  }
+
+  return item.score !== null ? `${item.score}` : '--';
 }
 
 function historyIcon(recordType: string) {
@@ -1877,6 +1883,8 @@ onShow(() => {
 }
 
 .history-row__score {
+  min-width: 76rpx;
+  text-align: right;
   font-size: 30rpx;
   font-weight: 700;
 }

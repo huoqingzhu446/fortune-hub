@@ -98,8 +98,13 @@
           <view class="score-tile">
             <text class="score-tile__label">{{ report.statusIndex.label }}</text>
             <view class="score-tile__number-line">
-              <text class="score-tile__number">{{ report.statusIndex.value }}</text>
-              <text class="score-tile__denominator">/ {{ report.statusIndex.maxValue }}</text>
+              <text
+                class="score-tile__number"
+                :class="{ 'score-tile__number--label': isBaziReport }"
+              >
+                {{ statusIndexDisplay }}
+              </text>
+              <text v-if="!isBaziReport" class="score-tile__denominator">/ {{ report.statusIndex.maxValue }}</text>
             </view>
             <view class="score-tile__track">
               <view class="score-tile__fill" :style="{ width: `${statusPercent}%` }"></view>
@@ -144,10 +149,17 @@
       <view class="report-section">
         <view class="section-head">
           <text class="section-head__title">状态维度</text>
-          <text class="section-head__side">{{ report.stateDimensions.length }} 项</text>
+          <text class="section-head__side">{{
+            isBaziReport ? '五行倾向' : `${report.stateDimensions.length} 项`
+          }}</text>
         </view>
 
-        <view class="dimension-grid">
+        <FiveElementDistribution
+          v-if="isBaziReport"
+          :elements="baziElementDistributionItems"
+        />
+
+        <view v-else class="dimension-grid">
           <view
             v-for="item in visibleDimensions"
             :key="item.key"
@@ -229,6 +241,7 @@ import { fetchUnifiedHistory } from '../../api/records';
 import { fetchReport } from '../../api/reports';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
+import FiveElementDistribution from '../../components/FiveElementDistribution.vue';
 import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import type { ReportSection, UnifiedReport } from '../../types/report';
@@ -281,6 +294,12 @@ const reportTypeLabel = computed(() => {
 
   return mapping[report.value?.recordType || ''] || '结果报告';
 });
+const isBaziReport = computed(() => report.value?.recordType === 'bazi');
+const statusIndexDisplay = computed(() =>
+  isBaziReport.value
+    ? report.value?.statusIndex.levelLabel || '已生成'
+    : `${report.value?.statusIndex.value ?? 0}`,
+);
 const statusPercent = computed(() => {
   const statusIndex = report.value?.statusIndex;
 
@@ -332,6 +351,12 @@ const actionItems = computed(() => {
   return uniqueItems.slice(0, 4);
 });
 const visibleDimensions = computed(() => report.value?.stateDimensions.slice(0, 4) ?? []);
+const baziElementDistributionItems = computed(() =>
+  visibleDimensions.value.map((item) => ({
+    name: item.label,
+    value: item.value,
+  })),
+);
 const supportText = computed(() => {
   const supportItem = report.value?.stateDimensions.find((item) => item.key === 'support');
 
@@ -1043,6 +1068,13 @@ onShow(() => {
     'Times New Roman',
     'Noto Serif SC',
     serif;
+}
+
+.score-tile__number--label {
+  max-width: 100%;
+  font-size: 48rpx;
+  line-height: 1.08;
+  font-family: inherit;
 }
 
 .page--watch .score-tile__number {

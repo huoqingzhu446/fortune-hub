@@ -60,7 +60,7 @@ const DEFAULT_EMOTION_THRESHOLDS: EmotionThresholdDefinition[] = [
   {
     maxScore: 3,
     level: 'steady',
-    title: '平稳观察区',
+    title: '情绪良好',
     subtitle: '近期整体波动不大，适合继续保持自己的节奏。',
     summary: '当前更像日常压力起伏，先维持作息与能量恢复即可。',
     primarySuggestion: '先把今天最重要的一件事做完，减少额外分心。',

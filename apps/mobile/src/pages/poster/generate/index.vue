@@ -43,7 +43,11 @@
         <text class="empty-preview__text">{{ emptyPreviewText }}</text>
       </view>
 
-      <view v-if="hasPoster" class="action-grid">
+      <view
+        v-if="hasPoster"
+        class="action-grid"
+        :class="{ 'action-grid--three': isMpWeixin }"
+      >
         <button class="tool-button tool-button--secondary" @tap="previewGeneratedPoster">
           全屏预览
         </button>
@@ -133,6 +137,20 @@ const allowedTypes: PosterGenerateType[] = [
   'divination',
 ];
 const allowedSizes: PosterSize[] = ['1280x1280', '1080x1440', '1088x1472', '941x1672'];
+const posterThemeLabelMap: Record<string, string> = {
+  'calm-amber': '安静琥珀',
+  'earth-sand': '厚土砂金',
+  'fresh-mint': '清新薄荷',
+  'moon-silver': '月光银',
+  'ocean-water': '海水蓝',
+  'oriental-gold': '东方金韵',
+  'sage-stone': '鼠尾草石色',
+  'sky-current': '星空流光',
+  'sunset-ember': '夕照暖焰',
+  'verdant-mint': '草木薄荷',
+  'warm-amber': '暖阳琥珀',
+  'zodiac-blue-purple': '星盘蓝紫',
+};
 
 const dashboardStore = useDashboardStore();
 const { themeVars } = useThemePreference();
@@ -194,7 +212,10 @@ const pageSummary = computed(() => sourceSummary.value);
 const previewTitle = computed(() =>
   hasPoster.value ? remotePoster.value?.title || sourceTitle.value : sourceTitle.value,
 );
-const sourceThemeLabel = computed(() => sourceTheme.value || remotePoster.value?.themeName || '跟随当前主题');
+const sourceThemeLabel = computed(() => {
+  const themeName = sourceTheme.value || remotePoster.value?.themeName || '';
+  return formatPosterThemeLabel(themeName) || '跟随当前主题';
+});
 const statusText = computed(() => {
   if (generating.value) {
     return '正在生成高清图片';
@@ -324,6 +345,26 @@ function normalizePosterType(value: unknown): PosterGenerateType {
 function normalizePosterSize(value: unknown) {
   const normalized = decodeRouteValue(value) as PosterSize;
   return allowedSizes.includes(normalized) ? normalized : '';
+}
+
+function formatPosterThemeLabel(value: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (/[^\x00-\x7F]/.test(normalized)) {
+    return normalized;
+  }
+
+  const key = normalized.toLowerCase().replace(/_/g, '-');
+
+  if (posterThemeLabelMap[key]) {
+    return posterThemeLabelMap[key];
+  }
+
+  return key.includes('-') ? '自定义视觉' : normalized;
 }
 
 async function hydrateSource() {
@@ -786,6 +827,15 @@ onShow(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.action-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
 .source-item {
   display: grid;
   gap: 8rpx;
@@ -861,9 +911,26 @@ onShow(() => {
 .tool-button {
   min-height: 86rpx;
   border-radius: 999rpx;
-  line-height: 86rpx;
   font-size: 28rpx;
   font-weight: 650;
+}
+
+.primary-button {
+  line-height: 86rpx;
+}
+
+.tool-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 78rpx;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 10rpx;
+  font-size: 25rpx;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .primary-button::after,

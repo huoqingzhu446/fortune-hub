@@ -10,6 +10,7 @@ import {
 @Entity({ name: 'shares' })
 @Index('uniq_shares_poster_id', ['posterId'], { unique: true })
 @Index('idx_shares_user_source', ['userId', 'sourceType'])
+@Index('idx_shares_user_created_at', ['userId', 'createdAt'])
 export class ShareRecordEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;

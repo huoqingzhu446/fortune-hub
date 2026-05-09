@@ -565,7 +565,7 @@
                     <el-input
                       v-model="threshold.title"
                       :readonly="isDetailReadonly"
-                      placeholder="例如 平稳观察区"
+                      placeholder="例如 情绪良好"
                     />
                   </label>
 

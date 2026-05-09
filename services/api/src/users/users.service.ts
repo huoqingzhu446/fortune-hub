@@ -802,7 +802,12 @@ export class UsersService {
       recordTypeLabel: typeMeta.label,
       sourceCode: record.sourceCode,
       title: record.resultTitle,
-      score: record.score ? Number(record.score) : null,
+      score:
+        record.recordType === 'bazi'
+          ? null
+          : record.score
+            ? Number(record.score)
+            : null,
       level: record.resultLevel,
       summary: resultData.summary ?? '',
       subtitle: resultData.subtitle ?? '',

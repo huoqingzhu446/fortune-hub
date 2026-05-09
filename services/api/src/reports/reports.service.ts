@@ -114,7 +114,12 @@ export class ReportsService {
       title: record.resultTitle,
       subtitle: this.pickString(resultData.subtitle, ''),
       summary: this.pickString(resultData.summary, ''),
-      score: record.score ? Number(record.score) : null,
+      score:
+        record.recordType === 'bazi'
+          ? null
+          : record.score
+            ? Number(record.score)
+            : null,
       level: record.resultLevel,
       completedAt: this.pickString(
         resultData.completedAt,
@@ -200,22 +205,28 @@ export class ReportsService {
     const dominant =
       [...fiveElements].sort((left, right) => right.value - left.value)[0] ??
       null;
+    const support =
+      [...fiveElements].sort((left, right) => left.value - right.value)[0] ??
+      null;
     const concentration = dominant
       ? this.clampPercent(Math.round((dominant.value / Math.max(total, 1)) * 100))
       : this.clampPercent(this.pickNumber(record.score, 0));
 
     return {
-      label: '结构集中度',
+      label: '五行主轴',
       value: concentration,
       maxValue: 100,
-      levelLabel: dominant?.name ?? this.pickString(record.resultLevel, '结构已生成'),
-      rawLabel: dominant ? `${dominant.name} ${dominant.value}` : '五行结构已生成',
-      formula: '最高五行值 ÷ 五行总值 × 100',
+      levelLabel: dominant
+        ? `${dominant.name}主轴`
+        : this.pickString(record.resultLevel, '结构已生成'),
+      rawLabel: this.buildFiveElementRawLabel(dominant, support, fiveElements),
+      formula: '按主轴、补位与整体倾向综合判断',
       sourceLabel: '出生信息排盘',
       updatedAt,
       notes: [
-        '五行值由四柱天干地支映射后累计。',
-        '集中度越高，说明结构越偏向某一元素。',
+        '五行倾向由四柱天干地支映射后归纳。',
+        '主轴代表当前更突出的表达方式。',
+        '补位代表日常节奏里更需要照顾的一面。',
         '报告建议会结合日主、补位元素和实际节奏生成。',
       ],
     };
@@ -326,8 +337,11 @@ export class ReportsService {
         maxValue: 100,
         percent,
         tone: index === 0 ? 'positive' : this.toneByPercent(percent, 'higherBetter'),
-        summary: index === 0 ? '当前结构里最集中的元素。' : '用于判断补位与节奏的元素权重。',
-        evidence: `原始五行值 ${item.value}`,
+        summary:
+          index === 0
+            ? '当前结构里更突出的主轴元素。'
+            : '用于判断补位与节奏调和的元素倾向。',
+        evidence: `五行倾向：${this.resolveFiveElementLevel(item, fiveElements)}`,
       };
     });
   }
@@ -517,9 +531,7 @@ export class ReportsService {
       ];
     }
 
-    const fiveElements = Array.isArray(resultData.fiveElements)
-      ? resultData.fiveElements.map((item) => this.asRecord(item))
-      : [];
+    const fiveElements = this.resolveFiveElements(resultData);
     const reading = this.asRecord(resultData.reading);
 
     return [
@@ -529,11 +541,10 @@ export class ReportsService {
           template.fullSummary,
           '完整版会把你当前主轴和补位元素拆成更具体的节奏建议。',
         ),
-        bullets: fiveElements.map((item) => {
-          const name = this.pickString(item.name, '未知');
-          const value = Number(item.value ?? 0);
-          return `${name}：${value}`;
-        }),
+        bullets: fiveElements.map(
+          (item) =>
+            `${item.name}：${this.resolveFiveElementLevel(item, fiveElements)}`,
+        ),
       },
       {
         title: this.pickString(template.fullSecondaryTitle, '事业与关系解读'),
@@ -669,6 +680,64 @@ export class ReportsService {
       })
       .filter((item) => item.name && item.value > 0)
       .sort((left, right) => right.value - left.value);
+  }
+
+  private buildFiveElementRawLabel(
+    dominant: { name: string; value: number } | null,
+    support: { name: string; value: number } | null,
+    fiveElements: Array<{ name: string; value: number }>,
+  ) {
+    if (!dominant) {
+      return '五行结构已生成';
+    }
+
+    const dominantText = `${dominant.name}${this.resolveFiveElementLevel(dominant, fiveElements)}`;
+
+    if (!support || support.name === dominant.name) {
+      return dominantText;
+    }
+
+    return `${dominantText}，${support.name}${this.resolveFiveElementLevel(support, fiveElements)}`;
+  }
+
+  private resolveFiveElementLevel(
+    item: { name: string; value: number },
+    fiveElements: Array<{ name: string; value: number }>,
+  ) {
+    const values = fiveElements
+      .map((element) => element.value)
+      .filter((value) => Number.isFinite(value));
+
+    if (!values.length || !Number.isFinite(item.value)) {
+      return '适中';
+    }
+
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+
+    if (max === min) {
+      return '均衡';
+    }
+
+    if (item.value === max) {
+      return '偏旺';
+    }
+
+    if (item.value === min) {
+      return '待补';
+    }
+
+    const ratio = item.value / Math.max(max, 1);
+
+    if (ratio >= 0.75) {
+      return '有势';
+    }
+
+    if (ratio <= 0.45) {
+      return '偏弱';
+    }
+
+    return '适中';
   }
 
   private resolveEmotionLevelLabel(level: string | null) {

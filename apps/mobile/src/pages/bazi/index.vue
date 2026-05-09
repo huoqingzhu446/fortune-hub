@@ -338,22 +338,7 @@
         </text>
       </view>
 
-      <view class="element-bars">
-        <view
-          v-for="item in latestResult.fiveElements"
-          :key="item.name"
-          class="element-row"
-        >
-          <text class="element-row__name">{{ item.name }}</text>
-          <view class="element-row__track">
-            <view
-              class="element-row__bar"
-              :style="{ width: `${Math.max(item.value * 12, 16)}%` }"
-            ></view>
-          </view>
-          <text class="element-row__value">{{ item.value }}</text>
-        </view>
-      </view>
+      <FiveElementDistribution :elements="latestResult.fiveElements" />
 
       <view class="reading-sheet">
         <text class="reading-sheet__title">事业节奏</text>
@@ -519,6 +504,7 @@ import {
   fetchBaziHistory,
   searchBaziBirthPlaces,
 } from '../../api/bazi';
+import FiveElementDistribution from '../../components/FiveElementDistribution.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken, getCachedUser } from '../../services/session';
 import type {
@@ -2225,38 +2211,6 @@ onShow(() => {
   background: rgba(232, 223, 205, 0.92);
   color: #7a6542;
   font-size: 22rpx;
-}
-
-.element-bars {
-  display: grid;
-  gap: 14rpx;
-  margin: 20rpx 0;
-}
-
-.element-row {
-  display: grid;
-  grid-template-columns: 72rpx 1fr 44rpx;
-  align-items: center;
-  gap: 14rpx;
-}
-
-.element-row__name,
-.element-row__value {
-  font-size: 24rpx;
-  color: #4b3a26;
-}
-
-.element-row__track {
-  height: 18rpx;
-  border-radius: 999rpx;
-  background: rgba(230, 219, 197, 0.95);
-  overflow: hidden;
-}
-
-.element-row__bar {
-  height: 100%;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, #7f9b84 0%, #c8a56f 100%);
 }
 
 .reading-sheet {

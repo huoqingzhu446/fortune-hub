@@ -35,7 +35,12 @@
         </view>
 
         <view class="focus-panel__visual">
-          <text>{{ exploreData.banner.icon }}</text>
+          <view
+            v-if="bannerIconStyle"
+            class="focus-panel__visual-mark"
+            :style="bannerIconStyle"
+          ></view>
+          <text v-else>{{ exploreData.banner.icon }}</text>
         </view>
       </view>
 
@@ -263,6 +268,7 @@ import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import { usePageStateStore } from '../../stores/page-state';
+import lotusSvg from '../../static/icons/lotus.svg?raw';
 import type {
   ExploreContentItem,
   ExploreFeatureItem,
@@ -274,7 +280,7 @@ import type {
 type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
 type SortType = ExploreIndexData['defaultSort'];
 
-const { themeVars } = useThemePreference();
+const { themeVars, themePalette } = useThemePreference();
 const pageStateStore = usePageStateStore();
 let lastExploreVersion = pageStateStore.versionOf('explore');
 
@@ -349,6 +355,7 @@ const searchedFeatures = ref<ExploreFeatureItem[] | null>(null);
 const searchedTopics = ref<ExploreTopicItem[] | null>(null);
 const searchedContents = ref<ExploreContentItem[] | null>(null);
 
+const bannerIconStyle = computed(() => resolveBannerIconStyle(exploreData.value.banner.icon));
 const normalizedKeyword = computed(() => keyword.value.trim().toLowerCase());
 const typeFilters = computed<Array<ExploreFilterOption & { value: FilterType }>>(() =>
   exploreData.value.filters.types.map((item) => ({
@@ -595,6 +602,23 @@ function compareDate(left: string | null, right: string | null) {
   const leftTime = left ? new Date(left).getTime() : 0;
   const rightTime = right ? new Date(right).getTime() : 0;
   return leftTime - rightTime;
+}
+
+function resolveBannerIconStyle(icon: string) {
+  const normalizedIcon = icon.trim().toLowerCase();
+
+  if (normalizedIcon !== '莲' && normalizedIcon !== 'lotus') {
+    return null;
+  }
+
+  return {
+    backgroundImage: `url("${buildSvgDataUrl(lotusSvg, themePalette.value.primary)}")`,
+  };
+}
+
+function buildSvgDataUrl(markup: string, color: string) {
+  const nextMarkup = markup.replace(/currentColor/g, color);
+  return `data:image/svg+xml;utf8,${encodeURIComponent(nextMarkup)}`;
 }
 
 async function handleFavorite(item: ExploreContentItem) {
@@ -1445,18 +1469,41 @@ onShow(() => {
 
 .focus-panel__visual {
   position: absolute;
-  right: 30rpx;
-  bottom: 28rpx;
+  right: 28rpx;
+  bottom: 30rpx;
   display: grid;
   place-items: center;
-  width: 106rpx;
-  height: 106rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.88);
-  border-radius: 34rpx;
+  width: 118rpx;
+  height: 118rpx;
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.12);
+  border-radius: 50%;
   color: var(--theme-primary);
-  font-size: 38rpx;
+  font-size: 32rpx;
   font-weight: 650;
-  background: rgba(255, 255, 255, 0.64);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(var(--theme-primary-rgb), 0.1) 100%);
+  box-shadow:
+    0 18rpx 38rpx rgba(var(--theme-primary-rgb), 0.1),
+    0 0 0 1rpx rgba(255, 255, 255, 0.72) inset;
+}
+
+.focus-panel__visual::before {
+  content: '';
+  position: absolute;
+  inset: 12rpx;
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.18);
+  border-radius: 50%;
+}
+
+.focus-panel__visual-mark {
+  position: relative;
+  z-index: 1;
+  width: 70rpx;
+  height: 70rpx;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .type-strip {

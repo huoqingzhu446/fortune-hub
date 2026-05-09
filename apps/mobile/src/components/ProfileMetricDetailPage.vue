@@ -10,12 +10,10 @@
       <text class="metric-hero__eyebrow">我的数据</text>
       <view class="metric-hero__main">
         <text class="metric-hero__value">{{ metricValueText }}</text>
-        <text class="metric-hero__unit">{{ detail?.metric.unit || '' }}</text>
+        <text class="metric-hero__unit">{{ metricUnitText }}</text>
       </view>
-      <text class="metric-hero__label">{{ detail?.metric.label || '同步中' }}</text>
-      <text class="metric-hero__summary">{{
-        detail?.metric.summary || '正在同步你的历史数据。'
-      }}</text>
+      <text class="metric-hero__label">{{ metricLabelText }}</text>
+      <text class="metric-hero__summary">{{ metricSummaryText }}</text>
 
       <view class="range-tabs">
         <view
@@ -38,6 +36,14 @@
 
       <view v-if="loading" class="empty-state">
         <text>正在同步历史数据...</text>
+      </view>
+      <view
+        v-else-if="errorMessage"
+        class="empty-state empty-state--retry"
+        @tap="loadDetail"
+      >
+        <text>{{ errorMessage }}</text>
+        <text class="empty-state__action">点击重试</text>
       </view>
       <view v-else class="trend-chart">
         <view
@@ -63,7 +69,7 @@
       </view>
       <view class="breakdown-list">
         <view
-          v-for="item in detail?.breakdown || []"
+          v-for="item in breakdownItems"
           :key="item.label"
           class="breakdown-row"
         >
@@ -96,7 +102,7 @@
           @tap="openHistoryItem(item.route)"
         >
           <view class="history-row__badge">
-            <text>{{ item.sourceTypeLabel.slice(0, 1) }}</text>
+            <text>{{ historyBadge(item) }}</text>
           </view>
           <view class="history-row__body">
             <view class="history-row__head">
@@ -104,7 +110,7 @@
               <text class="history-row__date">{{ formatDate(item.date) }}</text>
             </view>
             <text class="history-row__summary">{{ item.summary }}</text>
-            <text class="history-row__source">{{ item.sourceTypeLabel }}</text>
+            <text class="history-row__source">{{ historySourceLabel(item) }}</text>
           </view>
           <text v-if="resolveHistoryValue(item)" class="history-row__value">{{
             resolveHistoryValue(item)
@@ -117,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, useAttrs } from 'vue';
 import { fetchProfileMetricDetail } from '../api/profile-metrics';
 import { useThemePreference } from '../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../services/errors';
@@ -130,21 +136,86 @@ import type {
 const props = defineProps<{
   metricKey: ProfileMetricKey;
 }>();
+const attrs = useAttrs();
 
 const rangeOptions = [
   { label: '7天', value: '7d' },
   { label: '30天', value: '30d' },
   { label: '90天', value: '90d' },
 ] as const;
+type RangeValue = (typeof rangeOptions)[number]['value'];
+
+const validMetricKeys: ProfileMetricKey[] = [
+  'fortune_index',
+  'mood_days',
+  'explore_reports',
+  'lucky_energy',
+];
+
+const metricMeta: Record<
+  ProfileMetricKey,
+  {
+    title: string;
+    unit: string;
+    label: string;
+    summary: string;
+  }
+> = {
+  fortune_index: {
+    title: '综合气运指数',
+    unit: '分',
+    label: '待同步',
+    summary: '完成情绪、测评或运势记录后，这里会形成你的综合趋势。',
+  },
+  mood_days: {
+    title: '心情记录天数',
+    unit: '天',
+    label: '待同步',
+    summary: '写下第一条心情日记后，这里会沉淀你的情绪照顾节奏。',
+  },
+  explore_reports: {
+    title: '探索报告',
+    unit: '份',
+    label: '待同步',
+    summary: '完成报告或生成分享海报后，这里会变成你的内容档案。',
+  },
+  lucky_energy: {
+    title: '好运能量值',
+    unit: '分',
+    label: '待同步',
+    summary: '记录、收藏、资料完整度和分享海报会共同累积能量值。',
+  },
+};
+
+const routeMetricMap: Record<string, ProfileMetricKey> = {
+  'pages/profile/data/fortune-index/index': 'fortune_index',
+  'pages/profile/data/mood-days/index': 'mood_days',
+  'pages/profile/data/explore-reports/index': 'explore_reports',
+  'pages/profile/data/lucky-energy/index': 'lucky_energy',
+};
 
 const { themeVars } = useThemePreference();
 const loading = ref(false);
-const activeRange = ref<(typeof rangeOptions)[number]['value']>('30d');
+const activeRange = ref<RangeValue>('30d');
 const detail = ref<ProfileMetricDetailData | null>(null);
+const errorMessage = ref('');
 
-const pageTitle = computed(() => detail.value?.metric.title || '数据详情');
+const resolvedMetricKey = computed(() => {
+  return (
+    normalizeMetricKey(props.metricKey) ||
+    normalizeMetricKey(attrs.metricKey) ||
+    normalizeMetricKey(attrs['metric-key']) ||
+    resolveMetricKeyFromRoute() ||
+    'fortune_index'
+  );
+});
+const fallbackMetric = computed(() => metricMeta[resolvedMetricKey.value]);
+const pageTitle = computed(
+  () => detail.value?.metric.title || fallbackMetric.value.title,
+);
 const trendPoints = computed(() => detail.value?.trend.points || []);
 const historyItems = computed(() => detail.value?.history.items || []);
+const breakdownItems = computed(() => detail.value?.breakdown || []);
 const metricValueText = computed(() => {
   if (!detail.value) {
     return '--';
@@ -152,7 +223,24 @@ const metricValueText = computed(() => {
 
   return detail.value.metric.hasData ? `${detail.value.metric.value}` : '--';
 });
+const metricUnitText = computed(
+  () => detail.value?.metric.unit || fallbackMetric.value.unit,
+);
+const metricLabelText = computed(() => {
+  if (detail.value) {
+    return detail.value.metric.label;
+  }
+
+  return errorMessage.value ? '暂未同步' : fallbackMetric.value.label;
+});
+const metricSummaryText = computed(() => {
+  return detail.value?.metric.summary || fallbackMetric.value.summary;
+});
 const deltaText = computed(() => {
+  if (errorMessage.value) {
+    return '等待重试';
+  }
+
   const delta = detail.value?.trend.delta ?? 0;
   if (!detail.value || delta === 0) {
     return '走势平稳';
@@ -168,6 +256,19 @@ const maxTrendValue = computed(() => {
   return Math.max(1, ...values);
 });
 
+function normalizeMetricKey(value: unknown): ProfileMetricKey | null {
+  return typeof value === 'string' &&
+    validMetricKeys.includes(value as ProfileMetricKey)
+    ? (value as ProfileMetricKey)
+    : null;
+}
+
+function resolveMetricKeyFromRoute(): ProfileMetricKey | null {
+  const pages = getCurrentPages();
+  const currentRoute = pages[pages.length - 1]?.route;
+  return currentRoute ? routeMetricMap[currentRoute] || null : null;
+}
+
 function resolveBarHeight(value: number | null) {
   if (value === null) {
     return '10%';
@@ -181,12 +282,22 @@ function formatShortDate(value: string) {
 }
 
 function formatDate(value: string) {
-  return value.replace(/-/g, '.');
+  return value ? value.replace(/-/g, '.') : '';
+}
+
+function historySourceLabel(item: ProfileMetricHistoryItem) {
+  return item.sourceTypeLabel || '历史记录';
+}
+
+function historyBadge(item: ProfileMetricHistoryItem) {
+  return historySourceLabel(item).slice(0, 1) || '记';
 }
 
 function resolveHistoryValue(item: ProfileMetricHistoryItem) {
   if (typeof item.valueDelta === 'number') {
-    return `+${item.valueDelta}`;
+    return item.valueDelta > 0
+      ? `+${item.valueDelta}`
+      : `${item.valueDelta}`;
   }
 
   if (typeof item.value === 'number') {
@@ -199,18 +310,21 @@ function resolveHistoryValue(item: ProfileMetricHistoryItem) {
 async function loadDetail() {
   try {
     loading.value = true;
+    errorMessage.value = '';
     const response = await fetchProfileMetricDetail(
-      props.metricKey,
+      resolvedMetricKey.value,
       activeRange.value,
     );
     detail.value = response.data;
   } catch (error) {
     console.warn('load metric detail failed', error);
+    const message = getErrorMessage(error, '数据同步失败');
+    errorMessage.value = message;
     if (handleAuthExpired(error, true)) {
       return;
     }
     uni.showToast({
-      title: getErrorMessage(error, '数据同步失败'),
+      title: message,
       icon: 'none',
     });
   } finally {
@@ -218,7 +332,7 @@ async function loadDetail() {
   }
 }
 
-function changeRange(value: (typeof rangeOptions)[number]['value']) {
+function changeRange(value: RangeValue) {
   if (value === activeRange.value) {
     return;
   }
@@ -555,5 +669,15 @@ onMounted(() => {
 .empty-state {
   padding: 30rpx 0;
   text-align: center;
+}
+
+.empty-state--retry {
+  display: grid;
+  gap: 8rpx;
+}
+
+.empty-state__action {
+  color: var(--theme-primary);
+  font-weight: 700;
 }
 </style>

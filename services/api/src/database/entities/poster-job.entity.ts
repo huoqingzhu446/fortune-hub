@@ -10,6 +10,7 @@ import {
 @Entity({ name: 'poster_jobs' })
 @Index('uniq_poster_jobs_job_id', ['jobId'], { unique: true })
 @Index('idx_poster_jobs_user_status', ['userId', 'status'])
+@Index('idx_poster_jobs_user_created_at', ['userId', 'createdAt'])
 export class PosterJobEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;

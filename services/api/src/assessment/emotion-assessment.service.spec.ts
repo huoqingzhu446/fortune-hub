@@ -30,7 +30,7 @@ describe('EmotionAssessmentService', () => {
           {
             maxScore: 3,
             level: 'steady',
-            title: '平稳观察区',
+            title: '情绪良好',
             subtitle: '稳定',
             summary: '整体稳定',
             primarySuggestion: '保持节奏',
@@ -47,6 +47,7 @@ describe('EmotionAssessmentService', () => {
     );
 
     expect(response.data.result.riskLevel).toBe('steady');
+    expect(response.data.result.title).toBe('情绪良好');
     expect(response.data.result.compliance.disclaimerVersion).toBe('2026-04-25');
   });
 });

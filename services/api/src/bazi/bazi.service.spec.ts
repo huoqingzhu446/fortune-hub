@@ -86,6 +86,32 @@ describe('BaziService professional mode', () => {
     expect(response.data.result.professional).toBeUndefined();
   });
 
+  it('does not persist the raw five-element count as a record score', async () => {
+    const repository = {
+      create: jest.fn((payload: unknown) => payload),
+      save: jest.fn(async (record: Record<string, unknown>) => ({ ...record, id: 'record-1' })),
+      find: jest.fn(),
+    };
+    const saveService = new BaziService(repository as never, new BaziEngine());
+
+    await saveService.analyze(
+      {
+        birthday: '1990-01-01',
+        birthTime: '12:00',
+        gender: 'unknown',
+      },
+      { id: 'user-1' } as never,
+    );
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordType: 'bazi',
+        score: null,
+        resultLevel: expect.any(String),
+      }),
+    );
+  });
+
   it('keeps true solar correction auditable when it crosses a day boundary', async () => {
     const response = await service.analyzeProfessional(
       {

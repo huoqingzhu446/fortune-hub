@@ -134,15 +134,7 @@
             <text class="section__side">主轴 {{ detail.dominantElement.name }}</text>
           </view>
 
-          <view class="element-bars">
-            <view v-for="item in detail.fiveElements" :key="item.name" class="element-row">
-              <text class="element-row__name">{{ item.name }}</text>
-              <view class="element-row__track">
-                <view class="element-row__bar" :style="{ width: formatElementWidth(item.value) }"></view>
-              </view>
-              <text class="element-row__value">{{ item.value }}</text>
-            </view>
-          </view>
+          <FiveElementDistribution :elements="detail.fiveElements" />
         </view>
 
         <view class="two-column">
@@ -260,6 +252,7 @@
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { fetchProfessionalBaziDetail } from '../../../api/bazi';
+import FiveElementDistribution from '../../../components/FiveElementDistribution.vue';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getAuthToken } from '../../../services/session';
 import type { BaziProfessionalDetail } from '../../../types/bazi';
@@ -443,10 +436,6 @@ function formatStrengthLevel(value: 'strong' | 'weak' | 'balanced') {
   };
 
   return labels[value];
-}
-
-function formatElementWidth(value: number) {
-  return `${Math.min(100, Math.max(12, value * 12))}%`;
 }
 
 function relationLabel(value: 'support' | 'drain' | 'wealth' | 'officer' | 'peer') {
@@ -747,39 +736,11 @@ onShow(() => {
   color: #8f794f;
 }
 
-.element-bars,
 .text-list,
 .timeline-list,
 .annual-list {
   display: grid;
   gap: 12rpx;
-}
-
-.element-row {
-  display: grid;
-  grid-template-columns: 64rpx 1fr 46rpx;
-  align-items: center;
-  gap: 14rpx;
-}
-
-.element-row__name,
-.element-row__value {
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #3f3322;
-}
-
-.element-row__track {
-  height: 18rpx;
-  overflow: hidden;
-  border-radius: 999rpx;
-  background: rgba(225, 216, 197, 0.95);
-}
-
-.element-row__bar {
-  height: 100%;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, #365048 0%, #bb935a 100%);
 }
 
 .start-age {

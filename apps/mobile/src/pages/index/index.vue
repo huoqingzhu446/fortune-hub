@@ -69,11 +69,12 @@
         />
       </view>
 
-      <QuickToolStrip
-        class="home-page__tools"
-        :items="quickTools"
-        @select="handleRoute"
-      />
+      <view class="home-page__tools">
+        <QuickToolStrip
+          :items="quickTools"
+          @select="handleRoute"
+        />
+      </view>
     </view>
 
     <HomeTabBar current-tab="home" />
@@ -634,7 +635,8 @@ onPullDownRefresh(async () => {
   position: relative;
   min-height: 100vh;
   --home-page-gutter: 32rpx;
-  padding: 0;
+  box-sizing: border-box;
+  padding: 0 0 calc(env(safe-area-inset-bottom) + 168rpx);
   overflow: hidden;
 }
 
@@ -733,7 +735,7 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__tools {
-  margin: 24rpx var(--home-page-gutter) 278rpx;
+  margin: 24rpx var(--home-page-gutter) 0;
 }
 
 @keyframes homeInsightIn {

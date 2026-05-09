@@ -363,7 +363,7 @@ export const EMOTION_TESTS: EmotionTestDefinition[] = [
       {
         maxScore: 3,
         level: 'steady',
-        title: '平稳观察区',
+        title: '情绪良好',
         subtitle: '最近整体还算稳定，可以继续保持日常节奏。',
         summary: '你的情绪波动目前不算明显，更适合通过规律休息和轻量活动维持状态。',
         primarySuggestion: '继续保持作息、饮食和基础运动节奏。',
@@ -444,7 +444,7 @@ export const EMOTION_TESTS: EmotionTestDefinition[] = [
       {
         maxScore: 3,
         level: 'steady',
-        title: '平稳观察区',
+        title: '情绪良好',
         subtitle: '你的紧张感目前在可调节范围内。',
         summary: '现在更多像是日常压力波动，适合通过呼吸、运动和节奏管理继续维持稳定。',
         primarySuggestion: '把注意力放回当下能完成的一件事上，减少多线程消耗。',

@@ -290,13 +290,29 @@ async function resolveUsableImagePath(imageSource: string, fileName: string) {
   return imageSource;
 }
 
-export async function previewPosterImage(imageSource: string, fileName: string) {
-  const previewSource = await resolveUsableImagePath(imageSource, fileName);
-
-  uni.previewImage({
-    urls: [previewSource],
-    current: previewSource,
+function openImagePreview(imageSource: string) {
+  return new Promise<void>((resolve, reject) => {
+    uni.previewImage({
+      urls: [imageSource],
+      current: imageSource,
+      success: () => resolve(),
+      fail: reject,
+    });
   });
+}
+
+export async function previewPosterImage(imageSource: string, fileName: string) {
+  try {
+    const previewSource = await resolveUsableImagePath(imageSource, fileName);
+    await openImagePreview(previewSource);
+  } catch (error) {
+    if (isMpWeixin && !isDataUrl(imageSource)) {
+      await openImagePreview(imageSource);
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export async function savePosterImage(imageSource: string, fileName: string) {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
@@ -117,6 +117,9 @@ const SHARE_STATUSES = new Set(['generated', 'rendered', 'completed']);
 
 @Injectable()
 export class ProfileMetricsService {
+  private readonly logger = new Logger(ProfileMetricsService.name);
+  private snapshotPersistDisabled = false;
+
   constructor(
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
@@ -335,7 +338,10 @@ export class ProfileMetricsService {
     const posters = context.posterSources.filter((item) => item.date <= dateKey);
 
     if (key === 'fortune_index') {
-      const latestScored = records.find((record) => record.score !== null);
+      const scoredRecords = records.filter(
+        (record) => record.recordType !== 'bazi' && record.score !== null,
+      );
+      const latestScored = scoredRecords[0];
       const value = latestScored?.score ?? 0;
       const label = latestScored
         ? value >= 80
@@ -352,19 +358,19 @@ export class ProfileMetricsService {
         hasData: Boolean(latestScored),
         summary: latestScored
           ? `最近一次带分数记录为「${latestScored.title}」，当前指数 ${value} 分。`
-          : '完成一份带分数的报告后，这里会开始形成趋势。',
+          : '完成一份情绪或测评报告后，这里会开始形成趋势。',
         breakdown: [
           {
             label: '最近来源',
-            value: latestScored?.title ?? '暂无带分数记录',
+            value: latestScored?.title ?? '暂无情绪或测评记录',
           },
           {
             label: '有分数记录',
-            value: `${records.filter((record) => record.score !== null).length} 份`,
+            value: `${scoredRecords.length} 份`,
           },
           {
             label: '更新口径',
-            value: '取最近一份带分数的记录',
+            value: '取最近一份情绪或测评记录',
           },
         ],
         sources: latestScored ? [latestScored] : [],
@@ -456,7 +462,7 @@ export class ProfileMetricsService {
   private buildHistoryItems(key: ProfileMetricKey, context: MetricContext) {
     if (key === 'fortune_index') {
       return context.records
-        .filter((record) => record.score !== null)
+        .filter((record) => record.recordType !== 'bazi' && record.score !== null)
         .slice(0, 80)
         .map((record) => ({
           ...this.toHistoryItem(record),
@@ -523,43 +529,83 @@ export class ProfileMetricsService {
     snapshotDate: string,
     calculated: MetricCalculation,
   ) {
-    const existing = await this.metricSnapshotRepository.findOne({
-      where: {
-        userId,
-        metricKey: key,
-        snapshotDate,
-      },
-    });
-    const payload = existing ?? this.metricSnapshotRepository.create({
+    if (this.snapshotPersistDisabled) {
+      return;
+    }
+
+    const payload = this.metricSnapshotRepository.create({
       userId,
       metricKey: key,
       snapshotDate,
+      value: calculated.value,
+      unit: calculated.unit,
+      label: calculated.label,
+      summary: calculated.summary.slice(0, 255),
+      formulaVersion: 'v1',
+      breakdownJson: calculated.breakdown.map((item) => ({ ...item })),
+      sourceJson: calculated.sources.map((item) => ({
+        id: item.id,
+        sourceType: item.sourceType,
+        sourceTypeLabel: item.sourceTypeLabel,
+        title: item.title,
+        summary: item.summary,
+        happenedAt: item.happenedAt,
+        route: item.route,
+        valueDelta: item.valueDelta ?? null,
+      })),
     });
 
-    payload.value = calculated.value;
-    payload.unit = calculated.unit;
-    payload.label = calculated.label;
-    payload.summary = calculated.summary.slice(0, 255);
-    payload.formulaVersion = 'v1';
-    payload.breakdownJson = calculated.breakdown.map((item) => ({ ...item }));
-    payload.sourceJson = calculated.sources.map((item) => ({
-      id: item.id,
-      sourceType: item.sourceType,
-      sourceTypeLabel: item.sourceTypeLabel,
-      title: item.title,
-      summary: item.summary,
-      happenedAt: item.happenedAt,
-      route: item.route,
-      valueDelta: item.valueDelta ?? null,
-    }));
+    try {
+      await this.metricSnapshotRepository.upsert(
+        payload as unknown as Parameters<
+          Repository<UserMetricSnapshotEntity>['upsert']
+        >[0],
+        ['userId', 'metricKey', 'snapshotDate'],
+      );
+    } catch (error) {
+      if (this.isSnapshotSchemaError(error)) {
+        this.snapshotPersistDisabled = true;
+      }
+      this.logger.warn(
+        `Skip metric snapshot persist for ${key}/${snapshotDate}: ${this.formatSnapshotError(error)}`,
+      );
+    }
+  }
 
-    await this.metricSnapshotRepository.save(payload);
+  private formatSnapshotError(error: unknown) {
+    if (!error || typeof error !== 'object') {
+      return String(error);
+    }
+
+    const driverError = (error as { driverError?: { code?: string } })
+      .driverError;
+    const message = (error as { message?: string }).message;
+    return [driverError?.code, message].filter(Boolean).join(' ') || 'unknown';
+  }
+
+  private isSnapshotSchemaError(error: unknown) {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const code = (error as { driverError?: { code?: string } }).driverError?.code;
+    const message = (error as { message?: string }).message ?? '';
+    return (
+      code === 'ER_NO_SUCH_TABLE' ||
+      code === 'ER_BAD_FIELD_ERROR' ||
+      message.includes('user_metric_snapshots')
+    );
   }
 
   private serializeRecordSource(record: UserRecordEntity): RecordSource {
     const resultData = this.asRecord(record.resultData);
     const date = this.resolveRecordDate(record);
-    const score = record.score !== null ? Number(record.score) : null;
+    const score =
+      record.recordType === 'bazi'
+        ? null
+        : record.score !== null
+          ? Number(record.score)
+          : null;
     const safeScore = Number.isFinite(score) ? score : null;
 
     return {

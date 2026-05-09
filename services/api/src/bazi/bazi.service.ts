@@ -57,7 +57,7 @@ export class BaziService {
           ? 'professional-bazi-chart'
           : 'lite-bazi-chart',
         resultTitle: result.title,
-        score: result.dominantElement.value.toFixed(2),
+        score: null,
         resultLevel: result.dominantElement.name,
         resultData: result,
         isFullReportUnlocked: false,
@@ -93,7 +93,7 @@ export class BaziService {
         recordType: 'bazi',
         sourceCode: 'professional-bazi-chart',
         resultTitle: result.title,
-        score: result.dominantElement.value.toFixed(2),
+        score: null,
         resultLevel: result.dominantElement.name,
         resultData: result,
         isFullReportUnlocked: false,

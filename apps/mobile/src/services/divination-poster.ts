@@ -33,8 +33,11 @@ type WechatCanvasRuntime = {
   }) => void;
 };
 
-export const DIVINATION_POSTER_WIDTH = 1088;
-export const DIVINATION_POSTER_HEIGHT = 1472;
+export const DIVINATION_POSTER_WIDTH = 750;
+export const DIVINATION_POSTER_HEIGHT = 1334;
+
+const POSTER_DESIGN_WIDTH = 941;
+const POSTER_DESIGN_HEIGHT = 1672;
 
 const FONT_FAMILY = 'PingFang SC, Microsoft YaHei, sans-serif';
 const SERIF_FONT_FAMILY = 'Songti SC, STSong, Noto Serif SC, serif';
@@ -168,33 +171,33 @@ export async function generateDivinationSharePoster(result: DivinationResult): P
 function drawPoster(ctx: CanvasRenderingContext2D, result: DivinationResult) {
   const poster = buildDivinationPosterViewModel(result);
 
+  // Keep the template layout in a larger design space, then export at the unified poster size.
+  ctx.save();
+  ctx.scale(DIVINATION_POSTER_WIDTH / POSTER_DESIGN_WIDTH, DIVINATION_POSTER_HEIGHT / POSTER_DESIGN_HEIGHT);
   drawBackground(ctx);
   drawPageTitle(ctx, poster);
   drawResultCard(ctx, result, poster);
   drawOracleCard(ctx, poster);
   drawDetailPanels(ctx, poster);
   drawFooter(ctx);
+  ctx.restore();
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, DIVINATION_POSTER_HEIGHT);
+  const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_DESIGN_HEIGHT);
   gradient.addColorStop(0, '#FCF7EE');
   gradient.addColorStop(0.56, '#F7EFE4');
   gradient.addColorStop(1, '#F3EADD');
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, DIVINATION_POSTER_WIDTH, DIVINATION_POSTER_HEIGHT);
+  ctx.fillRect(0, 0, POSTER_DESIGN_WIDTH, POSTER_DESIGN_HEIGHT);
 }
 
 function drawPageTitle(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  setFont(ctx, 44, '700');
+  void poster;
+  setFont(ctx, 42, '700');
   ctx.fillStyle = '#181512';
   ctx.textAlign = 'center';
-  ctx.fillText('占卜结果', DIVINATION_POSTER_WIDTH / 2, 92);
-
-  setFont(ctx, 24, '500');
-  ctx.fillStyle = '#9A8B7D';
-  ctx.textAlign = 'right';
-  ctx.fillText(poster.dateText, 1008, 92);
+  ctx.fillText('占卜结果', POSTER_DESIGN_WIDTH / 2, 96);
 }
 
 function drawResultCard(
@@ -202,74 +205,74 @@ function drawResultCard(
   result: DivinationResult,
   poster: DivinationPosterViewModel,
 ) {
-  drawCard(ctx, 48, 132, 992, 596, 42);
+  drawCard(ctx, 30, 154, 881, 610, 42);
 
   setFont(ctx, 30, '700');
   ctx.fillStyle = '#8D73E6';
   ctx.textAlign = 'left';
-  ctx.fillText(poster.eyebrowText, 88, 204);
+  ctx.fillText(poster.eyebrowText, 64, 230);
 
-  drawRoundRect(ctx, 892, 166, 104, 66, 33, '#FFF3D8', 'rgba(216,178,103,0.45)');
+  drawRoundRect(ctx, 776, 190, 104, 66, 33, '#FFF3D8', 'rgba(216,178,103,0.45)');
   setFont(ctx, 28, '700');
   ctx.fillStyle = '#B67C25';
   ctx.textAlign = 'center';
-  ctx.fillText(poster.level, 944, 209);
+  ctx.fillText(poster.level, 828, 233);
 
   ctx.fillStyle = '#4B382A';
   ctx.textAlign = 'left';
-  drawFitText(ctx, poster.hexagramTitle, 88, 300, 740, 64, 46, '700', FONT_FAMILY);
+  drawFitText(ctx, poster.hexagramTitle, 64, 330, 700, 64, 46, '700', FONT_FAMILY);
 
   setFont(ctx, 34, '400');
   ctx.fillStyle = '#8E8174';
-  ctx.fillText(poster.meaning, 88, 374);
+  ctx.fillText(poster.meaning, 64, 408);
 
-  drawHexagram(ctx, result.hexagram.lines, 88, 390, 276, 21, 21, '#3E3345');
+  drawHexagram(ctx, result.hexagram.lines, 64, 474, 274, 21, 21, '#3E3345');
 
   setFont(ctx, 54, '700', SERIF_FONT_FAMILY);
   ctx.fillStyle = '#C9BDF1';
   ctx.textAlign = 'center';
-  ctx.fillText(result.hexagram.symbol, 494, 466);
+  ctx.fillText(result.hexagram.symbol, 462, 552);
 
   setFont(ctx, 30, '500');
   ctx.fillStyle = '#9A8B7D';
   ctx.textAlign = 'left';
-  ctx.fillText(poster.trigramText, 430, 520);
+  ctx.fillText(poster.trigramText, 394, 624);
 
-  drawRoundRect(ctx, 430, 552, 564, 72, 36, '#F1EEF8');
+  drawRoundRect(ctx, 394, 660, 486, 66, 33, '#F1EEF8');
   setFont(ctx, 30, '600');
   ctx.fillStyle = '#8D73E6';
   ctx.textAlign = 'center';
-  ctx.fillText(poster.changedButtonText, 712, 598);
+  ctx.fillText(poster.changedButtonText, 637, 703);
 
   poster.infoChips.forEach((item, index) => {
-    const x = 88 + index * 304;
-    drawInfoChip(ctx, x, 628, 280, item.label, item.value);
+    const x = 64 + index * 277;
+    drawInfoChip(ctx, x, 674, 255, item.label, item.value);
   });
 }
 
 function drawOracleCard(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
-  drawCard(ctx, 48, 762, 992, 226, 36);
+  drawCard(ctx, 30, 794, 881, 246, 36);
 
   setFont(ctx, 30, '500');
   ctx.fillStyle = '#8D73E6';
   ctx.textAlign = 'left';
-  ctx.fillText(poster.oracleTitle, 88, 834);
+  ctx.fillText(poster.oracleTitle, 64, 874);
 
   setFont(ctx, 42, '700');
   ctx.fillStyle = '#4B382A';
-  wrapText(ctx, poster.oracleSubject, 88, 898, 860, 52, 1);
+  wrapText(ctx, poster.oracleSubject, 64, 940, 760, 52, 1);
 
   setFont(ctx, 32, '400');
   ctx.fillStyle = '#766A60';
-  wrapText(ctx, poster.oracleSituation, 88, 956, 850, 44, 2);
+  wrapText(ctx, poster.oracleSituation, 64, 1000, 770, 44, 2);
 }
 
 function drawDetailPanels(ctx: CanvasRenderingContext2D, poster: DivinationPosterViewModel) {
   drawDetailPanel(ctx, {
-    x: 48,
-    y: 1018,
-    width: 472,
-    height: 322,
+    x: 30,
+    y: 1070,
+    width: 420,
+    height: 398,
     eyebrow: '动爻',
     title: poster.movingTitle,
     body: poster.movingBody,
@@ -277,10 +280,10 @@ function drawDetailPanels(ctx: CanvasRenderingContext2D, poster: DivinationPoste
   });
 
   drawDetailPanel(ctx, {
-    x: 568,
-    y: 1018,
-    width: 472,
-    height: 322,
+    x: 492,
+    y: 1070,
+    width: 419,
+    height: 398,
     eyebrow: '变卦',
     title: poster.changedTitle,
     body: poster.changedBody,
@@ -292,14 +295,14 @@ function drawFooter(ctx: CanvasRenderingContext2D) {
   setFont(ctx, 24, '400');
   ctx.fillStyle = '#8E8174';
   ctx.textAlign = 'left';
-  ctx.fillText('长按识别，生成你的今日占卜', 64, 1394);
+  ctx.fillText('长按识别，生成你的今日占卜', 64, 1544);
 
   setFont(ctx, 34, '700');
   ctx.fillStyle = '#4B382A';
-  ctx.fillText('Fortune Hub', 64, 1434);
+  ctx.fillText('Fortune Hub', 64, 1584);
 
-  drawRoundRect(ctx, 884, 1328, 116, 116, 20, '#FFFFFF', 'rgba(228,218,207,0.9)');
-  drawQrPlaceholder(ctx, 906, 1350, 72);
+  drawRoundRect(ctx, 766, 1500, 116, 116, 20, '#FFFFFF', 'rgba(228,218,207,0.9)');
+  drawQrPlaceholder(ctx, 788, 1522, 72);
 }
 
 function drawHexagram(
@@ -380,15 +383,15 @@ function drawInfoChip(
   label: string,
   value: string,
 ) {
-  drawRoundRect(ctx, x, y, width, 86, 20, '#F6F2FA');
+  drawRoundRect(ctx, x, y, width, 76, 18, '#F6F2FA');
   setFont(ctx, 24, '500');
   ctx.fillStyle = '#A49A90';
   ctx.textAlign = 'left';
   ctx.fillText(label, x + 24, y + 33);
 
-  setFont(ctx, 30, '700');
+  setFont(ctx, 28, '700');
   ctx.fillStyle = '#4B382A';
-  drawFitText(ctx, value, x + 24, y + 66, width - 48, 30, 22, '700');
+  drawFitText(ctx, value, x + 24, y + 62, width - 48, 28, 21, '700');
 }
 
 function drawDetailPanel(ctx: CanvasRenderingContext2D, input: {
@@ -413,12 +416,12 @@ function drawDetailPanel(ctx: CanvasRenderingContext2D, input: {
 
   setFont(ctx, 30, '400');
   ctx.fillStyle = '#766A60';
-  wrapText(ctx, input.body, input.x + 36, input.y + 178, input.width - 72, 42, 3);
+  wrapText(ctx, input.body, input.x + 36, input.y + 178, input.width - 72, 42, 4);
 
   if (input.advice) {
     setFont(ctx, 28, '500');
     ctx.fillStyle = '#8D73E6';
-    wrapText(ctx, input.advice, input.x + 36, input.y + 298, input.width - 72, 38, 1);
+    wrapText(ctx, input.advice, input.x + 36, input.y + 342, input.width - 72, 38, 1);
   }
 }
 

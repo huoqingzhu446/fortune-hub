@@ -1,13 +1,22 @@
 <template>
   <view v-if="result" class="result-page">
-    <view class="result-card">
+    <view
+      class="result-card"
+      :class="{ 'result-card--best': result.hexagram.level === '大吉' }"
+    >
       <view class="result-card__head">
         <view>
           <text class="result-eyebrow">{{ result.topicLabel }} · {{ result.casting?.methodLabel || '略筮法' }}</text>
           <text class="result-title">本卦：{{ result.hexagram.name }}</text>
           <text class="result-subtitle">{{ result.hexagram.meaning }}</text>
         </view>
-        <text class="level-pill">{{ result.hexagram.level }}</text>
+        <view
+          class="level-pill"
+          :class="{ 'level-pill--best': result.hexagram.level === '大吉' }"
+        >
+          <text v-if="result.hexagram.level === '大吉'" class="level-pill__hint">上上签</text>
+          <text class="level-pill__text">{{ result.hexagram.level }}</text>
+        </view>
       </view>
 
       <view class="hexagram-area">
@@ -604,12 +613,34 @@ onLoad((query) => {
 }
 
 .result-card {
+  position: relative;
+  overflow: hidden;
   padding: 28rpx;
   border-radius: 30rpx;
   border-color: rgba(216, 166, 78, 0.26);
 }
 
+.result-card--best {
+  border-color: rgba(216, 166, 78, 0.58);
+  box-shadow:
+    0 16rpx 46rpx rgba(183, 119, 36, 0.14),
+    inset 0 0 0 2rpx rgba(255, 214, 122, 0.32);
+}
+
+.result-card--best::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 220rpx;
+  height: 220rpx;
+  background: radial-gradient(circle at 72% 18%, rgba(255, 218, 126, 0.38), transparent 64%);
+  pointer-events: none;
+}
+
 .result-card__head {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   gap: 20rpx;
@@ -646,6 +677,10 @@ onLoad((query) => {
 .level-pill {
   flex: 0 0 auto;
   align-self: start;
+  display: grid;
+  justify-items: center;
+  min-width: 72rpx;
+  box-sizing: border-box;
   padding: 9rpx 20rpx;
   border-radius: 999rpx;
   color: #b97724;
@@ -653,6 +688,36 @@ onLoad((query) => {
   border: 1rpx solid rgba(216, 166, 78, 0.34);
   font-size: 22rpx;
   font-weight: 700;
+}
+
+.level-pill__hint,
+.level-pill__text {
+  display: block;
+  line-height: 1.1;
+}
+
+.level-pill--best {
+  min-width: 104rpx;
+  padding: 12rpx 22rpx 13rpx;
+  color: #fff8e6;
+  background: linear-gradient(135deg, #d18a28 0%, #f0bd57 48%, #b97724 100%);
+  border-color: rgba(255, 224, 144, 0.88);
+  box-shadow:
+    0 8rpx 20rpx rgba(185, 119, 36, 0.3),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.45);
+  transform: translateY(-4rpx);
+}
+
+.level-pill--best .level-pill__hint {
+  margin-bottom: 3rpx;
+  font-size: 17rpx;
+  font-weight: 760;
+  color: rgba(255, 248, 230, 0.76);
+}
+
+.level-pill--best .level-pill__text {
+  font-size: 30rpx;
+  font-weight: 860;
 }
 
 .hexagram-area {

@@ -307,7 +307,7 @@ onLoad((query) => {
   position: relative;
   box-sizing: border-box;
   width: 640rpx;
-  height: 866rpx;
+  height: 1138rpx;
   margin: 0 auto;
   overflow: hidden;
   border-radius: 22rpx;
@@ -338,12 +338,7 @@ onLoad((query) => {
 }
 
 .poster-nav__date {
-  position: absolute;
-  right: 8rpx;
-  top: 4rpx;
-  color: #9a8b7d;
-  font-size: 14rpx;
-  font-weight: 600;
+  display: none;
 }
 
 .poster-result-card,
@@ -355,8 +350,8 @@ onLoad((query) => {
 }
 
 .poster-result-card {
-  top: 78rpx;
-  height: 351rpx;
+  top: 104rpx;
+  height: 415rpx;
   padding: 24rpx;
   border-radius: 26rpx;
 }
@@ -399,15 +394,15 @@ onLoad((query) => {
 }
 
 .poster-title-main {
-  margin-top: 14rpx;
+  margin-top: 22rpx;
   color: #4b382a;
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 800;
   line-height: 1.12;
 }
 
 .poster-meaning {
-  margin-top: 8rpx;
+  margin-top: 16rpx;
   color: #8e8174;
   font-size: 18rpx;
 }
@@ -429,19 +424,19 @@ onLoad((query) => {
   display: flex;
   align-items: center;
   gap: 48rpx;
-  margin-top: 22rpx;
+  margin-top: 28rpx;
 }
 
 .poster-hexagram {
   display: grid;
-  gap: 8rpx;
-  width: 154rpx;
+  gap: 9rpx;
+  width: 188rpx;
 }
 
 .poster-line {
   display: flex;
-  gap: 20rpx;
-  height: 10rpx;
+  gap: 23rpx;
+  height: 12rpx;
 }
 
 .poster-line__segment {
@@ -476,7 +471,7 @@ onLoad((query) => {
 }
 
 .poster-changed-button {
-  min-width: 290rpx;
+  min-width: 330rpx;
   margin-top: 16rpx;
   padding: 13rpx 24rpx;
   border-radius: 999rpx;
@@ -499,7 +494,7 @@ onLoad((query) => {
 
 .poster-casting-chip {
   min-width: 0;
-  padding: 10rpx 14rpx;
+  padding: 13rpx 16rpx;
   border-radius: 16rpx;
   background: #f6f2fa;
 }
@@ -520,8 +515,8 @@ onLoad((query) => {
 }
 
 .poster-oracle-card {
-  top: 448rpx;
-  height: 133rpx;
+  top: 542rpx;
+  height: 166rpx;
   padding: 26rpx 24rpx;
   border-radius: 22rpx;
 }
@@ -552,19 +547,22 @@ onLoad((query) => {
   color: #766a60;
   font-size: 19rpx;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .poster-panel-row {
-  top: 604rpx;
+  top: 736rpx;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18rpx;
 }
 
 .poster-panel {
-  min-height: 190rpx;
+  min-height: 270rpx;
   padding: 22rpx;
   border-radius: 22rpx;
 }
@@ -591,7 +589,7 @@ onLoad((query) => {
   font-size: 19rpx;
   line-height: 1.45;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
 }
 
 .poster-panel__advice {
@@ -610,7 +608,7 @@ onLoad((query) => {
   align-items: flex-end;
   justify-content: space-between;
   gap: 24rpx;
-  top: 790rpx;
+  top: 1042rpx;
 }
 
 .poster-footer__text {

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Headers, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
@@ -23,6 +32,16 @@ export class UsersController {
   async getProfilePage(@Headers('authorization') authorization?: string) {
     const user = await this.authService.resolveUserFromAuthorization(authorization);
     return this.usersService.getProfilePage(user);
+  }
+
+  @Get('user/metrics/:metricKey/detail')
+  async getMetricDetail(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('metricKey') metricKey: string,
+    @Query('range') range?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getMetricDetail(user, metricKey, range);
   }
 
   @Put('me/profile')

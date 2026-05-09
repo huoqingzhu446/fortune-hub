@@ -30,6 +30,7 @@ import { ReportTemplateEntity } from './database/entities/report-template.entity
 import { ReportTemplateVersionEntity } from './database/entities/report-template-version.entity';
 import { ShareRecordEntity } from './database/entities/share-record.entity';
 import { UserConsentEntity } from './database/entities/user-consent.entity';
+import { UserMetricSnapshotEntity } from './database/entities/user-metric-snapshot.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
@@ -75,6 +76,7 @@ import { ZodiacModule } from './zodiac/zodiac.module';
           FeedbackEntity,
           UserEntity,
           UserConsentEntity,
+          UserMetricSnapshotEntity,
           UserRecordEntity,
           MoodRecordEntity,
           MeditationRecordEntity,

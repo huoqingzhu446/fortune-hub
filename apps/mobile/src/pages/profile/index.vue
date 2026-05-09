@@ -257,6 +257,9 @@
             :key="item.title"
             class="data-card"
             :class="`data-card--${item.tone}`"
+            hover-class="data-card--pressed"
+            hover-stay-time="80"
+            @tap="openDataCardRoute(item)"
           >
             <view class="data-card__head">
               <view class="data-card__icon">
@@ -404,6 +407,11 @@ import type { UnifiedRecordItem } from '../../types/records';
 type GenderValue = 'male' | 'female' | 'unknown';
 type DataTone = 'mist' | 'blush' | 'mint' | 'gold';
 type ToolTone = 'violet' | 'mint' | 'sky' | 'gold';
+type DataCard = ProfilePageData['dataCards'][number];
+
+type DataCardViewModel = DataCard & {
+  icon: string;
+};
 
 function buildLocalDateString() {
   const now = new Date();
@@ -480,10 +488,38 @@ const fallbackProfilePage: ProfilePageData = {
     route: '/pages/membership/index',
   },
   dataCards: [
-    { title: '综合气运指数', value: '--', meta: '登录后同步', tone: 'mist' },
-    { title: '心情记录天数', value: '--', meta: '登录后同步', tone: 'blush' },
-    { title: '探索报告', value: '--', meta: '登录后同步', tone: 'mint' },
-    { title: '好运能量值', value: '--', meta: '登录后同步', tone: 'gold' },
+    {
+      key: 'fortune_index',
+      title: '综合气运指数',
+      value: '--',
+      meta: '登录后同步',
+      tone: 'mist',
+      route: '/pages/profile/data/fortune-index/index',
+    },
+    {
+      key: 'mood_days',
+      title: '心情记录天数',
+      value: '--',
+      meta: '登录后同步',
+      tone: 'blush',
+      route: '/pages/profile/data/mood-days/index',
+    },
+    {
+      key: 'explore_reports',
+      title: '探索报告',
+      value: '--',
+      meta: '登录后同步',
+      tone: 'mint',
+      route: '/pages/profile/data/explore-reports/index',
+    },
+    {
+      key: 'lucky_energy',
+      title: '好运能量值',
+      value: '--',
+      meta: '登录后同步',
+      tone: 'gold',
+      route: '/pages/profile/data/lucky-energy/index',
+    },
   ],
   tools: [],
   services: [],
@@ -906,6 +942,15 @@ function handleProfileAction() {
   }
 
   toggleProfileEditor();
+}
+
+function openDataCardRoute(item: DataCardViewModel) {
+  if (!isLoggedIn.value) {
+    void handleLogin();
+    return;
+  }
+
+  open(item.route);
 }
 
 function open(route: string) {
@@ -1597,6 +1642,14 @@ onShow(() => {
     radial-gradient(circle at 18% 18%, rgba(var(--metric-rgb), 0.18), transparent 34%),
     linear-gradient(135deg, rgba(var(--metric-rgb), 0.1), rgba(255, 255, 255, 0.72));
   box-shadow: 0 12rpx 30rpx rgba(var(--metric-rgb), 0.08);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.data-card--pressed {
+  transform: scale(0.985);
+  box-shadow: 0 8rpx 22rpx rgba(var(--metric-rgb), 0.07);
 }
 
 .data-card--blush {

@@ -23,6 +23,7 @@ import { ReportTemplateEntity } from './entities/report-template.entity';
 import { ReportTemplateVersionEntity } from './entities/report-template-version.entity';
 import { ShareRecordEntity } from './entities/share-record.entity';
 import { UserConsentEntity } from './entities/user-consent.entity';
+import { UserMetricSnapshotEntity } from './entities/user-metric-snapshot.entity';
 import { UserEntity } from './entities/user.entity';
 import { UserRecordEntity } from './entities/user-record.entity';
 
@@ -45,6 +46,7 @@ export default new DataSource({
     FeedbackEntity,
     UserEntity,
     UserConsentEntity,
+    UserMetricSnapshotEntity,
     UserRecordEntity,
     MoodRecordEntity,
     MeditationRecordEntity,

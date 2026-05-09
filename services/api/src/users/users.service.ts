@@ -14,6 +14,7 @@ import { EntitlementsService } from '../entitlements/entitlements.service';
 import { FavoritesService } from '../favorites/favorites.service';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
+import { ProfileMetricsService } from './profile-metrics.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -217,6 +218,7 @@ export class UsersService {
     private readonly authService: AuthService,
     private readonly favoritesService: FavoritesService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly profileMetricsService: ProfileMetricsService,
   ) {}
 
   getCurrentProfile(user: UserEntity) {
@@ -240,30 +242,35 @@ export class UsersService {
     const recentHistory = user
       ? await this.loadUnifiedHistoryItems(user, 3)
       : [];
-    const latestScore =
-      recentHistory.find((item) => item.score !== null)?.score ?? null;
+    let totalRecords = 0;
+    let orderCount = 0;
+    let paidOrderCount = 0;
+    let favoriteCount = 0;
+    let metricSummary: Awaited<
+      ReturnType<ProfileMetricsService['buildProfileSummary']>
+    > | null = null;
 
-    const [
-      totalRecords,
-      moodDayCount,
-      orderCount,
-      paidOrderCount,
-      favoriteCount,
-    ] = user
-      ? await Promise.all([
-          this.userRecordRepository.count({
-            where: { userId: user.id },
-          }),
-          this.countDistinctMoodDays(user.id),
-          this.orderRepository.count({
-            where: { userId: user.id },
-          }),
-          this.orderRepository.count({
-            where: { userId: user.id, status: 'paid' },
-          }),
-          this.favoritesService.countFavorites(user.id),
-        ])
-      : [0, 0, 0, 0, 0];
+    if (user) {
+      [
+        totalRecords,
+        orderCount,
+        paidOrderCount,
+        favoriteCount,
+        metricSummary,
+      ] = await Promise.all([
+        this.userRecordRepository.count({
+          where: { userId: user.id },
+        }),
+        this.orderRepository.count({
+          where: { userId: user.id },
+        }),
+        this.orderRepository.count({
+          where: { userId: user.id, status: 'paid' },
+        }),
+        this.favoritesService.countFavorites(user.id),
+        this.profileMetricsService.buildProfileSummary(user),
+      ]);
+    }
 
     const vipExpireText = isVipActive
       ? this.formatDate(serializedUser?.vipExpiredAt)
@@ -297,48 +304,22 @@ export class UsersService {
         buttonText: isVipActive ? '查看权益' : '立即开通',
         route: '/pages/membership/index',
       },
-      dataCards: [
-        {
-          title: '综合气运指数',
-          value: latestScore !== null ? `${latestScore}` : '--',
-          meta:
-            latestScore !== null
-              ? latestScore >= 80
-                ? '优秀'
-                : '平稳'
-              : '登录后同步',
-          tone: 'mist',
-        },
-        {
-          title: '心情记录天数',
-          value: isLoggedIn ? `${moodDayCount}` : '--',
-          meta: isLoggedIn ? '天' : '登录后同步',
-          tone: 'blush',
-        },
-        {
-          title: '探索报告',
-          value: isLoggedIn ? `${totalRecords}` : '--',
-          meta: isLoggedIn ? '份' : '登录后同步',
-          tone: 'mint',
-        },
-        {
-          title: '好运能量值',
-          value: isLoggedIn
-            ? `${Math.max(120, totalRecords * 20 + favoriteCount * 10 + (isProfileCompleted ? 80 : 20))}`
-            : '--',
-          meta: isLoggedIn ? '分' : '登录后同步',
-          tone: 'gold',
-        },
-      ],
+      dataCards:
+        metricSummary?.dataCards ??
+        this.profileMetricsService.buildGuestDataCards(),
       tools: this.buildProfileTools(),
       services: this.buildProfileServices({
         orderCount,
         paidOrderCount,
-        reportCount: totalRecords,
+        reportCount: metricSummary?.counts.exploreTotal ?? totalRecords,
         favoriteCount,
       }),
       recentHistory,
     });
+  }
+
+  async getMetricDetail(user: UserEntity, metricKey: string, range?: string) {
+    return this.profileMetricsService.getMetricDetail(user, metricKey, range);
   }
 
   async updateProfile(user: UserEntity, dto: UpdateProfileDto) {

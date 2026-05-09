@@ -18,10 +18,12 @@ export interface ProfilePageData {
     route: string;
   };
   dataCards: Array<{
+    key: 'fortune_index' | 'mood_days' | 'explore_reports' | 'lucky_energy';
     title: string;
     value: string;
     meta: string;
     tone: 'mist' | 'blush' | 'mint' | 'gold';
+    route: string;
   }>;
   tools: Array<{
     title: string;

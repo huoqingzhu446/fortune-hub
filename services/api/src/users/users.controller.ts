@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { BindPhoneDto } from '../auth/dto/bind-phone.dto';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -51,6 +52,15 @@ export class UsersController {
   ) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.usersService.updateProfile(user, dto);
+  }
+
+  @Post('me/phone/bind')
+  async bindPhone(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: BindPhoneDto,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.authService.bindPhone(user, dto);
   }
 
   @Get('me/preferences')

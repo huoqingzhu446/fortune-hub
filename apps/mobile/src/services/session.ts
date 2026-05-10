@@ -5,7 +5,7 @@ const AUTH_USER_KEY = 'fortune-hub-auth-user';
 const AUTH_META_KEY = 'fortune-hub-auth-meta';
 
 export interface AuthSessionMeta {
-  authMode: 'wechat' | 'mock';
+  authMode: 'wechat' | 'mock' | 'phone';
   authProviderLabel: string;
   loggedInAt: string;
   expiresIn: number;

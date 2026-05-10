@@ -76,6 +76,14 @@
         </view>
 
         <text class="profile-card__helper">{{ sessionHint }}</text>
+
+        <view v-if="isLoggedIn" class="phone-bind-strip" @tap="handlePhoneBindStripTap">
+          <view>
+            <text class="phone-bind-strip__label">手机号</text>
+            <text class="phone-bind-strip__value">{{ phoneStatusText }}</text>
+          </view>
+          <text class="phone-bind-strip__action">{{ phoneBindActionLabel }}</text>
+        </view>
       </view>
 
       <view
@@ -374,6 +382,56 @@
           退出当前会话
         </button>
       </view>
+
+      <view v-if="phoneAuthVisible" class="phone-auth-mask" @tap="closePhoneAuth">
+        <view class="phone-auth-panel" @tap.stop>
+          <view class="phone-auth-panel__head">
+            <text class="phone-auth-panel__title">{{ phonePanelTitle }}</text>
+            <button class="phone-auth-panel__close" @tap="closePhoneAuth">×</button>
+          </view>
+          <text class="phone-auth-panel__hint">{{ phonePanelHint }}</text>
+
+          <view class="phone-auth-field">
+            <text class="phone-auth-field__label">手机号</text>
+            <input
+              v-model="phoneForm.phone"
+              class="phone-auth-field__input"
+              type="number"
+              maxlength="11"
+              placeholder="请输入 11 位手机号"
+            />
+          </view>
+
+          <view class="phone-auth-field">
+            <text class="phone-auth-field__label">验证码</text>
+            <view class="phone-auth-code-row">
+              <input
+                v-model="phoneForm.code"
+                class="phone-auth-field__input phone-auth-field__input--code"
+                type="number"
+                maxlength="6"
+                placeholder="请输入验证码"
+              />
+              <button
+                class="phone-auth-code-button"
+                :disabled="phoneCodeSending || phoneCountdown > 0"
+                :loading="phoneCodeSending"
+                @tap="sendPhoneAuthCode"
+              >
+                {{ phoneCodeButtonText }}
+              </button>
+            </view>
+          </view>
+
+          <button
+            class="phone-auth-submit"
+            :loading="phoneAuthSubmitting"
+            @tap="submitPhoneAuth"
+          >
+            {{ phoneSubmitLabel }}
+          </button>
+        </view>
+      </view>
     </view>
 
     <AppTabBar current-tab="mine" />
@@ -381,10 +439,16 @@
 </template>
 
 <script setup lang="ts">
-import { onLoad, onShow } from '@dcloudio/uni-app';
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { computed, nextTick, reactive, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
-import { loginWithCode, updateMyProfile } from '../../api/auth';
+import {
+  bindMyPhone,
+  loginWithCode,
+  loginWithPhone,
+  sendPhoneCode,
+  updateMyProfile,
+} from '../../api/auth';
 import { fetchProfilePage } from '../../api/profile';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
@@ -436,6 +500,9 @@ const defaultBirthTime = '12:00';
 const emptyProfile: UserProfile = {
   id: '',
   openid: '',
+  phoneMasked: null,
+  phoneVerifiedAt: null,
+  lastLoginProvider: null,
   nickname: null,
   avatarUrl: null,
   birthday: null,
@@ -460,6 +527,11 @@ const profileCompleted = ref(
   ),
 );
 const submitting = ref(false);
+const phoneAuthVisible = ref(false);
+const phoneAuthMode = ref<'login' | 'bind'>('login');
+const phoneAuthSubmitting = ref(false);
+const phoneCodeSending = ref(false);
+const phoneCountdown = ref(0);
 const historyLoading = ref(false);
 const authToken = ref(getAuthToken());
 const authMeta = ref(getAuthSessionMeta());
@@ -532,9 +604,15 @@ const form = reactive({
   birthPlace: profile.value.birthPlace || '',
   gender: (profile.value.gender as GenderValue) || 'unknown',
 });
+const phoneForm = reactive({
+  phone: '',
+  code: '',
+});
+let phoneCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const pageIsLoggedIn = computed(() => profilePage.value.isLoggedIn);
+const hasBoundPhone = computed(() => Boolean(profile.value.phoneMasked));
 
 const profileName = computed(() => {
   return profilePage.value.hero.displayName || profile.value.nickname || '清浅';
@@ -547,13 +625,43 @@ const signatureText = computed(() => profilePage.value.hero.signature);
 
 const loginButtonLabel = computed(() => {
   if (isLoggedIn.value) {
-    return isMpWeixin ? '刷新登录态' : '刷新体验登录';
+    if (isMpWeixin) {
+      return '刷新登录态';
+    }
+
+    return hasBoundPhone.value ? '手机号已绑定' : '绑定手机号';
   }
 
-  return isMpWeixin ? '微信一键登录' : '开发环境快捷登录';
+  return isMpWeixin ? '微信一键登录' : '手机号登录';
 });
 const profileActionLabel = computed(() =>
-  showProfileEditor.value ? '收起资料' : '完善资料',
+  !isLoggedIn.value
+    ? isMpWeixin
+      ? '手机号登录'
+      : '开发体验'
+    : showProfileEditor.value
+      ? '收起资料'
+      : '完善资料',
+);
+const phoneStatusText = computed(() =>
+  profile.value.phoneMasked ? profile.value.phoneMasked : '未绑定',
+);
+const phoneBindActionLabel = computed(() =>
+  profile.value.phoneMasked ? '已验证' : '去绑定',
+);
+const phonePanelTitle = computed(() =>
+  phoneAuthMode.value === 'bind' ? '绑定手机号' : '手机号登录',
+);
+const phonePanelHint = computed(() =>
+  phoneAuthMode.value === 'bind'
+    ? '绑定后可在 H5 和小程序之间同步记录。'
+    : '首次使用手机号会自动创建账号。',
+);
+const phoneCodeButtonText = computed(() =>
+  phoneCountdown.value > 0 ? `${phoneCountdown.value}s` : '获取验证码',
+);
+const phoneSubmitLabel = computed(() =>
+  phoneAuthMode.value === 'bind' ? '确认绑定' : '登录 / 注册',
 );
 
 const sessionHint = computed(() => profilePage.value.hero.sessionHint);
@@ -664,7 +772,7 @@ const pendingZodiac = computed(() => {
 function applyLoginResult(data: {
   token: string;
   expiresIn: number;
-  authMode: 'wechat' | 'mock';
+  authMode: 'wechat' | 'mock' | 'phone';
   authProviderLabel: string;
   user: UserProfile;
   isProfileCompleted: boolean;
@@ -742,6 +850,133 @@ function resetSessionState() {
   profilePage.value = fallbackProfilePage;
   showProfileEditor.value = false;
   syncForm();
+}
+
+function validatePhoneInput() {
+  const phone = phoneForm.phone.trim();
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    uni.showToast({
+      title: '请输入有效手机号',
+      icon: 'none',
+    });
+    return false;
+  }
+
+  return true;
+}
+
+function openPhoneAuth(mode: 'login' | 'bind') {
+  if (mode === 'bind' && !isLoggedIn.value) {
+    phoneAuthMode.value = 'login';
+  } else {
+    phoneAuthMode.value = mode;
+  }
+  phoneForm.code = '';
+  phoneAuthVisible.value = true;
+}
+
+function closePhoneAuth() {
+  phoneAuthVisible.value = false;
+  phoneAuthSubmitting.value = false;
+  phoneCodeSending.value = false;
+}
+
+function startPhoneCountdown(seconds: number) {
+  if (phoneCountdownTimer) {
+    clearInterval(phoneCountdownTimer);
+  }
+  phoneCountdown.value = seconds;
+  phoneCountdownTimer = setInterval(() => {
+    phoneCountdown.value = Math.max(0, phoneCountdown.value - 1);
+    if (phoneCountdown.value === 0 && phoneCountdownTimer) {
+      clearInterval(phoneCountdownTimer);
+      phoneCountdownTimer = null;
+    }
+  }, 1000);
+}
+
+async function sendPhoneAuthCode() {
+  if (!validatePhoneInput()) {
+    return;
+  }
+
+  try {
+    phoneCodeSending.value = true;
+    const response = await sendPhoneCode({
+      phone: phoneForm.phone.trim(),
+      scene: phoneAuthMode.value,
+    });
+    startPhoneCountdown(response.data.cooldownSeconds);
+    uni.showToast({
+      title: '验证码已发送',
+      icon: 'success',
+    });
+  } catch (error) {
+    console.warn('send phone code failed', error);
+    uni.showToast({
+      title: getErrorMessage(error, '验证码发送失败'),
+      icon: 'none',
+    });
+  } finally {
+    phoneCodeSending.value = false;
+  }
+}
+
+async function submitPhoneAuth() {
+  if (!validatePhoneInput()) {
+    return;
+  }
+  if (!phoneForm.code.trim()) {
+    uni.showToast({
+      title: '请输入验证码',
+      icon: 'none',
+    });
+    return;
+  }
+
+  try {
+    phoneAuthSubmitting.value = true;
+    if (phoneAuthMode.value === 'bind') {
+      const response = await bindMyPhone({
+        phone: phoneForm.phone.trim(),
+        code: phoneForm.code.trim(),
+      });
+      profile.value = response.data.user;
+      profileCompleted.value = response.data.isProfileCompleted;
+      setCachedUser(response.data.user);
+      closePhoneAuth();
+      pageStateStore.markCoreDirty();
+      await hydrateProfile();
+      uni.showToast({
+        title: '手机号已绑定',
+        icon: 'success',
+      });
+      return;
+    }
+
+    const response = await loginWithPhone({
+      phone: phoneForm.phone.trim(),
+      code: phoneForm.code.trim(),
+    });
+    applyLoginResult(response.data);
+    closePhoneAuth();
+    await hydrateProfile();
+    uni.showToast({
+      title: '登录成功',
+      icon: 'success',
+    });
+  } catch (error) {
+    console.warn('phone auth failed', error);
+    if (handleAuthExpired(error, true)) {
+      resetSessionState();
+    }
+    uni.showToast({
+      title: getErrorMessage(error, '手机号登录失败'),
+      icon: 'none',
+    });
+  } finally {
+    phoneAuthSubmitting.value = false;
+  }
 }
 
 function handleBirthdayChange(event: { detail: { value: string } }) {
@@ -822,6 +1057,22 @@ async function loginWithWechatOfficial() {
 }
 
 async function handleLogin() {
+  if (!isLoggedIn.value && !isMpWeixin) {
+    openPhoneAuth('login');
+    return;
+  }
+  if (isLoggedIn.value && !isMpWeixin) {
+    if (!hasBoundPhone.value) {
+      openPhoneAuth('bind');
+      return;
+    }
+    uni.showToast({
+      title: '手机号已绑定',
+      icon: 'none',
+    });
+    return;
+  }
+
   try {
     submitting.value = true;
     if (isMpWeixin) {
@@ -932,14 +1183,47 @@ function toggleProfileEditor() {
 
 function handleProfileAction() {
   if (!isLoggedIn.value) {
+    if (isMpWeixin) {
+      openPhoneAuth('login');
+      return;
+    }
+    void handleExperienceLogin();
+    return;
+  }
+
+  toggleProfileEditor();
+}
+
+async function handleExperienceLogin() {
+  try {
+    submitting.value = true;
+    await loginForExperience();
+    await hydrateProfile();
     uni.showToast({
-      title: '请先登录',
+      title: '登录成功',
+      icon: 'success',
+    });
+  } catch (error) {
+    console.warn('experience login failed', error);
+    uni.showToast({
+      title: getErrorMessage(error, '登录失败，请稍后重试'),
+      icon: 'none',
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
+function handlePhoneBindStripTap() {
+  if (hasBoundPhone.value) {
+    uni.showToast({
+      title: '手机号已验证',
       icon: 'none',
     });
     return;
   }
 
-  toggleProfileEditor();
+  openPhoneAuth('bind');
 }
 
 function openDataCardRoute(item: DataCardViewModel) {
@@ -1017,6 +1301,13 @@ onShow(() => {
     void hydrateProfile();
   }
 });
+
+onUnload(() => {
+  if (phoneCountdownTimer) {
+    clearInterval(phoneCountdownTimer);
+    phoneCountdownTimer = null;
+  }
+});
 </script>
 
 <style lang="scss">
@@ -1083,6 +1374,9 @@ onShow(() => {
 
 .profile-nav__home,
 .profile-card__button,
+.phone-auth-panel__close,
+.phone-auth-code-button,
+.phone-auth-submit,
 .vip-card__button,
 .save-button,
 .bottom-actions__button {
@@ -1098,6 +1392,9 @@ onShow(() => {
 
 .profile-nav__home::after,
 .profile-card__button::after,
+.phone-auth-panel__close::after,
+.phone-auth-code-button::after,
+.phone-auth-submit::after,
 .vip-card__button::after,
 .save-button::after,
 .bottom-actions__button::after {
@@ -1481,6 +1778,42 @@ onShow(() => {
   display: block;
   margin-top: 12rpx;
   text-align: center;
+}
+
+.phone-bind-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.phone-bind-strip__label,
+.phone-auth-field__label {
+  display: block;
+  font-size: 22rpx;
+  color: var(--theme-text-secondary);
+}
+
+.phone-bind-strip__value {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.phone-bind-strip__action {
+  flex: 0 0 auto;
+  padding: 9rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.1);
 }
 
 .vip-card {
@@ -2012,6 +2345,109 @@ onShow(() => {
 
 .empty-state__title {
   font-size: 28rpx;
+}
+
+.phone-auth-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 26rpx 34rpx;
+  box-sizing: border-box;
+  background: rgba(24, 29, 36, 0.36);
+}
+
+.phone-auth-panel {
+  width: 100%;
+  max-width: 690rpx;
+  padding: 30rpx 28rpx 28rpx;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 28rpx 70rpx rgba(var(--theme-text-primary-rgb), 0.18);
+}
+
+.phone-auth-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.phone-auth-panel__title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+}
+
+.phone-auth-panel__close {
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 50%;
+  font-size: 34rpx;
+  color: var(--theme-text-secondary);
+  background: rgba(var(--theme-text-secondary-rgb), 0.1);
+}
+
+.phone-auth-panel__hint {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
+}
+
+.phone-auth-field {
+  display: grid;
+  gap: 10rpx;
+  margin-top: 22rpx;
+}
+
+.phone-auth-field__input {
+  width: 100%;
+  min-height: 82rpx;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  border-radius: 22rpx;
+  background: var(--theme-surface-muted);
+  font-size: 28rpx;
+  color: var(--theme-text-primary);
+}
+
+.phone-auth-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190rpx;
+  gap: 14rpx;
+  align-items: center;
+}
+
+.phone-auth-code-button {
+  min-height: 82rpx;
+  border-radius: 22rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--theme-primary);
+  background: rgba(var(--theme-primary-rgb), 0.1);
+}
+
+.phone-auth-code-button[disabled] {
+  color: var(--theme-text-tertiary);
+  background: rgba(var(--theme-text-secondary-rgb), 0.08);
+}
+
+.phone-auth-submit {
+  width: 100%;
+  min-height: 84rpx;
+  margin-top: 26rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+  box-shadow: 0 18rpx 34rpx rgba(var(--theme-primary-rgb), 0.22);
 }
 
 .bottom-actions {

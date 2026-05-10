@@ -7,7 +7,10 @@ export interface ApiEnvelope<TData> {
 
 export interface UserProfile {
   id: string;
-  openid: string;
+  openid: string | null;
+  phoneMasked: string | null;
+  phoneVerifiedAt: string | null;
+  lastLoginProvider: string | null;
   nickname: string | null;
   avatarUrl: string | null;
   birthday: string | null;
@@ -25,7 +28,7 @@ export interface UserProfile {
 export interface LoginResponseData {
   token: string;
   expiresIn: number;
-  authMode: 'wechat' | 'mock';
+  authMode: 'wechat' | 'mock' | 'phone';
   authProviderLabel: string;
   user: UserProfile;
   isProfileCompleted: boolean;
@@ -36,6 +39,28 @@ export interface LoginPayload {
   platform: 'mp-weixin';
   nickname?: string;
   avatarUrl?: string;
+}
+
+export interface PhoneCodePayload {
+  phone: string;
+  scene?: 'login' | 'bind';
+}
+
+export interface PhoneLoginPayload {
+  phone: string;
+  code: string;
+  nickname?: string;
+  avatarUrl?: string;
+}
+
+export interface BindPhonePayload {
+  phone: string;
+  code: string;
+}
+
+export interface PhoneCodeResponseData {
+  expiresIn: number;
+  cooldownSeconds: number;
 }
 
 export interface MeResponseData {

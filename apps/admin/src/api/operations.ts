@@ -20,7 +20,10 @@ interface DetailResponse<T> {
 
 export interface AdminUserItem {
   id: string;
-  openid: string;
+  openid: string | null;
+  phoneMasked: string | null;
+  phoneVerifiedAt: string | null;
+  lastLoginProvider: string | null;
   nickname: string | null;
   zodiac: string | null;
   vipStatus: string;

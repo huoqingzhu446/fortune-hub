@@ -48,10 +48,12 @@ export class AdminOpsService {
           keyword
             ? [
                 item.id,
-                item.openid,
+                item.openid ?? '',
+                item.phone ?? '',
                 item.nickname ?? '',
                 item.zodiac ?? '',
                 item.gender,
+                item.lastLoginProvider ?? '',
               ]
                 .join(' ')
                 .toLowerCase()
@@ -306,6 +308,9 @@ export class AdminOpsService {
     return {
       id: user.id,
       openid: user.openid,
+      phoneMasked: this.maskPhone(user.phone),
+      phoneVerifiedAt: user.phoneVerifiedAt?.toISOString() ?? null,
+      lastLoginProvider: user.lastLoginProvider,
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       gender: user.gender,
@@ -336,6 +341,14 @@ export class AdminOpsService {
     }
 
     return null;
+  }
+
+  private maskPhone(phone?: string | null) {
+    if (!phone) {
+      return null;
+    }
+
+    return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
   }
 
   private serializeOrder(order: OrderEntity) {

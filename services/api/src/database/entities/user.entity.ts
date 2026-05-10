@@ -9,16 +9,23 @@ import {
 
 @Entity({ name: 'users' })
 @Index('uniq_users_openid', ['openid'], { unique: true })
+@Index('uniq_users_phone', ['phone'], { unique: true })
 @Index('idx_users_zodiac', ['zodiac'])
 export class UserEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;
 
-  @Column({ length: 64 })
-  openid!: string;
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  openid!: string | null;
 
   @Column({ type: 'varchar', length: 64, nullable: true })
   unionid!: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone!: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  phoneVerifiedAt!: Date | null;
 
   @Column({ type: 'varchar', length: 64, nullable: true })
   nickname!: string | null;
@@ -55,6 +62,9 @@ export class UserEntity {
 
   @Column({ type: 'datetime', nullable: true })
   lastLoginAt!: Date | null;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  lastLoginProvider!: string | null;
 
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;

@@ -10,9 +10,27 @@
 
     <el-tabs v-model="activeTab">
       <el-tab-pane label="用户" name="users">
+        <div class="user-toolbar">
+          <el-input
+            v-model="userFilters.keyword"
+            clearable
+            placeholder="搜索 ID / 昵称 / OpenID / 手机号"
+            @keyup.enter="loadUsers"
+          />
+          <el-select v-model="userFilters.vipStatus" placeholder="会员状态" @change="loadUsers">
+            <el-option label="全部会员" value="all" />
+            <el-option label="VIP" value="active" />
+            <el-option label="普通用户" value="inactive" />
+          </el-select>
+          <el-button :loading="loading" @click="loadUsers">筛选</el-button>
+        </div>
         <el-table :data="users" stripe v-loading="loading">
           <el-table-column prop="id" label="ID" width="90" />
           <el-table-column prop="nickname" label="昵称" min-width="140" />
+          <el-table-column prop="phoneMasked" label="手机号" min-width="130" />
+          <el-table-column label="登录方式" min-width="120">
+            <template #default="{ row }">{{ formatLoginProvider(row.lastLoginProvider) }}</template>
+          </el-table-column>
           <el-table-column prop="zodiac" label="星座" min-width="100" />
           <el-table-column prop="vipStatus" label="会员" min-width="100" />
           <el-table-column prop="lastLoginAt" label="最近登录" min-width="180" />
@@ -178,7 +196,10 @@
           <el-descriptions-item label="昵称">{{ userDetail.user.nickname || '-' }}</el-descriptions-item>
           <el-descriptions-item label="会员">{{ userDetail.user.vipStatus }}</el-descriptions-item>
           <el-descriptions-item label="到期">{{ userDetail.user.vipExpiredAt || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="OpenID">{{ userDetail.user.openid }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ userDetail.user.phoneMasked || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="手机号验证">{{ formatDateTime(userDetail.user.phoneVerifiedAt) }}</el-descriptions-item>
+          <el-descriptions-item label="登录方式">{{ formatLoginProvider(userDetail.user.lastLoginProvider) }}</el-descriptions-item>
+          <el-descriptions-item label="OpenID">{{ userDetail.user.openid || '-' }}</el-descriptions-item>
         </el-descriptions>
         <h3 class="drawer-title">最近订单</h3>
         <el-table :data="userDetail.orders" size="small">
@@ -311,6 +332,10 @@ const feedbackFilters = reactive({
   priority: 'all',
   slaStatus: 'all',
 });
+const userFilters = reactive({
+  keyword: '',
+  vipStatus: 'all',
+});
 const feedbackForm = reactive({
   status: 'open',
   priority: 'normal',
@@ -350,6 +375,13 @@ function buildFeedbackFilterParams() {
   };
 }
 
+function buildUserFilterParams() {
+  return {
+    keyword: userFilters.keyword.trim() || undefined,
+    vipStatus: userFilters.vipStatus,
+  };
+}
+
 async function loadAll() {
   try {
     loading.value = true;
@@ -361,7 +393,7 @@ async function loadAll() {
       auditResponse,
       zhipuStatusResponse,
     ] = await Promise.all([
-      fetchAdminUsers(),
+      fetchAdminUsers(buildUserFilterParams()),
       fetchAdminOrders(),
       fetchAdminFeedback(buildFeedbackFilterParams()),
       fetchAdminNotificationLogs(),
@@ -378,6 +410,19 @@ async function loadAll() {
   } catch (error) {
     console.warn('load operations failed', error);
     ElMessage.error('运营数据加载失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadUsers() {
+  try {
+    loading.value = true;
+    const response = await fetchAdminUsers(buildUserFilterParams());
+    users.value = response.data.items;
+  } catch (error) {
+    console.warn('load users failed', error);
+    ElMessage.error('用户数据加载失败');
   } finally {
     loading.value = false;
   }
@@ -542,6 +587,16 @@ function formatDateTime(value: string | null) {
   });
 }
 
+function formatLoginProvider(provider: string | null) {
+  const labels: Record<string, string> = {
+    wechat: '微信',
+    mock: '体验登录',
+    phone: '手机号',
+  };
+
+  return provider ? labels[provider] || provider : '-';
+}
+
 function formatFeedbackStatus(status: string) {
   const labels: Record<string, string> = {
     open: '待处理',
@@ -615,12 +670,20 @@ onMounted(() => {
   font-size: 15px;
 }
 
+.user-toolbar,
 .feedback-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(120px, 0.8fr)) auto;
   gap: 10px;
   margin-bottom: 14px;
   align-items: center;
+}
+
+.user-toolbar {
+  grid-template-columns: minmax(220px, 1fr) minmax(120px, 180px) auto;
+}
+
+.feedback-toolbar {
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(120px, 0.8fr)) auto;
 }
 
 .feedback-message {

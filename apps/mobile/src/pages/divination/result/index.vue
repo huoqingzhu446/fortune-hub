@@ -292,6 +292,29 @@
       </view>
     </view>
 
+    <view class="mood-feedback-card" v-if="!moodFeedbackDone">
+      <text class="mood-feedback-card__title">看完这段解读，你现在感觉怎么样？</text>
+      <view class="mood-feedback-card__grid">
+        <view
+          v-for="item in postMoodOptions"
+          :key="item.value"
+          class="mood-feedback-chip"
+          :class="{ 'mood-feedback-chip--active': postMood === item.value }"
+          @tap="selectPostMood(item.value)"
+        >
+          <text>{{ item.emoji }} {{ item.label }}</text>
+        </view>
+      </view>
+      <button
+        v-if="postMood"
+        class="mood-feedback-card__submit"
+        @tap="submitMoodFeedback"
+      >
+        记录感受
+      </button>
+      <text v-if="moodFeedbackSaved" class="mood-feedback-card__saved">✓ 已记录</text>
+    </view>
+
     <view class="bottom-buttons">
       <button class="action-button action-button--ghost" @tap="saveResult">保存结果</button>
       <button class="action-button action-button--primary" @tap="openPoster">分享海报</button>
@@ -312,6 +335,7 @@ import {
   saveDivinationReview,
   syncDivinationReviewsFromServer,
 } from '../../../services/divination';
+import { syncDivinationReview as syncDivinationReviewApi } from '../../../api/divination';
 import { getDivinationProfileMapping } from '../../../services/divination-content';
 import type {
   DivinationPersonalizationKey,
@@ -472,6 +496,32 @@ function formatAdjustment(value: number) {
 
 function personalizationKeyLabel(key: DivinationPersonalizationKey) {
   return getDivinationProfileMapping().dimensionLabels[key] || key;
+}
+
+const postMood = ref('');
+const moodFeedbackDone = ref(false);
+const moodFeedbackSaved = ref(false);
+const postMoodOptions = [
+  { value: 'happy', emoji: '😊', label: '安心多了' },
+  { value: 'neutral', emoji: '😐', label: '有点启发' },
+  { value: 'low', emoji: '😔', label: '还是不确定' },
+  { value: 'anxious', emoji: '😰', label: '更焦虑了' },
+];
+
+function selectPostMood(mood: string) {
+  postMood.value = mood;
+}
+
+async function submitMoodFeedback() {
+  try {
+    await syncDivinationReviewApi({
+      resultId: result.value!.id,
+      postMood: postMood.value,
+      postMoodIntensity: 3,
+    });
+    moodFeedbackSaved.value = true;
+    moodFeedbackDone.value = true;
+  } catch { /* silent */ }
 }
 
 function showChangedHexagram() {
@@ -1522,5 +1572,27 @@ onLoad((query) => {
   color: #8b6fd6;
   background: rgba(255, 255, 255, 0.9);
   border: 1rpx solid rgba(139, 111, 214, 0.18);
+}
+
+.mood-feedback-card {
+  margin: 24rpx 24rpx 120rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 20rpx rgba(0,0,0,0.04);
+
+  &__title { font-size: 27rpx; font-weight: 600; color: #2a2a3e; display: block; margin-bottom: 18rpx; text-align: center; }
+  &__grid { display: flex; gap: 12rpx; justify-content: center; flex-wrap: wrap; }
+  &__submit {
+    margin-top: 18rpx; width: 100%; height: 72rpx; line-height: 72rpx; text-align: center;
+    border-radius: 36rpx; background: linear-gradient(135deg, #8b6fd6, #b898f0); color: #fff;
+    font-size: 26rpx; border: none;
+  }
+  &__saved { display: block; text-align: center; color: #8b6fd6; font-size: 24rpx; margin-top: 12rpx; }
+}
+
+.mood-feedback-chip {
+  padding: 12rpx 20rpx; border-radius: 24rpx; border: 1.5rpx solid #e0e0e0; font-size: 24rpx; color: #666;
+  &--active { border-color: #8b6fd6; background: rgba(139,111,214,0.08); color: #8b6fd6; }
 }
 </style>

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
+import { BreathingRecordEntity } from '../database/entities/breathing-record.entity';
+import { DailyPulseRecordEntity } from '../database/entities/daily-pulse-record.entity';
 import { FavoriteEntity } from '../database/entities/favorite.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
@@ -25,6 +27,8 @@ import { UsersService } from './users.service';
       UserRecordEntity,
       MoodRecordEntity,
       MeditationRecordEntity,
+      DailyPulseRecordEntity,
+      BreathingRecordEntity,
       OrderEntity,
       FavoriteEntity,
       ShareRecordEntity,

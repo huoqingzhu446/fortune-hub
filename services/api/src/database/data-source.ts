@@ -3,9 +3,11 @@ import { DataSource } from 'typeorm';
 import { AdConfigEntity } from './entities/ad-config.entity';
 import { AppConfigEntity } from './entities/app-config.entity';
 import { AuditLogEntity } from './entities/audit-log.entity';
+import { DailyPulseRecordEntity } from './entities/daily-pulse-record.entity';
 import { AssessmentQuestionEntity } from './entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './entities/assessment-test-config.entity';
+import { BreathingRecordEntity } from './entities/breathing-record.entity';
 import { AssessmentTestGroupEntity } from './entities/assessment-test-group.entity';
 import { DivinationReviewEntity } from './entities/divination-review.entity';
 import { FavoriteEntity } from './entities/favorite.entity';
@@ -50,6 +52,8 @@ export default new DataSource({
     UserRecordEntity,
     MoodRecordEntity,
     MeditationRecordEntity,
+    DailyPulseRecordEntity,
+    BreathingRecordEntity,
     FortuneContentEntity,
     LuckyItemEntity,
     AppConfigEntity,

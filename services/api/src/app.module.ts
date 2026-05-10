@@ -10,9 +10,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdConfigEntity } from './database/entities/ad-config.entity';
 import { AppConfigEntity } from './database/entities/app-config.entity';
 import { AuditLogEntity } from './database/entities/audit-log.entity';
+import { DailyPulseRecordEntity } from './database/entities/daily-pulse-record.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssessmentQuestionEntity } from './database/entities/assessment-question.entity';
 import { AssessmentSessionEntity } from './database/entities/assessment-session.entity';
+import { BreathingRecordEntity } from './database/entities/breathing-record.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
 import { DivinationReviewEntity } from './database/entities/divination-review.entity';
@@ -81,6 +83,8 @@ import { ZodiacModule } from './zodiac/zodiac.module';
           UserRecordEntity,
           MoodRecordEntity,
           MeditationRecordEntity,
+          DailyPulseRecordEntity,
+          BreathingRecordEntity,
           FortuneContentEntity,
           LuckyItemEntity,
           AppConfigEntity,

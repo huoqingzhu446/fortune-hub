@@ -259,13 +259,18 @@ export interface DivinationReviewRemoteItem {
 
 export interface DivinationReviewSyncPayload {
   resultId: string;
-  favorite: boolean;
-  outcome: DivinationReview['outcome'];
-  note: string;
+  favorite?: boolean;
+  outcome?: DivinationReview['outcome'];
+  note?: string;
   topic?: string;
   title?: string;
   summary?: string;
   resultSnapshot?: DivinationResult;
+  preMood?: string;
+  preMoodIntensity?: number;
+  postMood?: string;
+  postMoodIntensity?: number;
+  expectation?: string;
 }
 
 export type DivinationReviewListResponse = ApiEnvelope<{

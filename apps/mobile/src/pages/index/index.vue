@@ -14,6 +14,8 @@
         :lunar-date="lunarDate"
       />
 
+      <DailyPulseCard />
+
       <view class="home-page__main-card">
         <StatusIndexCard
           :label="fortuneCardLabel"
@@ -84,6 +86,7 @@
 <script setup lang="ts">
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick } from 'vue';
+import DailyPulseCard from '../../components/DailyPulseCard.vue';
 import FortuneActionCard from '../../components/FortuneActionCard.vue';
 import HomeHero from '../../components/HomeHero.vue';
 import HomeTabBar from '../../components/HomeTabBar.vue';

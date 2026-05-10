@@ -50,10 +50,29 @@
 
     <view v-if="screen === 'list'" class="safety-strip">
       <view>
-        <text class="safety-strip__title">安全优先</text>
+        <text class="safety-strip__title">🆘 需要立即帮助？</text>
         <text class="safety-strip__text">
-          如果已经持续失眠、明显失控，或出现伤害自己的想法，请立即联系现实中的家人朋友、医院、急救或当地心理危机干预热线。
+          如果已经持续失眠、明显失控，或出现伤害自己的想法，请立即拨打以下热线：
         </text>
+      </view>
+      <view class="hotline-list">
+        <view class="hotline-item" @tap="callHotline('4001619995')">
+          <text class="hotline-item__name">全国心理援助热线</text>
+          <text class="hotline-item__phone">400-161-9995</text>
+        </view>
+        <view class="hotline-item" @tap="callHotline('01082951332')">
+          <text class="hotline-item__name">北京心理危机干预中心</text>
+          <text class="hotline-item__phone">010-82951332</text>
+        </view>
+        <view class="hotline-item" @tap="callHotline('4008211215')">
+          <text class="hotline-item__name">生命热线 (24小时)</text>
+          <text class="hotline-item__phone">400-821-1215</text>
+        </view>
+      </view>
+      <text class="safety-strip__alt">如果还不想打电话，也可以试试</text>
+      <view class="safety-strip__alt-actions">
+        <button class="alt-btn" @tap="goBreathing">2分钟呼吸练习</button>
+        <button class="alt-btn alt-btn--ghost" @tap="goJournal">写下此刻感受</button>
       </view>
     </view>
 
@@ -839,6 +858,16 @@ function goJournal() {
   });
 }
 
+function callHotline(phone: string) {
+  uni.makePhoneCall({ phoneNumber: phone });
+}
+
+function goBreathing() {
+  uni.navigateTo({
+    url: '/pages/breathing/index',
+  });
+}
+
 function copySharePoster() {
   if (!latestResult.value) {
     return;
@@ -1500,6 +1529,22 @@ onShow(() => {
 .save-note {
   font-size: 23rpx;
   color: var(--theme-text-tertiary);
+}
+
+.hotline-list { display: flex; flex-direction: column; gap: 12rpx; margin-top: 16rpx; }
+.hotline-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18rpx 24rpx; border-radius: 16rpx; background: #fff;
+  border: 1rpx solid rgba(161,107,32,0.12);
+  &__name { font-size: 26rpx; color: #5a3a1a; font-weight: 500; }
+  &__phone { font-size: 28rpx; color: #d46b08; font-weight: 700; }
+}
+.safety-strip__alt { font-size: 22rpx; color: #a1866a; margin-top: 18rpx; display: block; text-align: center; }
+.safety-strip__alt-actions { display: flex; gap: 16rpx; margin-top: 12rpx; justify-content: center; }
+.alt-btn {
+  height: 64rpx; line-height: 64rpx; padding: 0 28rpx; border-radius: 32rpx;
+  background: rgba(212,107,8,0.1); color: #d46b08; font-size: 24rpx; border: none;
+  &--ghost { background: transparent; border: 1rpx solid rgba(212,107,8,0.2); }
 }
 
 .inline-back {

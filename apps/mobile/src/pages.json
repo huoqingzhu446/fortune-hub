@@ -33,6 +33,12 @@
       }
     },
     {
+      "path": "pages/breathing/index",
+      "style": {
+        "navigationBarTitleText": "引导呼吸"
+      }
+    },
+    {
       "path": "pages/divination/index/index",
       "style": {
         "navigationBarTitleText": "占卜"

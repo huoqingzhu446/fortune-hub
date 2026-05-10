@@ -47,4 +47,27 @@ export class SyncDivinationReviewDto {
   @IsOptional()
   @IsObject()
   resultSnapshot?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['happy', 'neutral', 'low', 'anxious', 'irritable'])
+  preMood?: string;
+
+  @IsOptional()
+  @IsIn([1, 2, 3, 4, 5])
+  preMoodIntensity?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['happy', 'neutral', 'low', 'anxious', 'irritable'])
+  postMood?: string;
+
+  @IsOptional()
+  @IsIn([1, 2, 3, 4, 5])
+  postMoodIntensity?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  expectation?: string;
 }

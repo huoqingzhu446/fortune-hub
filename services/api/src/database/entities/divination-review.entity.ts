@@ -43,6 +43,21 @@ export class DivinationReviewEntity {
   @Column({ type: 'json', nullable: true })
   resultSnapshot!: Record<string, unknown> | null;
 
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  preMood!: string | null;
+
+  @Column({ type: 'tinyint', unsigned: true, nullable: true })
+  preMoodIntensity!: number | null;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  postMood!: string | null;
+
+  @Column({ type: 'tinyint', unsigned: true, nullable: true })
+  postMoodIntensity!: number | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  expectation!: string | null;
+
   @CreateDateColumn({ type: 'datetime' })
   createdAt!: Date;
 

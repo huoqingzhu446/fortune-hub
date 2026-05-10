@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { BindPhoneDto } from '../auth/dto/bind-phone.dto';
+import { SaveDailyPulseDto } from './dto/save-daily-pulse.dto';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -151,5 +152,52 @@ export class UsersController {
   ) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.usersService.saveMeditationRecord(user, dto);
+  }
+
+  @Post('me/pulse')
+  async saveDailyPulse(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: SaveDailyPulseDto,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.saveDailyPulse(user, dto);
+  }
+
+  @Get('me/pulse')
+  async getDailyPulseHistory(
+    @Headers('authorization') authorization?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getDailyPulseHistory(user, from, to);
+  }
+
+  @Get('me/pulse/streak')
+  async getDailyPulseStreak(@Headers('authorization') authorization?: string) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.getDailyPulseStreak(user);
+  }
+
+  @Get('wellness/breathing/modes')
+  getBreathingModes() {
+    return this.usersService.getBreathingModes();
+  }
+
+  @Post('record/breathing')
+  async saveBreathingRecord(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: {
+      mode: string;
+      rounds: number;
+      durationSeconds: number;
+      preMood?: string;
+      preMoodIntensity?: number;
+      postMood?: string;
+      postMoodIntensity?: number;
+    },
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.usersService.saveBreathingRecord(user, dto);
   }
 }

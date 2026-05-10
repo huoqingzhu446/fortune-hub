@@ -5,6 +5,8 @@ import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { normalizeFileServiceUrlToApiProxy } from '../common/file-url.util';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
+import { BreathingRecordEntity } from '../database/entities/breathing-record.entity';
+import { DailyPulseRecordEntity } from '../database/entities/daily-pulse-record.entity';
 import { MeditationRecordEntity } from '../database/entities/meditation-record.entity';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { OrderEntity } from '../database/entities/order.entity';
@@ -12,6 +14,7 @@ import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { FavoritesService } from '../favorites/favorites.service';
+import { SaveDailyPulseDto } from './dto/save-daily-pulse.dto';
 import { SaveMeditationRecordDto } from './dto/save-meditation-record.dto';
 import { SaveMoodRecordDto } from './dto/save-mood-record.dto';
 import { ProfileMetricsService } from './profile-metrics.service';
@@ -212,6 +215,10 @@ export class UsersService {
     private readonly moodRecordRepository: Repository<MoodRecordEntity>,
     @InjectRepository(MeditationRecordEntity)
     private readonly meditationRecordRepository: Repository<MeditationRecordEntity>,
+    @InjectRepository(DailyPulseRecordEntity)
+    private readonly pulseRecordRepository: Repository<DailyPulseRecordEntity>,
+    @InjectRepository(BreathingRecordEntity)
+    private readonly breathingRecordRepository: Repository<BreathingRecordEntity>,
     @InjectRepository(OrderEntity)
     private readonly orderRepository: Repository<OrderEntity>,
     private readonly configService: ConfigService,
@@ -1497,6 +1504,246 @@ export class UsersService {
               ),
             })
           : '',
+    };
+  }
+
+  // ---------- Daily Pulse ----------
+
+  async saveDailyPulse(user: UserEntity, dto: SaveDailyPulseDto) {
+    const today = new Date().toISOString().slice(0, 10);
+    const category = dto.category?.trim() || null;
+    const note = dto.note?.trim().slice(0, 256) || null;
+
+    let record = await this.pulseRecordRepository.findOne({
+      where: { userId: user.id, recordDate: today },
+    });
+
+    if (record) {
+      record.mood = dto.mood;
+      record.intensity = dto.intensity;
+      record.category = category;
+      record.note = note;
+    } else {
+      record = this.pulseRecordRepository.create({
+        userId: user.id,
+        recordDate: today,
+        mood: dto.mood,
+        intensity: dto.intensity,
+        category,
+        note,
+      });
+    }
+
+    await this.pulseRecordRepository.save(record);
+    const streak = await this.computePulseStreak(user.id);
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        pulse: this.serializePulse(record),
+        streak,
+        response: this.getPulseResponse(dto.mood),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getDailyPulseHistory(
+    user: UserEntity,
+    from?: string,
+    to?: string,
+  ) {
+    const qb = this.pulseRecordRepository
+      .createQueryBuilder('p')
+      .where('p.userId = :userId', { userId: user.id })
+      .orderBy('p.recordDate', 'DESC');
+
+    if (from) {
+      qb.andWhere('p.recordDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('p.recordDate <= :to', { to });
+    }
+
+    const items = await qb.take(90).getMany();
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        items: items.map((item) => this.serializePulse(item)),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getDailyPulseStreak(user: UserEntity) {
+    const streak = await this.computePulseStreak(user.id);
+    return {
+      code: 0,
+      message: 'ok',
+      data: { streak },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async computePulseStreak(userId: string): Promise<number> {
+    const records = await this.pulseRecordRepository.find({
+      where: { userId },
+      order: { recordDate: 'DESC' },
+      take: 60,
+    });
+
+    if (!records.length) return 0;
+
+    let streak = 1;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // First record must be today or yesterday to count as active streak
+    const firstDate = records[0].recordDate;
+    if (firstDate !== today && firstDate !== this.offsetDate(today, -1)) {
+      return 0;
+    }
+
+    for (let i = 1; i < records.length; i++) {
+      const expected = this.offsetDate(records[i - 1].recordDate, -1);
+      if (records[i].recordDate === expected) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  private getPulseResponse(mood: string) {
+    const responses: Record<string, string> = {
+      happy: '真好！今天的你充满能量。继续保持这样的节奏。',
+      neutral: '平平淡淡也是真。不如试试下面的呼吸练习，给自己加一点新鲜感？',
+      low: '我听到了。低落不是软弱，是身体在提醒你需要休息。需要我陪你做点什么吗？',
+      anxious: '焦虑是你对在乎的事情足够认真。我们一起用 2 分钟把注意力带回当下。',
+      irritable: '感觉什么都压着？先别急着解决，做一次深呼吸再回来。',
+    };
+    return responses[mood] || '谢谢你的分享。';
+  }
+
+  private offsetDate(dateStr: string, days: number) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  private serializePulse(record: DailyPulseRecordEntity) {
+    return {
+      id: record.id,
+      recordDate: record.recordDate,
+      mood: record.mood,
+      intensity: record.intensity,
+      category: record.category,
+      note: record.note,
+      createdAt: record.createdAt.toISOString(),
+    };
+  }
+
+  // ---------- Breathing ----------
+
+  getBreathingModes() {
+    const modes = [
+      {
+        value: '478',
+        title: '4-7-8 放松法',
+        description: '缓解焦虑，帮助入睡',
+        inhale: 4,
+        hold1: 7,
+        exhale: 8,
+        hold2: 0,
+        defaultRounds: 4,
+        color: '#6CBFED',
+      },
+      {
+        value: 'box',
+        title: '盒式呼吸',
+        description: '提升专注，平衡情绪',
+        inhale: 4,
+        hold1: 4,
+        exhale: 4,
+        hold2: 4,
+        defaultRounds: 5,
+        color: '#7BC86C',
+      },
+      {
+        value: '55',
+        title: '5-5 平静法',
+        description: '日常放松，简单易行',
+        inhale: 5,
+        hold1: 0,
+        exhale: 5,
+        hold2: 0,
+        defaultRounds: 6,
+        color: '#F0A860',
+      },
+      {
+        value: '24',
+        title: '2-4 快速法',
+        description: '急性焦虑，快速平复',
+        inhale: 2,
+        hold1: 0,
+        exhale: 4,
+        hold2: 0,
+        defaultRounds: 8,
+        color: '#E88B8B',
+      },
+    ];
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: { modes },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async saveBreathingRecord(
+    user: UserEntity,
+    dto: {
+      mode: string;
+      rounds: number;
+      durationSeconds: number;
+      preMood?: string;
+      preMoodIntensity?: number;
+      postMood?: string;
+      postMoodIntensity?: number;
+    },
+  ) {
+    const record = this.breathingRecordRepository.create({
+      userId: user.id,
+      mode: dto.mode,
+      rounds: dto.rounds,
+      durationSeconds: dto.durationSeconds,
+      preMood: dto.preMood || null,
+      preMoodIntensity: dto.preMoodIntensity ?? null,
+      postMood: dto.postMood || null,
+      postMoodIntensity: dto.postMoodIntensity ?? null,
+    });
+
+    await this.breathingRecordRepository.save(record);
+
+    return {
+      code: 0,
+      message: 'ok',
+      data: {
+        id: record.id,
+        mode: record.mode,
+        rounds: record.rounds,
+        improved:
+          record.postMood &&
+          record.preMood &&
+          record.preMood !== 'happy' &&
+          (record.postMood === 'happy' || record.postMood === 'neutral'),
+      },
+      timestamp: new Date().toISOString(),
     };
   }
 }

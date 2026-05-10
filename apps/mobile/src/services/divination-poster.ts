@@ -1,5 +1,6 @@
 import { drawDivinationPoster } from '../poster/divinationPoster/drawDivinationPoster';
 import { posterTheme } from '../poster/divinationPoster/posterTheme';
+import divinationPosterTemplateSrc from '../static/posters/divination-share-template.png';
 import type {
   DivinationPosterData,
   HexagramLine,
@@ -13,6 +14,15 @@ type PosterCanvas = {
   width: number;
   height: number;
   getContext: (type: '2d') => CanvasRenderingContext2D | null;
+  createImage?: () => PosterCanvasImage;
+};
+
+type PosterCanvasImage = CanvasImageSource & {
+  src: string;
+  width: number;
+  height: number;
+  onload: (() => void) | null;
+  onerror: ((error: unknown) => void) | null;
 };
 
 type WechatCanvasRuntime = {
@@ -34,6 +44,11 @@ type WechatCanvasRuntime = {
     success?: (result: { tempFilePath: string }) => void;
     fail?: (error: unknown) => void;
   }) => void;
+  getImageInfo?: (options: {
+    src: string;
+    success?: (result: { path: string; width: number; height: number }) => void;
+    fail?: (error: unknown) => void;
+  }) => void;
   showShareImageMenu?: (options: {
     path: string;
     success?: () => void;
@@ -43,6 +58,7 @@ type WechatCanvasRuntime = {
 
 export const DIVINATION_POSTER_WIDTH = posterTheme.size.width;
 export const DIVINATION_POSTER_HEIGHT = posterTheme.size.height;
+const DIVINATION_POSTER_TEMPLATE_FALLBACK_SRC = '/static/posters/divination-share-template.png';
 
 export type DivinationPosterViewModel = DivinationPosterData;
 
@@ -163,7 +179,12 @@ export async function generateDivinationSharePoster(result: DivinationResult): P
     throw new Error('当前环境无法创建海报画布');
   }
 
-  await drawDivinationPoster(ctx, buildDivinationPosterData(result));
+  const templateImage = await loadFirstCanvasImage(wxRuntime, canvas, [
+    divinationPosterTemplateSrc,
+    DIVINATION_POSTER_TEMPLATE_FALLBACK_SRC,
+  ]);
+
+  await drawDivinationPoster(ctx, buildDivinationPosterData(result), undefined, templateImage || undefined);
 
   const tempFilePath = await new Promise<string>((resolve, reject) => {
     wxRuntime.canvasToTempFilePath?.({
@@ -247,4 +268,61 @@ function resolveMovingLineText(line?: number) {
   }
 
   return `第${Math.min(6, Math.round(normalized))}爻`;
+}
+
+function resolveCanvasImageSource(wxRuntime: WechatCanvasRuntime, source: string) {
+  if (!/^https?:\/\//.test(source) || !wxRuntime.getImageInfo) {
+    return Promise.resolve(source);
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    wxRuntime.getImageInfo?.({
+      src: source,
+      success: (result) => resolve(result.path),
+      fail: reject,
+    });
+  });
+}
+
+async function loadCanvasImage(
+  wxRuntime: WechatCanvasRuntime,
+  canvas: PosterCanvas,
+  source: string,
+) {
+  if (!canvas.createImage) {
+    throw new Error('当前环境无法加载海报模板');
+  }
+
+  const drawableSource = await resolveCanvasImageSource(wxRuntime, source);
+
+  return new Promise<PosterCanvasImage>((resolve, reject) => {
+    const image = canvas.createImage?.();
+
+    if (!image) {
+      reject(new Error('当前环境无法创建海报模板图片'));
+      return;
+    }
+
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = drawableSource;
+  });
+}
+
+async function loadFirstCanvasImage(
+  wxRuntime: WechatCanvasRuntime,
+  canvas: PosterCanvas,
+  sources: string[],
+) {
+  const uniqueSources = Array.from(new Set(sources.filter(Boolean)));
+
+  for (const source of uniqueSources) {
+    try {
+      return await loadCanvasImage(wxRuntime, canvas, source);
+    } catch (error) {
+      console.warn('load divination poster template failed', source, error);
+    }
+  }
+
+  return null;
 }

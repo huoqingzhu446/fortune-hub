@@ -9,99 +9,52 @@
       <view class="top-spacer"></view>
     </view>
 
-    <view v-if="poster" class="poster-preview">
-      <view class="poster-glow poster-glow--top"></view>
-      <view class="poster-glow poster-glow--side"></view>
-      <view class="poster-glow poster-glow--bottom"></view>
+    <view v-if="poster" class="poster-preview poster-preview--template">
+      <image
+        class="poster-template-image"
+        src="/static/posters/divination-share-template.png"
+        mode="aspectFill"
+      />
 
-      <view class="poster-sun">
-        <view v-for="ray in decorationRays" :key="ray" class="poster-sun__ray" :style="rayStyle(ray)"></view>
-      </view>
-
-      <view class="poster-nav">
-        <text class="poster-nav__spark">✦</text>
-        <text class="poster-nav__title">{{ poster.title }}</text>
-        <text class="poster-nav__spark">✦</text>
-      </view>
-
-      <view class="poster-result-card">
-        <view class="poster-result-card__head">
-          <view class="poster-method">
-            <text class="poster-method__icon">◐</text>
-            <text class="poster-eyebrow">{{ poster.methodLabel }}</text>
-          </view>
-          <text class="poster-level">{{ poster.result.luckyLevel }}</text>
-        </view>
-
-        <text class="poster-title-main">{{ poster.result.prefix }}：{{ poster.result.name }}</text>
-        <text class="poster-meaning">{{ poster.result.subtitle }}</text>
-
-        <view class="poster-divider"></view>
-
-        <view class="poster-hexagram-area">
-          <view class="poster-hexagram">
-            <view
-              v-for="(line, index) in poster.result.hexagramLines"
-              :key="index"
-              class="poster-line"
-              :class="{
-                'poster-line--broken': line.type === 'broken',
-                'poster-line--active': line.active,
-              }"
-            >
-              <view class="poster-line__segment"></view>
-              <view class="poster-line__segment"></view>
-            </view>
-          </view>
-          <view class="poster-trigram-note">
-            <view class="poster-trigram-note__seal">
-              <view v-for="line in 5" :key="line" class="poster-trigram-note__mark"></view>
-            </view>
-            <text class="poster-trigram">{{ poster.result.trigramNote }}</text>
-            <view class="poster-divider poster-divider--small"></view>
-          </view>
-        </view>
-
-        <view class="poster-casting-strip">
-          <view v-for="item in poster.chips" :key="item.label" class="poster-casting-chip">
-            <text class="poster-casting-chip__icon">{{ chipIconText(item.icon) }}</text>
-            <view>
-              <text class="poster-casting-chip__label">{{ item.label }}</text>
-              <text class="poster-casting-chip__value">{{ item.value }}</text>
-            </view>
-          </view>
+      <view class="template-hexagram">
+        <view
+          v-for="(line, index) in poster.result.hexagramLines"
+          :key="index"
+          class="template-line"
+          :class="{
+            'template-line--broken': line.type === 'broken',
+            'template-line--active': line.active,
+          }"
+        >
+          <view class="template-line__segment"></view>
+          <view class="template-line__segment"></view>
         </view>
       </view>
 
-      <view class="poster-oracle-card">
-        <text class="poster-oracle-card__eyebrow">{{ poster.question.tag }}</text>
-        <text class="poster-oracle-card__title">{{ poster.question.text }}</text>
-        <text class="poster-oracle-card__text">{{ poster.question.summary }}</text>
-        <view class="poster-bamboo"></view>
+      <text class="template-text template-method">{{ posterMethodText }}</text>
+      <text class="template-text template-hexagram-name">{{ poster.result.name }}</text>
+      <text class="template-text template-subtitle">{{ poster.result.subtitle }}</text>
+      <text class="template-text template-level">{{ poster.result.luckyLevel }}</text>
+      <text class="template-text template-trigram">{{ poster.result.trigramNote }}</text>
+      <text class="template-text template-moving">{{ posterMovingText }}</text>
+      <text class="template-text template-changed">{{ posterChangedName }}</text>
+      <text class="template-text template-question">{{ poster.question.text }}</text>
+      <text class="template-text template-summary">{{ poster.question.summary }}</text>
+
+      <view class="template-keywords">
+        <text
+          v-for="(keyword, index) in templateKeywords"
+          :key="`${index}-${keyword}`"
+          class="template-keyword"
+        >
+          {{ keyword }}
+        </text>
       </view>
 
-      <view class="poster-panel-row">
-        <view v-for="card in poster.analysisCards" :key="card.title" class="poster-panel">
-          <view class="poster-panel__head">
-            <text class="poster-panel__icon">{{ analysisIconText(card.icon) }}</text>
-            <view>
-              <text class="poster-panel__label">{{ card.title }}</text>
-              <text class="poster-panel__title">{{ card.value }}</text>
-            </view>
-          </view>
-          <text class="poster-panel__body">{{ card.content }}</text>
-          <text class="poster-panel__advice">{{ card.actionText }}</text>
-        </view>
-      </view>
-
-      <view class="poster-footer">
-        <view class="poster-brand-badge">✦</view>
-        <view class="poster-footer__copy">
-          <text class="poster-footer__text">{{ poster.footer.slogan }}</text>
-          <text class="poster-footer__brand">{{ poster.footer.brand }}</text>
-        </view>
-        <view class="qr-placeholder">
-          <view v-for="cell in qrCells" :key="cell" class="qr-cell" :style="qrStyle(cell)"></view>
+      <view class="template-advice">
+        <view v-for="(row, index) in templateAdviceRows" :key="index" class="template-advice__row">
+          <text class="template-advice__label">{{ row.label }}</text>
+          <text class="template-advice__text">{{ row.text }}</text>
         </view>
       </view>
     </view>
@@ -141,42 +94,48 @@ const generating = ref(false);
 const posterWidth = DIVINATION_POSTER_WIDTH;
 const posterHeight = DIVINATION_POSTER_HEIGHT;
 const isMpWeixin = String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform || '').toLowerCase() === 'mp-weixin';
-const qrCells = [0, 1, 2, 8, 10, 16, 17, 18, 5, 6, 7, 13, 15, 21, 22, 23, 40, 41, 42, 48, 50, 56, 57, 58, 36, 38, 43, 53, 63];
-const decorationRays = Array.from({ length: 28 }, (_, index) => index);
 
 const poster = computed(() => (result.value ? buildDivinationPosterData(result.value) : null));
+const posterMethodText = computed(() => findPosterChipValue('起法', poster.value?.methodLabel || '略筮法'));
+const posterMovingText = computed(() => findPosterChipValue('动爻', '动爻未显'));
+const posterChangedName = computed(() => findPosterChipValue('变卦', '本卦不变'));
+const templateKeywords = computed(() => {
+  if (!poster.value) {
+    return [];
+  }
 
-function qrStyle(cell: number) {
-  const x = cell % 8;
-  const y = Math.floor(cell / 8);
-  return {
-    left: `${x * 12.5}%`,
-    top: `${y * 12.5}%`,
-  };
-}
+  return [
+    poster.value.question.tag,
+    poster.value.result.trigramNote,
+    posterMovingText.value,
+    posterChangedName.value,
+  ];
+});
+const templateAdviceRows = computed(() => {
+  if (!poster.value) {
+    return [];
+  }
 
-function rayStyle(index: number) {
-  const angle = -50 + (100 * index) / 27;
-  const length = index % 2 === 0 ? 28 : 20;
+  const [first, second] = poster.value.analysisCards;
 
-  return {
-    transform: `translate(-50%, 0) rotate(${angle}deg)`,
-    height: `${length}rpx`,
-  };
-}
+  return [
+    {
+      label: first ? `${first.title}提示` : '当下提示',
+      text: first?.actionText || first?.content || poster.value.result.subtitle,
+    },
+    {
+      label: second ? `${second.title}提示` : '趋势提示',
+      text: second?.actionText || second?.content || poster.value.question.summary,
+    },
+    {
+      label: '今日取舍',
+      text: poster.value.question.summary || poster.value.result.subtitle,
+    },
+  ];
+});
 
-function chipIconText(icon: string) {
-  const mapping: Record<string, string> = {
-    method: '一',
-    move: '↯',
-    change: '○',
-  };
-
-  return mapping[icon] || '○';
-}
-
-function analysisIconText(icon: string) {
-  return icon === 'lightning' ? '↯' : '山';
+function findPosterChipValue(label: string, fallback: string) {
+  return poster.value?.chips.find((item) => item.label === label)?.value || fallback;
 }
 
 async function generatePoster() {
@@ -1246,5 +1205,236 @@ onLoad((query) => {
 
 .poster-button[disabled] {
   opacity: 0.45;
+}
+
+.poster-preview--template {
+  padding: 0;
+  border-radius: 28rpx;
+  background: #fbf2e7;
+}
+
+.poster-template-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.template-text {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  color: #3f3028;
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-method {
+  top: 243rpx;
+  left: 214rpx;
+  width: 121rpx;
+  color: #a39387;
+  font-size: 16rpx;
+  font-weight: 600;
+}
+
+.template-hexagram-name {
+  top: 303rpx;
+  left: 220rpx;
+  width: 121rpx;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 23rpx;
+  font-weight: 800;
+}
+
+.template-subtitle {
+  top: 405rpx;
+  left: 118rpx;
+  display: -webkit-box;
+  width: 184rpx;
+  color: #7b6b60;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 16rpx;
+  line-height: 1.45;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.template-level {
+  top: 265rpx;
+  left: 498rpx;
+  width: 65rpx;
+  color: #b67a1a;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 19rpx;
+  font-weight: 800;
+  text-align: center;
+}
+
+.template-hexagram {
+  position: absolute;
+  z-index: 1;
+  top: 337rpx;
+  left: 375rpx;
+  display: grid;
+  width: 143rpx;
+  gap: 12rpx;
+}
+
+.template-line {
+  display: flex;
+  gap: 33rpx;
+  height: 8rpx;
+}
+
+.template-line__segment {
+  flex: 1;
+  border-radius: 999rpx;
+  background: #3f3448;
+}
+
+.template-line:not(.template-line--broken) .template-line__segment:first-child {
+  flex-basis: 100%;
+}
+
+.template-line:not(.template-line--broken) .template-line__segment:last-child {
+  display: none;
+}
+
+.template-line--active .template-line__segment {
+  background: #8d75f4;
+}
+
+.template-trigram {
+  top: 459rpx;
+  left: 361rpx;
+  width: 170rpx;
+  color: #7b6b60;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 15rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.template-moving {
+  top: 526rpx;
+  left: 170rpx;
+  width: 65rpx;
+  font-size: 17rpx;
+  font-weight: 800;
+}
+
+.template-changed {
+  top: 526rpx;
+  left: 385rpx;
+  width: 76rpx;
+  font-size: 17rpx;
+  font-weight: 800;
+}
+
+.template-question {
+  top: 671rpx;
+  left: 216rpx;
+  width: 335rpx;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 18rpx;
+  font-weight: 800;
+}
+
+.template-summary {
+  top: 703rpx;
+  left: 216rpx;
+  display: -webkit-box;
+  width: 335rpx;
+  color: #7b6b60;
+  font-size: 15rpx;
+  line-height: 1.45;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.template-keywords {
+  position: absolute;
+  z-index: 1;
+  top: 733rpx;
+  left: 194rpx;
+  display: grid;
+  width: 376rpx;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.template-keyword {
+  display: block;
+  overflow: hidden;
+  color: #5f47b8;
+  font-size: 12rpx;
+  font-weight: 700;
+  line-height: 26rpx;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-advice {
+  position: absolute;
+  z-index: 1;
+  top: 846rpx;
+  left: 0;
+  right: 0;
+}
+
+.template-advice__row {
+  position: relative;
+  height: 48rpx;
+}
+
+.template-advice__label,
+.template-advice__text {
+  position: absolute;
+  top: 0;
+  display: block;
+  overflow: hidden;
+  line-height: 30rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-advice__label {
+  left: 124rpx;
+  width: 106rpx;
+  color: #5f47b8;
+  font-size: 16rpx;
+  font-weight: 800;
+}
+
+.template-advice__text {
+  left: 272rpx;
+  width: 254rpx;
+  color: #7b6b60;
+  font-size: 16rpx;
 }
 </style>

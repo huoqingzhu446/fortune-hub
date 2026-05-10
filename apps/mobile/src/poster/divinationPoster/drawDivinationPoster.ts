@@ -24,9 +24,17 @@ export async function drawDivinationPoster(
   ctx: CanvasRenderingContext2D,
   data: DivinationPosterData,
   qrImage?: CanvasImageSource,
+  templateImage?: CanvasImageSource,
 ) {
   const layout = createPosterLayout();
   const theme = posterTheme;
+
+  if (templateImage) {
+    drawTemplateBase(ctx, layout.canvas, templateImage);
+    drawTemplateContent(ctx, data, theme);
+    drawTemplateQrCode(ctx, layout.qr, qrImage);
+    return;
+  }
 
   drawPosterBackground(ctx, layout.canvas, theme);
   drawTopDecoration(ctx, layout.canvas, theme);
@@ -37,6 +45,208 @@ export async function drawDivinationPoster(
   drawAnalysisCard(ctx, layout.rightAnalysisCard, data.analysisCards[1], theme);
   drawFooter(ctx, layout.footer, data.footer, theme);
   drawQrCode(ctx, layout.qr, qrImage, theme);
+}
+
+function drawTemplateBase(
+  ctx: CanvasRenderingContext2D,
+  rect: Rect,
+  image: CanvasImageSource,
+) {
+  ctx.save();
+  ctx.drawImage(image, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
+
+function drawTemplateContent(
+  ctx: CanvasRenderingContext2D,
+  data: DivinationPosterData,
+  theme: PosterTheme,
+) {
+  const movingText = findChipValue(data, '动爻', '动爻未显');
+  const changedName = findChipValue(data, '变卦', '本卦不变');
+  const methodText = findChipValue(data, '起法', data.methodLabel);
+  const adviceRows = buildTemplateAdviceRows(data);
+
+  ctx.save();
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  ctx.font = `600 23px ${theme.font.sans}`;
+  ctx.fillStyle = theme.color.textMuted;
+  drawSingleLineText(ctx, methodText, 314, 357, 178);
+
+  drawFittedText(ctx, {
+    text: data.result.name,
+    x: 323,
+    y: 446,
+    maxWidth: 178,
+    maxSize: 34,
+    minSize: 24,
+    weight: 700,
+    family: theme.font.serif,
+  });
+
+  ctx.font = `500 24px ${theme.font.serif}`;
+  ctx.fillStyle = theme.color.textSecondary;
+  drawMultilineText(ctx, data.result.subtitle, 174, 596, 270, 34, 2);
+
+  ctx.font = `700 28px ${theme.font.serif}`;
+  ctx.fillStyle = theme.color.goldText;
+  drawCenteredTemplateText(ctx, data.result.luckyLevel, 780, 389, 96);
+
+  drawHexagram(ctx, {
+    x: 551,
+    y: 496,
+    lineWidth: 210,
+    lineHeight: 12,
+    gap: 17,
+    lines: data.result.hexagramLines,
+    theme,
+  });
+
+  ctx.font = `600 22px ${theme.font.serif}`;
+  ctx.fillStyle = theme.color.textSecondary;
+  drawCenteredTemplateText(ctx, data.result.trigramNote, 656, 675, 250);
+
+  ctx.font = `700 25px ${theme.font.sans}`;
+  ctx.fillStyle = theme.color.textPrimary;
+  drawSingleLineText(ctx, movingText, 250, 774, 96);
+  drawSingleLineText(ctx, changedName, 566, 774, 112);
+
+  ctx.font = `700 26px ${theme.font.serif}`;
+  ctx.fillStyle = theme.color.textPrimary;
+  drawSingleLineText(ctx, data.question.text, 318, 987, 492);
+
+  ctx.font = `400 23px ${theme.font.sans}`;
+  ctx.fillStyle = theme.color.textSecondary;
+  drawMultilineText(ctx, data.question.summary, 318, 1034, 492, 35, 2);
+
+  drawTemplateKeywords(ctx, buildTemplateKeywords(data, movingText, changedName), theme);
+  drawTemplateAdvice(ctx, adviceRows, theme);
+
+  ctx.restore();
+}
+
+function drawTemplateKeywords(
+  ctx: CanvasRenderingContext2D,
+  keywords: string[],
+  theme: PosterTheme,
+) {
+  const slots = [
+    { x: 286, y: 1078, w: 126 },
+    { x: 428, y: 1078, w: 126 },
+    { x: 571, y: 1078, w: 126 },
+    { x: 713, y: 1078, w: 126 },
+  ];
+
+  ctx.save();
+  ctx.font = `600 18px ${theme.font.sans}`;
+  ctx.fillStyle = theme.color.purpleDeep;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  slots.forEach((slot, index) => {
+    drawCenteredTemplateText(ctx, keywords[index] || '', slot.x + slot.w / 2, slot.y + 20, slot.w - 24);
+  });
+
+  ctx.restore();
+}
+
+function drawTemplateAdvice(
+  ctx: CanvasRenderingContext2D,
+  rows: Array<{ label: string; text: string }>,
+  theme: PosterTheme,
+) {
+  const yPositions = [1244, 1315, 1384];
+
+  ctx.save();
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+
+  rows.slice(0, 3).forEach((row, index) => {
+    const y = yPositions[index];
+
+    ctx.font = `700 23px ${theme.font.sans}`;
+    ctx.fillStyle = theme.color.purpleDeep;
+    drawSingleLineText(ctx, row.label, 182, y, 156);
+
+    ctx.font = `400 23px ${theme.font.sans}`;
+    ctx.fillStyle = theme.color.textSecondary;
+    drawSingleLineText(ctx, row.text, 400, y, 374);
+  });
+
+  ctx.restore();
+}
+
+function drawTemplateQrCode(
+  ctx: CanvasRenderingContext2D,
+  _rect: Rect,
+  qrImage: CanvasImageSource | undefined,
+) {
+  if (!qrImage) {
+    return;
+  }
+
+  const rect = { x: 666, y: 1470, w: 150, h: 150 };
+
+  ctx.save();
+  ctx.drawImage(qrImage, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
+
+function drawCenteredTemplateText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  const finalText = ctx.measureText(text).width > maxWidth ? truncateText(ctx, text, maxWidth) : text;
+  ctx.fillText(finalText, x, y);
+  ctx.restore();
+}
+
+function findChipValue(
+  data: DivinationPosterData,
+  label: string,
+  fallback: string,
+) {
+  return data.chips.find((item) => item.label === label)?.value || fallback;
+}
+
+function buildTemplateKeywords(
+  data: DivinationPosterData,
+  movingText: string,
+  changedName: string,
+) {
+  return [
+    data.question.tag,
+    data.result.trigramNote,
+    movingText,
+    changedName,
+  ];
+}
+
+function buildTemplateAdviceRows(data: DivinationPosterData) {
+  const first = data.analysisCards[0];
+  const second = data.analysisCards[1];
+
+  return [
+    {
+      label: first ? `${first.title}提示` : '当下提示',
+      text: first?.actionText || first?.content || data.result.subtitle,
+    },
+    {
+      label: second ? `${second.title}提示` : '趋势提示',
+      text: second?.actionText || second?.content || data.question.summary,
+    },
+    {
+      label: '今日取舍',
+      text: data.question.summary || data.result.subtitle,
+    },
+  ];
 }
 
 function drawPosterBackground(

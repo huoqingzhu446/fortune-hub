@@ -10,73 +10,95 @@
     </view>
 
     <view v-if="poster" class="poster-preview">
+      <view class="poster-glow poster-glow--top"></view>
+      <view class="poster-glow poster-glow--side"></view>
+      <view class="poster-glow poster-glow--bottom"></view>
+
+      <view class="poster-sun">
+        <view v-for="ray in decorationRays" :key="ray" class="poster-sun__ray" :style="rayStyle(ray)"></view>
+      </view>
+
       <view class="poster-nav">
-        <text class="poster-nav__title">占卜结果</text>
-        <text class="poster-nav__date">{{ poster.dateText }}</text>
+        <text class="poster-nav__spark">✦</text>
+        <text class="poster-nav__title">{{ poster.title }}</text>
+        <text class="poster-nav__spark">✦</text>
       </view>
 
       <view class="poster-result-card">
         <view class="poster-result-card__head">
-          <view class="poster-result-card__copy">
-            <text class="poster-eyebrow">{{ poster.eyebrowText }}</text>
-            <text class="poster-title-main">{{ poster.hexagramTitle }}</text>
-            <text class="poster-meaning">{{ poster.meaning }}</text>
+          <view class="poster-method">
+            <text class="poster-method__icon">◐</text>
+            <text class="poster-eyebrow">{{ poster.methodLabel }}</text>
           </view>
-          <text class="poster-level">{{ poster.level }}</text>
+          <text class="poster-level">{{ poster.result.luckyLevel }}</text>
         </view>
+
+        <text class="poster-title-main">{{ poster.result.prefix }}：{{ poster.result.name }}</text>
+        <text class="poster-meaning">{{ poster.result.subtitle }}</text>
+
+        <view class="poster-divider"></view>
 
         <view class="poster-hexagram-area">
           <view class="poster-hexagram">
             <view
-              v-for="(solid, index) in displayLines"
+              v-for="(line, index) in poster.result.hexagramLines"
               :key="index"
               class="poster-line"
-              :class="{ 'poster-line--broken': !solid }"
+              :class="{
+                'poster-line--broken': line.type === 'broken',
+                'poster-line--active': line.active,
+              }"
             >
               <view class="poster-line__segment"></view>
               <view class="poster-line__segment"></view>
             </view>
           </view>
-          <view class="poster-hexagram-copy">
-            <text class="poster-preview__symbol">{{ result.hexagram.symbol }}</text>
-            <text class="poster-trigram">{{ poster.trigramText }}</text>
-            <text class="poster-changed-button">{{ poster.changedButtonText }}</text>
+          <view class="poster-trigram-note">
+            <view class="poster-trigram-note__seal">
+              <view v-for="line in 5" :key="line" class="poster-trigram-note__mark"></view>
+            </view>
+            <text class="poster-trigram">{{ poster.result.trigramNote }}</text>
+            <view class="poster-divider poster-divider--small"></view>
           </view>
         </view>
 
         <view class="poster-casting-strip">
-          <view v-for="item in poster.infoChips" :key="item.label" class="poster-casting-chip">
-            <text class="poster-casting-chip__label">{{ item.label }}</text>
-            <text class="poster-casting-chip__value">{{ item.value }}</text>
+          <view v-for="item in poster.chips" :key="item.label" class="poster-casting-chip">
+            <text class="poster-casting-chip__icon">{{ chipIconText(item.icon) }}</text>
+            <view>
+              <text class="poster-casting-chip__label">{{ item.label }}</text>
+              <text class="poster-casting-chip__value">{{ item.value }}</text>
+            </view>
           </view>
         </view>
       </view>
 
       <view class="poster-oracle-card">
-        <text class="poster-oracle-card__eyebrow">{{ poster.oracleTitle }}</text>
-        <text class="poster-oracle-card__title">{{ poster.oracleSubject }}</text>
-        <text class="poster-oracle-card__text">{{ poster.oracleSituation }}</text>
+        <text class="poster-oracle-card__eyebrow">{{ poster.question.tag }}</text>
+        <text class="poster-oracle-card__title">{{ poster.question.text }}</text>
+        <text class="poster-oracle-card__text">{{ poster.question.summary }}</text>
+        <view class="poster-bamboo"></view>
       </view>
 
       <view class="poster-panel-row">
-        <view class="poster-panel">
-          <text class="poster-panel__label">动爻</text>
-          <text class="poster-panel__title">{{ poster.movingTitle }}</text>
-          <text class="poster-panel__body">{{ poster.movingBody }}</text>
-          <text class="poster-panel__advice">{{ poster.movingAdvice }}</text>
-        </view>
-        <view class="poster-panel">
-          <text class="poster-panel__label">变卦</text>
-          <text class="poster-panel__title">{{ poster.changedTitle }}</text>
-          <text class="poster-panel__body">{{ poster.changedBody }}</text>
-          <text class="poster-panel__advice">{{ poster.changedAdvice }}</text>
+        <view v-for="card in poster.analysisCards" :key="card.title" class="poster-panel">
+          <view class="poster-panel__head">
+            <text class="poster-panel__icon">{{ analysisIconText(card.icon) }}</text>
+            <view>
+              <text class="poster-panel__label">{{ card.title }}</text>
+              <text class="poster-panel__title">{{ card.value }}</text>
+            </view>
+          </view>
+          <text class="poster-panel__body">{{ card.content }}</text>
+          <text class="poster-panel__advice">{{ card.actionText }}</text>
         </view>
       </view>
 
       <view class="poster-footer">
-        <view>
-          <text class="poster-footer__text">长按识别，生成你的今日占卜</text>
-          <text class="poster-footer__brand">Fortune Hub</text>
+        <view class="poster-brand-badge">✦</view>
+        <view class="poster-footer__copy">
+          <text class="poster-footer__text">{{ poster.footer.slogan }}</text>
+          <text class="poster-footer__brand">{{ poster.footer.brand }}</text>
         </view>
         <view class="qr-placeholder">
           <view v-for="cell in qrCells" :key="cell" class="qr-cell" :style="qrStyle(cell)"></view>
@@ -105,7 +127,7 @@ import {
   getOrCreateTodayDivinationResult,
 } from '../../../services/divination';
 import {
-  buildDivinationPosterViewModel,
+  buildDivinationPosterData,
   DIVINATION_POSTER_HEIGHT,
   DIVINATION_POSTER_WIDTH,
   generateDivinationSharePoster,
@@ -120,15 +142,9 @@ const posterWidth = DIVINATION_POSTER_WIDTH;
 const posterHeight = DIVINATION_POSTER_HEIGHT;
 const isMpWeixin = String((uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform || '').toLowerCase() === 'mp-weixin';
 const qrCells = [0, 1, 2, 8, 10, 16, 17, 18, 5, 6, 7, 13, 15, 21, 22, 23, 40, 41, 42, 48, 50, 56, 57, 58, 36, 38, 43, 53, 63];
+const decorationRays = Array.from({ length: 28 }, (_, index) => index);
 
-const displayLines = computed(() => {
-  if (!result.value) {
-    return [];
-  }
-
-  return [...result.value.hexagram.lines].reverse();
-});
-const poster = computed(() => (result.value ? buildDivinationPosterViewModel(result.value) : null));
+const poster = computed(() => (result.value ? buildDivinationPosterData(result.value) : null));
 
 function qrStyle(cell: number) {
   const x = cell % 8;
@@ -137,6 +153,30 @@ function qrStyle(cell: number) {
     left: `${x * 12.5}%`,
     top: `${y * 12.5}%`,
   };
+}
+
+function rayStyle(index: number) {
+  const angle = -50 + (100 * index) / 27;
+  const length = index % 2 === 0 ? 28 : 20;
+
+  return {
+    transform: `translate(-50%, 0) rotate(${angle}deg)`,
+    height: `${length}rpx`,
+  };
+}
+
+function chipIconText(icon: string) {
+  const mapping: Record<string, string> = {
+    method: '一',
+    move: '↯',
+    change: '○',
+  };
+
+  return mapping[icon] || '○';
+}
+
+function analysisIconText(icon: string) {
+  return icon === 'lightning' ? '↯' : '山';
 }
 
 async function generatePoster() {
@@ -639,6 +679,534 @@ onLoad((query) => {
   height: 7rpx;
   border-radius: 1rpx;
   background: #35291f;
+}
+
+.poster-preview {
+  border-radius: 28rpx;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.46), transparent 26%),
+    radial-gradient(circle at 88% 23%, rgba(141, 117, 244, 0.1), transparent 24%),
+    radial-gradient(circle at 18% 81%, rgba(216, 169, 77, 0.11), transparent 26%),
+    linear-gradient(180deg, #f8f0e5 0%, #f7ede0 55%, #efe3d3 100%);
+  box-shadow: 0 28rpx 68rpx rgba(86, 61, 36, 0.14);
+}
+
+.poster-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.poster-glow--top {
+  top: -70rpx;
+  left: 145rpx;
+  width: 350rpx;
+  height: 350rpx;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.poster-glow--side {
+  top: 210rpx;
+  right: -90rpx;
+  width: 250rpx;
+  height: 250rpx;
+  background: rgba(141, 117, 244, 0.08);
+}
+
+.poster-glow--bottom {
+  left: -82rpx;
+  bottom: 118rpx;
+  width: 300rpx;
+  height: 300rpx;
+  background: rgba(216, 169, 77, 0.1);
+}
+
+.poster-sun {
+  position: absolute;
+  top: 92rpx;
+  left: 50%;
+  width: 340rpx;
+  height: 110rpx;
+  border-top: 2rpx solid rgba(216, 169, 77, 0.24);
+  border-radius: 340rpx 340rpx 0 0;
+  transform: translateX(-50%);
+}
+
+.poster-sun__ray {
+  position: absolute;
+  left: 50%;
+  bottom: 5rpx;
+  width: 1rpx;
+  background: rgba(216, 169, 77, 0.15);
+  transform-origin: center bottom;
+}
+
+.poster-nav {
+  top: 49rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32rpx;
+}
+
+.poster-nav__title {
+  color: #3f3028;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 35rpx;
+  font-weight: 800;
+}
+
+.poster-nav__spark {
+  color: #d8a94d;
+  font-size: 18rpx;
+}
+
+.poster-result-card,
+.poster-oracle-card,
+.poster-panel {
+  background: rgba(255, 253, 248, 0.94);
+  border: 1rpx solid rgba(216, 169, 77, 0.25);
+  box-shadow: 0 14rpx 36rpx rgba(86, 61, 36, 0.11);
+}
+
+.poster-result-card {
+  top: 151rpx;
+  left: 38rpx;
+  right: 38rpx;
+  height: 469rpx;
+  padding: 30rpx 33rpx;
+  border-radius: 25rpx;
+}
+
+.poster-result-card__head {
+  align-items: center;
+  gap: 24rpx;
+}
+
+.poster-method {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-width: 0;
+}
+
+.poster-method__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: rgba(141, 117, 244, 0.18);
+  color: #8d75f4;
+  font-size: 18rpx;
+}
+
+.poster-eyebrow {
+  overflow: hidden;
+  color: #8d75f4;
+  font-size: 20rpx;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-title-main {
+  margin-top: 36rpx;
+  color: #3f3028;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 42rpx;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-meaning {
+  margin-top: 20rpx;
+  color: #7b6b60;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 23rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-level {
+  display: grid;
+  place-items: center;
+  width: 61rpx;
+  min-width: 61rpx;
+  height: 61rpx;
+  padding: 0;
+  border: 2rpx solid rgba(216, 169, 77, 0.72);
+  border-radius: 50%;
+  background: #fff2d8;
+  color: #b67a1a;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 20rpx;
+}
+
+.poster-divider {
+  width: 122rpx;
+  height: 1rpx;
+  margin: 13rpx 0 0 116rpx;
+  background: rgba(216, 169, 77, 0.32);
+}
+
+.poster-divider--small {
+  width: 95rpx;
+  margin: 20rpx auto 0;
+}
+
+.poster-hexagram-area {
+  justify-content: space-between;
+  gap: 46rpx;
+  margin-top: 52rpx;
+}
+
+.poster-hexagram {
+  flex: 0 0 204rpx;
+  gap: 16rpx;
+  width: 204rpx;
+}
+
+.poster-line {
+  gap: 49rpx;
+  height: 12rpx;
+}
+
+.poster-line__segment {
+  border-radius: 999rpx;
+  background: #3f3448;
+}
+
+.poster-line--active .poster-line__segment {
+  background: #8d75f4;
+}
+
+.poster-trigram-note {
+  display: flex;
+  flex: 0 0 177rpx;
+  flex-direction: column;
+  align-items: center;
+}
+
+.poster-trigram-note__seal {
+  display: grid;
+  place-items: center;
+  width: 92rpx;
+  height: 92rpx;
+  border: 1rpx solid rgba(216, 169, 77, 0.36);
+  border-radius: 50%;
+  background: rgba(141, 117, 244, 0.12);
+  gap: 4rpx;
+}
+
+.poster-trigram-note__mark {
+  width: 40rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: rgba(141, 117, 244, 0.72);
+}
+
+.poster-trigram {
+  margin-top: 18rpx;
+  color: #3f3028;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 20rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.poster-casting-strip {
+  left: 33rpx;
+  right: 33rpx;
+  bottom: 29rpx;
+  gap: 16rpx;
+}
+
+.poster-casting-chip {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 52rpx;
+  gap: 12rpx;
+  padding: 9rpx 13rpx;
+  border: 1rpx solid rgba(216, 169, 77, 0.18);
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.poster-casting-chip__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: rgba(141, 117, 244, 0.16);
+  color: #8d75f4;
+  font-size: 14rpx;
+  font-weight: 700;
+}
+
+.poster-casting-chip__label {
+  color: #a39387;
+}
+
+.poster-casting-chip__value {
+  margin-top: 2rpx;
+  color: #3f3028;
+}
+
+.poster-oracle-card {
+  top: 640rpx;
+  left: 38rpx;
+  right: 38rpx;
+  height: 133rpx;
+  padding: 23rpx 29rpx;
+  border-color: rgba(255, 255, 255, 0.72);
+  border-radius: 19rpx;
+  overflow: hidden;
+}
+
+.poster-oracle-card__eyebrow {
+  display: inline-flex;
+  position: absolute;
+  top: 22rpx;
+  left: 29rpx;
+  width: fit-content;
+  padding: 6rpx 15rpx;
+  border-radius: 10rpx;
+  background: linear-gradient(90deg, #8d75f4, #bfa8ff);
+  color: #ffffff;
+  font-size: 16rpx;
+  font-weight: 800;
+}
+
+.poster-oracle-card__title {
+  position: absolute;
+  top: 58rpx;
+  left: 29rpx;
+  right: 110rpx;
+  margin-top: 0;
+  color: #3f3028;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 27rpx;
+}
+
+.poster-oracle-card__text {
+  position: absolute;
+  top: 94rpx;
+  left: 29rpx;
+  right: 29rpx;
+  display: block;
+  margin-top: 0;
+  white-space: nowrap;
+  color: #7b6b60;
+  font-size: 17rpx;
+  text-overflow: ellipsis;
+}
+
+.poster-bamboo {
+  position: absolute;
+  top: 29rpx;
+  right: 42rpx;
+  width: 72rpx;
+  height: 80rpx;
+  border-left: 2rpx solid rgba(141, 117, 244, 0.13);
+  border-radius: 50%;
+  transform: rotate(18deg);
+}
+
+.poster-panel-row {
+  top: 794rpx;
+  left: 38rpx;
+  right: 38rpx;
+  gap: 20rpx;
+}
+
+.poster-panel {
+  box-sizing: border-box;
+  height: 234rpx;
+  min-height: 0;
+  padding: 23rpx;
+  border-color: rgba(255, 255, 255, 0.74);
+  border-radius: 19rpx;
+}
+
+.poster-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.poster-panel__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 39rpx;
+  height: 39rpx;
+  border-radius: 50%;
+  background: rgba(141, 117, 244, 0.18);
+  color: #8d75f4;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.poster-panel__label {
+  color: #8d75f4;
+  font-size: 18rpx;
+}
+
+.poster-panel__title {
+  margin-top: 4rpx;
+  color: #3f3028;
+  font-family:
+    'Songti SC',
+    'STSong',
+    serif;
+  font-size: 27rpx;
+}
+
+.poster-panel__body {
+  margin-top: 20rpx;
+  color: #7b6b60;
+  font-size: 17rpx;
+  line-height: 1.44;
+  -webkit-line-clamp: 3;
+}
+
+.poster-panel__advice {
+  margin-top: 12rpx;
+  color: #8d75f4;
+  font-size: 17rpx;
+  font-weight: 700;
+  -webkit-line-clamp: 1;
+}
+
+.poster-footer {
+  top: 1043rpx;
+  left: 38rpx;
+  right: 38rpx;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.poster-brand-badge {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44rpx;
+  height: 44rpx;
+  border: 1rpx solid rgba(141, 117, 244, 0.45);
+  border-radius: 50%;
+  background: rgba(141, 117, 244, 0.12);
+  color: #5f47b8;
+  font-size: 20rpx;
+}
+
+.poster-footer__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.poster-footer__text {
+  color: #7b6b60;
+  font-size: 16rpx;
+}
+
+.poster-footer__brand {
+  margin-top: 7rpx;
+  color: #3f3028;
+  font-family: Georgia, 'Songti SC', serif;
+  font-size: 29rpx;
+}
+
+.qr-placeholder {
+  flex: 0 0 87rpx;
+  width: 87rpx;
+  height: 87rpx;
+  border: 1rpx solid rgba(216, 169, 77, 0.25);
+  border-radius: 15rpx;
+  background: #ffffff;
+  box-shadow: 0 6rpx 18rpx rgba(86, 61, 36, 0.14);
+}
+
+.qr-cell {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 2rpx;
+  background: #3f3028;
+}
+
+.poster-method {
+  position: absolute;
+  top: 37rpx;
+  left: 33rpx;
+  width: 390rpx;
+}
+
+.poster-level {
+  position: absolute;
+  top: 30rpx;
+  right: 33rpx;
+}
+
+.poster-title-main {
+  position: absolute;
+  top: 90rpx;
+  left: 33rpx;
+  right: 122rpx;
+  margin-top: 0;
+}
+
+.poster-meaning {
+  position: absolute;
+  top: 162rpx;
+  left: 33rpx;
+  right: 174rpx;
+  margin-top: 0;
+}
+
+.poster-result-card > .poster-divider {
+  position: absolute;
+  top: 177rpx;
+  left: 149rpx;
+  margin: 0;
+}
+
+.poster-hexagram-area {
+  position: absolute;
+  top: 216rpx;
+  left: 40rpx;
+  right: 33rpx;
+  margin-top: 0;
+}
+
+.poster-oracle-card__text {
+  -webkit-line-clamp: 1;
+}
+
+.poster-casting-strip {
+  z-index: 2;
 }
 
 .generated-image {

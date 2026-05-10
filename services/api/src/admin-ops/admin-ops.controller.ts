@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import type { AdminProfile } from '../admin-auth/admin-auth.service';
 import { AdminSessionGuard } from '../admin-auth/admin-session.guard';
 import { AdminOpsService } from './admin-ops.service';
@@ -20,6 +20,21 @@ export class AdminOpsController {
       vipStatus,
       limit: Number(limit) || undefined,
     });
+  }
+
+  @Get('users/export')
+  async exportUsers(
+    @Res() res: Response,
+    @Query('keyword') keyword?: string,
+    @Query('vipStatus') vipStatus?: string,
+  ) {
+    const csv = await this.adminOpsService.exportUsersCsv({ keyword, vipStatus });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="users-export-${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    res.send(csv);
   }
 
   @Get('users/:id')

@@ -64,6 +64,63 @@ export class AdminOpsService {
     });
   }
 
+  async exportUsersCsv(query: {
+    keyword?: string;
+    vipStatus?: string;
+  }) {
+    const items = await this.userRepository.find({
+      order: { updatedAt: 'DESC' },
+      take: 1000,
+    });
+    const keyword = query.keyword?.trim().toLowerCase() ?? '';
+    const filtered = items
+      .filter((item) =>
+        query.vipStatus && query.vipStatus !== 'all'
+          ? this.resolveVipStatus(item) === query.vipStatus
+          : true,
+      )
+      .filter((item) =>
+        keyword
+          ? [
+              item.id,
+              item.openid ?? '',
+              item.phone ?? '',
+              item.nickname ?? '',
+              item.zodiac ?? '',
+              item.gender,
+              item.lastLoginProvider ?? '',
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(keyword)
+          : true,
+      );
+
+    const header = 'ID,昵称,手机号,星座,性别,会员状态,登录方式,最近登录,注册时间';
+    const rows = filtered.map((user) =>
+      [
+        user.id,
+        this.escapeCsv(user.nickname ?? ''),
+        user.phone ?? '',
+        user.zodiac ?? '',
+        user.gender,
+        user.vipStatus,
+        user.lastLoginProvider ?? '',
+        user.lastLoginAt?.toISOString() ?? '',
+        user.createdAt.toISOString(),
+      ].join(','),
+    );
+
+    return [header, ...rows].join('\n');
+  }
+
+  private escapeCsv(value: string) {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
+
   async getUserDetail(id: string) {
     const user = await this.userRepository.findOne({ where: { id } });
 

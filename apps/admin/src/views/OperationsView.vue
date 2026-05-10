@@ -23,6 +23,7 @@
             <el-option label="普通用户" value="inactive" />
           </el-select>
           <el-button :loading="loading" @click="loadUsers">筛选</el-button>
+          <el-button plain :loading="exportingUsers" @click="exportUsersCsv">导出 CSV</el-button>
         </div>
         <el-table :data="users" stripe v-loading="loading">
           <el-table-column prop="id" label="ID" width="90" />
@@ -425,6 +426,45 @@ async function loadUsers() {
     ElMessage.error('用户数据加载失败');
   } finally {
     loading.value = false;
+  }
+}
+
+const exportingUsers = ref(false);
+async function exportUsersCsv() {
+  exportingUsers.value = true;
+  try {
+    const params = new URLSearchParams();
+    if (userFilters.keyword) params.set('keyword', userFilters.keyword);
+    if (userFilters.vipStatus && userFilters.vipStatus !== 'all') params.set('vipStatus', userFilters.vipStatus);
+    const url = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/admin/ops/users/export?${params.toString()}`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${getAdminTokenFromStorage()}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('导出失败');
+    }
+    const blob = await response.blob();
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(downloadUrl);
+    ElMessage.success('导出成功');
+  } catch {
+    ElMessage.error('导出失败');
+  } finally {
+    exportingUsers.value = false;
+  }
+}
+
+function getAdminTokenFromStorage() {
+  try {
+    return localStorage.getItem('admin-token') || '';
+  } catch {
+    return '';
   }
 }
 

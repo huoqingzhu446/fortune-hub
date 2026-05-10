@@ -1,6 +1,7 @@
 import { drawDivinationPoster } from '../poster/divinationPoster/drawDivinationPoster';
 import { posterTheme } from '../poster/divinationPoster/posterTheme';
 import divinationPosterTemplateSrc from '../static/posters/divination-share-template.png';
+import { appEnv } from '../config/env';
 import type {
   DivinationPosterData,
   HexagramLine,
@@ -59,6 +60,7 @@ type WechatCanvasRuntime = {
 export const DIVINATION_POSTER_WIDTH = posterTheme.size.width;
 export const DIVINATION_POSTER_HEIGHT = posterTheme.size.height;
 const DIVINATION_POSTER_TEMPLATE_FALLBACK_SRC = '/static/posters/divination-share-template.png';
+const STATIC_MINI_PROGRAM_CODE_SRC = import.meta.env.VITE_MINI_PROGRAM_CODE_URL || '';
 
 export type DivinationPosterViewModel = DivinationPosterData;
 
@@ -179,12 +181,20 @@ export async function generateDivinationSharePoster(result: DivinationResult): P
     throw new Error('当前环境无法创建海报画布');
   }
 
-  const templateImage = await loadFirstCanvasImage(wxRuntime, canvas, [
-    divinationPosterTemplateSrc,
-    DIVINATION_POSTER_TEMPLATE_FALLBACK_SRC,
+  const [templateImage, qrImage] = await Promise.all([
+    loadFirstCanvasImage(wxRuntime, canvas, [
+      divinationPosterTemplateSrc,
+      DIVINATION_POSTER_TEMPLATE_FALLBACK_SRC,
+    ]),
+    loadOptionalCanvasImage(wxRuntime, canvas, resolveMiniProgramCodeSources(result)),
   ]);
 
-  await drawDivinationPoster(ctx, buildDivinationPosterData(result), undefined, templateImage || undefined);
+  await drawDivinationPoster(
+    ctx,
+    buildDivinationPosterData(result),
+    qrImage || undefined,
+    templateImage || undefined,
+  );
 
   const tempFilePath = await new Promise<string>((resolve, reject) => {
     wxRuntime.canvasToTempFilePath?.({
@@ -325,4 +335,53 @@ async function loadFirstCanvasImage(
   }
 
   return null;
+}
+
+async function loadOptionalCanvasImage(
+  wxRuntime: WechatCanvasRuntime,
+  canvas: PosterCanvas,
+  sources: string[],
+) {
+  const uniqueSources = Array.from(new Set(sources.filter(Boolean)));
+
+  for (const source of uniqueSources) {
+    try {
+      return await loadCanvasImage(wxRuntime, canvas, source);
+    } catch (error) {
+      console.warn('load divination mini program code failed', source, error);
+    }
+  }
+
+  return null;
+}
+
+export function resolveDivinationMiniProgramCodeUrl(resultId?: string) {
+  const baseUrl = appEnv.apiBaseUrl.replace(/\/$/, '');
+
+  if (!/^https?:\/\//i.test(baseUrl)) {
+    return '';
+  }
+
+  const params = [
+    ['sourceType', 'divination'],
+    ...(resultId ? [['recordId', resultId]] : []),
+  ]
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+
+  return `${baseUrl}/posters/mini-program-code?${params}`;
+}
+
+export function resolveDivinationMiniProgramCodeImageUrl(resultId?: string) {
+  return resolveDivinationMiniProgramCodeSourceUrls(resultId)[0] || '';
+}
+
+function resolveMiniProgramCodeSources(result: DivinationResult) {
+  return resolveDivinationMiniProgramCodeSourceUrls(result.id);
+}
+
+function resolveDivinationMiniProgramCodeSourceUrls(resultId?: string) {
+  return [STATIC_MINI_PROGRAM_CODE_SRC, resolveDivinationMiniProgramCodeUrl(resultId)]
+    .map((source) => source.trim())
+    .filter(Boolean);
 }

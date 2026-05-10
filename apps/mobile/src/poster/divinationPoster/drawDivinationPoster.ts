@@ -71,55 +71,51 @@ function drawTemplateContent(
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
 
-  ctx.font = `600 23px ${theme.font.sans}`;
+  ctx.font = `600 22px ${theme.font.sans}`;
   ctx.fillStyle = theme.color.textMuted;
-  drawSingleLineText(ctx, methodText, 314, 357, 178);
+  drawSingleLineText(ctx, methodText, 314, 356, 170);
 
   drawFittedText(ctx, {
     text: data.result.name,
-    x: 323,
-    y: 446,
-    maxWidth: 178,
-    maxSize: 34,
+    x: 318,
+    y: 443,
+    maxWidth: 170,
+    maxSize: 32,
     minSize: 24,
     weight: 700,
     family: theme.font.serif,
   });
 
-  ctx.font = `500 24px ${theme.font.serif}`;
+  ctx.font = `500 25px ${theme.font.serif}`;
   ctx.fillStyle = theme.color.textSecondary;
-  drawMultilineText(ctx, data.result.subtitle, 174, 596, 270, 34, 2);
+  drawCenteredTemplateText(ctx, data.result.subtitle, 285, 596, 270);
 
   ctx.font = `700 28px ${theme.font.serif}`;
   ctx.fillStyle = theme.color.goldText;
-  drawCenteredTemplateText(ctx, data.result.luckyLevel, 780, 389, 96);
+  drawVisualCenteredTemplateText(ctx, data.result.luckyLevel, 778, 381, 96);
 
   drawHexagram(ctx, {
-    x: 551,
-    y: 496,
-    lineWidth: 210,
-    lineHeight: 12,
-    gap: 17,
+    x: 564,
+    y: 500,
+    lineWidth: 184,
+    lineHeight: 11,
+    gap: 18,
     lines: data.result.hexagramLines,
     theme,
   });
 
   ctx.font = `600 22px ${theme.font.serif}`;
   ctx.fillStyle = theme.color.textSecondary;
-  drawCenteredTemplateText(ctx, data.result.trigramNote, 656, 675, 250);
+  drawCenteredTemplateText(ctx, data.result.trigramNote, 656, 674, 210);
 
   ctx.font = `700 25px ${theme.font.sans}`;
   ctx.fillStyle = theme.color.textPrimary;
   drawSingleLineText(ctx, movingText, 250, 774, 96);
   drawSingleLineText(ctx, changedName, 566, 774, 112);
 
-  ctx.font = `700 26px ${theme.font.serif}`;
-  ctx.fillStyle = theme.color.textPrimary;
-  drawSingleLineText(ctx, data.question.text, 318, 987, 492);
-
-  ctx.font = `400 23px ${theme.font.sans}`;
+  ctx.font = `400 24px ${theme.font.sans}`;
   ctx.fillStyle = theme.color.textSecondary;
-  drawMultilineText(ctx, data.question.summary, 318, 1034, 492, 35, 2);
+  drawMultilineText(ctx, data.question.summary, 318, 986, 510, 46, 2);
 
   drawTemplateKeywords(ctx, buildTemplateKeywords(data, movingText, changedName), theme);
   drawTemplateAdvice(ctx, adviceRows, theme);
@@ -133,14 +129,14 @@ function drawTemplateKeywords(
   theme: PosterTheme,
 ) {
   const slots = [
-    { x: 286, y: 1078, w: 126 },
-    { x: 428, y: 1078, w: 126 },
-    { x: 571, y: 1078, w: 126 },
-    { x: 713, y: 1078, w: 126 },
+    { x: 286, y: 1076, w: 126 },
+    { x: 428, y: 1076, w: 126 },
+    { x: 571, y: 1076, w: 126 },
+    { x: 713, y: 1076, w: 126 },
   ];
 
   ctx.save();
-  ctx.font = `600 18px ${theme.font.sans}`;
+  ctx.font = `600 17px ${theme.font.sans}`;
   ctx.fillStyle = theme.color.purpleDeep;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
@@ -157,7 +153,7 @@ function drawTemplateAdvice(
   rows: Array<{ label: string; text: string }>,
   theme: PosterTheme,
 ) {
-  const yPositions = [1244, 1315, 1384];
+  const yPositions = [1246, 1316, 1386];
 
   ctx.save();
   ctx.textBaseline = 'top';
@@ -166,13 +162,13 @@ function drawTemplateAdvice(
   rows.slice(0, 3).forEach((row, index) => {
     const y = yPositions[index];
 
-    ctx.font = `700 23px ${theme.font.sans}`;
+    ctx.font = `700 22px ${theme.font.sans}`;
     ctx.fillStyle = theme.color.purpleDeep;
     drawSingleLineText(ctx, row.label, 182, y, 156);
 
-    ctx.font = `400 23px ${theme.font.sans}`;
+    ctx.font = `400 22px ${theme.font.sans}`;
     ctx.fillStyle = theme.color.textSecondary;
-    drawSingleLineText(ctx, row.text, 400, y, 374);
+    drawSingleLineText(ctx, row.text, 400, y, 382);
   });
 
   ctx.restore();
@@ -187,9 +183,11 @@ function drawTemplateQrCode(
     return;
   }
 
-  const rect = { x: 666, y: 1470, w: 150, h: 150 };
+  const rect = { x: 666, y: 1470, w: 148, h: 148 };
 
   ctx.save();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.drawImage(qrImage, rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
 }
@@ -203,8 +201,38 @@ function drawCenteredTemplateText(
 ) {
   ctx.save();
   ctx.textAlign = 'center';
-  const finalText = ctx.measureText(text).width > maxWidth ? truncateText(ctx, text, maxWidth) : text;
+  const finalText = ctx.measureText(text).width > maxWidth
+    ? truncateText(ctx, text, maxWidth)
+    : text;
   ctx.fillText(finalText, x, y);
+  ctx.restore();
+}
+
+function drawVisualCenteredTemplateText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+) {
+  ctx.save();
+  ctx.textAlign = 'center';
+
+  const finalText = ctx.measureText(text).width > maxWidth
+    ? truncateText(ctx, text, maxWidth)
+    : text;
+  const metrics = ctx.measureText(finalText);
+  const ascent = Number(metrics.actualBoundingBoxAscent);
+  const descent = Number(metrics.actualBoundingBoxDescent);
+
+  if (Number.isFinite(ascent) && Number.isFinite(descent) && ascent > 0) {
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(finalText, x, y + (ascent - descent) / 2);
+  } else {
+    ctx.textBaseline = 'middle';
+    ctx.fillText(finalText, x, y);
+  }
+
   ctx.restore();
 }
 

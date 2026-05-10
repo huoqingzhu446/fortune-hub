@@ -199,6 +199,21 @@ export class PostersService {
     };
   }
 
+  async getMiniProgramCode(input: {
+    sourceType?: string;
+    sourceCode?: string;
+    recordId?: string;
+  }) {
+    const source = this.resolveMiniProgramCodeSource(input);
+    const dataUrl = await this.resolveMiniProgramCodeDataUrl(source);
+
+    if (!dataUrl) {
+      throw new NotFoundException('小程序码暂不可用');
+    }
+
+    return this.decodeImageDataUrl(dataUrl);
+  }
+
   async createPosterJob(dto: GeneratePosterDto, user: UserEntity | null) {
     const job = await this.posterJobRepository.save(
       this.posterJobRepository.create({
@@ -1713,6 +1728,62 @@ export class PostersService {
     }
   }
 
+  private resolveMiniProgramCodeSource(input: {
+    sourceType?: string;
+    sourceCode?: string;
+    recordId?: string;
+  }): PosterSource {
+    const sourceType = this.pickString(input.sourceType, 'divination');
+    const allowedSourceTypes = new Set([
+      'divination',
+      'today_index',
+      'zodiac_today',
+      'lucky_sign',
+      'bazi',
+      'emotion',
+      'personality',
+    ]);
+
+    if (!allowedSourceTypes.has(sourceType)) {
+      throw new BadRequestException('不支持的小程序码场景');
+    }
+
+    const sourceCode = this.pickString(input.sourceCode, '');
+    const recordId = this.pickString(input.recordId, '');
+
+    return {
+      sourceType,
+      sourceCode: sourceCode || null,
+      recordId: recordId || null,
+      title: '今日占卜结果',
+      subtitle: '',
+      accentText: '',
+      footerText: '',
+      summary: '',
+      promptKeywords: [],
+      themeName: '',
+      promptHint: '',
+      eyebrowText: '',
+      chips: [],
+      metrics: [],
+      highlightLines: [],
+      zodiacName: sourceCode || undefined,
+    };
+  }
+
+  private decodeImageDataUrl(dataUrl: string) {
+    const match = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+
+    if (!match) {
+      throw new BadGatewayException('小程序码图片格式错误');
+    }
+
+    return {
+      mimeType: match[1],
+      buffer: Buffer.from(match[2], 'base64'),
+    };
+  }
+
   private async resolveImageReferenceDataUrl(reference: string) {
     if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(reference)) {
       return reference;
@@ -1875,6 +1946,10 @@ export class PostersService {
       return 'pages/lucky/sign/index';
     }
 
+    if (source.sourceType === 'divination') {
+      return 'pages/divination/index/index';
+    }
+
     if (
       source.sourceType === 'bazi' ||
       source.sourceType === 'emotion' ||
@@ -1898,6 +1973,13 @@ export class PostersService {
     if (source.sourceType === 'lucky_sign') {
       return {
         bizCode: source.sourceCode ?? '',
+      };
+    }
+
+    if (source.sourceType === 'divination') {
+      return {
+        source: 'share_poster',
+        ...(source.recordId ? { recordId: source.recordId } : {}),
       };
     }
 

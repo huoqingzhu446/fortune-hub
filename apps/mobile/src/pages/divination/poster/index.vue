@@ -38,8 +38,13 @@
       <text class="template-text template-trigram">{{ poster.result.trigramNote }}</text>
       <text class="template-text template-moving">{{ posterMovingText }}</text>
       <text class="template-text template-changed">{{ posterChangedName }}</text>
-      <text class="template-text template-question">{{ poster.question.text }}</text>
       <text class="template-text template-summary">{{ poster.question.summary }}</text>
+      <image
+        v-if="previewQrCodeUrl"
+        class="template-qrcode"
+        :src="previewQrCodeUrl"
+        mode="aspectFit"
+      />
 
       <view class="template-keywords">
         <text
@@ -85,6 +90,7 @@ import {
   DIVINATION_POSTER_WIDTH,
   generateDivinationSharePoster,
   getWechatPosterRuntime,
+  resolveDivinationMiniProgramCodeImageUrl,
 } from '../../../services/divination-poster';
 import type { DivinationResult } from '../../../types/divination';
 
@@ -99,6 +105,7 @@ const poster = computed(() => (result.value ? buildDivinationPosterData(result.v
 const posterMethodText = computed(() => findPosterChipValue('起法', poster.value?.methodLabel || '略筮法'));
 const posterMovingText = computed(() => findPosterChipValue('动爻', '动爻未显'));
 const posterChangedName = computed(() => findPosterChipValue('变卦', '本卦不变'));
+const previewQrCodeUrl = computed(() => (result.value ? resolveDivinationMiniProgramCodeImageUrl(result.value.id) : ''));
 const templateKeywords = computed(() => {
   if (!poster.value) {
     return [];
@@ -1236,47 +1243,44 @@ onLoad((query) => {
 }
 
 .template-method {
-  top: 243rpx;
+  top: 242rpx;
   left: 214rpx;
-  width: 121rpx;
+  width: 116rpx;
   color: #a39387;
-  font-size: 16rpx;
+  font-size: 15rpx;
   font-weight: 600;
 }
 
 .template-hexagram-name {
-  top: 303rpx;
-  left: 220rpx;
-  width: 121rpx;
+  top: 301rpx;
+  left: 216rpx;
+  width: 116rpx;
   font-family:
     'Songti SC',
     'STSong',
     serif;
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 800;
 }
 
 .template-subtitle {
   top: 405rpx;
-  left: 118rpx;
-  display: -webkit-box;
+  left: 102rpx;
   width: 184rpx;
   color: #7b6b60;
   font-family:
     'Songti SC',
     'STSong',
     serif;
-  font-size: 16rpx;
-  line-height: 1.45;
-  white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  font-size: 17rpx;
+  text-align: center;
 }
 
 .template-level {
-  top: 265rpx;
-  left: 498rpx;
-  width: 65rpx;
+  top: 218rpx;
+  left: 486rpx;
+  width: 86rpx;
+  height: 82rpx;
   color: #b67a1a;
   font-family:
     'Songti SC',
@@ -1284,23 +1288,24 @@ onLoad((query) => {
     serif;
   font-size: 19rpx;
   font-weight: 800;
+  line-height: 82rpx;
   text-align: center;
 }
 
 .template-hexagram {
   position: absolute;
   z-index: 1;
-  top: 337rpx;
-  left: 375rpx;
+  top: 340rpx;
+  left: 383rpx;
   display: grid;
-  width: 143rpx;
+  width: 125rpx;
   gap: 12rpx;
 }
 
 .template-line {
   display: flex;
-  gap: 33rpx;
-  height: 8rpx;
+  gap: 22rpx;
+  height: 7rpx;
 }
 
 .template-line__segment {
@@ -1323,8 +1328,8 @@ onLoad((query) => {
 
 .template-trigram {
   top: 459rpx;
-  left: 361rpx;
-  width: 170rpx;
+  left: 375rpx;
+  width: 143rpx;
   color: #7b6b60;
   font-family:
     'Songti SC',
@@ -1351,26 +1356,14 @@ onLoad((query) => {
   font-weight: 800;
 }
 
-.template-question {
+.template-summary {
   top: 671rpx;
   left: 216rpx;
-  width: 335rpx;
-  font-family:
-    'Songti SC',
-    'STSong',
-    serif;
-  font-size: 18rpx;
-  font-weight: 800;
-}
-
-.template-summary {
-  top: 703rpx;
-  left: 216rpx;
   display: -webkit-box;
-  width: 335rpx;
+  width: 347rpx;
   color: #7b6b60;
-  font-size: 15rpx;
-  line-height: 1.45;
+  font-size: 16rpx;
+  line-height: 31rpx;
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1379,7 +1372,7 @@ onLoad((query) => {
 .template-keywords {
   position: absolute;
   z-index: 1;
-  top: 733rpx;
+  top: 732rpx;
   left: 194rpx;
   display: grid;
   width: 376rpx;
@@ -1402,7 +1395,7 @@ onLoad((query) => {
 .template-advice {
   position: absolute;
   z-index: 1;
-  top: 846rpx;
+  top: 847rpx;
   left: 0;
   right: 0;
 }
@@ -1427,14 +1420,23 @@ onLoad((query) => {
   left: 124rpx;
   width: 106rpx;
   color: #5f47b8;
-  font-size: 16rpx;
+  font-size: 15rpx;
   font-weight: 800;
 }
 
 .template-advice__text {
   left: 272rpx;
-  width: 254rpx;
+  width: 260rpx;
   color: #7b6b60;
-  font-size: 16rpx;
+  font-size: 15rpx;
+}
+
+.template-qrcode {
+  position: absolute;
+  z-index: 1;
+  left: 453rpx;
+  top: 1000rpx;
+  width: 101rpx;
+  height: 101rpx;
 }
 </style>

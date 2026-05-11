@@ -95,6 +95,11 @@ export class DivinationService {
         title: null,
         summary: null,
         resultSnapshot: null,
+        preMood: null,
+        preMoodIntensity: null,
+        postMood: null,
+        postMoodIntensity: null,
+        expectation: null,
       });
     }
 
@@ -114,6 +119,19 @@ export class DivinationService {
     review.title = this.pickNullableString(dto.title, 128) ?? review.title;
     review.summary = this.pickNullableString(dto.summary, 255) ?? review.summary;
     review.resultSnapshot = dto.resultSnapshot ?? review.resultSnapshot;
+    review.preMood = this.pickNullableString(dto.preMood, 16) ?? review.preMood;
+    review.postMood =
+      this.pickNullableString(dto.postMood, 16) ?? review.postMood;
+    review.expectation =
+      this.pickNullableString(dto.expectation, 32) ?? review.expectation;
+
+    if (typeof dto.preMoodIntensity === 'number') {
+      review.preMoodIntensity = dto.preMoodIntensity;
+    }
+
+    if (typeof dto.postMoodIntensity === 'number') {
+      review.postMoodIntensity = dto.postMoodIntensity;
+    }
 
     const saved = await this.divinationReviewRepository.save(review);
 
@@ -241,6 +259,11 @@ export class DivinationService {
       title: item.title ?? '',
       summary: item.summary ?? '',
       resultSnapshot: item.resultSnapshot,
+      preMood: item.preMood ?? '',
+      preMoodIntensity: item.preMoodIntensity,
+      postMood: item.postMood ?? '',
+      postMoodIntensity: item.postMoodIntensity,
+      expectation: item.expectation ?? '',
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };

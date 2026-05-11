@@ -164,7 +164,19 @@ export function getDivinationReview(resultId?: string) {
 
 export function saveDivinationReview(
   resultId: string,
-  patch: Partial<Pick<DivinationReview, 'favorite' | 'outcome' | 'note'>>,
+  patch: Partial<
+    Pick<
+      DivinationReview,
+      | 'favorite'
+      | 'outcome'
+      | 'note'
+      | 'preMood'
+      | 'preMoodIntensity'
+      | 'postMood'
+      | 'postMoodIntensity'
+      | 'expectation'
+    >
+  >,
 ) {
   const reviews = listDivinationReviews();
   const current = reviews[resultId] || createEmptyReview(resultId);
@@ -172,6 +184,10 @@ export function saveDivinationReview(
     ...current,
     ...patch,
     note: typeof patch.note === 'string' ? patch.note.slice(0, 500) : current.note,
+    expectation:
+      typeof patch.expectation === 'string'
+        ? patch.expectation.slice(0, 32)
+        : current.expectation,
     updatedAt: Date.now(),
   };
 
@@ -855,6 +871,11 @@ function buildReviewSyncPayload(
     title: result?.topicLabel || result?.hexagram.name,
     summary: result?.question || result?.summary,
     resultSnapshot: result ? { ...result, review } : undefined,
+    preMood: review.preMood,
+    preMoodIntensity: review.preMoodIntensity,
+    postMood: review.postMood,
+    postMoodIntensity: review.postMoodIntensity,
+    expectation: review.expectation,
   };
 }
 
@@ -867,6 +888,11 @@ function normalizeRemoteReview(
     favorite: Boolean(item.favorite),
     outcome: isReviewOutcome(item.outcome) ? item.outcome : 'pending',
     note: typeof item.note === 'string' ? item.note.slice(0, 500) : '',
+    preMood: item.preMood || undefined,
+    preMoodIntensity: item.preMoodIntensity ?? undefined,
+    postMood: item.postMood || undefined,
+    postMoodIntensity: item.postMoodIntensity ?? undefined,
+    expectation: item.expectation || undefined,
     updatedAt: Math.max(parseRemoteDate(item.updatedAt), fallbackUpdatedAt),
   };
 }

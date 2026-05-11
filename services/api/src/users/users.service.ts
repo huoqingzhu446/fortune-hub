@@ -1510,7 +1510,7 @@ export class UsersService {
   // ---------- Daily Pulse ----------
 
   async saveDailyPulse(user: UserEntity, dto: SaveDailyPulseDto) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getBusinessDateKey();
     const category = dto.category?.trim() || null;
     const note = dto.note?.trim().slice(0, 256) || null;
 
@@ -1598,7 +1598,7 @@ export class UsersService {
     if (!records.length) return 0;
 
     let streak = 1;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getBusinessDateKey();
 
     // First record must be today or yesterday to count as active streak
     const firstDate = records[0].recordDate;
@@ -1630,9 +1630,25 @@ export class UsersService {
   }
 
   private offsetDate(dateStr: string, days: number) {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + days);
+    const d = new Date(`${dateStr}T00:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() + days);
     return d.toISOString().slice(0, 10);
+  }
+
+  private getBusinessDateKey(date = new Date()) {
+    const timeZone = this.configService.get<string>(
+      'BUSINESS_TIME_ZONE',
+      'Asia/Shanghai',
+    );
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const valueByType = new Map(parts.map((part) => [part.type, part.value]));
+
+    return `${valueByType.get('year')}-${valueByType.get('month')}-${valueByType.get('day')}`;
   }
 
   private serializePulse(record: DailyPulseRecordEntity) {

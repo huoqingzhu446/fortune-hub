@@ -235,6 +235,11 @@ export interface DivinationReview {
   favorite: boolean;
   outcome: 'pending' | 'fulfilled' | 'unfulfilled';
   note: string;
+  preMood?: string;
+  preMoodIntensity?: number;
+  postMood?: string;
+  postMoodIntensity?: number;
+  expectation?: string;
   updatedAt: number;
 }
 
@@ -253,6 +258,11 @@ export interface DivinationReviewRemoteItem {
   title: string;
   summary: string;
   resultSnapshot: DivinationResult | null;
+  preMood: string;
+  preMoodIntensity: number | null;
+  postMood: string;
+  postMoodIntensity: number | null;
+  expectation: string;
   createdAt: string;
   updatedAt: string;
 }

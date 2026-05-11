@@ -1,4 +1,5 @@
 import { http } from '../services/request';
+import { appendQueryString } from '../services/url';
 import type { ApiEnvelope } from '../types/auth';
 
 export interface DailyPulseRecord {
@@ -35,7 +36,9 @@ export function saveDailyPulse(payload: {
 }
 
 export function fetchPulseHistory(from?: string, to?: string) {
-  return http.get<PulseHistoryResponse>('/me/pulse', { from, to } as Record<string, string>);
+  return http.get<PulseHistoryResponse>(
+    appendQueryString('/me/pulse', { from, to }),
+  );
 }
 
 export function fetchPulseStreak() {

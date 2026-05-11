@@ -7,6 +7,21 @@
         <text class="hero__subtitle">选一个适合你当下状态的呼吸节奏</text>
       </view>
 
+      <view class="pre-mood">
+        <text class="pre-mood__label">开始前的状态</text>
+        <view class="pre-mood__grid">
+          <view
+            v-for="item in preMoodOptions"
+            :key="item.value"
+            class="pre-mood-chip"
+            :class="{ 'pre-mood-chip--active': preMood === item.value }"
+            @tap="preMood = item.value"
+          >
+            <text>{{ item.emoji }} {{ item.label }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="mode-list">
         <view
           v-for="mode in modes"
@@ -55,7 +70,7 @@
         <text class="done-card__title">练习完成</text>
         <text class="done-card__text">完成了 {{ completedRounds }} 轮 {{ completedMode?.title }}，共 {{ completedSeconds }} 秒</text>
 
-        <view class="done-mood" v-if="preMood">
+        <view class="done-mood">
           <text class="done-mood__label">做完这次练习，你感觉怎么样？</text>
           <view class="done-mood__grid">
             <view
@@ -158,6 +173,14 @@ const postMoodOptions = [
   { value: 'anxious', emoji: '😰', label: '仍然焦虑' },
 ];
 
+const preMoodOptions = [
+  { value: 'anxious', emoji: '😰', label: '焦虑' },
+  { value: 'irritable', emoji: '😤', label: '烦躁' },
+  { value: 'low', emoji: '😔', label: '低落' },
+  { value: 'neutral', emoji: '😐', label: '一般' },
+  { value: 'happy', emoji: '😊', label: '不错' },
+];
+
 function estimateDuration(mode: BreathingMode) {
   return mode.defaultRounds * (mode.inhale + mode.hold1 + mode.exhale + mode.hold2);
 }
@@ -182,9 +205,8 @@ function selectMode(mode: BreathingMode) {
   totalRounds.value = mode.defaultRounds;
   currentRound.value = 1;
   phaseIndex.value = 0;
-
-  // Capture pre-mood from local storage or default
-  preMood.value = '';
+  paused.value = false;
+  feedbackMood.value = '';
 
   screen.value = 'active';
   startPhase();
@@ -259,7 +281,9 @@ async function saveAndClose() {
       rounds: completedRounds.value,
       durationSeconds: completedSeconds.value,
       preMood: preMood.value || undefined,
+      preMoodIntensity: preMood.value ? 3 : undefined,
       postMood: feedbackMood.value || undefined,
+      postMoodIntensity: feedbackMood.value ? 3 : undefined,
     });
   } catch { /* silent */ }
   saving.value = false;
@@ -270,6 +294,7 @@ function resetScreen() {
   stopTimer();
   screen.value = 'select';
   currentRound.value = 1;
+  feedbackMood.value = '';
 }
 
 function stopTimer() {
@@ -306,6 +331,22 @@ onMounted(() => {
   margin-bottom: 24px;
   &__title { font-size: 24px; font-weight: 700; color: #1a1a2e; display: block; }
   &__subtitle { font-size: 14px; color: #888; margin-top: 4px; display: block; }
+}
+
+.pre-mood {
+  margin-bottom: 18px;
+  &__label { font-size: 13px; color: #777; display: block; margin-bottom: 10px; }
+  &__grid { display: flex; gap: 8px; flex-wrap: wrap; }
+}
+
+.pre-mood-chip {
+  padding: 8px 12px;
+  border-radius: 18px;
+  border: 1px solid #e4e4ec;
+  background: #fff;
+  font-size: 13px;
+  color: #666;
+  &--active { border-color: #7c6ff7; background: rgba(124,111,247,0.08); color: #4f45c7; }
 }
 
 .mode-list { display: flex; flex-direction: column; gap: 12px; }

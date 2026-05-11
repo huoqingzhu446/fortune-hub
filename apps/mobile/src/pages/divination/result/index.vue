@@ -335,7 +335,6 @@ import {
   saveDivinationReview,
   syncDivinationReviewsFromServer,
 } from '../../../services/divination';
-import { syncDivinationReview as syncDivinationReviewApi } from '../../../api/divination';
 import { getDivinationProfileMapping } from '../../../services/divination-content';
 import type {
   DivinationPersonalizationKey,
@@ -514,11 +513,11 @@ function selectPostMood(mood: string) {
 
 async function submitMoodFeedback() {
   try {
-    await syncDivinationReviewApi({
-      resultId: result.value!.id,
+    review.value = saveDivinationReview(result.value!.id, {
       postMood: postMood.value,
       postMoodIntensity: 3,
     });
+    result.value!.review = review.value;
     moodFeedbackSaved.value = true;
     moodFeedbackDone.value = true;
   } catch { /* silent */ }

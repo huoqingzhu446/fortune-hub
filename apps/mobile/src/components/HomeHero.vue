@@ -1,173 +1,194 @@
 <template>
   <view class="home-hero">
-    <view class="home-hero__aura home-hero__aura--left"></view>
-    <view class="home-hero__aura home-hero__aura--right"></view>
-    <view class="home-hero__sun"></view>
-    <view class="home-hero__cloud home-hero__cloud--one"></view>
-    <view class="home-hero__cloud home-hero__cloud--two"></view>
-    <view class="home-hero__ridges">
-      <view class="home-hero__ridge home-hero__ridge--back"></view>
-      <view class="home-hero__ridge home-hero__ridge--mid"></view>
-      <view class="home-hero__ridge home-hero__ridge--front"></view>
-    </view>
+    <view class="home-hero__wash"></view>
+    <view class="home-hero__ridge home-hero__ridge--back"></view>
+    <view class="home-hero__ridge home-hero__ridge--front"></view>
 
     <view class="home-hero__content">
+      <view class="home-hero__meta">
+        <view class="home-hero__date">
+          <text class="home-hero__date-line">{{ displayDate }}</text>
+          <text class="home-hero__date-line home-hero__date-line--lunar">{{ lunarDate }}</text>
+        </view>
+
+        <view class="home-hero__theme">
+          <view class="home-hero__theme-dot"></view>
+          <text class="home-hero__theme-text">今日色 · {{ themeName }}</text>
+        </view>
+      </view>
+
       <view class="home-hero__copy">
+        <text class="home-hero__eyebrow">{{ eyebrow }}</text>
         <text class="home-hero__title">{{ title }}</text>
         <text class="home-hero__subtitle">{{ subtitle }}</text>
       </view>
 
-      <view class="home-hero__date">
-        <text class="home-hero__date-line">{{ displayDate }}</text>
-        <text class="home-hero__date-line home-hero__date-line--lunar">{{ lunarDate }}</text>
+      <view class="home-hero__status" v-if="statusText">
+        <text class="home-hero__status-label">首页状态</text>
+        <text class="home-hero__status-value">{{ statusText }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  title: string;
-  subtitle: string;
-  displayDate: string;
-  lunarDate: string;
-}>();
+withDefaults(
+  defineProps<{
+    title: string;
+    subtitle: string;
+    displayDate: string;
+    lunarDate: string;
+    themeName: string;
+    eyebrow?: string;
+    statusText?: string;
+  }>(),
+  {
+    eyebrow: '今日状态中枢',
+    statusText: '',
+  },
+);
 </script>
 
 <style lang="scss">
 .home-hero {
   position: relative;
   box-sizing: border-box;
-  min-height: 296rpx;
-  padding-top: calc(env(safe-area-inset-top) + 18rpx);
+  min-height: 286rpx;
+  padding-top: calc(env(safe-area-inset-top) + 24rpx);
   overflow: hidden;
-  border-radius: 0 0 42rpx 42rpx;
-  animation: homeHeroIn 460ms ease both;
+  animation: homeHeroIn 420ms ease both;
 }
 
 .home-hero::after {
   content: '';
   position: absolute;
-  left: -40rpx;
-  right: -40rpx;
+  left: 0;
+  right: 0;
   bottom: -2rpx;
-  height: 92rpx;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--theme-page-bottom));
+  height: 96rpx;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--theme-page-top));
   pointer-events: none;
 }
 
-.home-hero__aura,
-.home-hero__sun,
-.home-hero__cloud,
-.home-hero__ridges,
+.home-hero__wash,
 .home-hero__ridge {
   position: absolute;
   pointer-events: none;
 }
 
-.home-hero__aura {
-  border-radius: 50%;
-  animation: homeAuraBreath 5200ms ease-in-out infinite;
-}
-
-.home-hero__aura--left {
-  left: -86rpx;
-  top: 8rpx;
-  width: 308rpx;
-  height: 190rpx;
-  background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.18), rgba(255, 255, 255, 0) 72%);
-}
-
-.home-hero__aura--right {
-  right: -116rpx;
-  top: 46rpx;
-  width: 350rpx;
-  height: 220rpx;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.13), rgba(255, 255, 255, 0) 74%);
-  animation-delay: 700ms;
-}
-
-.home-hero__sun {
-  right: 166rpx;
-  top: 42rpx;
-  width: 96rpx;
-  height: 96rpx;
+.home-hero__wash {
+  right: -168rpx;
+  top: -72rpx;
+  width: 520rpx;
+  height: 320rpx;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 34%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 36%),
-    radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.28), rgba(var(--theme-accent-rgb), 0.02) 68%);
-  box-shadow: 0 0 64rpx rgba(var(--theme-accent-rgb), 0.18);
-}
-
-.home-hero__cloud {
-  height: 2rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(var(--theme-primary-rgb), 0.2), rgba(255, 255, 255, 0));
-}
-
-.home-hero__cloud--one {
-  left: 22rpx;
-  right: 126rpx;
-  top: 178rpx;
-}
-
-.home-hero__cloud--two {
-  left: 156rpx;
-  right: 20rpx;
-  top: 214rpx;
-  opacity: 0.74;
-}
-
-.home-hero__ridges {
-  left: -38rpx;
-  right: -38rpx;
-  bottom: 18rpx;
-  height: 154rpx;
+    radial-gradient(circle at 34% 34%, rgba(255, 255, 255, 0.78), transparent 28%),
+    radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.16), rgba(var(--theme-accent-rgb), 0.08) 48%, transparent 72%);
+  filter: blur(2rpx);
 }
 
 .home-hero__ridge {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 100%;
-  border-radius: 52% 48% 0 0;
+  left: -46rpx;
+  right: -46rpx;
+  bottom: 4rpx;
+  height: 136rpx;
+  opacity: 0.72;
 }
 
 .home-hero__ridge--back {
-  background: rgba(var(--theme-primary-rgb), 0.08);
-  clip-path: polygon(0 64%, 10% 54%, 20% 60%, 34% 34%, 48% 58%, 62% 28%, 77% 55%, 90% 38%, 100% 52%, 100% 100%, 0 100%);
-}
-
-.home-hero__ridge--mid {
-  background: rgba(var(--theme-accent-rgb), 0.11);
-  clip-path: polygon(0 76%, 13% 58%, 28% 72%, 42% 44%, 57% 70%, 70% 42%, 84% 66%, 100% 50%, 100% 100%, 0 100%);
+  background: rgba(var(--theme-primary-rgb), 0.07);
+  clip-path: polygon(0 72%, 13% 56%, 27% 66%, 43% 42%, 58% 68%, 73% 46%, 88% 62%, 100% 50%, 100% 100%, 0 100%);
 }
 
 .home-hero__ridge--front {
-  background: rgba(255, 255, 255, 0.36);
-  clip-path: polygon(0 84%, 14% 74%, 30% 80%, 45% 60%, 60% 78%, 74% 62%, 88% 76%, 100% 68%, 100% 100%, 0 100%);
+  bottom: -18rpx;
+  background: rgba(255, 255, 255, 0.42);
+  clip-path: polygon(0 80%, 16% 68%, 31% 76%, 48% 58%, 62% 78%, 80% 60%, 100% 72%, 100% 100%, 0 100%);
 }
 
 .home-hero__content {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(236rpx, 302rpx);
-  gap: 18rpx;
-  align-items: start;
-  padding: 56rpx 32rpx 0;
+  gap: 24rpx;
+  padding: 0 32rpx 56rpx;
+}
+
+.home-hero__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.home-hero__date {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.home-hero__date-line {
+  display: block;
+  overflow: hidden;
+  max-width: 390rpx;
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: rgba(var(--theme-text-secondary-rgb), 0.82);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-hero__date-line--lunar {
+  color: rgba(var(--theme-text-secondary-rgb), 0.66);
+}
+
+.home-hero__theme {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10rpx;
+  min-height: 46rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  color: rgba(var(--theme-primary-rgb), 0.88);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.1);
+  box-shadow: 0 10rpx 24rpx rgba(var(--theme-text-primary-rgb), 0.055);
+}
+
+.home-hero__theme-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent));
+  box-shadow: 0 0 0 8rpx rgba(var(--theme-primary-rgb), 0.08);
+}
+
+.home-hero__theme-text {
+  font-size: 21rpx;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .home-hero__copy {
   display: grid;
-  gap: 16rpx;
-  min-width: 0;
+  gap: 11rpx;
+  max-width: 660rpx;
+}
+
+.home-hero__eyebrow {
+  font-size: 22rpx;
+  line-height: 1.2;
+  color: rgba(var(--theme-primary-rgb), 0.78);
+  letter-spacing: 0.08em;
 }
 
 .home-hero__title {
-  font-size: 78rpx;
-  line-height: 0.98;
-  font-weight: 500;
+  display: block;
+  font-size: 50rpx;
+  line-height: 1.12;
+  font-weight: 650;
   color: var(--theme-text-primary);
   letter-spacing: 0;
   font-family:
@@ -178,36 +199,42 @@ defineProps<{
 }
 
 .home-hero__subtitle {
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 610rpx;
   font-size: 25rpx;
-  line-height: 1.5;
-  letter-spacing: 0.1em;
-  color: rgba(var(--theme-text-secondary-rgb), 0.78);
+  line-height: 1.52;
+  color: rgba(var(--theme-text-secondary-rgb), 0.86);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.home-hero__date {
+.home-hero__status {
   display: grid;
-  justify-items: end;
-  gap: 8rpx;
-  width: 100%;
-  min-width: 0;
-  padding-top: 108rpx;
-  overflow: hidden;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14rpx;
+  align-items: center;
+  max-width: 100%;
+  min-height: 52rpx;
+  padding: 0 18rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.1);
 }
 
-.home-hero__date-line {
-  display: block;
-  max-width: 100%;
+.home-hero__status-label {
+  font-size: 20rpx;
+  line-height: 1.2;
+  color: rgba(var(--theme-text-secondary-rgb), 0.68);
+}
+
+.home-hero__status-value {
   overflow: hidden;
-  font-size: 22rpx;
+  font-size: 21rpx;
   line-height: 1.35;
-  color: rgba(var(--theme-text-primary-rgb), 0.66);
-  text-align: right;
+  color: rgba(var(--theme-text-primary-rgb), 0.78);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.home-hero__date-line--lunar {
-  color: rgba(var(--theme-text-secondary-rgb), 0.78);
 }
 
 @keyframes homeHeroIn {
@@ -221,32 +248,23 @@ defineProps<{
   }
 }
 
-@keyframes homeAuraBreath {
-  0%,
-  100% {
-    opacity: 0.66;
-    transform: scale(0.98);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-}
-
 @media (max-width: 360px) {
   .home-hero__content {
-    grid-template-columns: minmax(0, 1fr) minmax(210rpx, 280rpx);
-    gap: 14rpx;
     padding-right: 26rpx;
     padding-left: 26rpx;
   }
 
   .home-hero__title {
-    font-size: 66rpx;
+    font-size: 48rpx;
   }
 
-  .home-hero__date-line {
-    font-size: 20rpx;
+  .home-hero__meta {
+    display: grid;
+    gap: 16rpx;
+  }
+
+  .home-hero__theme {
+    justify-self: start;
   }
 }
 </style>

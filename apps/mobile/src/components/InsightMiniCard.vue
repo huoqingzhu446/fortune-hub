@@ -104,19 +104,18 @@ function buildSvgDataUrl(markup: string, color: string) {
 .insight-mini-card {
   display: grid;
   grid-template-rows: auto auto auto minmax(66rpx, 1fr) auto;
-  gap: 16rpx;
-  min-height: 318rpx;
+  gap: 14rpx;
+  min-height: 304rpx;
   box-sizing: border-box;
-  padding: 26rpx;
-  border-radius: 34rpx;
+  padding: 24rpx;
+  border-radius: 28rpx;
   background:
-    radial-gradient(circle at 92% 0%, rgba(var(--theme-accent-rgb), 0.13), transparent 36%),
-    linear-gradient(150deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.68) 58%, var(--theme-surface-muted) 100%);
-  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.12);
+    linear-gradient(150deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.7) 100%),
+    radial-gradient(circle at 92% 0%, rgba(var(--theme-accent-rgb), 0.09), transparent 36%);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.09);
   box-shadow:
-    0 18rpx 46rpx rgba(var(--theme-text-primary-rgb), 0.07),
-    0 0 0 1rpx rgba(255, 255, 255, 0.62) inset;
-  backdrop-filter: blur(14rpx);
+    0 12rpx 32rpx rgba(var(--theme-text-primary-rgb), 0.052),
+    0 0 0 1rpx rgba(255, 255, 255, 0.58) inset;
 }
 
 .insight-mini-card:active {
@@ -136,8 +135,8 @@ function buildSvgDataUrl(markup: string, color: string) {
   position: relative;
   display: grid;
   place-items: center;
-  width: 74rpx;
-  height: 74rpx;
+  width: 68rpx;
+  height: 68rpx;
   border-radius: 50%;
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 36%),
@@ -158,8 +157,8 @@ function buildSvgDataUrl(markup: string, color: string) {
 .insight-mini-card__icon-mark {
   position: relative;
   z-index: 1;
-  width: 42rpx;
-  height: 42rpx;
+  width: 38rpx;
+  height: 38rpx;
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -200,7 +199,7 @@ function buildSvgDataUrl(markup: string, color: string) {
 }
 
 .insight-mini-card__value {
-  font-size: 48rpx;
+  font-size: 46rpx;
   line-height: 1;
   color: var(--theme-text-primary);
   font-family:
@@ -247,7 +246,7 @@ function buildSvgDataUrl(markup: string, color: string) {
 
 .insight-mini-card__description {
   overflow: hidden;
-  font-size: 21rpx;
+  font-size: 20rpx;
   line-height: 1.58;
   color: rgba(var(--theme-text-secondary-rgb), 0.82);
   text-overflow: ellipsis;
@@ -264,16 +263,16 @@ function buildSvgDataUrl(markup: string, color: string) {
   justify-content: center;
   gap: 9rpx;
   width: 100%;
-  height: 58rpx;
-  min-height: 58rpx;
-  max-height: 58rpx;
+  height: 56rpx;
+  min-height: 56rpx;
+  max-height: 56rpx;
   margin: 0;
   padding: 0 18rpx;
   border-radius: 999rpx;
   color: var(--theme-primary);
   background: rgba(var(--theme-primary-rgb), 0.08);
   border: 1rpx solid rgba(var(--theme-primary-rgb), 0.12);
-  font-size: 22rpx;
+  font-size: 21rpx;
   font-weight: 600;
   line-height: 1;
 }

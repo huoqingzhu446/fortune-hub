@@ -12,9 +12,9 @@
         :subtitle="pageSubtitle"
         :display-date="displayDate"
         :lunar-date="lunarDate"
+        :theme-name="themePalette.name"
+        :status-text="heroStatusText"
       />
-
-      <DailyPulseCard />
 
       <view class="home-page__main-card">
         <StatusIndexCard
@@ -24,20 +24,30 @@
           :title="fortuneTitle"
           :summary="fortuneSummary"
           :tags="fortuneTags"
-          @select="goToReport"
+          :evidence="stateOverview.evidenceLabel"
+          :disclaimer="stateOverview.disclaimer"
+          :primary-action-text="statusPrimaryAction.label"
+          :secondary-action-text="statusSecondaryAction.label"
+          @primary="handleRoute(statusPrimaryAction.route)"
+          @secondary="handleRoute(statusSecondaryAction.route)"
         />
       </view>
 
-      <view class="home-page__divination">
-        <FortuneActionCard
-          eyebrow="周易占卜"
-          title="今日占卜"
-          summary="结合八字、星座与心情，给当下一个温柔方向。"
-          :tags="divinationTags"
-          button-text="立即占卜"
-          @open="openDivinationHome"
-          @action="startHomeDivination"
+      <view class="home-page__action">
+        <TodayActionCard
+          :badge="todayAction.badge"
+          :title="todayAction.title"
+          :summary="todayAction.summary"
+          :action-text="todayAction.actionText"
+          :secondary-text="todayAction.secondaryText"
+          @action="handleRoute(todayAction.route)"
+          @secondary="handleRoute(todayAction.secondaryRoute)"
         />
+      </view>
+
+      <view class="home-page__section-head">
+        <text class="home-page__section-title">状态洞察</text>
+        <text class="home-page__section-note">优先参考近期自述，不做诊断判断</text>
       </view>
 
       <view class="insight-grid">
@@ -45,7 +55,7 @@
           v-for="(card, index) in homeCards"
           :key="card.id"
           class="insight-grid__item"
-          :style="{ animationDelay: `${220 + index * 55}ms` }"
+          :style="{ animationDelay: `${180 + index * 45}ms` }"
           :variant="card.variant"
           :icon-color="card.iconColor"
           :title="card.title"
@@ -62,13 +72,21 @@
         />
       </view>
 
-      <view class="home-page__advice">
-        <TodayAdviceCard
-          :title="adviceTitle"
-          :summary="adviceSummary"
-          :action-text="adviceAction.label"
-          @action="handleRoute(adviceAction.route)"
+      <view class="home-page__explore">
+        <FortuneActionCard
+          eyebrow="轻量探索"
+          title="今日占卜"
+          summary="把当下问题拆成一条更容易执行的提醒。"
+          :tags="divinationTags"
+          button-text="开始占卜"
+          @open="openDivinationHome"
+          @action="startHomeDivination"
         />
+      </view>
+
+      <view class="home-page__section-head home-page__section-head--tools">
+        <text class="home-page__section-title">快捷工具</text>
+        <text class="home-page__section-note">保留常用入口，减少首屏干扰</text>
       </view>
 
       <view class="home-page__tools">
@@ -86,14 +104,13 @@
 <script setup lang="ts">
 import { onLoad, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick } from 'vue';
-import DailyPulseCard from '../../components/DailyPulseCard.vue';
 import FortuneActionCard from '../../components/FortuneActionCard.vue';
 import HomeHero from '../../components/HomeHero.vue';
 import HomeTabBar from '../../components/HomeTabBar.vue';
 import InsightMiniCard from '../../components/InsightMiniCard.vue';
 import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolStrip.vue';
 import StatusIndexCard, { type StatusIndexTag } from '../../components/StatusIndexCard.vue';
-import TodayAdviceCard from '../../components/TodayAdviceCard.vue';
+import TodayActionCard from '../../components/TodayActionCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
@@ -122,6 +139,21 @@ type InsightCard = {
   route: string;
 };
 
+type HomeRouteAction = {
+  label: string;
+  route: string;
+};
+
+type TodayAction = {
+  badge: string;
+  title: string;
+  summary: string;
+  actionText: string;
+  route: string;
+  secondaryText: string;
+  secondaryRoute: string;
+};
+
 const dashboardStore = useDashboardStore();
 const pageStateStore = usePageStateStore();
 let lastHomeVersion = pageStateStore.versionOf('home');
@@ -133,6 +165,7 @@ const rootPageRoutes = new Set([
 ]);
 
 const dashboard = computed(() => dashboardStore.dashboard);
+const userSummary = computed(() => dashboard.value.userSummary);
 const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
@@ -156,11 +189,32 @@ const fortuneScore = computed(() => {
   const parsed = Number(todayLuckyScore.value.value);
   return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 100) : 86;
 });
-// dashboard.value.headline.title ||
-const pageTitle = computed(() =>  '今日气运');
-// dashboard.value.headline.subtitle ||
+
+const emotionScore = computed(() =>
+  resolveNumericFactor(['emotion'], clamp(fortuneScore.value - 4, 0, 100)),
+);
+
+const resilienceScore = computed(() =>
+  resolveNumericFactor(['personality'], resolveFallbackResilienceScore()),
+);
+
+const completionScore = computed(() =>
+  resolveNumericFactor(['completion'], resolveFallbackCompletionScore()),
+);
+
+const pageTitle = computed(
+  () => dashboard.value.headline?.title || stateOverview.value.title || '今日气运',
+);
+
 const pageSubtitle = computed(
-  () =>  '身心和谐 · 顺势而为',
+  () =>
+    dashboard.value.headline?.subtitle ||
+    stateOverview.value.summary ||
+    '把今日状态整理成一个清晰的下一步。',
+);
+
+const heroStatusText = computed(
+  () => userSummary.value.welcomeNote || stateOverview.value.confidenceLabel || '等待同步今日状态',
 );
 
 const displayDate = computed(() => {
@@ -183,18 +237,18 @@ const lunarDate = computed(() => {
   }
 });
 
-const fortuneCardLabel = computed(() => todayLuckyScore.value.label || '综合气运指数');
+const fortuneCardLabel = computed(() => todayLuckyScore.value.label || '当前状态指数');
 
 const fortuneTitle = computed(
-  () => stateOverview.value.title || todayLuckyScore.value.hint || '状态平稳，适合自我疗愈与整理内心',
+  () => stateOverview.value.title || todayLuckyScore.value.hint || '状态平稳，适合把节奏收回来',
 );
 
 const fortuneSummary = computed(
-  () => stateOverview.value.summary || stateOverview.value.primarySuggestion || '保持平和与专注，温柔地对待自己。',
+  () => stateOverview.value.summary || stateOverview.value.primarySuggestion || '先看见当下状态，再决定今天推进多少。',
 );
 
 const fortuneStatus = computed(
-  () => stateOverview.value.confidenceLabel || `今日宜 · ${resolveLuckyDo(stateOverview.value.basisTags)}`,
+  () => stateOverview.value.confidenceLabel || `依据 · ${resolveLuckyDo(stateOverview.value.basisTags)}`,
 );
 
 const fortuneTags = computed<StatusIndexTag[]>(() => [
@@ -207,141 +261,220 @@ const fortuneTags = computed<StatusIndexTag[]>(() => [
     value: String(resolveLuckyNumber(fortuneScore.value)),
   },
   {
-    label: '今日节奏',
+    label: '可信度',
     value: fortuneStatus.value,
   },
 ]);
 
-const divinationTags = ['宜沟通', '忌冲动'];
+const statusPrimaryAction = computed<HomeRouteAction>(() => {
+  const primaryRoute = userSummary.value.primaryActionRoute;
 
-const emotionScore = computed(() =>
-  resolveNumericFactor(['emotion'], clamp(fortuneScore.value - 4, 0, 100)),
-);
+  if (primaryRoute && primaryRoute !== '/pages/index/index') {
+    return {
+      label: normalizeActionLabel(userSummary.value.primaryActionTitle, '查看完整报告'),
+      route: primaryRoute,
+    };
+  }
 
-const mentalScore = computed(() =>
-  resolveNumericFactor(['mental'], resolveFallbackMentalScore()),
-);
+  return {
+    label: '查看完整报告',
+    route: '/pages/report/index',
+  };
+});
+
+const statusSecondaryAction = computed<HomeRouteAction>(() => {
+  if (!userSummary.value.isLoggedIn) {
+    return {
+      label: '隐私说明',
+      route: '/pages/settings/privacy/index',
+    };
+  }
+
+  if (completionScore.value < 72) {
+    return {
+      label: '记录心情',
+      route: '/pages/journal/index',
+    };
+  }
+
+  return {
+    label: '开始冥想',
+    route: '/pages/meditation/index',
+  };
+});
+
+const todayAction = computed<TodayAction>(() => {
+  if (!userSummary.value.isLoggedIn) {
+    return {
+      badge: '未登录',
+      title: '先连接账号，让首页开始理解你',
+      summary: userSummary.value.welcomeNote || '登录后，今日状态、记录和会员权益都会绑定到当前账号。',
+      actionText: normalizeActionLabel(userSummary.value.primaryActionTitle, '去登录'),
+      route: userSummary.value.primaryActionRoute || '/pages/profile/index',
+      secondaryText: '隐私说明',
+      secondaryRoute: '/pages/settings/privacy/index',
+    };
+  }
+
+  if (!userSummary.value.profileCompleted) {
+    return {
+      badge: '资料待完善',
+      title: '补齐生日与出生信息',
+      summary: '资料完整后，首页会把状态观察、八字节奏和长期画像放在同一条线上看。',
+      actionText: normalizeActionLabel(userSummary.value.primaryActionTitle, '完善资料'),
+      route: userSummary.value.primaryActionRoute || '/pages/profile/index',
+      secondaryText: '先记录心情',
+      secondaryRoute: '/pages/journal/index',
+    };
+  }
+
+  if (completionScore.value < 62) {
+    return {
+      badge: '依据偏少',
+      title: '补一条今日心绪',
+      summary: '今天只要记录一次当下感受，状态指数就会更贴近真实节奏。',
+      actionText: '记录心情',
+      route: '/pages/journal/index',
+      secondaryText: '情绪自检',
+      secondaryRoute: '/pages/emotion/index',
+    };
+  }
+
+  if (isPressureSensitive.value) {
+    return {
+      badge: '先稳住',
+      title: '做一次 3 分钟呼吸',
+      summary: stateOverview.value.primarySuggestion || '把今天的目标先缩小一点，先恢复注意力再继续推进。',
+      actionText: '开始呼吸',
+      route: '/pages/breathing/index',
+      secondaryText: '冥想放松',
+      secondaryRoute: '/pages/meditation/index',
+    };
+  }
+
+  return {
+    badge: '可推进',
+    title: '把今日建议落成一步',
+    summary: stateOverview.value.primarySuggestion || '先完成一件最重要的小事，再决定今天剩下的安排。',
+    actionText: '查看报告',
+    route: '/pages/report/index',
+    secondaryText: '今日占卜',
+    secondaryRoute: '/pages/divination/index/index',
+  };
+});
+
+const isPressureSensitive = computed(() => {
+  const pressureText = `${stateOverview.value.title} ${stateOverview.value.summary} ${todayLuckyScore.value.hint}`;
+  return fortuneScore.value < 62 || /压力|恢复|支持|低落|焦虑|减压|偏高/.test(pressureText);
+});
 
 const homeCards = computed<InsightCard[]>(() => {
   const emotionFactor = findFactor('emotion');
-  const mentalFactor = findFactor('mental');
-  const baziFactor = findFactor('bazi', 'personality');
-  const zodiacFactor = findFactor('zodiac');
-  const zodiacStars = resolveZodiacStars(zodiacFactor?.value, fortuneScore.value);
-  const baziLevel = baziFactor?.value || resolveBaziLevel(fortuneScore.value);
+  const personalityFactor = findFactor('personality');
+  const completionFactor = findFactor('completion');
+  const baziFactor = findFactor('bazi');
+  const personalizedLevel = baziFactor?.value || resolveBaziLevel(fortuneScore.value);
 
   return [
     {
       id: 'emotion',
       variant: 'lotus',
       iconColor: themePalette.value.primary,
-      title: '心情情绪评分',
-      subtitle: emotionFactor?.label || '情绪稳定度',
-      value: '',
-      metricMode: 'stars',
-      suffix: '',
+      title: '情绪温度',
+      subtitle: emotionFactor?.label || '近期心绪',
+      value: String(emotionScore.value),
+      metricMode: 'score',
+      suffix: '分',
       badge: resolveScoreBadge(emotionScore.value),
-      description: emotionFactor?.hint || '情绪稳定，内心平和。',
-      note: '保持呼吸，继续保持哦',
+      description: emotionFactor?.hint || '还没有足够近期记录，先保持保守观察。',
+      note: '',
       progress: emotionScore.value,
-      stars: resolveScoreStars(emotionScore.value),
-      actionText: '记录心情',
+      stars: 0,
+      actionText: '去自检',
       route: '/pages/emotion/index',
     },
     {
-      id: 'mental',
+      id: 'resilience',
       variant: 'mind',
       iconColor: themePalette.value.primary,
-      title: '心理健康',
-      subtitle: mentalFactor?.label || resolveMentalSubtitle(),
-      value: '',
-      metricMode: 'stars',
-      suffix: '',
-      badge: resolveMentalBadge(mentalScore.value),
-      description: mentalFactor?.hint || todayLuckyScore.value.hint || '完成一次情绪自检后，会给出更贴近你的心理状态参考。',
-      note: '适当放松，寻找支持',
-      progress: mentalScore.value,
-      stars: resolveScoreStars(mentalScore.value),
-      actionText: '了解更多',
-      route: '/pages/emotion/index',
+      title: '节奏复原力',
+      subtitle: personalityFactor?.label || '长期画像',
+      value: String(resilienceScore.value),
+      metricMode: 'score',
+      suffix: '分',
+      badge: resolveScoreBadge(resilienceScore.value),
+      description: personalityFactor?.hint || '完成性格测评后，会更清楚你自然的恢复方式。',
+      note: '',
+      progress: resilienceScore.value,
+      stars: 0,
+      actionText: '做测评',
+      route: '/pages/personality/index',
     },
     {
-      id: 'bazi',
+      id: 'completion',
       variant: 'bagua',
       iconColor: themePalette.value.accent,
-      title: '八字气运',
-      subtitle: '',
-      value: '',
-      metricMode: 'stars',
-      suffix: '',
-      badge: baziLevel || resolveBaziBadge(fortuneScore.value),
-      description: baziFactor?.hint || '五行平衡，运势稳中有升。',
-      note: '宜静不宜动，守成待时',
-      progress: 0,
-      stars: resolveScoreStars(fortuneScore.value),
-      actionText: '查看八字',
-      route: '/pages/bazi/index',
+      title: '状态可信度',
+      subtitle: completionFactor?.label || '依据完整度',
+      value: String(completionScore.value),
+      metricMode: 'score',
+      suffix: '分',
+      badge: resolveCompletionBadge(completionScore.value),
+      description: completionFactor?.hint || annualLuckyScore.value.hint || '补齐近期状态后，首页判断会更稳定。',
+      note: '',
+      progress: completionScore.value,
+      stars: 0,
+      actionText: completionScore.value < 72 ? '补资料' : '看记录',
+      route: completionScore.value < 72 ? '/pages/profile/index' : '/pages/records/index',
     },
     {
-      id: 'zodiac',
+      id: 'personalized',
       variant: 'stars',
       iconColor: themePalette.value.primary,
-      title: '星座运势',
-      subtitle: '',
-      value: '',
-      metricMode: 'stars',
+      title: '个性化参考',
+      subtitle: '八字 / 星座',
+      value: personalizedLevel,
+      metricMode: 'level',
       suffix: '',
-      badge: resolveZodiacBadge(zodiacStars),
-      description: zodiacFactor?.hint || '机会会在细节中出现。',
-      note: '相信直觉，勇敢向前',
+      badge: userSummary.value.profileCompleted ? '已接入' : '待完善',
+      description: baziFactor?.hint || '生日、星座与主题色会作为轻量参考，不替代现实判断。',
+      note: '',
       progress: 0,
-      stars: zodiacStars,
-      actionText: '查看星座',
-      route: '/pages/zodiac/index',
+      stars: 0,
+      actionText: userSummary.value.profileCompleted ? '看八字' : '完善资料',
+      route: userSummary.value.profileCompleted ? '/pages/bazi/index' : '/pages/profile/index',
     },
   ];
 });
 
-const adviceTitle = computed(
-  () => luckySign.value.summary || stateOverview.value.primarySuggestion || '慢下来，感受当下的呼吸',
-);
-
-const adviceSummary = computed(() => {
-  const detail = stateOverview.value.summary || '给自己一些安静的时间。';
-  return `${detail} 放下焦虑，整理思绪，温柔地爱自己。`;
-});
-
-const adviceAction = computed(() => ({
-  label: '开始冥想',
-  route: '/pages/meditation/index',
-}));
+const divinationTags = ['当下问题', '行动提醒'];
 
 const quickTools = computed<QuickToolItem[]>(() => [
   {
     id: 'meditation',
-    title: '每日冥想',
-    description: '放松身心',
+    title: '冥想',
+    description: '放松',
     icon: 'leaf',
     route: '/pages/meditation/index',
   },
   {
     id: 'journal',
-    title: '情绪日记',
-    description: '记录心情',
+    title: '日记',
+    description: '记录',
     icon: 'journal',
     route: '/pages/journal/index',
   },
   {
-    id: 'compatibility',
-    title: '合盘合性',
-    description: '关系解析',
+    id: 'divination',
+    title: '占卜',
+    description: '提问',
     icon: 'orbit',
-    route: '/pages/explore/index',
+    route: '/pages/divination/index/index',
   },
   {
     id: 'poster',
-    title: '今日海报',
-    description: '一键分享',
+    title: '海报',
+    description: '分享',
     icon: 'poster',
     route: '/pages/poster/generate/index?type=today&auto=1',
   },
@@ -382,10 +515,6 @@ function handleRoute(route: string) {
   });
 }
 
-function goToReport() {
-  handleRoute('/pages/report/index');
-}
-
 function openDivinationHome() {
   handleRoute('/pages/divination/index/index');
 }
@@ -417,30 +546,27 @@ function resolveNumericFactor(ids: string[], fallback: number) {
   return fallback;
 }
 
-function resolveFallbackMentalScore() {
-  const annualLabel = annualLuckyScore.value.label || '';
-  const annualParsed = Number(annualLuckyScore.value.value);
-
-  if (/心理|健康|压力|抑郁/.test(annualLabel) && Number.isFinite(annualParsed)) {
-    return clamp(Math.round(annualParsed), 0, 100);
+function resolveFallbackResilienceScore() {
+  const parsed = Number(annualLuckyScore.value.value);
+  if (Number.isFinite(parsed) && annualLuckyScore.value.label !== '状态可信度') {
+    return clamp(Math.round(parsed), 0, 100);
   }
 
-  const currentParsed = Number(todayLuckyScore.value.value);
-  if (Number.isFinite(currentParsed)) {
-    return clamp(Math.round(currentParsed), 0, 100);
-  }
-
-  return clamp(fortuneScore.value - 18, 48, 92);
+  return clamp(fortuneScore.value - 10, 48, 88);
 }
 
-function resolveMentalSubtitle() {
-  const annualLabel = annualLuckyScore.value.label || '';
+function resolveFallbackCompletionScore() {
+  const parsed = Number(annualLuckyScore.value.value);
+  return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 100) : 36;
+}
 
-  if (/心理|健康|压力|抑郁/.test(annualLabel)) {
-    return annualLabel;
+function normalizeActionLabel(value: string | undefined, fallback: string) {
+  const next = value?.trim();
+  if (!next) {
+    return fallback;
   }
 
-  return '心理状态参考';
+  return next.length > 8 ? next.slice(0, 8) : next;
 }
 
 function resolveLuckyNumber(score: number) {
@@ -512,17 +638,14 @@ function resolveScoreBadge(score: number) {
   return '偏低';
 }
 
-function resolveMentalBadge(score: number) {
-  if (score >= 80) {
-    return '轻松';
+function resolveCompletionBadge(score: number) {
+  if (score >= 82) {
+    return '较完整';
   }
-  if (score >= 65) {
-    return '轻度';
+  if (score >= 62) {
+    return '可参考';
   }
-  if (score >= 50) {
-    return '留意';
-  }
-  return '关注';
+  return '待补充';
 }
 
 function resolveBaziLevel(score: number) {
@@ -539,62 +662,6 @@ function resolveBaziLevel(score: number) {
     return '小顺';
   }
   return '守静';
-}
-
-function resolveBaziBadge(score: number) {
-  if (score >= 88) {
-    return '向上';
-  }
-  if (score >= 72) {
-    return '平稳';
-  }
-  return '收束';
-}
-
-function resolveZodiacStars(rawValue: string | undefined, score: number) {
-  const parsed = Number(rawValue);
-  if (Number.isFinite(parsed)) {
-    return clamp(Math.round(parsed), 1, 5);
-  }
-  if (score >= 88) {
-    return 5;
-  }
-  if (score >= 72) {
-    return 4;
-  }
-  if (score >= 56) {
-    return 3;
-  }
-  return 2;
-}
-
-function resolveScoreStars(score: number) {
-  if (score >= 88) {
-    return 5;
-  }
-  if (score >= 72) {
-    return 4;
-  }
-  if (score >= 56) {
-    return 3;
-  }
-  if (score >= 42) {
-    return 2;
-  }
-  return 1;
-}
-
-function resolveZodiacBadge(stars: number) {
-  if (stars >= 5) {
-    return '极佳';
-  }
-  if (stars >= 4) {
-    return '较好';
-  }
-  if (stars >= 3) {
-    return '平稳';
-  }
-  return '观察';
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -629,9 +696,8 @@ onPullDownRefresh(async () => {
   min-height: 100vh;
   overflow: hidden;
   background:
-    radial-gradient(circle at 12% 0%, rgba(var(--theme-accent-rgb), 0.18), transparent 22%),
-    radial-gradient(circle at 90% 18%, rgba(var(--theme-primary-rgb), 0.12), transparent 28%),
-    linear-gradient(180deg, var(--theme-page-top) 0%, rgba(255, 255, 255, 0.78) 46%, var(--theme-page-bottom) 100%);
+    radial-gradient(circle at 12% 0%, rgba(var(--theme-accent-rgb), 0.12), transparent 22%),
+    linear-gradient(180deg, var(--theme-page-top) 0%, rgba(255, 255, 255, 0.86) 48%, var(--theme-page-bottom) 100%);
 }
 
 .home-page {
@@ -651,71 +717,104 @@ onPullDownRefresh(async () => {
 .ambient--paper {
   inset: 0;
   background:
-    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.42), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.36), transparent 32%),
     repeating-linear-gradient(
       125deg,
-      rgba(80, 88, 104, 0.035) 0,
-      rgba(80, 88, 104, 0.035) 2rpx,
+      rgba(80, 88, 104, 0.026) 0,
+      rgba(80, 88, 104, 0.026) 2rpx,
       transparent 2rpx,
-      transparent 22rpx
+      transparent 24rpx
     );
 }
 
 .ambient--glow {
-  top: 180rpx;
+  top: 238rpx;
   left: -84rpx;
   width: 260rpx;
   height: 160rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.14) 0%, rgba(255, 255, 255, 0) 76%);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.1) 0%, rgba(255, 255, 255, 0) 76%);
   filter: blur(12rpx);
 }
 
 .ambient--mist-left {
-  top: 360rpx;
+  top: 520rpx;
   left: -34rpx;
   width: 286rpx;
   height: 128rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.08) 0%, rgba(255, 255, 255, 0) 72%);
+  background: radial-gradient(circle, rgba(var(--theme-primary-rgb), 0.055) 0%, rgba(255, 255, 255, 0) 72%);
   filter: blur(8rpx);
 }
 
 .ambient--mist-right {
   right: -40rpx;
-  top: 520rpx;
+  top: 780rpx;
   width: 320rpx;
   height: 180rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.1) 0%, rgba(255, 255, 255, 0) 76%);
+  background: radial-gradient(circle, rgba(var(--theme-accent-rgb), 0.075) 0%, rgba(255, 255, 255, 0) 76%);
   filter: blur(10rpx);
 }
 
 .home-page__hero,
 .home-page__main-card,
-.home-page__divination,
+.home-page__action,
+.home-page__explore,
+.home-page__section-head,
 .insight-grid,
-.home-page__advice,
 .home-page__tools {
   position: relative;
   z-index: 1;
 }
 
 .home-page__hero {
-  margin: 0 0 8rpx;
+  margin: 0 0 2rpx;
+}
+
+.home-page__main-card,
+.home-page__action,
+.home-page__explore {
+  box-sizing: border-box;
+  padding: 0 var(--home-page-gutter);
 }
 
 .home-page__main-card {
-  box-sizing: border-box;
-  padding: 0 32rpx;
-  margin: 0 0 28rpx;
+  margin: -26rpx 0 24rpx;
 }
 
-.home-page__divination {
-  box-sizing: border-box;
-  padding: 0 32rpx;
-  margin: 0 0 28rpx;
+.home-page__action {
+  margin: 0 0 30rpx;
+}
+
+.home-page__section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin: 0 var(--home-page-gutter) 18rpx;
+}
+
+.home-page__section-head--tools {
+  margin-top: 30rpx;
+}
+
+.home-page__section-title {
+  flex: 0 0 auto;
+  font-size: 30rpx;
+  line-height: 1.2;
+  font-weight: 650;
+  color: rgba(var(--theme-text-primary-rgb), 0.88);
+}
+
+.home-page__section-note {
+  overflow: hidden;
+  font-size: 21rpx;
+  line-height: 1.35;
+  color: rgba(var(--theme-text-secondary-rgb), 0.68);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .insight-grid {
@@ -728,23 +827,21 @@ onPullDownRefresh(async () => {
 .insight-grid__item {
   min-width: 0;
   height: auto;
-  animation: homeInsightIn 440ms ease both;
+  animation: homeInsightIn 420ms ease both;
 }
 
-.home-page__advice {
-  box-sizing: border-box;
-  padding: 0 32rpx;
-  margin: 28rpx 0 0;
+.home-page__explore {
+  margin: 30rpx 0 0;
 }
 
 .home-page__tools {
-  margin: 24rpx var(--home-page-gutter) 0;
+  margin: 0 var(--home-page-gutter);
 }
 
 @keyframes homeInsightIn {
   from {
     opacity: 0;
-    transform: translateY(20rpx);
+    transform: translateY(18rpx);
   }
   to {
     opacity: 1;
@@ -757,15 +854,17 @@ onPullDownRefresh(async () => {
     --home-page-gutter: 26rpx;
   }
 
-  .home-page__main-card,
-  .home-page__divination,
-  .home-page__advice {
-    padding-right: 26rpx;
-    padding-left: 26rpx;
-  }
-
   .insight-grid {
     gap: 14rpx;
+  }
+
+  .home-page__section-head {
+    display: grid;
+    gap: 8rpx;
+  }
+
+  .home-page__section-note {
+    text-align: left;
   }
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <view class="pulse-card" v-if="visible">
-    <view v-if="!submitted && isLoggedIn" class="pulse-entry">
+    <view v-if="isLoggedIn" class="pulse-entry">
       <view class="pulse-card__header">
         <view class="pulse-card__heading">
           <text class="pulse-card__eyebrow">此刻状态</text>
@@ -57,18 +57,6 @@
       </view>
     </view>
 
-    <view v-else-if="submitted" class="pulse-response">
-      <view class="pulse-response__seal">
-        <text class="pulse-response__seal-text">已</text>
-      </view>
-      <view class="pulse-response__copy">
-        <text class="pulse-response__greeting">{{ responseText }}</text>
-        <text class="pulse-response__streak" v-if="streak > 1">
-          连续记录 {{ streak }} 天
-        </text>
-      </view>
-    </view>
-
     <view v-else class="pulse-login">
       <view class="pulse-login__copy">
         <text class="pulse-login__title">记录今日心绪</text>
@@ -81,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import { saveDailyPulse, fetchPulseStreak } from '../api/pulse';
+import { saveDailyPulse, fetchPulseHistory, fetchPulseStreak } from '../api/pulse';
 import { getAuthToken } from '../services/session';
 
 const moodOptions = [
@@ -92,13 +80,12 @@ const moodOptions = [
   { value: 'irritable', mark: '躁', label: '烦躁' },
 ];
 
-const visible = ref(true);
-const isLoggedIn = ref(!!getAuthToken());
+const initialAuthToken = !!getAuthToken();
+const visible = ref(!initialAuthToken);
+const isLoggedIn = ref(initialAuthToken);
 const selectedMood = ref('');
 const intensity = ref(3);
 const saving = ref(false);
-const submitted = ref(false);
-const responseText = ref('');
 const streak = ref(0);
 
 const selectedMoodOption = computed(() =>
@@ -111,12 +98,26 @@ const intensityLabel = computed(() =>
 
 onMounted(async () => {
   isLoggedIn.value = !!getAuthToken();
+
+  if (!isLoggedIn.value) {
+    visible.value = true;
+    return;
+  }
+
   if (isLoggedIn.value) {
     try {
       const res = await fetchPulseStreak();
       streak.value = res.data.streak;
     } catch {
       // silently fail
+    }
+
+    try {
+      const today = getTodayDateKey();
+      const res = await fetchPulseHistory(today, today);
+      visible.value = !res.data.items.length;
+    } catch {
+      visible.value = true;
     }
   }
 });
@@ -139,9 +140,9 @@ async function submitPulse() {
       mood: selectedMood.value,
       intensity: intensity.value,
     });
-    responseText.value = res.data.response;
     streak.value = res.data.streak;
-    submitted.value = true;
+    selectedMood.value = '';
+    visible.value = false;
   } catch {
     // silently fail
   } finally {
@@ -151,6 +152,14 @@ async function submitPulse() {
 
 function goProfile() {
   uni.navigateTo({ url: '/pages/profile/index' });
+}
+
+function getTodayDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 </script>
 
@@ -187,7 +196,6 @@ function goProfile() {
 }
 
 .pulse-entry,
-.pulse-response,
 .pulse-login {
   position: relative;
   z-index: 1;
@@ -414,52 +422,6 @@ function goProfile() {
   font-size: 23rpx;
   line-height: 1.55;
   color: rgba(var(--theme-text-secondary-rgb), 0.78);
-}
-
-.pulse-response {
-  display: grid;
-  grid-template-columns: 62rpx minmax(0, 1fr);
-  gap: 18rpx;
-  align-items: center;
-  min-height: 104rpx;
-}
-
-.pulse-response__seal {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 62rpx;
-  height: 62rpx;
-  border-radius: 50%;
-  background: linear-gradient(145deg, rgba(var(--theme-primary-rgb), 0.16), rgba(var(--theme-accent-rgb), 0.12));
-  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.12);
-}
-
-.pulse-response__seal-text {
-  font-size: 25rpx;
-  font-weight: 600;
-  color: rgba(var(--theme-primary-rgb), 0.84);
-}
-
-.pulse-response__copy {
-  display: grid;
-  gap: 8rpx;
-  min-width: 0;
-}
-
-.pulse-response__greeting {
-  display: block;
-  font-size: 27rpx;
-  line-height: 1.5;
-  font-weight: 600;
-  color: rgba(var(--theme-text-primary-rgb), 0.84);
-}
-
-.pulse-response__streak {
-  display: block;
-  font-size: 22rpx;
-  line-height: 1.35;
-  color: rgba(var(--theme-primary-rgb), 0.78);
 }
 
 .pulse-login {

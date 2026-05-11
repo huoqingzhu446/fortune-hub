@@ -53,20 +53,21 @@ defineEmits<{
 .fortune-action-card {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 210rpx;
-  gap: 20rpx;
-  min-height: 292rpx;
+  grid-template-columns: minmax(0, 1fr) 168rpx;
+  gap: 18rpx;
+  min-height: 238rpx;
   overflow: hidden;
-  padding: 34rpx;
-  border-radius: 42rpx;
+  padding: 30rpx;
+  border-radius: 32rpx;
   background:
-    radial-gradient(circle at 86% 14%, rgba(255, 255, 255, 0.46), transparent 28%),
-    radial-gradient(circle at 16% 100%, rgba(var(--theme-accent-rgb), 0.22), transparent 34%),
-    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.92), rgba(var(--theme-primary-rgb), 0.74) 56%, rgba(var(--theme-accent-rgb), 0.58));
-  color: var(--theme-surface-strong);
+    radial-gradient(circle at 86% 14%, rgba(var(--theme-accent-rgb), 0.16), transparent 30%),
+    linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.12), rgba(var(--theme-accent-rgb), 0.08)),
+    rgba(255, 255, 255, 0.82);
+  color: var(--theme-text-primary);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.1);
   box-shadow:
-    0 24rpx 58rpx rgba(var(--theme-primary-rgb), 0.2),
-    0 0 0 1rpx rgba(255, 255, 255, 0.26) inset;
+    0 16rpx 40rpx rgba(var(--theme-text-primary-rgb), 0.06),
+    0 0 0 1rpx rgba(255, 255, 255, 0.68) inset;
   animation: fortuneActionIn 520ms ease 180ms both;
 }
 
@@ -77,12 +78,12 @@ defineEmits<{
 
 .fortune-action-card__beam {
   position: absolute;
-  right: 142rpx;
-  top: -90rpx;
-  width: 120rpx;
-  height: 390rpx;
+  right: 114rpx;
+  top: -80rpx;
+  width: 96rpx;
+  height: 320rpx;
   border-radius: 50%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
   transform: rotate(16deg);
   pointer-events: none;
 }
@@ -97,16 +98,16 @@ defineEmits<{
 }
 
 .fortune-action-card__eyebrow {
-  font-size: 23rpx;
-  color: rgba(255, 255, 255, 0.76);
+  font-size: 22rpx;
+  color: rgba(var(--theme-primary-rgb), 0.76);
   letter-spacing: 0.06em;
 }
 
 .fortune-action-card__title {
-  font-size: 46rpx;
+  font-size: 38rpx;
   line-height: 1.14;
   font-weight: 700;
-  color: var(--theme-surface-strong);
+  color: rgba(var(--theme-text-primary-rgb), 0.9);
   font-family:
     'Iowan Old Style',
     'Times New Roman',
@@ -115,10 +116,10 @@ defineEmits<{
 }
 
 .fortune-action-card__summary {
-  max-width: 396rpx;
-  font-size: 25rpx;
+  max-width: 390rpx;
+  font-size: 23rpx;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.84);
+  color: rgba(var(--theme-text-secondary-rgb), 0.86);
 }
 
 .fortune-action-card__tags {
@@ -129,12 +130,12 @@ defineEmits<{
 }
 
 .fortune-action-card__tag {
-  padding: 7rpx 16rpx;
+  padding: 7rpx 15rpx;
   border-radius: 999rpx;
-  font-size: 21rpx;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(255, 255, 255, 0.16);
-  border: 1rpx solid rgba(255, 255, 255, 0.16);
+  font-size: 20rpx;
+  color: rgba(var(--theme-primary-rgb), 0.82);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(var(--theme-primary-rgb), 0.08);
 }
 
 .fortune-action-card__button {
@@ -142,15 +143,15 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  width: 188rpx;
-  min-height: 62rpx;
-  margin: 10rpx 0 0;
+  width: 178rpx;
+  min-height: 66rpx;
+  margin: 8rpx 0 0;
   padding: 0 24rpx;
   border-radius: 999rpx;
-  color: var(--theme-primary);
-  background: rgba(255, 255, 255, 0.92);
-  border: 1rpx solid rgba(255, 255, 255, 0.3);
-  font-size: 24rpx;
+  color: #fff;
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent));
+  border: 0;
+  font-size: 23rpx;
   font-weight: 700;
   line-height: 1;
   box-shadow: 0 12rpx 26rpx rgba(var(--theme-text-primary-rgb), 0.1);
@@ -171,7 +172,7 @@ defineEmits<{
 .fortune-action-card__visual {
   position: relative;
   z-index: 1;
-  min-height: 220rpx;
+  min-height: 184rpx;
 }
 
 .fortune-action-card__moon,
@@ -184,10 +185,10 @@ defineEmits<{
 }
 
 .fortune-action-card__moon {
-  right: 22rpx;
-  top: 6rpx;
-  width: 84rpx;
-  height: 84rpx;
+  right: 16rpx;
+  top: 4rpx;
+  width: 68rpx;
+  height: 68rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.78);
   box-shadow:
@@ -196,10 +197,10 @@ defineEmits<{
 }
 
 .fortune-action-card__crystal {
-  left: 48rpx;
-  top: 72rpx;
-  width: 78rpx;
-  height: 104rpx;
+  left: 36rpx;
+  top: 62rpx;
+  width: 62rpx;
+  height: 84rpx;
   background:
     linear-gradient(150deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.44)),
     linear-gradient(180deg, rgba(var(--theme-accent-rgb), 0.18), rgba(255, 255, 255, 0));
@@ -216,13 +217,13 @@ defineEmits<{
 .fortune-action-card__cloud--one {
   left: 12rpx;
   right: 18rpx;
-  top: 172rpx;
+  top: 142rpx;
 }
 
 .fortune-action-card__cloud--two {
   left: 44rpx;
   right: 0;
-  top: 188rpx;
+  top: 156rpx;
   opacity: 0.62;
 }
 
@@ -266,7 +267,7 @@ defineEmits<{
 
 @media (max-width: 360px) {
   .fortune-action-card {
-    grid-template-columns: minmax(0, 1fr) 168rpx;
+    grid-template-columns: minmax(0, 1fr) 136rpx;
     padding: 30rpx;
   }
 

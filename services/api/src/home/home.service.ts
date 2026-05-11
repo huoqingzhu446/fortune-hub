@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
@@ -81,6 +82,46 @@ type StateOverview = {
   completionScore: ScoreMetric;
 };
 
+type HomeLayoutSection = {
+  id: string;
+  type: string;
+  title: string;
+  note: string;
+  audience: string[];
+  enabled: boolean;
+  order: number;
+  maxItems?: number;
+};
+
+type HomeQuickTool = {
+  id: string;
+  title: string;
+  description: string;
+  route: string;
+  badge: string;
+  icon: 'leaf' | 'journal' | 'orbit' | 'compass' | 'poster';
+  enabled: boolean;
+  order: number;
+};
+
+type HomeLayoutConfig = {
+  version: number;
+  grayPercent: number;
+  sections: HomeLayoutSection[];
+  quickTools: HomeQuickTool[];
+};
+
+type HomeTodayAction = {
+  actionCode: string;
+  badge: string;
+  title: string;
+  summary: string;
+  primaryText: string;
+  primaryRoute: string;
+  secondaryText: string;
+  secondaryRoute: string;
+};
+
 const HOME_STATE_DISCLAIMER =
   '指数用于帮助你观察当前节奏与自我认知进度，不构成医学或心理诊断。';
 
@@ -99,6 +140,111 @@ const MOOD_TYPE_SCORE_ADJUSTMENTS: Record<string, number> = {
   anxious: -10,
 };
 
+const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
+  version: 1,
+  grayPercent: 100,
+  sections: [
+    {
+      id: 'hero',
+      type: 'hero',
+      title: '首页头图',
+      note: '日期、主题色和状态欢迎语',
+      audience: ['all'],
+      enabled: true,
+      order: 10,
+    },
+    {
+      id: 'today_state',
+      type: 'status_card',
+      title: '今日状态',
+      note: '当前状态指数与可信度说明',
+      audience: ['all'],
+      enabled: true,
+      order: 20,
+    },
+    {
+      id: 'today_action',
+      type: 'action_card',
+      title: '今日行动',
+      note: '根据登录、资料、心情和压力状态动态生成',
+      audience: ['all'],
+      enabled: true,
+      order: 30,
+    },
+    {
+      id: 'state_insights',
+      type: 'insight_grid',
+      title: '状态洞察',
+      note: '优先参考近期自述，不做诊断判断',
+      audience: ['logged_in', 'profile_incomplete', 'active', 'vip'],
+      enabled: true,
+      order: 40,
+      maxItems: 4,
+    },
+    {
+      id: 'fortune_actions',
+      type: 'fortune_card',
+      title: '轻量探索',
+      note: '今日占卜与行动提醒',
+      audience: ['all'],
+      enabled: true,
+      order: 50,
+    },
+    {
+      id: 'quick_tools',
+      type: 'quick_tools',
+      title: '快捷工具',
+      note: '保留常用入口，减少首屏干扰',
+      audience: ['all'],
+      enabled: true,
+      order: 60,
+      maxItems: 4,
+    },
+  ],
+  quickTools: [
+    {
+      id: 'meditation',
+      title: '冥想',
+      description: '放松',
+      route: '/pages/meditation/index',
+      badge: '放松',
+      icon: 'leaf',
+      enabled: true,
+      order: 10,
+    },
+    {
+      id: 'journal',
+      title: '日记',
+      description: '记录',
+      route: '/pages/journal/index',
+      badge: '记录',
+      icon: 'journal',
+      enabled: true,
+      order: 20,
+    },
+    {
+      id: 'divination',
+      title: '占卜',
+      description: '提问',
+      route: '/pages/divination/index/index',
+      badge: '提问',
+      icon: 'orbit',
+      enabled: true,
+      order: 30,
+    },
+    {
+      id: 'poster',
+      title: '海报',
+      description: '分享',
+      route: '/pages/poster/generate/index?type=today&auto=1',
+      badge: '分享',
+      icon: 'poster',
+      enabled: true,
+      order: 40,
+    },
+  ],
+};
+
 @Injectable()
 export class HomeService {
   constructor(
@@ -110,6 +256,8 @@ export class HomeService {
     private readonly userRecordRepository: Repository<UserRecordEntity>,
     @InjectRepository(MoodRecordEntity)
     private readonly moodRecordRepository: Repository<MoodRecordEntity>,
+    @InjectRepository(AppConfigEntity)
+    private readonly appConfigRepository: Repository<AppConfigEntity>,
   ) {}
 
   async getHomeIndex(user: UserEntity | null) {
@@ -245,6 +393,19 @@ export class HomeService {
       profileCompleted,
       isVipActive,
     );
+    const homeLayout = await this.loadHomeLayoutConfig();
+    const todayAction = this.buildTodayAction(
+      user,
+      profileCompleted,
+      isVipActive,
+      signals,
+      stateOverview,
+      userSummary,
+    );
+    const configuredQuickEntries = this.buildQuickEntriesFromLayout(
+      homeLayout,
+      quickEntries,
+    );
 
     return {
       code: 0,
@@ -258,7 +419,7 @@ export class HomeService {
         todayFortuneSummary: stateOverview.primarySuggestion,
         stateOverview,
         featureEntries,
-        quickEntries,
+        quickEntries: configuredQuickEntries,
         journeyEntries,
         bottomTabs: [
           {
@@ -316,6 +477,8 @@ export class HomeService {
         modules: featureEntries,
         integrations,
         userSummary,
+        todayAction,
+        homeLayout,
       },
       timestamp: new Date().toISOString(),
     };
@@ -1210,6 +1373,290 @@ export class HomeService {
     };
   }
 
+  private async loadHomeLayoutConfig(): Promise<HomeLayoutConfig> {
+    try {
+      const config = await this.appConfigRepository.findOne({
+        where: {
+          namespace: 'home',
+          configKey: 'index_layout',
+          status: 'published',
+        },
+      });
+
+      return this.normalizeHomeLayoutConfig(config?.valueJson);
+    } catch {
+      return this.cloneDefaultHomeLayout();
+    }
+  }
+
+  private normalizeHomeLayoutConfig(value: unknown): HomeLayoutConfig {
+    const source = this.asRecord(value);
+
+    return {
+      version: this.pickNumber(source.version, 1, 20, DEFAULT_HOME_LAYOUT.version),
+      grayPercent: this.pickNumber(
+        source.grayPercent,
+        0,
+        100,
+        DEFAULT_HOME_LAYOUT.grayPercent,
+      ),
+      sections: this.normalizeHomeLayoutSections(source.sections),
+      quickTools: this.normalizeHomeQuickTools(source.quickTools),
+    };
+  }
+
+  private normalizeHomeLayoutSections(value: unknown): HomeLayoutSection[] {
+    const defaults = this.cloneDefaultHomeLayout().sections;
+    const defaultById = new Map(defaults.map((item) => [item.id, item]));
+    const sourceItems = Array.isArray(value) ? value : [];
+    const configuredIds = new Set<string>();
+    const configuredSections: HomeLayoutSection[] = [];
+
+    for (const item of sourceItems) {
+      const source = this.asRecord(item);
+      const id = this.pickString(source.id, '');
+      const fallback = defaultById.get(id);
+
+      if (!fallback) {
+        continue;
+      }
+
+      configuredIds.add(id);
+
+      const section: HomeLayoutSection = {
+        ...fallback,
+        type: this.pickString(source.type, fallback.type),
+        title: this.pickString(source.title, fallback.title),
+        note: this.pickString(source.note, fallback.note),
+        audience: this.pickStringArray(source.audience, fallback.audience),
+        enabled: this.pickBoolean(source.enabled, fallback.enabled),
+        order: this.pickNumber(source.order, 0, 999, fallback.order),
+      };
+
+      if (fallback.maxItems !== undefined || source.maxItems !== undefined) {
+        section.maxItems = this.pickNumber(
+          source.maxItems,
+          1,
+          12,
+          fallback.maxItems ?? 4,
+        );
+      }
+
+      configuredSections.push(section);
+    }
+
+    return [
+      ...configuredSections,
+      ...defaults.filter((item) => !configuredIds.has(item.id)),
+    ].sort((left, right) => left.order - right.order);
+  }
+
+  private normalizeHomeQuickTools(value: unknown): HomeQuickTool[] {
+    const defaults = this.cloneDefaultHomeLayout().quickTools;
+    const defaultById = new Map(defaults.map((item) => [item.id, item]));
+    const sourceItems = Array.isArray(value) ? value : [];
+    const configuredIds = new Set<string>();
+    const configuredTools = sourceItems
+      .map((item, index) => {
+        const source = this.asRecord(item);
+        const id = this.pickString(source.id, '');
+        const fallback = defaultById.get(id) ?? {
+          id,
+          title: '快捷入口',
+          description: '打开',
+          route: '',
+          badge: '快捷',
+          icon: 'compass' as const,
+          enabled: true,
+          order: (index + 1) * 10,
+        };
+
+        if (!id) {
+          return null;
+        }
+
+        configuredIds.add(id);
+
+        return {
+          ...fallback,
+          title: this.pickString(source.title, fallback.title),
+          description: this.pickString(source.description, fallback.description),
+          route: this.pickString(source.route, fallback.route),
+          badge: this.pickString(source.badge, fallback.badge),
+          icon: this.resolveQuickToolIcon(source.icon, fallback.icon),
+          enabled: this.pickBoolean(source.enabled, fallback.enabled),
+          order: this.pickNumber(source.order, 0, 999, fallback.order),
+        } satisfies HomeQuickTool;
+      })
+      .filter((item): item is HomeQuickTool => Boolean(item));
+
+    return [
+      ...configuredTools,
+      ...defaults.filter((item) => !configuredIds.has(item.id)),
+    ].sort((left, right) => left.order - right.order);
+  }
+
+  private buildQuickEntriesFromLayout(
+    homeLayout: HomeLayoutConfig,
+    fallbackEntries: Array<{
+      id: string;
+      title: string;
+      description: string;
+      route: string;
+      badge: string;
+    }>,
+  ) {
+    const fallbackById = new Map(fallbackEntries.map((item) => [item.id, item]));
+    const configured = homeLayout.quickTools
+      .filter((item) => item.enabled && item.route)
+      .map((item) => {
+        const fallback = fallbackById.get(item.id);
+
+        return {
+          id: item.id,
+          title: item.title || fallback?.title || '快捷入口',
+          description: item.description || fallback?.description || '打开',
+          route: item.route || fallback?.route || '/pages/index/index',
+          badge: item.badge || fallback?.badge || '快捷',
+          icon: item.icon,
+          enabled: item.enabled,
+        };
+      });
+
+    return configured.length ? configured : fallbackEntries;
+  }
+
+  private buildTodayAction(
+    user: UserEntity | null,
+    profileCompleted: boolean,
+    isVipActive: boolean,
+    signals: HomeSignals,
+    stateOverview: StateOverview,
+    userSummary: {
+      primaryActionTitle: string;
+      primaryActionRoute: string;
+      welcomeNote: string;
+    },
+  ): HomeTodayAction {
+    const completionScore = this.clampScore(
+      Number(stateOverview.completionScore.value),
+      0,
+      100,
+      20,
+    );
+    const currentScore = this.clampScore(
+      Number(stateOverview.currentScore.value),
+      0,
+      100,
+      60,
+    );
+    const pressureLevel = this.resolvePressureLevel(signals);
+    const hasFreshMood = signals.mood.some((item) => item.ageDays <= 3);
+    const hasTodayMood = signals.mood.some((item) => item.ageDays === 0);
+
+    if (!user) {
+      return {
+        actionCode: 'login',
+        badge: '未登录',
+        title: '先连接账号，让首页开始理解你',
+        summary:
+          userSummary.welcomeNote ||
+          '登录后，今日状态、记录和会员权益都会绑定到当前账号。',
+        primaryText: this.pickString(userSummary.primaryActionTitle, '去登录'),
+        primaryRoute: this.pickString(
+          userSummary.primaryActionRoute,
+          '/pages/profile/index',
+        ),
+        secondaryText: '隐私说明',
+        secondaryRoute: '/pages/settings/privacy/index',
+      };
+    }
+
+    if (!profileCompleted) {
+      return {
+        actionCode: 'complete_profile',
+        badge: '资料待完善',
+        title: '补齐生日与出生信息',
+        summary:
+          '资料完整后，首页会把状态观察、八字节奏和长期画像放在同一条线上看。',
+        primaryText: '完善资料',
+        primaryRoute: '/pages/profile/index',
+        secondaryText: '先记录心情',
+        secondaryRoute: '/pages/journal/index',
+      };
+    }
+
+    if (!hasTodayMood && (!hasFreshMood || completionScore < 62)) {
+      return {
+        actionCode: 'record_mood',
+        badge: '依据偏少',
+        title: '补一条今日心绪',
+        summary: '今天只要记录一次当下感受，状态指数就会更贴近真实节奏。',
+        primaryText: '记录心情',
+        primaryRoute: '/pages/journal/index',
+        secondaryText: '情绪自检',
+        secondaryRoute: '/pages/emotion/index',
+      };
+    }
+
+    if (
+      pressureLevel === 'urgent' ||
+      pressureLevel === 'support' ||
+      pressureLevel === 'watch' ||
+      currentScore < 62
+    ) {
+      return {
+        actionCode: 'steady_breath',
+        badge: '先稳住',
+        title: '做一次 3 分钟呼吸',
+        summary:
+          stateOverview.primarySuggestion ||
+          '把今天的目标先缩小一点，先恢复注意力再继续推进。',
+        primaryText: '开始呼吸',
+        primaryRoute: '/pages/breathing/index',
+        secondaryText: '冥想放松',
+        secondaryRoute: '/pages/meditation/index',
+      };
+    }
+
+    if (isVipActive && completionScore >= 72) {
+      return {
+        actionCode: 'vip_report',
+        badge: 'VIP',
+        title: '查看今日完整报告',
+        summary:
+          stateOverview.primarySuggestion ||
+          '把今日建议拆成一个具体动作，再生成可分享的提醒。',
+        primaryText: '查看报告',
+        primaryRoute: '/pages/report/index',
+        secondaryText: '生成海报',
+        secondaryRoute: '/pages/poster/generate/index?type=today&auto=1',
+      };
+    }
+
+    return {
+      actionCode: 'view_report',
+      badge: '可推进',
+      title: '把今日建议落成一步',
+      summary:
+        stateOverview.primarySuggestion ||
+        '先完成一件最重要的小事，再决定今天剩下的安排。',
+      primaryText: '查看报告',
+      primaryRoute: '/pages/report/index',
+      secondaryText: '今日占卜',
+      secondaryRoute: '/pages/divination/index/index',
+    };
+  }
+
+  private cloneDefaultHomeLayout(): HomeLayoutConfig {
+    return {
+      version: DEFAULT_HOME_LAYOUT.version,
+      grayPercent: DEFAULT_HOME_LAYOUT.grayPercent,
+      sections: DEFAULT_HOME_LAYOUT.sections.map((item) => ({ ...item })),
+      quickTools: DEFAULT_HOME_LAYOUT.quickTools.map((item) => ({ ...item })),
+    };
+  }
+
   private buildEmotionTag(riskLevel: string) {
     if (riskLevel === 'steady') {
       return '稳定节奏优先';
@@ -1333,6 +1780,48 @@ export class HomeService {
 
   private pickString(value: unknown, fallback: string) {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  private pickBoolean(value: unknown, fallback: boolean) {
+    return typeof value === 'boolean' ? value : fallback;
+  }
+
+  private pickNumber(
+    value: unknown,
+    min: number,
+    max: number,
+    fallback: number,
+  ) {
+    return this.clampScore(Number(value), min, max, fallback);
+  }
+
+  private pickStringArray(value: unknown, fallback: string[]) {
+    if (!Array.isArray(value)) {
+      return [...fallback];
+    }
+
+    const next = value
+      .map((item) => this.pickString(item, ''))
+      .filter(Boolean);
+
+    return next.length ? next : [...fallback];
+  }
+
+  private resolveQuickToolIcon(
+    value: unknown,
+    fallback: HomeQuickTool['icon'],
+  ): HomeQuickTool['icon'] {
+    const supportedIcons: HomeQuickTool['icon'][] = [
+      'leaf',
+      'journal',
+      'orbit',
+      'compass',
+      'poster',
+    ];
+
+    return supportedIcons.includes(value as HomeQuickTool['icon'])
+      ? (value as HomeQuickTool['icon'])
+      : fallback;
   }
 
   private resolveUserBirthPlace(user: UserEntity | null) {

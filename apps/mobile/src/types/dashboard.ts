@@ -56,6 +56,8 @@ export interface DashboardQuickEntry {
   description: string;
   route: string;
   badge: string;
+  icon?: DashboardHomeLayoutQuickTool['icon'];
+  enabled?: boolean;
 }
 
 export interface DashboardJourneyEntry {
@@ -91,6 +93,52 @@ export interface DashboardUserSummary {
   welcomeNote: string;
 }
 
+export interface DashboardTodayAction {
+  actionCode: string;
+  badge: string;
+  title: string;
+  summary: string;
+  primaryText: string;
+  primaryRoute: string;
+  secondaryText: string;
+  secondaryRoute: string;
+}
+
+export interface DashboardHomeLayoutSection {
+  id:
+    | 'hero'
+    | 'today_state'
+    | 'today_action'
+    | 'state_insights'
+    | 'fortune_actions'
+    | 'quick_tools';
+  type: string;
+  title: string;
+  note: string;
+  audience?: string[];
+  enabled: boolean;
+  order: number;
+  maxItems?: number;
+}
+
+export interface DashboardHomeLayoutQuickTool {
+  id: string;
+  title: string;
+  description: string;
+  route: string;
+  badge: string;
+  icon: 'leaf' | 'journal' | 'orbit' | 'compass' | 'poster';
+  enabled: boolean;
+  order: number;
+}
+
+export interface DashboardHomeLayout {
+  version: number;
+  grayPercent: number;
+  sections: DashboardHomeLayoutSection[];
+  quickTools: DashboardHomeLayoutQuickTool[];
+}
+
 export interface MobileDashboardPayload {
   dailyThemeKey?: string;
   headline: DashboardHeadline;
@@ -107,6 +155,8 @@ export interface MobileDashboardPayload {
   modules: DashboardModule[];
   integrations: DashboardIntegrations;
   userSummary: DashboardUserSummary;
+  todayAction: DashboardTodayAction;
+  homeLayout: DashboardHomeLayout;
 }
 
 export interface MobileDashboardResponse {

@@ -66,6 +66,13 @@
           :placeholder="currentKeywordPlaceholder"
         />
         <el-button type="primary" :loading="loading" @click="loadCurrentTab">刷新</el-button>
+        <el-button
+          v-if="activeTab === 'configs'"
+          plain
+          @click="openHomeLayoutConfigDialog"
+        >
+          首页设置模板
+        </el-button>
         <el-button plain @click="openCreateDialog">{{ createButtonText }}</el-button>
       </div>
     </section>
@@ -359,7 +366,7 @@
         <template v-else>
           <div class="content-center__grid content-center__grid--four">
             <el-form-item label="命名空间">
-              <el-input v-model="configForm.namespace" placeholder="例如 lucky / reports / assessment" />
+              <el-input v-model="configForm.namespace" placeholder="例如 home / lucky / reports / assessment" />
             </el-form-item>
             <el-form-item label="配置键">
               <el-input v-model="configForm.configKey" />
@@ -390,6 +397,145 @@
           <el-form-item label="描述">
             <el-input v-model="configForm.description" type="textarea" :rows="2" />
           </el-form-item>
+          <template v-if="isHomeIndexLayoutConfig">
+            <div class="content-center__grid content-center__grid--two">
+              <el-form-item label="灰度比例">
+                <el-input-number
+                  v-model="homeLayoutGrayPercent"
+                  :min="0"
+                  :max="100"
+                  @change="syncHomeLayoutToJson"
+                />
+              </el-form-item>
+              <el-form-item label="配置摘要">
+                <el-input
+                  :model-value="`启用模块 ${homeLayoutSections.filter((item) => item.enabled).length} 个，快捷工具 ${homeQuickTools.filter((item) => item.enabled).length} 个`"
+                  disabled
+                />
+              </el-form-item>
+            </div>
+
+            <el-form-item label="首页模块">
+              <div class="content-center__home-editor">
+                <div
+                  v-for="item in homeLayoutSections"
+                  :key="item.localId"
+                  class="content-center__home-item"
+                >
+                  <div class="content-center__grid content-center__grid--four">
+                    <el-form-item label="模块 ID">
+                      <el-input v-model="item.id" disabled />
+                    </el-form-item>
+                    <el-form-item label="标题">
+                      <el-input v-model="item.title" @input="syncHomeLayoutToJson" />
+                    </el-form-item>
+                    <el-form-item label="排序">
+                      <el-input-number
+                        v-model="item.order"
+                        :min="0"
+                        :max="999"
+                        @change="syncHomeLayoutToJson"
+                      />
+                    </el-form-item>
+                    <el-form-item label="启用">
+                      <el-switch v-model="item.enabled" @change="syncHomeLayoutToJson" />
+                    </el-form-item>
+                  </div>
+
+                  <div class="content-center__grid content-center__grid--two">
+                    <el-form-item label="说明">
+                      <el-input v-model="item.note" @input="syncHomeLayoutToJson" />
+                    </el-form-item>
+                    <el-form-item label="适用人群">
+                      <el-select
+                        v-model="item.audience"
+                        multiple
+                        collapse-tags
+                        collapse-tags-tooltip
+                        @change="syncHomeLayoutToJson"
+                      >
+                        <el-option
+                          v-for="option in homeAudienceOptions"
+                          :key="option.value"
+                          :label="option.label"
+                          :value="option.value"
+                        />
+                      </el-select>
+                    </el-form-item>
+                  </div>
+
+                  <el-form-item
+                    v-if="item.id === 'state_insights' || item.id === 'quick_tools'"
+                    label="最大条数"
+                  >
+                    <el-input-number
+                      v-model="item.maxItems"
+                      :min="1"
+                      :max="12"
+                      @change="syncHomeLayoutToJson"
+                    />
+                  </el-form-item>
+                </div>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="快捷工具">
+              <div class="content-center__home-editor">
+                <div
+                  v-for="(item, index) in homeQuickTools"
+                  :key="item.localId"
+                  class="content-center__home-item"
+                >
+                  <div class="content-center__grid content-center__grid--four">
+                    <el-form-item label="工具 ID">
+                      <el-input v-model="item.id" @input="syncHomeLayoutToJson" />
+                    </el-form-item>
+                    <el-form-item label="图标">
+                      <el-select v-model="item.icon" @change="syncHomeLayoutToJson">
+                        <el-option
+                          v-for="option in homeQuickToolIconOptions"
+                          :key="option"
+                          :label="option"
+                          :value="option"
+                        />
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="排序">
+                      <el-input-number
+                        v-model="item.order"
+                        :min="0"
+                        :max="999"
+                        @change="syncHomeLayoutToJson"
+                      />
+                    </el-form-item>
+                    <el-form-item label="启用">
+                      <el-switch v-model="item.enabled" @change="syncHomeLayoutToJson" />
+                    </el-form-item>
+                  </div>
+
+                  <div class="content-center__grid content-center__grid--two">
+                    <el-form-item label="标题">
+                      <el-input v-model="item.title" @input="syncHomeLayoutToJson" />
+                    </el-form-item>
+                    <el-form-item label="描述">
+                      <el-input v-model="item.description" @input="syncHomeLayoutToJson" />
+                    </el-form-item>
+                  </div>
+
+                  <el-form-item label="路由">
+                    <el-input v-model="item.route" @input="syncHomeLayoutToJson" />
+                  </el-form-item>
+
+                  <div class="content-center__home-actions">
+                    <el-button text @click="duplicateHomeQuickTool(index)">复制一条</el-button>
+                    <el-button text type="danger" @click="removeHomeQuickTool(index)">删除</el-button>
+                  </div>
+                </div>
+
+                <el-button plain @click="addHomeQuickTool">新增快捷工具</el-button>
+              </div>
+            </el-form-item>
+          </template>
           <template v-if="isMeditationMusicConfig">
             <el-form-item label="冥想音乐条目">
               <div class="content-center__music-editor">
@@ -575,7 +721,15 @@ const fortuneTemplateOptions = [
 ];
 
 const templateTypeOptions = ['report_result', 'share_poster'];
-const namespaceOptions = ['lucky', 'meditation', 'reports', 'posters', 'assessment', 'commerce'];
+const namespaceOptions = [
+  'home',
+  'lucky',
+  'meditation',
+  'reports',
+  'posters',
+  'assessment',
+  'commerce',
+];
 const statusFilterOptions = [
   { label: '全部状态', value: 'all' },
   { label: '草稿', value: 'draft' },
@@ -683,12 +837,164 @@ type MeditationMusicEditorItem = {
   enabled: boolean;
 };
 
+type HomeLayoutSectionEditorItem = {
+  localId: string;
+  id: string;
+  type: string;
+  title: string;
+  note: string;
+  audience: string[];
+  enabled: boolean;
+  order: number;
+  maxItems: number | null;
+};
+
+type HomeQuickToolEditorItem = {
+  localId: string;
+  id: string;
+  title: string;
+  description: string;
+  route: string;
+  badge: string;
+  icon: 'leaf' | 'journal' | 'orbit' | 'compass' | 'poster';
+  enabled: boolean;
+  order: number;
+};
+
 const meditationMusicItems = ref<MeditationMusicEditorItem[]>([]);
 const uploadingAudioIndex = ref(-1);
+const homeLayoutSections = ref<HomeLayoutSectionEditorItem[]>([]);
+const homeQuickTools = ref<HomeQuickToolEditorItem[]>([]);
+const homeLayoutGrayPercent = ref(100);
+const homeAudienceOptions = [
+  { label: '全部用户', value: 'all' },
+  { label: '未登录', value: 'logged_out' },
+  { label: '已登录', value: 'logged_in' },
+  { label: '资料待完善', value: 'profile_incomplete' },
+  { label: '状态活跃', value: 'active' },
+  { label: 'VIP', value: 'vip' },
+  { label: '依据偏少', value: 'low_confidence' },
+  { label: '压力偏高', value: 'pressure' },
+];
+const homeQuickToolIconOptions: HomeQuickToolEditorItem['icon'][] = [
+  'leaf',
+  'journal',
+  'orbit',
+  'compass',
+  'poster',
+];
 
 const DEFAULT_CONFIG_TEMPLATE = '{\n  "enabled": true\n}';
 const MEDITATION_MUSIC_TEMPLATE =
   '{\n  "items": [\n    {\n      "id": "moon-breath",\n      "title": "月光呼吸",\n      "subtitle": "适合睡前放松，呼吸节奏更慢一点。",\n      "category": "sleep",\n      "durationMinutes": 12,\n      "atmosphere": "柔和白噪",\n      "previewUrl": "https://actions.google.com/sounds/v1/ambiences/ocean_waves.ogg",\n      "enabled": true\n    }\n  ]\n}';
+const HOME_INDEX_LAYOUT_TEMPLATE = JSON.stringify(
+  {
+    version: 1,
+    grayPercent: 100,
+    sections: [
+      {
+        id: 'hero',
+        type: 'hero',
+        title: '首页头图',
+        note: '日期、主题色和状态欢迎语',
+        audience: ['all'],
+        enabled: true,
+        order: 10,
+      },
+      {
+        id: 'today_state',
+        type: 'status_card',
+        title: '今日状态',
+        note: '当前状态指数与可信度说明',
+        audience: ['all'],
+        enabled: true,
+        order: 20,
+      },
+      {
+        id: 'today_action',
+        type: 'action_card',
+        title: '今日行动',
+        note: '根据登录、资料、心情和压力状态动态生成',
+        audience: ['all'],
+        enabled: true,
+        order: 30,
+      },
+      {
+        id: 'state_insights',
+        type: 'insight_grid',
+        title: '状态洞察',
+        note: '优先参考近期自述，不做诊断判断',
+        audience: ['logged_in', 'profile_incomplete', 'active', 'vip'],
+        enabled: true,
+        order: 40,
+        maxItems: 4,
+      },
+      {
+        id: 'fortune_actions',
+        type: 'fortune_card',
+        title: '轻量探索',
+        note: '今日占卜与行动提醒',
+        audience: ['all'],
+        enabled: true,
+        order: 50,
+      },
+      {
+        id: 'quick_tools',
+        type: 'quick_tools',
+        title: '快捷工具',
+        note: '保留常用入口，减少首屏干扰',
+        audience: ['all'],
+        enabled: true,
+        order: 60,
+        maxItems: 4,
+      },
+    ],
+    quickTools: [
+      {
+        id: 'meditation',
+        title: '冥想',
+        description: '放松',
+        route: '/pages/meditation/index',
+        badge: '放松',
+        icon: 'leaf',
+        enabled: true,
+        order: 10,
+      },
+      {
+        id: 'journal',
+        title: '日记',
+        description: '记录',
+        route: '/pages/journal/index',
+        badge: '记录',
+        icon: 'journal',
+        enabled: true,
+        order: 20,
+      },
+      {
+        id: 'divination',
+        title: '占卜',
+        description: '提问',
+        route: '/pages/divination/index/index',
+        badge: '提问',
+        icon: 'orbit',
+        enabled: true,
+        order: 30,
+      },
+      {
+        id: 'poster',
+        title: '海报',
+        description: '分享',
+        route: '/pages/poster/generate/index?type=today&auto=1',
+        badge: '分享',
+        icon: 'poster',
+        enabled: true,
+        order: 40,
+      },
+    ],
+  },
+  null,
+  2,
+);
 
 const currentItems = computed(() => {
   if (activeTab.value === 'fortune') {
@@ -710,6 +1016,12 @@ const isMeditationMusicConfig = computed(
     activeTab.value === 'configs' &&
     configForm.namespace === 'meditation' &&
     configForm.configKey === 'music_library',
+);
+const isHomeIndexLayoutConfig = computed(
+  () =>
+    activeTab.value === 'configs' &&
+    configForm.namespace === 'home' &&
+    configForm.configKey === 'index_layout',
 );
 
 const currentStatusFilter = computed({
@@ -869,6 +1181,20 @@ function openCreateDialog() {
   dialogVisible.value = true;
 }
 
+function openHomeLayoutConfigDialog() {
+  activeTab.value = 'configs';
+  editingId.value = '';
+  configForm.namespace = 'home';
+  configForm.configKey = 'index_layout';
+  configForm.title = '小程序首页布局配置';
+  configForm.description = '控制小程序首页模块顺序、显示状态、快捷工具入口和灰度比例。';
+  configForm.valueType = 'json';
+  configForm.status = 'draft';
+  configForm.valueJsonText = HOME_INDEX_LAYOUT_TEMPLATE;
+  syncHomeLayoutFromValue(safeParseJsonText(HOME_INDEX_LAYOUT_TEMPLATE));
+  dialogVisible.value = true;
+}
+
 function openEditDialog(row: ContentRow) {
   editingId.value = row.id;
 
@@ -913,7 +1239,11 @@ function openEditDialog(row: ContentRow) {
     configForm.valueType = item.valueType;
     configForm.status = item.status;
     configForm.valueJsonText = JSON.stringify(item.valueJson, null, 2);
-    syncMeditationMusicFromValue(item.valueJson);
+    if (isHomeIndexLayoutConfig.value) {
+      syncHomeLayoutFromValue(item.valueJson);
+    } else {
+      syncMeditationMusicFromValue(item.valueJson);
+    }
   }
 
   dialogVisible.value = true;
@@ -976,6 +1306,12 @@ async function saveItem() {
         await createReportTemplate(payload);
       }
     } else {
+      if (isHomeIndexLayoutConfig.value) {
+        syncHomeLayoutToJson(
+          configForm.status === 'published' ? 'validate' : undefined,
+        );
+      }
+
       if (isMeditationMusicConfig.value) {
         syncMeditationMusicToJson();
       }
@@ -1342,11 +1678,226 @@ function resetCurrentForm() {
 }
 
 function buildConfigTemplate(namespace: string, configKey: string) {
+  if (namespace === 'home' && configKey === 'index_layout') {
+    return HOME_INDEX_LAYOUT_TEMPLATE;
+  }
+
   if (namespace === 'meditation' && configKey === 'music_library') {
     return MEDITATION_MUSIC_TEMPLATE;
   }
 
   return DEFAULT_CONFIG_TEMPLATE;
+}
+
+function createHomeLayoutSectionItem(
+  input?: Partial<Omit<HomeLayoutSectionEditorItem, 'localId'>>,
+): HomeLayoutSectionEditorItem {
+  return {
+    localId: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    id: input?.id || '',
+    type: input?.type || 'section',
+    title: input?.title || '',
+    note: input?.note || '',
+    audience: input?.audience?.length ? [...input.audience] : ['all'],
+    enabled: input?.enabled ?? true,
+    order: Number(input?.order) || 10,
+    maxItems: input?.maxItems ?? null,
+  };
+}
+
+function createHomeQuickToolItem(
+  input?: Partial<Omit<HomeQuickToolEditorItem, 'localId'>>,
+): HomeQuickToolEditorItem {
+  return {
+    localId: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    id: input?.id || '',
+    title: input?.title || '',
+    description: input?.description || '',
+    route: input?.route || '',
+    badge: input?.badge || input?.description || '快捷',
+    icon: resolveHomeQuickToolIcon(input?.icon),
+    enabled: input?.enabled ?? true,
+    order: Number(input?.order) || 10,
+  };
+}
+
+function syncHomeLayoutFromValue(value: Record<string, unknown>) {
+  const fallback = safeParseJsonText(HOME_INDEX_LAYOUT_TEMPLATE);
+  const source = Object.keys(value).length ? value : fallback;
+  const fallbackSections = Array.isArray(fallback.sections)
+    ? fallback.sections
+    : [];
+  const fallbackTools = Array.isArray(fallback.quickTools)
+    ? fallback.quickTools
+    : [];
+  const sections = Array.isArray(source.sections)
+    ? source.sections
+    : fallbackSections;
+  const quickTools = Array.isArray(source.quickTools)
+    ? source.quickTools
+    : fallbackTools;
+
+  homeLayoutGrayPercent.value = clampNumber(source.grayPercent, 0, 100, 100);
+  homeLayoutSections.value = sections.map((item, index) => {
+    const record = asPlainRecord(item);
+    const maxItems =
+      record.maxItems === undefined
+        ? null
+        : clampNumber(record.maxItems, 1, 12, 4);
+
+    return createHomeLayoutSectionItem({
+      id: pickPlainString(record.id, `section-${index + 1}`),
+      type: pickPlainString(record.type, 'section'),
+      title: pickPlainString(record.title, '首页模块'),
+      note: pickPlainString(record.note, ''),
+      audience: pickPlainStringArray(record.audience, ['all']),
+      enabled: record.enabled !== false,
+      order: clampNumber(record.order, 0, 999, (index + 1) * 10),
+      maxItems,
+    });
+  });
+  homeQuickTools.value = quickTools.map((item, index) => {
+    const record = asPlainRecord(item);
+
+    return createHomeQuickToolItem({
+      id: pickPlainString(record.id, `tool-${index + 1}`),
+      title: pickPlainString(record.title, '快捷入口'),
+      description: pickPlainString(record.description, '打开'),
+      route: pickPlainString(record.route, ''),
+      badge: pickPlainString(record.badge, '快捷'),
+      icon: resolveHomeQuickToolIcon(record.icon),
+      enabled: record.enabled !== false,
+      order: clampNumber(record.order, 0, 999, (index + 1) * 10),
+    });
+  });
+}
+
+function syncHomeLayoutToJson(mode?: unknown) {
+  if (mode === 'validate') {
+    validateHomeLayoutEditor();
+  }
+
+  configForm.valueJsonText = JSON.stringify(
+    {
+      version: 1,
+      grayPercent: clampNumber(homeLayoutGrayPercent.value, 0, 100, 100),
+      sections: homeLayoutSections.value.map((item) => {
+        const section: Record<string, unknown> = {
+          id: item.id.trim(),
+          type: item.type.trim(),
+          title: item.title.trim(),
+          note: item.note.trim(),
+          audience: item.audience.length ? item.audience : ['all'],
+          enabled: item.enabled,
+          order: Number(item.order) || 0,
+        };
+
+        if (item.maxItems !== null) {
+          section.maxItems = clampNumber(item.maxItems, 1, 12, 4);
+        }
+
+        return section;
+      }),
+      quickTools: homeQuickTools.value.map((item) => ({
+        id: item.id.trim(),
+        title: item.title.trim(),
+        description: item.description.trim(),
+        route: item.route.trim(),
+        badge: item.badge.trim() || item.description.trim() || '快捷',
+        icon: resolveHomeQuickToolIcon(item.icon),
+        enabled: item.enabled,
+        order: Number(item.order) || 0,
+      })),
+    },
+    null,
+    2,
+  );
+}
+
+function validateHomeLayoutEditor() {
+  assertUniqueEditorIds(
+    '首页模块',
+    homeLayoutSections.value.map((item) => item.id.trim()),
+  );
+  assertUniqueEditorIds(
+    '快捷工具',
+    homeQuickTools.value.map((item) => item.id.trim()),
+  );
+
+  for (const item of homeQuickTools.value) {
+    if (!item.id.trim()) {
+      throw new Error('快捷工具 ID 不能为空');
+    }
+
+    if (item.enabled && !item.route.trim()) {
+      throw new Error(`快捷工具「${item.title || item.id}」缺少路由`);
+    }
+
+    if (!homeQuickToolIconOptions.includes(item.icon)) {
+      throw new Error(`快捷工具「${item.title || item.id}」图标不合法`);
+    }
+  }
+}
+
+function assertUniqueEditorIds(label: string, ids: string[]) {
+  const seen = new Set<string>();
+
+  for (const id of ids) {
+    if (!id) {
+      throw new Error(`${label} ID 不能为空`);
+    }
+
+    if (seen.has(id)) {
+      throw new Error(`${label} ID 重复：${id}`);
+    }
+
+    seen.add(id);
+  }
+}
+
+function addHomeQuickTool() {
+  homeQuickTools.value.push(
+    createHomeQuickToolItem({
+      id: `tool-${homeQuickTools.value.length + 1}`,
+      title: '快捷入口',
+      description: '打开',
+      route: '',
+      icon: 'compass',
+      order: (homeQuickTools.value.length + 1) * 10,
+    }),
+  );
+  syncHomeLayoutToJson();
+}
+
+function duplicateHomeQuickTool(index: number) {
+  const current = homeQuickTools.value[index];
+
+  if (!current) {
+    return;
+  }
+
+  homeQuickTools.value.splice(
+    index + 1,
+    0,
+    createHomeQuickToolItem({
+      ...current,
+      id: current.id ? `${current.id}-copy` : `tool-${index + 2}`,
+      title: current.title ? `${current.title}副本` : '快捷入口副本',
+      order: current.order + 1,
+    }),
+  );
+  syncHomeLayoutToJson();
+}
+
+function removeHomeQuickTool(index: number) {
+  homeQuickTools.value.splice(index, 1);
+  syncHomeLayoutToJson();
+}
+
+function resolveHomeQuickToolIcon(value: unknown): HomeQuickToolEditorItem['icon'] {
+  return homeQuickToolIconOptions.includes(value as HomeQuickToolEditorItem['icon'])
+    ? (value as HomeQuickToolEditorItem['icon'])
+    : 'compass';
 }
 
 function createMeditationMusicItem(
@@ -1494,22 +2045,43 @@ watch(
       return;
     }
 
-    if (namespace === 'meditation' && configKey === 'music_library') {
+    const isMeditationConfig =
+      namespace === 'meditation' && configKey === 'music_library';
+    const isHomeConfig = namespace === 'home' && configKey === 'index_layout';
+
+    if (isMeditationConfig) {
       if (!configForm.title) {
         configForm.title = '冥想音乐库';
       }
       if (!configForm.description) {
         configForm.description = '移动端冥想页可选音乐列表，支持试听链接与分类配置。';
       }
-      syncMeditationMusicFromValue(safeParseJsonText(configForm.valueJsonText));
+    }
+
+    if (isHomeConfig) {
+      if (!configForm.title) {
+        configForm.title = '小程序首页布局配置';
+      }
+      if (!configForm.description) {
+        configForm.description = '控制小程序首页模块顺序、显示状态、快捷工具入口和灰度比例。';
+      }
     }
 
     if (
       !previousVisible ||
       configForm.valueJsonText === DEFAULT_CONFIG_TEMPLATE ||
-      configForm.valueJsonText === MEDITATION_MUSIC_TEMPLATE
+      configForm.valueJsonText === MEDITATION_MUSIC_TEMPLATE ||
+      configForm.valueJsonText === HOME_INDEX_LAYOUT_TEMPLATE
     ) {
       configForm.valueJsonText = buildConfigTemplate(namespace, configKey);
+    }
+
+    if (isMeditationConfig) {
+      syncMeditationMusicFromValue(safeParseJsonText(configForm.valueJsonText));
+    }
+
+    if (isHomeConfig) {
+      syncHomeLayoutFromValue(safeParseJsonText(configForm.valueJsonText));
     }
   },
 );
@@ -1528,6 +2100,38 @@ function safeParseJsonText(value: string) {
   } catch {
     return {};
   }
+}
+
+function asPlainRecord(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function pickPlainString(value: unknown, fallback: string) {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function pickPlainStringArray(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+
+  const next = value
+    .map((item) => pickPlainString(item, ''))
+    .filter(Boolean);
+
+  return next.length ? next : [...fallback];
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
 function resolveRowTitle(row: ContentRow) {
@@ -1590,6 +2194,25 @@ onMounted(() => {
 .content-center__music-editor {
   display: grid;
   gap: 16px;
+}
+
+.content-center__home-editor {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.content-center__home-item {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7f9fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.content-center__home-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .content-center__music-item {
@@ -1660,7 +2283,7 @@ onMounted(() => {
 }
 
 .content-center__filters {
-  grid-template-columns: 200px 160px minmax(0, 1fr) auto auto;
+  grid-template-columns: 200px 160px minmax(0, 1fr) auto auto auto;
 }
 
 .content-center__grid--two {

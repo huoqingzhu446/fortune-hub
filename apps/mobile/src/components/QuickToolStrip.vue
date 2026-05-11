@@ -5,7 +5,7 @@
       :key="item.id"
       class="tool-strip__item"
       :class="`tool-strip__item--${item.icon}`"
-      @tap="$emit('select', item.route)"
+      @tap="$emit('select', item.route, item.id)"
     >
       <view class="tool-strip__icon">
         <view class="tool-strip__icon-mark"></view>
@@ -32,7 +32,7 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (event: 'select', route: string): void;
+  (event: 'select', route: string, id: string): void;
 }>();
 </script>
 

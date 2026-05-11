@@ -6,95 +6,118 @@
       <view class="ambient ambient--mist-left"></view>
       <view class="ambient ambient--mist-right"></view>
 
-      <HomeHero
-        class="home-page__hero"
-        :title="pageTitle"
-        :subtitle="pageSubtitle"
-        :display-date="displayDate"
-        :lunar-date="lunarDate"
-        :theme-name="themePalette.name"
-        :status-text="heroStatusText"
-      />
-
-      <view class="home-page__main-card">
-        <StatusIndexCard
-          :label="fortuneCardLabel"
-          :score="fortuneScore"
-          :status="fortuneStatus"
-          :title="fortuneTitle"
-          :summary="fortuneSummary"
-          :tags="fortuneTags"
-          :evidence="stateOverview.evidenceLabel"
-          :disclaimer="stateOverview.disclaimer"
-          :primary-action-text="statusPrimaryAction.label"
-          :secondary-action-text="statusSecondaryAction.label"
-          @primary="handleRoute(statusPrimaryAction.route)"
-          @secondary="handleRoute(statusSecondaryAction.route)"
+      <template v-for="section in homeSections" :key="section.id">
+        <HomeHero
+          v-if="section.id === 'hero'"
+          class="home-page__section home-page__section--hero home-page__hero"
+          :title="pageTitle"
+          :subtitle="pageSubtitle"
+          :display-date="displayDate"
+          :lunar-date="lunarDate"
+          :theme-name="themePalette.name"
+          :status-text="heroStatusText"
         />
-      </view>
 
-      <view class="home-page__action">
-        <TodayActionCard
-          :badge="todayAction.badge"
-          :title="todayAction.title"
-          :summary="todayAction.summary"
-          :action-text="todayAction.actionText"
-          :secondary-text="todayAction.secondaryText"
-          @action="handleRoute(todayAction.route)"
-          @secondary="handleRoute(todayAction.secondaryRoute)"
-        />
-      </view>
+        <view
+          v-else-if="section.id === 'today_state'"
+          class="home-page__section home-page__section--today-state home-page__main-card"
+          :class="{ 'home-page__main-card--after-hero': isSectionAfter('today_state', 'hero') }"
+        >
+          <StatusIndexCard
+            :label="fortuneCardLabel"
+            :score="fortuneScore"
+            :status="fortuneStatus"
+            :title="fortuneTitle"
+            :summary="fortuneSummary"
+            :tags="fortuneTags"
+            :evidence="stateOverview.evidenceLabel"
+            :disclaimer="stateOverview.disclaimer"
+            :primary-action-text="statusPrimaryAction.label"
+            :secondary-action-text="statusSecondaryAction.label"
+            @primary="handleRouteWithTracking(statusPrimaryAction.route, 'home_state_action_click', { actionType: 'primary' })"
+            @secondary="handleRouteWithTracking(statusSecondaryAction.route, 'home_state_action_click', { actionType: 'secondary' })"
+          />
+        </view>
 
-      <view class="home-page__section-head">
-        <text class="home-page__section-title">状态洞察</text>
-        <text class="home-page__section-note">优先参考近期自述，不做诊断判断</text>
-      </view>
+        <view
+          v-else-if="section.id === 'today_action'"
+          class="home-page__section home-page__section--today-action home-page__action"
+        >
+          <TodayActionCard
+            :badge="todayAction.badge"
+            :title="todayAction.title"
+            :summary="todayAction.summary"
+            :action-text="todayAction.actionText"
+            :secondary-text="todayAction.secondaryText"
+            @action="handleRouteWithTracking(todayAction.route, 'home_today_action_click', { actionCode: todayAction.actionCode, actionType: 'primary' })"
+            @secondary="handleRouteWithTracking(todayAction.secondaryRoute, 'home_today_action_click', { actionCode: todayAction.actionCode, actionType: 'secondary' })"
+          />
+        </view>
 
-      <view class="insight-grid">
-        <InsightMiniCard
-          v-for="(card, index) in homeCards"
-          :key="card.id"
-          class="insight-grid__item"
-          :style="{ animationDelay: `${180 + index * 45}ms` }"
-          :variant="card.variant"
-          :icon-color="card.iconColor"
-          :title="card.title"
-          :subtitle="card.subtitle"
-          :value="card.value"
-          :metric-mode="card.metricMode"
-          :suffix="card.suffix"
-          :badge="card.badge"
-          :description="card.description"
-          :progress="card.progress"
-          :stars="card.stars"
-          :action-text="card.actionText"
-          @select="handleRoute(card.route)"
-        />
-      </view>
+        <view
+          v-else-if="section.id === 'state_insights'"
+          class="home-page__section home-page__section--state-insights"
+        >
+          <view class="home-page__section-head">
+            <text class="home-page__section-title">{{ section.title }}</text>
+            <text class="home-page__section-note">{{ section.note }}</text>
+          </view>
 
-      <view class="home-page__explore">
-        <FortuneActionCard
-          eyebrow="轻量探索"
-          title="今日占卜"
-          summary="把当下问题拆成一条更容易执行的提醒。"
-          :tags="divinationTags"
-          button-text="开始占卜"
-          @open="openDivinationHome"
-          @action="startHomeDivination"
-        />
-      </view>
+          <view class="insight-grid">
+            <InsightMiniCard
+              v-for="(card, index) in visibleHomeCards"
+              :key="card.id"
+              class="insight-grid__item"
+              :style="{ animationDelay: `${180 + index * 45}ms` }"
+              :variant="card.variant"
+              :icon-color="card.iconColor"
+              :title="card.title"
+              :subtitle="card.subtitle"
+              :value="card.value"
+              :metric-mode="card.metricMode"
+              :suffix="card.suffix"
+              :badge="card.badge"
+              :description="card.description"
+              :progress="card.progress"
+              :stars="card.stars"
+              :action-text="card.actionText"
+              @select="handleRouteWithTracking(card.route, 'home_insight_tap', { cardId: card.id })"
+            />
+          </view>
+        </view>
 
-      <view class="home-page__section-head home-page__section-head--tools">
-        <text class="home-page__section-title">快捷工具</text>
-        <text class="home-page__section-note">保留常用入口，减少首屏干扰</text>
-      </view>
+        <view
+          v-else-if="section.id === 'fortune_actions'"
+          class="home-page__section home-page__section--fortune-actions home-page__explore"
+        >
+          <FortuneActionCard
+            :eyebrow="section.title"
+            title="今日占卜"
+            summary="把当下问题拆成一条更容易执行的提醒。"
+            :tags="divinationTags"
+            button-text="开始占卜"
+            @open="openDivinationHome"
+            @action="startHomeDivination"
+          />
+        </view>
 
-      <view class="home-page__tools">
-        <QuickToolStrip
-          :items="quickTools"
-          @select="handleRoute"
-        />
-      </view>
+        <view
+          v-else-if="section.id === 'quick_tools'"
+          class="home-page__section home-page__section--quick-tools"
+        >
+          <view class="home-page__section-head home-page__section-head--tools">
+            <text class="home-page__section-title">{{ section.title }}</text>
+            <text class="home-page__section-note">{{ section.note }}</text>
+          </view>
+
+          <view class="home-page__tools">
+            <QuickToolStrip
+              :items="quickTools"
+              @select="(route, toolId) => handleRouteWithTracking(route, 'home_quick_tool_click', { toolId })"
+            />
+          </view>
+        </view>
+      </template>
     </view>
 
     <HomeTabBar current-tab="home" />
@@ -114,11 +137,16 @@ import TodayActionCard from '../../components/TodayActionCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
+import { trackEvent } from '../../services/analytics';
 import {
   createTodayDivinationRequest,
   setPendingDivinationRequest,
 } from '../../services/divination';
-import type { DashboardStateFactor } from '../../types/dashboard';
+import type {
+  DashboardHomeLayoutQuickTool,
+  DashboardHomeLayoutSection,
+  DashboardStateFactor,
+} from '../../types/dashboard';
 import type { ThemeKey } from '../../theme/tokens';
 
 type InsightCard = {
@@ -145,6 +173,7 @@ type HomeRouteAction = {
 };
 
 type TodayAction = {
+  actionCode: string;
   badge: string;
   title: string;
   summary: string;
@@ -163,6 +192,21 @@ const rootPageRoutes = new Set([
   '/pages/records/index',
   '/pages/profile/index',
 ]);
+const supportedSectionIds = new Set<DashboardHomeLayoutSection['id']>([
+  'hero',
+  'today_state',
+  'today_action',
+  'state_insights',
+  'fortune_actions',
+  'quick_tools',
+]);
+const supportedQuickToolIcons: DashboardHomeLayoutQuickTool['icon'][] = [
+  'leaf',
+  'journal',
+  'orbit',
+  'compass',
+  'poster',
+];
 
 const dashboard = computed(() => dashboardStore.dashboard);
 const userSummary = computed(() => dashboard.value.userSummary);
@@ -170,6 +214,7 @@ const todayLuckyScore = computed(() => dashboard.value.todayLuckyScore);
 const annualLuckyScore = computed(() => dashboard.value.annualLuckyScore);
 const luckySign = computed(() => dashboard.value.todayLuckySign);
 const stateOverview = computed(() => dashboard.value.stateOverview);
+const homeLayout = computed(() => dashboard.value.homeLayout);
 const dailyThemeKey = computed<ThemeKey | ''>(
   () => (dashboard.value.dailyThemeKey as ThemeKey | undefined) || '',
 );
@@ -183,6 +228,48 @@ const factorMap = computed(() => {
   }
 
   return map;
+});
+
+const homeSections = computed<DashboardHomeLayoutSection[]>(() =>
+  [...(homeLayout.value.sections || [])]
+    .filter(
+      (section) =>
+        section.enabled &&
+        supportedSectionIds.has(section.id) &&
+        sectionAudienceMatches(section),
+    )
+    .sort((left, right) => left.order - right.order),
+);
+
+const userAudienceTokens = computed(() => {
+  const tokens = ['all'];
+
+  if (!userSummary.value.isLoggedIn) {
+    tokens.push('logged_out');
+    return tokens;
+  }
+
+  tokens.push('logged_in');
+
+  if (userSummary.value.profileCompleted) {
+    tokens.push('active');
+  } else {
+    tokens.push('profile_incomplete');
+  }
+
+  if (userSummary.value.vipStatus === 'active') {
+    tokens.push('vip');
+  }
+
+  if (completionScore.value < 62) {
+    tokens.push('low_confidence');
+  }
+
+  if (todayAction.value.actionCode === 'steady_breath') {
+    tokens.push('pressure');
+  }
+
+  return tokens;
 });
 
 const fortuneScore = computed(() => {
@@ -304,68 +391,21 @@ const statusSecondaryAction = computed<HomeRouteAction>(() => {
 });
 
 const todayAction = computed<TodayAction>(() => {
-  if (!userSummary.value.isLoggedIn) {
-    return {
-      badge: '未登录',
-      title: '先连接账号，让首页开始理解你',
-      summary: userSummary.value.welcomeNote || '登录后，今日状态、记录和会员权益都会绑定到当前账号。',
-      actionText: normalizeActionLabel(userSummary.value.primaryActionTitle, '去登录'),
-      route: userSummary.value.primaryActionRoute || '/pages/profile/index',
-      secondaryText: '隐私说明',
-      secondaryRoute: '/pages/settings/privacy/index',
-    };
-  }
-
-  if (!userSummary.value.profileCompleted) {
-    return {
-      badge: '资料待完善',
-      title: '补齐生日与出生信息',
-      summary: '资料完整后，首页会把状态观察、八字节奏和长期画像放在同一条线上看。',
-      actionText: normalizeActionLabel(userSummary.value.primaryActionTitle, '完善资料'),
-      route: userSummary.value.primaryActionRoute || '/pages/profile/index',
-      secondaryText: '先记录心情',
-      secondaryRoute: '/pages/journal/index',
-    };
-  }
-
-  if (completionScore.value < 62) {
-    return {
-      badge: '依据偏少',
-      title: '补一条今日心绪',
-      summary: '今天只要记录一次当下感受，状态指数就会更贴近真实节奏。',
-      actionText: '记录心情',
-      route: '/pages/journal/index',
-      secondaryText: '情绪自检',
-      secondaryRoute: '/pages/emotion/index',
-    };
-  }
-
-  if (isPressureSensitive.value) {
-    return {
-      badge: '先稳住',
-      title: '做一次 3 分钟呼吸',
-      summary: stateOverview.value.primarySuggestion || '把今天的目标先缩小一点，先恢复注意力再继续推进。',
-      actionText: '开始呼吸',
-      route: '/pages/breathing/index',
-      secondaryText: '冥想放松',
-      secondaryRoute: '/pages/meditation/index',
-    };
-  }
+  const action = dashboard.value.todayAction;
 
   return {
-    badge: '可推进',
-    title: '把今日建议落成一步',
-    summary: stateOverview.value.primarySuggestion || '先完成一件最重要的小事，再决定今天剩下的安排。',
-    actionText: '查看报告',
-    route: '/pages/report/index',
-    secondaryText: '今日占卜',
-    secondaryRoute: '/pages/divination/index/index',
+    actionCode: action?.actionCode || 'view_report',
+    badge: action?.badge || '可推进',
+    title: action?.title || '把今日建议落成一步',
+    summary:
+      action?.summary ||
+      stateOverview.value.primarySuggestion ||
+      '先完成一件最重要的小事，再决定今天剩下的安排。',
+    actionText: normalizeActionLabel(action?.primaryText, '查看报告'),
+    route: action?.primaryRoute || '/pages/report/index',
+    secondaryText: normalizeActionLabel(action?.secondaryText, '今日占卜'),
+    secondaryRoute: action?.secondaryRoute || '/pages/divination/index/index',
   };
-});
-
-const isPressureSensitive = computed(() => {
-  const pressureText = `${stateOverview.value.title} ${stateOverview.value.summary} ${todayLuckyScore.value.hint}`;
-  return fortuneScore.value < 62 || /压力|恢复|支持|低落|焦虑|减压|偏高/.test(pressureText);
 });
 
 const homeCards = computed<InsightCard[]>(() => {
@@ -447,44 +487,32 @@ const homeCards = computed<InsightCard[]>(() => {
   ];
 });
 
+const visibleHomeCards = computed(() =>
+  homeCards.value.slice(0, getSectionMaxItems('state_insights', 4)),
+);
+
 const divinationTags = ['当下问题', '行动提醒'];
 
-const quickTools = computed<QuickToolItem[]>(() => [
-  {
-    id: 'meditation',
-    title: '冥想',
-    description: '放松',
-    icon: 'leaf',
-    route: '/pages/meditation/index',
-  },
-  {
-    id: 'journal',
-    title: '日记',
-    description: '记录',
-    icon: 'journal',
-    route: '/pages/journal/index',
-  },
-  {
-    id: 'divination',
-    title: '占卜',
-    description: '提问',
-    icon: 'orbit',
-    route: '/pages/divination/index/index',
-  },
-  {
-    id: 'poster',
-    title: '海报',
-    description: '分享',
-    icon: 'poster',
-    route: '/pages/poster/generate/index?type=today&auto=1',
-  },
-]);
+const quickTools = computed<QuickToolItem[]>(() =>
+  resolveQuickTools().slice(0, getSectionMaxItems('quick_tools', 4)),
+);
 
 let skipFirstShowRefresh = true;
 
 async function refreshDashboard() {
   await dashboardStore.loadDashboard();
   lastHomeVersion = pageStateStore.versionOf('home');
+  trackHomeEvent('home_view', {
+    sections: homeSections.value.map((section) => section.id),
+    actionCode: todayAction.value.actionCode,
+  });
+  homeSections.value.forEach((section) => {
+    trackHomeEvent('home_section_view', {
+      sectionId: section.id,
+      order: section.order,
+      actionCode: todayAction.value.actionCode,
+    });
+  });
 }
 
 function resetScrollTop() {
@@ -515,11 +543,135 @@ function handleRoute(route: string) {
   });
 }
 
+function handleRouteWithTracking(
+  route: string,
+  eventName: string,
+  payload: Record<string, unknown> = {},
+) {
+  trackHomeEvent(eventName, {
+    ...payload,
+    route,
+  });
+  handleRoute(route);
+}
+
+function trackHomeEvent(eventName: string, payload: Record<string, unknown>) {
+  trackEvent(eventName, {
+    page: 'home',
+    userStage: resolveUserStage(),
+    vipStatus: userSummary.value.vipStatus,
+    confidenceLevel: resolveConfidenceLevel(),
+    ...payload,
+  });
+}
+
+function sectionAudienceMatches(section: DashboardHomeLayoutSection) {
+  const audience = section.audience || ['all'];
+
+  return audience.some((item) => userAudienceTokens.value.includes(item));
+}
+
+function getSectionMaxItems(
+  sectionId: DashboardHomeLayoutSection['id'],
+  fallback: number,
+) {
+  const section = homeSections.value.find((item) => item.id === sectionId);
+  const maxItems = Number(section?.maxItems);
+
+  return Number.isFinite(maxItems) ? clamp(Math.round(maxItems), 1, 12) : fallback;
+}
+
+function isSectionAfter(
+  sectionId: DashboardHomeLayoutSection['id'],
+  previousSectionId: DashboardHomeLayoutSection['id'],
+) {
+  const currentIndex = homeSections.value.findIndex(
+    (section) => section.id === sectionId,
+  );
+  const previousIndex = homeSections.value.findIndex(
+    (section) => section.id === previousSectionId,
+  );
+
+  return currentIndex > 0 && previousIndex === currentIndex - 1;
+}
+
+function resolveQuickTools(): QuickToolItem[] {
+  const configuredTools = [...(homeLayout.value.quickTools || [])]
+    .filter((item) => item.enabled && item.route)
+    .sort((left, right) => left.order - right.order)
+    .map((item) => ({
+      id: item.id,
+      title: item.title || '入口',
+      description: item.description || item.badge || '打开',
+      icon: resolveQuickToolIcon(item.icon),
+      route: item.route,
+    }));
+
+  if (configuredTools.length) {
+    return configuredTools;
+  }
+
+  return dashboard.value.quickEntries
+    .filter((item) => item.enabled !== false && item.route)
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description || item.badge || '打开',
+      icon: resolveQuickToolIcon(item.icon),
+      route: item.route,
+    }));
+}
+
+function resolveQuickToolIcon(
+  value?: DashboardHomeLayoutQuickTool['icon'],
+): QuickToolItem['icon'] {
+  return supportedQuickToolIcons.includes(
+    value as DashboardHomeLayoutQuickTool['icon'],
+  )
+    ? (value as QuickToolItem['icon'])
+    : 'compass';
+}
+
+function resolveUserStage() {
+  if (!userSummary.value.isLoggedIn) {
+    return 'logged_out';
+  }
+
+  if (!userSummary.value.profileCompleted) {
+    return 'profile_incomplete';
+  }
+
+  if (todayAction.value.actionCode === 'record_mood') {
+    return 'low_confidence';
+  }
+
+  if (todayAction.value.actionCode === 'steady_breath') {
+    return 'pressure';
+  }
+
+  return userSummary.value.vipStatus === 'active' ? 'vip' : 'active';
+}
+
+function resolveConfidenceLevel() {
+  if (completionScore.value >= 82) {
+    return 'high';
+  }
+
+  if (completionScore.value >= 62) {
+    return 'medium';
+  }
+
+  return 'low';
+}
+
 function openDivinationHome() {
-  handleRoute('/pages/divination/index/index');
+  handleRouteWithTracking('/pages/divination/index/index', 'home_divination_open');
 }
 
 function startHomeDivination() {
+  trackHomeEvent('home_divination_start', {
+    source: 'fortune_action_card',
+  });
   setPendingDivinationRequest(createTodayDivinationRequest('general'));
   handleRoute('/pages/divination/loading/index');
 }
@@ -757,10 +909,7 @@ onPullDownRefresh(async () => {
   filter: blur(10rpx);
 }
 
-.home-page__hero,
-.home-page__main-card,
-.home-page__action,
-.home-page__explore,
+.home-page__section,
 .home-page__section-head,
 .insight-grid,
 .home-page__tools {
@@ -780,7 +929,11 @@ onPullDownRefresh(async () => {
 }
 
 .home-page__main-card {
-  margin: -26rpx 0 24rpx;
+  margin: 0 0 24rpx;
+}
+
+.home-page__main-card--after-hero {
+  margin-top: -26rpx;
 }
 
 .home-page__action {

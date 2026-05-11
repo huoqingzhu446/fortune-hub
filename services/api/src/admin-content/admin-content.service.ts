@@ -29,6 +29,32 @@ type LifecycleEntity = {
   archivedAt: Date | null;
 };
 
+const HOME_LAYOUT_SECTION_IDS = new Set([
+  'hero',
+  'today_state',
+  'today_action',
+  'state_insights',
+  'fortune_actions',
+  'quick_tools',
+]);
+const HOME_LAYOUT_AUDIENCE_KEYS = new Set([
+  'all',
+  'logged_out',
+  'logged_in',
+  'profile_incomplete',
+  'active',
+  'vip',
+  'low_confidence',
+  'pressure',
+]);
+const HOME_QUICK_TOOL_ICONS = new Set([
+  'leaf',
+  'journal',
+  'orbit',
+  'compass',
+  'poster',
+]);
+
 @Injectable()
 export class AdminContentService {
   constructor(
@@ -446,6 +472,12 @@ export class AdminContentService {
 
   async createConfig(dto: SaveConfigEntryDto) {
     await this.ensureUniqueConfig(dto.namespace, dto.configKey, undefined);
+    this.validateConfigForStatus(
+      dto.namespace,
+      dto.configKey,
+      dto.valueJson,
+      dto.status,
+    );
 
     const item = this.appConfigRepository.create({
       namespace: dto.namespace.trim(),
@@ -469,6 +501,12 @@ export class AdminContentService {
   async updateConfig(id: string, dto: SaveConfigEntryDto) {
     const item = await this.getConfigOrThrow(id);
     await this.ensureUniqueConfig(dto.namespace, dto.configKey, id);
+    this.validateConfigForStatus(
+      dto.namespace,
+      dto.configKey,
+      dto.valueJson,
+      dto.status,
+    );
 
     item.namespace = dto.namespace.trim();
     item.configKey = dto.configKey.trim();
@@ -489,6 +527,12 @@ export class AdminContentService {
 
   async changeConfigStatus(id: string, status: string) {
     const item = await this.getConfigOrThrow(id);
+    this.validateConfigForStatus(
+      item.namespace,
+      item.configKey,
+      item.valueJson,
+      status,
+    );
     this.applyLifecycleStatus(item, status);
     const saved = await this.appConfigRepository.save(item);
     await this.auditResource('config.status', 'config', saved.id, {
@@ -639,6 +683,128 @@ export class AdminContentService {
     if (existing && existing.id !== currentId) {
       throw new BadRequestException('同命名空间下已存在相同配置 key，请改为编辑');
     }
+  }
+
+  private validateConfigForStatus(
+    namespace: string,
+    configKey: string,
+    valueJson: Record<string, unknown>,
+    status: string,
+  ) {
+    if (
+      status !== 'published' ||
+      namespace.trim() !== 'home' ||
+      configKey.trim() !== 'index_layout'
+    ) {
+      return;
+    }
+
+    this.validateHomeIndexLayoutConfig(valueJson);
+  }
+
+  private validateHomeIndexLayoutConfig(valueJson: unknown) {
+    const value = this.asRecord(valueJson);
+    const sections = Array.isArray(value.sections) ? value.sections : [];
+    const quickTools = Array.isArray(value.quickTools) ? value.quickTools : [];
+    const grayPercent = Number(value.grayPercent ?? 100);
+
+    if (!Number.isFinite(grayPercent) || grayPercent < 0 || grayPercent > 100) {
+      throw new BadRequestException('首页配置 grayPercent 必须在 0-100 之间');
+    }
+
+    if (!sections.length) {
+      throw new BadRequestException('首页配置至少需要一个模块');
+    }
+
+    this.ensureUniquePlainIds(
+      '首页模块',
+      sections.map((item) => this.pickPlainString(this.asRecord(item).id, '')),
+    );
+
+    for (const entry of sections) {
+      const section = this.asRecord(entry);
+      const id = this.pickPlainString(section.id, '');
+      const order = Number(section.order);
+      const audience = Array.isArray(section.audience)
+        ? section.audience
+        : ['all'];
+
+      if (!HOME_LAYOUT_SECTION_IDS.has(id)) {
+        throw new BadRequestException(`首页模块 ID 不合法：${id || '空'}`);
+      }
+
+      if (!Number.isFinite(order)) {
+        throw new BadRequestException(`首页模块「${id}」排序必须是数字`);
+      }
+
+      if (
+        section.maxItems !== undefined &&
+        (!Number.isFinite(Number(section.maxItems)) ||
+          Number(section.maxItems) < 1 ||
+          Number(section.maxItems) > 12)
+      ) {
+        throw new BadRequestException(`首页模块「${id}」最大条数必须在 1-12 之间`);
+      }
+
+      for (const item of audience) {
+        const key = this.pickPlainString(item, '');
+        if (!HOME_LAYOUT_AUDIENCE_KEYS.has(key)) {
+          throw new BadRequestException(`首页模块「${id}」适用人群不合法：${key}`);
+        }
+      }
+    }
+
+    this.ensureUniquePlainIds(
+      '快捷工具',
+      quickTools.map((item) => this.pickPlainString(this.asRecord(item).id, '')),
+    );
+
+    for (const entry of quickTools) {
+      const tool = this.asRecord(entry);
+      const id = this.pickPlainString(tool.id, '');
+      const icon = this.pickPlainString(tool.icon, '');
+      const route = this.pickPlainString(tool.route, '');
+      const order = Number(tool.order);
+      const enabled = tool.enabled !== false;
+
+      if (!HOME_QUICK_TOOL_ICONS.has(icon)) {
+        throw new BadRequestException(`快捷工具「${id}」图标不合法：${icon}`);
+      }
+
+      if (enabled && !route) {
+        throw new BadRequestException(`快捷工具「${id}」缺少路由`);
+      }
+
+      if (!Number.isFinite(order)) {
+        throw new BadRequestException(`快捷工具「${id}」排序必须是数字`);
+      }
+    }
+  }
+
+  private ensureUniquePlainIds(label: string, ids: string[]) {
+    const seen = new Set<string>();
+
+    for (const id of ids) {
+      if (!id) {
+        throw new BadRequestException(`${label} ID 不能为空`);
+      }
+
+      if (seen.has(id)) {
+        throw new BadRequestException(`${label} ID 重复：${id}`);
+      }
+
+      seen.add(id);
+    }
+  }
+
+  private asRecord(value: unknown) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  }
+
+  private pickPlainString(value: unknown, fallback: string) {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
   }
 
   private async getContentOrThrow(id: string) {

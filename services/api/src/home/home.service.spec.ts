@@ -22,6 +22,7 @@ describe('HomeService current state score', () => {
       { isMembershipActive: jest.fn(() => false) } as never,
       { find: jest.fn(async () => options.records ?? []) } as never,
       { find: jest.fn(async () => options.moods ?? []) } as never,
+      { findOne: jest.fn(async () => null) } as never,
     );
 
   const user = {

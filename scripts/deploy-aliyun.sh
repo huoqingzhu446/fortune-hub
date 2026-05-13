@@ -36,6 +36,28 @@ load_env() {
   DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
   SSL_CERT_SOURCE="${SSL_CERT_SOURCE:-}"
   SSL_KEY_SOURCE="${SSL_KEY_SOURCE:-}"
+  DB_SYNCHRONIZE="${DB_SYNCHRONIZE:-false}"
+  MYSQL_PASSWORD="${MYSQL_PASSWORD:-}"
+  MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-}"
+  ADMIN_USERNAME="${ADMIN_USERNAME:-}"
+  ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+  SMS_PROVIDER="${SMS_PROVIDER:-}"
+  SMS_MOCK_ENABLED="${SMS_MOCK_ENABLED:-false}"
+  PAYMENT_MODE="${PAYMENT_MODE:-disabled}"
+}
+
+validate_env() {
+  [[ "$DB_SYNCHRONIZE" != "true" ]] || die '生产部署禁止 DB_SYNCHRONIZE=true，请使用 migration'
+  [[ -n "$MYSQL_PASSWORD" ]] || die 'MYSQL_PASSWORD 未配置'
+  [[ -n "$MYSQL_ROOT_PASSWORD" ]] || die 'MYSQL_ROOT_PASSWORD 未配置'
+  [[ "$MYSQL_PASSWORD" != "fortune123" ]] || die 'MYSQL_PASSWORD 不能使用默认弱密码 fortune123'
+  [[ "$MYSQL_ROOT_PASSWORD" != "root123456" ]] || die 'MYSQL_ROOT_PASSWORD 不能使用默认弱密码 root123456'
+  [[ -n "$ADMIN_USERNAME" ]] || die 'ADMIN_USERNAME 未配置'
+  [[ -n "$ADMIN_PASSWORD" ]] || die 'ADMIN_PASSWORD 未配置'
+  [[ "$ADMIN_PASSWORD" != "fortune123" ]] || die 'ADMIN_PASSWORD 不能使用默认弱密码 fortune123'
+  [[ "$SMS_PROVIDER" != "mock" ]] || die '生产部署禁止 SMS_PROVIDER=mock'
+  [[ "$SMS_MOCK_ENABLED" != "true" ]] || die '生产部署禁止 SMS_MOCK_ENABLED=true'
+  [[ "$PAYMENT_MODE" != "mock" ]] || die '生产部署禁止 PAYMENT_MODE=mock'
 }
 
 ensure_docker() {
@@ -131,12 +153,14 @@ main() {
   case "$ACTION" in
     deploy)
       load_env
+      validate_env
       prepare_ssl
       render_nginx
       docker_up
       ;;
     pull-and-deploy)
       load_env
+      validate_env
       git_update
       prepare_ssl
       render_nginx
@@ -144,6 +168,7 @@ main() {
       ;;
     render-nginx)
       load_env
+      validate_env
       prepare_ssl
       render_nginx
       ;;

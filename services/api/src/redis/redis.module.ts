@@ -16,6 +16,12 @@ import { RedisService } from './redis.service';
           port: configService.get<number>('REDIS_PORT', 6379),
           lazyConnect: true,
           maxRetriesPerRequest: 1,
+          enableReadyCheck: true,
+          retryStrategy: (times) => Math.min(times * 100, 3000),
+          reconnectOnError: (error) => {
+            const message = error.message.toLowerCase();
+            return message.includes('readonly') || message.includes('connection');
+          },
         }),
     },
     RedisService,

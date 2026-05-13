@@ -9,6 +9,11 @@ import { AdminOpsService } from './admin-ops.service';
 export class AdminOpsController {
   constructor(private readonly adminOpsService: AdminOpsService) {}
 
+  @Get('release-readiness')
+  getReleaseReadiness() {
+    return this.adminOpsService.getReleaseReadiness();
+  }
+
   @Get('users')
   listUsers(
     @Query('keyword') keyword?: string,

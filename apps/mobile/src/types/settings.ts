@@ -54,8 +54,23 @@ export interface SettingsData {
     feedbackCategories: Array<{ label: string; value: string }>;
     notificationScenes: Array<{ scene: string; title: string; enabled: boolean }>;
   };
-  compliance: Record<string, unknown>;
+  compliance: EmotionComplianceConfig;
   consents: UserConsentItem[];
+}
+
+export interface EmotionComplianceConfig {
+  disclaimer?: string;
+  emergencyTitle?: string;
+  emergencyText?: string;
+  highRiskTitle?: string;
+  highRiskText?: string;
+  hotlines?: Array<{
+    region?: string;
+    name: string;
+    phone: string;
+    type?: string;
+  }>;
+  [key: string]: unknown;
 }
 
 export interface SubmitFeedbackPayload {
@@ -65,6 +80,11 @@ export interface SubmitFeedbackPayload {
   source?: string;
   clientInfo?: Record<string, unknown>;
   attachments?: FeedbackAttachment[];
+}
+
+export interface SubmitDataDeletionRequestPayload {
+  reason?: string;
+  clientInfo?: Record<string, unknown>;
 }
 
 export interface SubscribeNotificationPayload {

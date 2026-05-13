@@ -53,6 +53,10 @@ import { SettingsModule } from './settings/settings.module';
 import { DivinationModule } from './divination/divination.module';
 import { UsersModule } from './users/users.module';
 import { ZodiacModule } from './zodiac/zodiac.module';
+import {
+  assertProductionConfig,
+  warnIfUnsafeDevelopmentConfig,
+} from './common/production-config.validator';
 
 @Module({
   imports: [
@@ -62,51 +66,54 @@ import { ZodiacModule } from './zodiac/zodiac.module';
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql' as const,
-        host: configService.get<string>('MYSQL_HOST', '127.0.0.1'),
-        port: configService.get<number>('MYSQL_PORT', 3306),
-        username: configService.get<string>('MYSQL_USER', 'fortune'),
-        password: configService.get<string>('MYSQL_PASSWORD', 'fortune123'),
-        database: configService.get<string>('MYSQL_DATABASE', 'fortune_hub'),
-        entities: [
-          AssessmentSessionEntity,
-          AssessmentQuestionEntity,
-          AssessmentTestConfigEntity,
-          AssessmentTestGroupEntity,
-          DivinationReviewEntity,
-          FavoriteEntity,
-          FeedbackEntity,
-          UserEntity,
-          UserConsentEntity,
-          UserMetricSnapshotEntity,
-          UserRecordEntity,
-          MoodRecordEntity,
-          MeditationRecordEntity,
-          DailyPulseRecordEntity,
-          BreathingRecordEntity,
-          FortuneContentEntity,
-          LuckyItemEntity,
-          AppConfigEntity,
-          ReportTemplateEntity,
-          MembershipProductEntity,
-          OrderEntity,
-          AdConfigEntity,
-          ShareRecordEntity,
-          PushSubscriptionEntity,
-          PushDeliveryLogEntity,
-          AuditLogEntity,
-          ReportTemplateVersionEntity,
-          PosterJobEntity,
-        ],
-        autoLoadEntities: true,
-        migrations: ['dist/database/migrations/*.js'],
-        migrationsRun: configService.get<string>('DB_RUN_MIGRATIONS', 'false') === 'true',
-        synchronize: configService.get<string>('DB_SYNCHRONIZE')
-          ? configService.get<string>('DB_SYNCHRONIZE') === 'true'
-          : configService.get<string>('NODE_ENV') !== 'production',
-        timezone: 'Z',
-      }),
+      useFactory: (configService: ConfigService) => {
+        assertProductionConfig(configService);
+        warnIfUnsafeDevelopmentConfig(configService);
+
+        return {
+          type: 'mysql' as const,
+          host: configService.get<string>('MYSQL_HOST', '127.0.0.1'),
+          port: configService.get<number>('MYSQL_PORT', 3306),
+          username: configService.get<string>('MYSQL_USER', 'fortune'),
+          password: configService.get<string>('MYSQL_PASSWORD', ''),
+          database: configService.get<string>('MYSQL_DATABASE', 'fortune_hub'),
+          entities: [
+            AssessmentSessionEntity,
+            AssessmentQuestionEntity,
+            AssessmentTestConfigEntity,
+            AssessmentTestGroupEntity,
+            DivinationReviewEntity,
+            FavoriteEntity,
+            FeedbackEntity,
+            UserEntity,
+            UserConsentEntity,
+            UserMetricSnapshotEntity,
+            UserRecordEntity,
+            MoodRecordEntity,
+            MeditationRecordEntity,
+            DailyPulseRecordEntity,
+            BreathingRecordEntity,
+            FortuneContentEntity,
+            LuckyItemEntity,
+            AppConfigEntity,
+            ReportTemplateEntity,
+            MembershipProductEntity,
+            OrderEntity,
+            AdConfigEntity,
+            ShareRecordEntity,
+            PushSubscriptionEntity,
+            PushDeliveryLogEntity,
+            AuditLogEntity,
+            ReportTemplateVersionEntity,
+            PosterJobEntity,
+          ],
+          autoLoadEntities: true,
+          migrations: ['dist/database/migrations/*.js'],
+          migrationsRun: configService.get<string>('DB_RUN_MIGRATIONS', 'false') === 'true',
+          synchronize: configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',
+          timezone: 'Z',
+        };
+      },
     }),
     RedisModule,
     AdminAuthModule,

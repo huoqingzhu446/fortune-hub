@@ -88,9 +88,16 @@ export class AdminAuthService {
   }
 
   private getConfiguredAdmin() {
+    const username = this.configService.get<string>('ADMIN_USERNAME', '').trim();
+    const password = this.configService.get<string>('ADMIN_PASSWORD', '').trim();
+
+    if (!username || !password) {
+      throw new UnauthorizedException('管理员账号未配置，请联系系统管理员');
+    }
+
     return {
-      username: this.configService.get<string>('ADMIN_USERNAME', 'admin'),
-      password: this.configService.get<string>('ADMIN_PASSWORD', 'fortune123'),
+      username,
+      password,
       displayName: this.configService.get<string>('ADMIN_DISPLAY_NAME', 'Fortune Hub 管理员'),
     };
   }

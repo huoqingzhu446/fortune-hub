@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
@@ -16,9 +17,18 @@ export class OrdersService {
     private readonly orderRepository: Repository<OrderEntity>,
     private readonly membershipService: MembershipService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createOrder(user: UserEntity, dto: CreateOrderDto) {
+    const paymentMode = this.resolvePaymentMode();
+    if (paymentMode === 'disabled') {
+      throw new BadRequestException('会员支付暂未开放，请稍后再试');
+    }
+    if (paymentMode === 'wechat') {
+      throw new BadRequestException('微信支付尚未接入，请先完成正式支付配置');
+    }
+
     const product = await this.membershipService.getProductByCodeOrThrow(dto.productCode);
     const order = await this.orderRepository.save(
       this.orderRepository.create({
@@ -40,13 +50,18 @@ export class OrdersService {
       message: 'ok',
       data: {
         order: this.serializeOrder(order),
-        payHint: '当前为开发期模拟支付，前端可调用支付回调接口完成状态流转。',
+        payMode: paymentMode,
+        payHint: '当前为开发环境模拟支付，仅用于本地联调。',
       },
       timestamp: new Date().toISOString(),
     };
   }
 
   async handlePayCallback(orderNo: string, dto: OrderPayCallbackDto) {
+    if (this.resolvePaymentMode() !== 'mock') {
+      throw new BadRequestException('当前环境不允许模拟支付回调');
+    }
+
     const order = await this.orderRepository.findOne({
       where: { orderNo },
     });
@@ -117,5 +132,28 @@ export class OrdersService {
 
   private generateOrderNo() {
     return `FH${Date.now()}${randomBytes(4).toString('hex')}`.toUpperCase();
+  }
+
+  private resolvePaymentMode() {
+    const configuredMode = this.configService
+      .get<string>(
+        'PAYMENT_MODE',
+        this.configService.get<string>('NODE_ENV') === 'production' ? 'disabled' : 'mock',
+      )
+      .trim()
+      .toLowerCase();
+    const mockEnabled =
+      this.configService.get<string>('PAYMENT_MOCK_ENABLED', 'false') === 'true';
+    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+
+    if (!isProduction && (configuredMode === 'mock' || mockEnabled)) {
+      return 'mock';
+    }
+
+    if (configuredMode === 'wechat') {
+      return 'wechat';
+    }
+
+    return 'disabled';
   }
 }

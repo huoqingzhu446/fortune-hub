@@ -33,7 +33,15 @@
 
     <view class="panel panel--soft">
       <text class="section-title">当前边界</text>
-      <text class="summary">情绪自检结果仅用于自我观察，不构成医学诊断。正式上线前，仍需要补充更完整的法务文案、授权页与删除机制。</text>
+      <text class="summary">情绪自检结果仅用于自我观察，不构成医学诊断。隐私政策正式文本仍需由项目方确认，数据删除/注销申请可先通过下方入口进入人工处理。</text>
+    </view>
+
+    <view class="panel">
+      <text class="section-title">数据删除与注销</text>
+      <text class="summary">提交后会生成一条高优先级处理工单，人工完成身份核验、数据影响确认和结果通知。</text>
+      <button class="danger-button" :loading="deletionLoading" @tap="requestDataDeletion">
+        申请删除个人数据
+      </button>
     </view>
   </view>
 </template>
@@ -41,7 +49,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { agreeConsent, fetchSettings, revokeConsent } from '../../../api/settings';
+import {
+  agreeConsent,
+  fetchSettings,
+  revokeConsent,
+  submitDataDeletionRequest,
+} from '../../../api/settings';
 import { useThemePreference } from '../../../composables/useThemePreference';
 import { getAuthToken } from '../../../services/session';
 import type { UserConsentItem } from '../../../types/settings';
@@ -51,6 +64,7 @@ const privacyVersion = ref('2026-04-25');
 const privacySummary = ref('用于登录、保存历史、同步偏好、发送订阅提醒与处理反馈。');
 const consents = ref<UserConsentItem[]>([]);
 const loading = ref(false);
+const deletionLoading = ref(false);
 
 const latestPrivacyConsent = computed(() =>
   consents.value.find((item) => item.consentType === 'privacy'),
@@ -104,6 +118,51 @@ async function toggleConsent() {
   } finally {
     loading.value = false;
   }
+}
+
+async function requestDataDeletion() {
+  if (!getAuthToken()) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none',
+    });
+    return;
+  }
+
+  uni.showModal({
+    title: '确认提交申请',
+    content: '提交后客服会核验身份并处理个人数据删除/注销申请，处理期间部分功能可能受影响。',
+    confirmText: '提交申请',
+    confirmColor: '#d92d20',
+    success: async (result) => {
+      if (!result.confirm) {
+        return;
+      }
+
+      try {
+        deletionLoading.value = true;
+        await submitDataDeletionRequest({
+          reason: '用户从隐私页主动提交个人数据删除/注销申请',
+          clientInfo: {
+            privacyVersion: privacyVersion.value,
+            sourcePage: 'settings/privacy',
+          },
+        });
+        uni.showToast({
+          title: '申请已提交',
+          icon: 'success',
+        });
+      } catch (error) {
+        console.warn('submit data deletion request failed', error);
+        uni.showToast({
+          title: '提交失败，请稍后再试',
+          icon: 'none',
+        });
+      } finally {
+        deletionLoading.value = false;
+      }
+    },
+  });
 }
 
 onShow(() => {
@@ -180,6 +239,19 @@ onShow(() => {
 }
 
 .hero-button::after {
+  border: none;
+}
+
+.danger-button {
+  min-height: 82rpx;
+  border-radius: 999rpx;
+  line-height: 82rpx;
+  font-size: 28rpx;
+  color: #ffffff;
+  background: #d92d20;
+}
+
+.danger-button::after {
   border: none;
 }
 </style>

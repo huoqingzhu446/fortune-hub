@@ -28,7 +28,7 @@ describe('App health (e2e)', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('http://www.yuanlian.xin:3000/api'),
+            get: jest.fn((_key: string, fallback?: string) => fallback ?? ''),
           },
         },
       ],

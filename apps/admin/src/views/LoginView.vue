@@ -43,8 +43,8 @@ const router = useRouter();
 const adminSessionStore = useAdminSessionStore();
 const submitting = ref(false);
 const form = reactive({
-  username: 'admin',
-  password: 'fortune123',
+  username: '',
+  password: '',
 });
 
 async function handleLogin() {

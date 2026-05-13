@@ -161,7 +161,7 @@ export class SmsCodeService {
 
   private createCode() {
     if (this.isMockProvider()) {
-      return this.configService.get<string>('SMS_MOCK_CODE', '123456');
+      return this.getConfigValue('SMS_MOCK_CODE', '123456') || '123456';
     }
 
     return String(randomInt(100000, 999999));
@@ -194,6 +194,10 @@ export class SmsCodeService {
     const isProduction =
       this.configService.get<string>('NODE_ENV', 'development') ===
       'production';
+
+    if (isProduction) {
+      return false;
+    }
 
     return provider === 'mock' || mockEnabled || (!provider && !isProduction);
   }

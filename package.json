@@ -15,6 +15,7 @@
     "build": "pnpm build:mobile && pnpm build:mobile:h5 && pnpm build:admin && pnpm build:api",
     "type-check:mobile": "pnpm --filter @fortune-hub/mobile type-check",
     "test:api": "pnpm --filter @fortune-hub/api test",
+    "health:prod": "bash scripts/check-production-health.sh",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down"
   }

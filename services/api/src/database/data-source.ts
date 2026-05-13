@@ -34,7 +34,7 @@ export default new DataSource({
   host: process.env.MYSQL_HOST || '127.0.0.1',
   port: Number(process.env.MYSQL_PORT || 3306),
   username: process.env.MYSQL_USER || 'fortune',
-  password: process.env.MYSQL_PASSWORD || 'fortune123',
+  password: process.env.MYSQL_PASSWORD || '',
   database: process.env.MYSQL_DATABASE || 'fortune_hub',
   timezone: 'Z',
   synchronize: false,

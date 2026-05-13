@@ -2038,7 +2038,9 @@ export class PostersService {
     const query = queryParts.join('?');
 
     if (!query) {
-      return (route || 'pages/index/index').slice(0, 1024);
+      const resolvedPath = (route || 'pages/index/index').slice(0, 1024);
+      this.assertValidMiniProgramPath(resolvedPath);
+      return resolvedPath;
     }
 
     const filteredQuery = query
@@ -2049,9 +2051,80 @@ export class PostersService {
       })
       .join('&');
 
-    return `${route || 'pages/index/index'}${filteredQuery ? `?${filteredQuery}` : ''}`.slice(
+    const resolvedPath = `${route || 'pages/index/index'}${filteredQuery ? `?${filteredQuery}` : ''}`.slice(
       0,
       1024,
+    );
+    this.assertValidMiniProgramPath(resolvedPath);
+
+    return resolvedPath;
+  }
+
+  private assertValidMiniProgramPath(path: string) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(path) || path.includes('//')) {
+      throw new BadRequestException('小程序码 path 不能包含协议或外链地址');
+    }
+
+    if (path.includes('#')) {
+      throw new BadRequestException('小程序码 path 不能包含 hash 片段');
+    }
+
+    const [route, query = ''] = path.split('?');
+
+    if (!route || route.includes('..') || !/^[A-Za-z0-9_/-]+$/.test(route)) {
+      throw new BadRequestException('小程序码 path 路由格式不正确');
+    }
+
+    if (!route.startsWith('pages/')) {
+      throw new BadRequestException('小程序码 path 必须指向 pages 目录');
+    }
+
+    if (query) {
+      for (const part of query.split('&')) {
+        if (!part) {
+          continue;
+        }
+
+        const [rawKey] = part.split('=');
+        const key = this.safeDecodeURIComponent(rawKey);
+
+        if (!key || key === 'scancode_time' || !/^[A-Za-z0-9_-]+$/.test(key)) {
+          throw new BadRequestException('小程序码 path 查询参数格式不正确');
+        }
+      }
+    }
+
+    if (
+      this.configService.get<string>('POSTER_WXACODE_STRICT_PATH', 'false') ===
+      'true'
+    ) {
+      const allowedPages = this.resolveAllowedMiniProgramPages();
+
+      if (!allowedPages.has(route)) {
+        throw new BadRequestException('小程序码 path 不在允许页面列表中');
+      }
+    }
+  }
+
+  private resolveAllowedMiniProgramPages() {
+    const configuredPages = this.pickString(
+      this.configService.get<string>('POSTER_WXACODE_ALLOWED_PAGES'),
+      '',
+    );
+    const pages = configuredPages
+      ? configuredPages.split(',')
+      : [
+          'pages/index/index',
+          'pages/zodiac/index',
+          'pages/lucky/sign/index',
+          'pages/divination/index/index',
+          'pages/report/index',
+        ];
+
+    return new Set(
+      pages
+        .map((page) => this.normalizeMiniProgramPage(page.trim()))
+        .filter(Boolean),
     );
   }
 

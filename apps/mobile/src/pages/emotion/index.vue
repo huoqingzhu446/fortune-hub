@@ -50,23 +50,20 @@
 
     <view v-if="screen === 'list'" class="safety-strip">
       <view>
-        <text class="safety-strip__title">🆘 需要立即帮助？</text>
-        <text class="safety-strip__text">
-          如果已经持续失眠、明显失控，或出现伤害自己的想法，请立即拨打以下热线：
-        </text>
+        <text class="safety-strip__title">{{ safetyStripTitle }}</text>
+        <text class="safety-strip__text">{{ safetyStripText }}</text>
       </view>
-      <view class="hotline-list">
-        <view class="hotline-item" @tap="callHotline('4001619995')">
-          <text class="hotline-item__name">全国心理援助热线</text>
-          <text class="hotline-item__phone">400-161-9995</text>
-        </view>
-        <view class="hotline-item" @tap="callHotline('01082951332')">
-          <text class="hotline-item__name">北京心理危机干预中心</text>
-          <text class="hotline-item__phone">010-82951332</text>
-        </view>
-        <view class="hotline-item" @tap="callHotline('4008211215')">
-          <text class="hotline-item__name">生命热线 (24小时)</text>
-          <text class="hotline-item__phone">400-821-1215</text>
+      <view v-if="complianceHotlines.length" class="hotline-list">
+        <view
+          v-for="item in complianceHotlines"
+          :key="`${item.name}-${item.phone}`"
+          class="hotline-item"
+          @tap="callHotline(item.phone)"
+        >
+          <text class="hotline-item__name">
+            {{ item.region ? `${item.region} · ` : '' }}{{ item.name }}
+          </text>
+          <text class="hotline-item__phone">{{ item.phone }}</text>
         </view>
       </view>
       <text class="safety-strip__alt">如果还不想打电话，也可以试试</text>
@@ -268,8 +265,18 @@
         <text class="tips-panel__text">{{ latestResult.supportSignal }}</text>
       </view>
 
+      <view v-if="shouldShowCrisisPanel" class="crisis-panel">
+        <text class="crisis-panel__title">{{ crisisPanelTitle }}</text>
+        <text class="crisis-panel__text">{{ crisisPanelText }}</text>
+        <view v-if="complianceHotlines.length" class="hotline-list">
+          <text v-for="item in complianceHotlines" :key="`result-${item.name}-${item.phone}`" class="hotline-item">
+            {{ item.region ? `${item.region} · ` : '' }}{{ item.name }}：{{ item.phone }}
+          </text>
+        </view>
+      </view>
+
       <view class="notice-inline">
-        <text>{{ latestResult.disclaimer }}</text>
+        <text>{{ complianceDisclaimer || latestResult.disclaimer }}</text>
       </view>
 
       <view class="poster-panel">
@@ -328,6 +335,7 @@ import {
   fetchEmotionTests,
   submitEmotionAssessment,
 } from '../../api/emotion';
+import { fetchSettings } from '../../api/settings';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
 import { getAuthToken } from '../../services/session';
@@ -337,9 +345,25 @@ import type {
   EmotionTestDetail,
   EmotionTestSummary,
 } from '../../types/emotion';
+import type { EmotionComplianceConfig } from '../../types/settings';
 
 type ScreenMode = 'list' | 'quiz' | 'result';
 type StatusTone = 'neutral' | 'ready' | 'watch' | 'support' | 'urgent' | 'loading';
+type HotlineItem = NonNullable<EmotionComplianceConfig['hotlines']>[number];
+
+const DEFAULT_EMOTION_COMPLIANCE: EmotionComplianceConfig = {
+  disclaimer: '情绪自检仅用于自我观察，不构成医学诊断、治疗建议或危机干预服务。',
+  emergencyTitle: '如你正处于危险中，请立刻联系线下紧急援助',
+  emergencyText:
+    '如果你有立即伤害自己或他人的风险，请马上联系身边可信任的人、拨打当地紧急电话，或前往最近的急诊/精神卫生机构。',
+  highRiskTitle: '建议尽快寻求真人支持',
+  highRiskText:
+    '如果近期持续感到强烈痛苦、失眠、失控或有自伤念头，请尽快联系亲友陪伴，并寻求专业心理咨询、精神科或当地危机热线支持。',
+  hotlines: [
+    { region: '中国大陆', name: '紧急医疗救助', phone: '120', type: 'emergency' },
+    { region: '中国大陆', name: '公安报警', phone: '110', type: 'emergency' },
+  ],
+};
 
 const screen = ref<ScreenMode>('list');
 const tests = ref<EmotionTestSummary[]>([]);
@@ -357,6 +381,7 @@ const loadingDetailCode = ref('');
 const submitting = ref(false);
 const answering = ref(false);
 const authToken = ref(getAuthToken());
+const emotionCompliance = ref<EmotionComplianceConfig>({ ...DEFAULT_EMOTION_COMPLIANCE });
 const {
   favoriteActive,
   favoriteLoading,
@@ -563,11 +588,61 @@ const statusMetrics = computed(() => [
     hint: suggestedAction.value.hint,
   },
 ]);
+const complianceDisclaimer = computed(() => pickComplianceString(emotionCompliance.value.disclaimer));
+const complianceHotlines = computed(() => normalizeHotlines(emotionCompliance.value.hotlines));
+const safetyStripTitle = computed(
+  () =>
+    pickComplianceString(emotionCompliance.value.emergencyTitle) ??
+    DEFAULT_EMOTION_COMPLIANCE.emergencyTitle ??
+    '安全优先',
+);
+const safetyStripText = computed(
+  () =>
+    pickComplianceString(emotionCompliance.value.emergencyText) ??
+    DEFAULT_EMOTION_COMPLIANCE.emergencyText ??
+    '',
+);
+const shouldShowCrisisPanel = computed(() =>
+  ['support', 'urgent'].includes(latestResult.value?.riskLevel ?? ''),
+);
+const crisisPanelTitle = computed(() => {
+  if (latestResult.value?.riskLevel === 'urgent') {
+    return safetyStripTitle.value;
+  }
+
+  return (
+    pickComplianceString(emotionCompliance.value.highRiskTitle) ??
+    DEFAULT_EMOTION_COMPLIANCE.highRiskTitle ??
+    '建议尽快寻求真人支持'
+  );
+});
+const crisisPanelText = computed(() => {
+  if (latestResult.value?.riskLevel === 'urgent') {
+    return safetyStripText.value;
+  }
+
+  return (
+    pickComplianceString(emotionCompliance.value.highRiskText) ??
+    DEFAULT_EMOTION_COMPLIANCE.highRiskText ??
+    ''
+  );
+});
 
 async function bootstrap() {
   authToken.value = getAuthToken();
+  await loadEmotionCompliance();
   await loadTests();
   await loadHistory();
+}
+
+async function loadEmotionCompliance() {
+  try {
+    const response = await fetchSettings();
+    emotionCompliance.value = normalizeComplianceConfig(response.data.compliance);
+  } catch (error) {
+    console.warn('load emotion compliance failed', error);
+    emotionCompliance.value = { ...DEFAULT_EMOTION_COMPLIANCE };
+  }
 }
 
 async function loadTests() {
@@ -744,6 +819,9 @@ async function submitEmotionCheck() {
   try {
     submitting.value = true;
     const response = await submitEmotionAssessment(activeTest.value.code, payload);
+    emotionCompliance.value = normalizeComplianceConfig(
+      response.data.result.compliance ?? emotionCompliance.value,
+    );
     latestResult.value = response.data.result;
     latestTest.value = response.data.test;
     latestSubmitSaved.value = response.data.isSaved;
@@ -774,6 +852,61 @@ async function submitEmotionCheck() {
   } finally {
     submitting.value = false;
   }
+}
+
+function normalizeComplianceConfig(value: unknown): EmotionComplianceConfig {
+  const record = asRecord(value);
+  const hotlinesSource = Array.isArray(record.hotlines)
+    ? record.hotlines
+    : Array.isArray(record.resources)
+      ? record.resources
+      : DEFAULT_EMOTION_COMPLIANCE.hotlines;
+
+  return {
+    ...DEFAULT_EMOTION_COMPLIANCE,
+    ...record,
+    disclaimer:
+      pickComplianceString(record.disclaimer) ?? DEFAULT_EMOTION_COMPLIANCE.disclaimer,
+    emergencyTitle:
+      pickComplianceString(record.emergencyTitle) ??
+      pickComplianceString(record.crisisTitle) ??
+      DEFAULT_EMOTION_COMPLIANCE.emergencyTitle,
+    emergencyText:
+      pickComplianceString(record.emergencyText) ??
+      pickComplianceString(record.crisisMessage) ??
+      DEFAULT_EMOTION_COMPLIANCE.emergencyText,
+    highRiskTitle:
+      pickComplianceString(record.highRiskTitle) ?? DEFAULT_EMOTION_COMPLIANCE.highRiskTitle,
+    highRiskText:
+      pickComplianceString(record.highRiskText) ?? DEFAULT_EMOTION_COMPLIANCE.highRiskText,
+    hotlines: normalizeHotlines(hotlinesSource),
+  };
+}
+
+function normalizeHotlines(value: unknown): HotlineItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => asRecord(item))
+    .map((item) => ({
+      region: pickComplianceString(item.region) ?? '',
+      name: pickComplianceString(item.name) ?? '',
+      phone: pickComplianceString(item.phone) ?? '',
+      type: pickComplianceString(item.type) ?? '',
+    }))
+    .filter((item) => item.name && item.phone);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function pickComplianceString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
 async function toggleHealingFavorite() {
@@ -1050,6 +1183,9 @@ onShow(() => {
 .section-header__side,
 .safety-strip__title,
 .safety-strip__text,
+.crisis-panel__title,
+.crisis-panel__text,
+.hotline-item,
 .test-card__marker,
 .test-card__title,
 .test-card__subtitle,
@@ -1229,6 +1365,7 @@ onShow(() => {
 .history-card,
 .signal-panel,
 .tips-panel,
+.crisis-panel,
 .favorite-strip,
 .poster-panel {
   display: grid;
@@ -1242,11 +1379,40 @@ onShow(() => {
   background: #fff8eb;
 }
 
+.crisis-panel {
+  border-color: rgba(201, 88, 88, 0.18);
+  background: #fff0f0;
+}
+
 .safety-strip__title {
   margin-bottom: 6rpx;
   font-size: 28rpx;
   font-weight: 700;
   color: #7e5520;
+}
+
+.crisis-panel__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #9e3838;
+}
+
+.crisis-panel__text {
+  font-size: 25rpx;
+  line-height: 1.7;
+  color: #7f3a3a;
+}
+
+.hotline-list {
+  display: grid;
+  gap: 8rpx;
+  margin-top: 12rpx;
+}
+
+.hotline-item {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #7f3a3a;
 }
 
 .test-list,

@@ -1876,7 +1876,7 @@ export class HomeService {
         `http://localhost:${port}/api/v1`,
       fileServiceBaseUrl: this.configService.get<string>(
         'FILE_SERVICE_BASE_URL',
-        'http://www.yuanlian.xin:3000/api',
+        '',
       ),
       redisStatus: this.redisService.getStatus(),
     };

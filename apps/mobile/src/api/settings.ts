@@ -6,6 +6,7 @@ import type {
   FeedbackListResponse,
   FeedbackResponse,
   SettingsResponse,
+  SubmitDataDeletionRequestPayload,
   SubmitFeedbackPayload,
   UserConsentListResponse,
   UserConsentResponse,
@@ -17,6 +18,13 @@ export function fetchSettings() {
 
 export function submitFeedback(payload: SubmitFeedbackPayload) {
   return http.post<FeedbackResponse, SubmitFeedbackPayload>('/feedback', payload);
+}
+
+export function submitDataDeletionRequest(payload: SubmitDataDeletionRequestPayload) {
+  return http.post<FeedbackResponse, SubmitDataDeletionRequestPayload>(
+    '/me/data-deletion-requests',
+    payload,
+  );
 }
 
 export function fetchMyFeedback() {

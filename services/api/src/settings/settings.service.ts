@@ -13,6 +13,7 @@ import { FeedbackEntity } from '../database/entities/feedback.entity';
 import { UserConsentEntity } from '../database/entities/user-consent.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SubmitDataDeletionRequestDto } from './dto/submit-data-deletion-request.dto';
 import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
 import { UpdateConsentDto } from './dto/update-consent.dto';
 
@@ -29,6 +30,20 @@ const DEFAULT_SETTINGS_CONFIG = {
     { scene: 'daily_reminder', title: '每日幸运提醒', enabled: true },
     { scene: 'lucky_push', title: '幸运物推荐提醒', enabled: true },
     { scene: 'feedback_reply', title: '反馈处理回复', enabled: true },
+  ],
+};
+
+const DEFAULT_EMOTION_SUPPORT_CONFIG = {
+  disclaimer: '情绪自检仅用于自我观察，不构成医学诊断、治疗建议或危机干预服务。',
+  emergencyTitle: '如你正处于危险中，请立刻联系线下紧急援助',
+  emergencyText:
+    '如果你有立即伤害自己或他人的风险，请马上联系身边可信任的人、拨打当地紧急电话，或前往最近的急诊/精神卫生机构。',
+  highRiskTitle: '建议尽快寻求真人支持',
+  highRiskText:
+    '如果近期持续感到强烈痛苦、失眠、失控或有自伤念头，请尽快联系亲友陪伴，并寻求专业心理咨询、精神科或当地危机热线支持。',
+  hotlines: [
+    { region: '中国大陆', name: '紧急医疗救助', phone: '120', type: 'emergency' },
+    { region: '中国大陆', name: '公安报警', phone: '110', type: 'emergency' },
   ],
 };
 
@@ -64,7 +79,10 @@ export class SettingsService {
         ...DEFAULT_SETTINGS_CONFIG,
         ...settingsConfig,
       },
-      compliance: complianceConfig,
+      compliance: {
+        ...DEFAULT_EMOTION_SUPPORT_CONFIG,
+        ...complianceConfig,
+      },
       consents: user ? await this.listLatestConsents(user) : [],
     });
   }
@@ -302,6 +320,55 @@ export class SettingsService {
     });
   }
 
+  async submitDataDeletionRequest(user: UserEntity, dto: SubmitDataDeletionRequestDto) {
+    const reason = dto.reason?.trim();
+    const message = [
+      '用户提交个人数据删除/注销处理申请。',
+      reason ? `申请原因：${reason}` : '申请原因：未填写。',
+      '请运营/客服在处理前完成身份核验、数据影响确认和结果通知。',
+    ].join('\n');
+
+    const saved = await this.feedbackRepository.save(
+      this.feedbackRepository.create({
+        userId: user.id,
+        message,
+        contact: this.maskPhone(user.phone),
+        category: 'data_deletion',
+        source: 'mobile_privacy',
+        clientInfoJson: {
+          ...(dto.clientInfo ?? {}),
+          requestType: 'data_deletion',
+          privacyVersion: DEFAULT_SETTINGS_CONFIG.privacyVersion,
+        },
+        attachmentsJson: null,
+        status: 'open',
+        priority: 'high',
+        assignee: null,
+        adminNote: null,
+        adminReply: null,
+        repliedAt: null,
+        slaDueAt: this.resolveSlaDueAt('high'),
+        resolvedAt: null,
+      }),
+    );
+
+    await this.auditService.write({
+      actorType: 'user',
+      actorId: user.id,
+      action: 'privacy.data_deletion.request',
+      resourceType: 'feedback',
+      resourceId: saved.id,
+      payload: {
+        category: saved.category,
+        priority: saved.priority,
+      },
+    });
+
+    return this.buildEnvelope({
+      item: this.serializeFeedback(saved),
+    });
+  }
+
   async listMyConsents(user: UserEntity) {
     return this.buildEnvelope({
       items: await this.listLatestConsents(user),
@@ -524,8 +591,16 @@ export class SettingsService {
 
   private resolveFileServiceBaseUrl() {
     return this.configService
-      .get<string>('FILE_SERVICE_BASE_URL', 'http://www.yuanlian.xin:3000/api')
+      .get<string>('FILE_SERVICE_BASE_URL', '')
       .replace(/\/$/, '');
+  }
+
+  private maskPhone(phone?: string | null) {
+    if (!phone) {
+      return null;
+    }
+
+    return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
   }
 
   private resolveUploadedFileUrl(contentUrl: string, fileId?: string) {

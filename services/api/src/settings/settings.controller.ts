@@ -13,6 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { AuthService } from '../auth/auth.service';
+import { SubmitDataDeletionRequestDto } from './dto/submit-data-deletion-request.dto';
 import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
 import { UpdateConsentDto } from './dto/update-consent.dto';
 import { SettingsService } from './settings.service';
@@ -91,6 +92,15 @@ export class SettingsController {
   async listConsents(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireUserFromAuthorization(authorization);
     return this.settingsService.listMyConsents(user);
+  }
+
+  @Post('me/data-deletion-requests')
+  async submitDataDeletionRequest(
+    @Body() dto: SubmitDataDeletionRequestDto,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const user = await this.authService.requireUserFromAuthorization(authorization);
+    return this.settingsService.submitDataDeletionRequest(user, dto);
   }
 
   @Post('me/consents')

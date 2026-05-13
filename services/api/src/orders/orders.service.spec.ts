@@ -25,10 +25,16 @@ describe('OrdersService', () => {
         vipExpiredAt: new Date('2026-05-25T00:00:00Z'),
       })),
     };
+    const configService = {
+      get: jest.fn((key: string, fallback?: string) =>
+        key === 'NODE_ENV' ? 'development' : fallback,
+      ),
+    };
     const service = new OrdersService(
       orderRepo as never,
       membershipService as never,
       entitlementsService as never,
+      configService as never,
     );
     const user = { id: 'u1' };
 

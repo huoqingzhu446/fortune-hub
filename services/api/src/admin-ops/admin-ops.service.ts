@@ -2,12 +2,31 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ImageGenerationService } from '../common/image-generation.service';
+import { AppConfigEntity } from '../database/entities/app-config.entity';
+import { AssessmentQuestionEntity } from '../database/entities/assessment-question.entity';
+import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
+import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
+import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { MembershipProductEntity } from '../database/entities/membership-product.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
+import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { EntitlementsService } from '../entitlements/entitlements.service';
+
+export type ReleaseReadinessStatus = 'pass' | 'warn' | 'fail';
+
+export interface ReleaseReadinessItem {
+  key: string;
+  title: string;
+  status: ReleaseReadinessStatus;
+  actual: number;
+  expected: string;
+  owner: string;
+  action: string;
+}
 
 @Injectable()
 export class AdminOpsService {
@@ -22,9 +41,180 @@ export class AdminOpsService {
     private readonly pushDeliveryLogRepository: Repository<PushDeliveryLogEntity>,
     @InjectRepository(AuditLogEntity)
     private readonly auditLogRepository: Repository<AuditLogEntity>,
+    @InjectRepository(AppConfigEntity)
+    private readonly appConfigRepository: Repository<AppConfigEntity>,
+    @InjectRepository(AssessmentTestConfigEntity)
+    private readonly assessmentTestConfigRepository: Repository<AssessmentTestConfigEntity>,
+    @InjectRepository(AssessmentQuestionEntity)
+    private readonly assessmentQuestionRepository: Repository<AssessmentQuestionEntity>,
+    @InjectRepository(FortuneContentEntity)
+    private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
+    @InjectRepository(LuckyItemEntity)
+    private readonly luckyItemRepository: Repository<LuckyItemEntity>,
+    @InjectRepository(ReportTemplateEntity)
+    private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
+    @InjectRepository(MembershipProductEntity)
+    private readonly membershipProductRepository: Repository<MembershipProductEntity>,
     private readonly entitlementsService: EntitlementsService,
     private readonly imageGenerationService: ImageGenerationService,
   ) {}
+
+  async getReleaseReadiness() {
+    const [
+      personalityTests,
+      personalityQuestions,
+      emotionTests,
+      emotionQuestions,
+      fortuneContents,
+      luckySignContents,
+      luckyItems,
+      reportTemplates,
+      membershipProducts,
+      settingsConfig,
+      emotionComplianceConfig,
+    ] = await Promise.all([
+      this.assessmentTestConfigRepository.count({
+        where: { category: 'personality', status: 'published' },
+      }),
+      this.assessmentQuestionRepository.count({
+        where: { category: 'personality', status: 'published' },
+      }),
+      this.assessmentTestConfigRepository.count({
+        where: { category: 'emotion', status: 'published' },
+      }),
+      this.assessmentQuestionRepository.count({
+        where: { category: 'emotion', status: 'published' },
+      }),
+      this.fortuneContentRepository.count({
+        where: { status: 'published' },
+      }),
+      this.fortuneContentRepository.count({
+        where: { contentType: 'lucky_sign', status: 'published' },
+      }),
+      this.luckyItemRepository.count({
+        where: { status: 'published' },
+      }),
+      this.reportTemplateRepository.count({
+        where: { status: 'published' },
+      }),
+      this.membershipProductRepository.count({
+        where: { status: 'published' },
+      }),
+      this.appConfigRepository.count({
+        where: { namespace: 'settings', configKey: 'public', status: 'published' },
+      }),
+      this.appConfigRepository.count({
+        where: { namespace: 'compliance', configKey: 'emotion_support', status: 'published' },
+      }),
+    ]);
+
+    const items: ReleaseReadinessItem[] = [
+      this.buildReadinessItem({
+        key: 'assessment.personality.tests',
+        title: '性格测评已发布量表',
+        actual: personalityTests,
+        minimum: 1,
+        owner: '内容运营',
+        action: '在题库后台发布至少 1 套性格测评量表',
+      }),
+      this.buildReadinessItem({
+        key: 'assessment.personality.questions',
+        title: '性格测评已发布题目',
+        actual: personalityQuestions,
+        minimum: 3,
+        owner: '内容运营',
+        action: '补齐并发布性格测评题目',
+      }),
+      this.buildReadinessItem({
+        key: 'assessment.emotion.tests',
+        title: '情绪自检已发布量表',
+        actual: emotionTests,
+        minimum: 1,
+        owner: '内容运营',
+        action: '在题库后台发布至少 1 套情绪自检量表',
+      }),
+      this.buildReadinessItem({
+        key: 'assessment.emotion.questions',
+        title: '情绪自检已发布题目',
+        actual: emotionQuestions,
+        minimum: 3,
+        owner: '内容运营',
+        action: '补齐并发布情绪自检题目',
+      }),
+      this.buildReadinessItem({
+        key: 'content.fortune',
+        title: '运势内容已发布',
+        actual: fortuneContents,
+        minimum: 1,
+        owner: '内容运营',
+        action: '发布生肖、星座、塔罗或首页探索内容',
+      }),
+      this.buildReadinessItem({
+        key: 'content.lucky_sign',
+        title: '每日幸运签内容已发布',
+        actual: luckySignContents,
+        minimum: 1,
+        owner: '内容运营',
+        action: '发布 lucky_sign 类型内容',
+      }),
+      this.buildReadinessItem({
+        key: 'content.lucky_items',
+        title: '幸运物料已发布',
+        actual: luckyItems,
+        minimum: 1,
+        owner: '内容运营',
+        action: '发布至少 1 条幸运物料',
+      }),
+      this.buildReadinessItem({
+        key: 'report.templates',
+        title: '报告模板已发布',
+        actual: reportTemplates,
+        minimum: 1,
+        owner: '内容运营',
+        action: '发布正式报告模板',
+      }),
+      this.buildReadinessItem({
+        key: 'membership.products',
+        title: '会员商品已发布',
+        actual: membershipProducts,
+        minimum: 1,
+        owner: '运营/财务',
+        action: '发布至少 1 个会员商品并确认支付价格',
+      }),
+      this.buildReadinessItem({
+        key: 'config.settings_public',
+        title: '公开设置配置已发布',
+        actual: settingsConfig,
+        minimum: 1,
+        owner: '产品/法务',
+        action: '发布 settings/public 配置，确认隐私版本与反馈分类',
+        warnOnly: true,
+      }),
+      this.buildReadinessItem({
+        key: 'config.emotion_support',
+        title: '情绪自检合规配置已发布',
+        actual: emotionComplianceConfig,
+        minimum: 1,
+        owner: '产品/法务',
+        action: '发布 compliance/emotion_support 配置，确认热线与免责声明',
+        warnOnly: true,
+      }),
+    ];
+    const failCount = items.filter((item) => item.status === 'fail').length;
+    const warnCount = items.filter((item) => item.status === 'warn').length;
+
+    return this.buildEnvelope({
+      status: failCount ? 'fail' : warnCount ? 'warn' : 'pass',
+      summary: {
+        total: items.length,
+        pass: items.filter((item) => item.status === 'pass').length,
+        warn: warnCount,
+        fail: failCount,
+      },
+      items,
+      checkedAt: new Date().toISOString(),
+    });
+  }
 
   async listUsers(query: {
     keyword?: string;
@@ -423,6 +613,28 @@ export class AdminOpsService {
       paidAt: order.paidAt?.toISOString() ?? null,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
+    };
+  }
+
+  private buildReadinessItem(input: {
+    key: string;
+    title: string;
+    actual: number;
+    minimum: number;
+    owner: string;
+    action: string;
+    warnOnly?: boolean;
+  }): ReleaseReadinessItem {
+    const passed = input.actual >= input.minimum;
+
+    return {
+      key: input.key,
+      title: input.title,
+      status: passed ? 'pass' : input.warnOnly ? 'warn' : 'fail',
+      actual: input.actual,
+      expected: `>= ${input.minimum}`,
+      owner: input.owner,
+      action: passed ? '无需处理' : input.action,
     };
   }
 

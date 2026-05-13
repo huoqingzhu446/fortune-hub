@@ -404,4 +404,68 @@ describe('PostersService', () => {
       global.fetch = originalFetch;
     }
   });
+
+  it('rejects external mini program code paths before requesting wxacode', async () => {
+    const fetchMock = jest.fn();
+    const shareRecordRepository = {
+      create: jest.fn((input: unknown) => input),
+      save: jest.fn(async (input: unknown) => input),
+    };
+    const posterRendererService = {
+      resolvePosterLayout: jest.fn(() => ({
+        size: '1088x1472',
+        width: 1088,
+        height: 1472,
+        kind: 'portrait',
+      })),
+      renderPoster: jest.fn(async () => ({
+        imageBuffer: Buffer.from('png'),
+        imageDataUrl: 'data:image/png;base64,cG5n',
+        usedProviderBackground: false,
+      })),
+    };
+    const config = new Map<string, string>([
+      ['WECHAT_APP_ID', 'appid'],
+      ['WECHAT_APP_SECRET', 'secret'],
+      ['POSTER_MINI_PROGRAM_CODE_REQUIRED', 'true'],
+      ['POSTER_ZODIAC_TODAY_WXACODE_PATH', 'https://example.com/bad'],
+    ]);
+    const configService = {
+      get: jest.fn(
+        (key: string, fallback?: string) => config.get(key) ?? fallback,
+      ),
+    };
+    const originalFetch = global.fetch;
+    global.fetch = fetchMock as never;
+
+    try {
+      const service = new PostersService(
+        shareRecordRepository as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {
+          getTodayFortune: jest.fn(async () => buildZodiacTodayResponse()),
+        } as never,
+        configService as never,
+        posterRendererService as never,
+      );
+
+      await expect(
+        service.generatePoster(
+          {
+            sourceType: 'zodiac_today',
+            bizCode: '摩羯座',
+            size: '1088x1472',
+          },
+          null,
+        ),
+      ).rejects.toThrow('小程序码 path 不能包含协议或外链地址');
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

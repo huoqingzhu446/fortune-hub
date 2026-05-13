@@ -9,7 +9,7 @@
         {{
           membership?.isVipActive
             ? `当前可查看全部完整版解读，会员到期时间：${formatDateTime(membership.vipExpiredAt)}`
-            : '这里可以查看权益说明、创建会员订单，并完成开发环境下的支付流转。'
+            : membershipSubtitle
         }}
       </text>
     </view>
@@ -52,12 +52,14 @@
               </view>
 
               <button
+                v-if="paymentMode !== 'disabled'"
                 class="hero-button hero-button--primary"
                 :loading="creatingOrder && pendingProductCode === item.code"
                 @tap="createOrder(item.code)"
               >
                 创建订单
               </button>
+              <text v-else class="product-card__text">会员购买暂未开放，权益说明可先预览。</text>
             </view>
           </view>
         </view>
@@ -73,7 +75,7 @@
           </view>
 
           <button
-            v-if="currentOrder.status === 'pending'"
+            v-if="currentOrder.status === 'pending' && isMockPaymentEnabled"
             class="hero-button hero-button--secondary"
             :loading="paying"
             @tap="completeOrder"
@@ -105,8 +107,17 @@ const pendingProductCode = ref('');
 const membership = ref<MembershipStatusData | null>(null);
 const currentOrder = ref<MembershipOrder | null>(null);
 const { themeVars } = useThemePreference();
+const paymentMode = (import.meta.env.VITE_PAYMENT_MODE || (import.meta.env.DEV ? 'mock' : 'disabled')).toLowerCase();
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
+const isMockPaymentEnabled = computed(() => paymentMode === 'mock');
+const membershipSubtitle = computed(() =>
+  paymentMode === 'mock'
+    ? '这里可以查看权益说明、创建会员订单，并完成开发环境下的支付流转。'
+    : paymentMode === 'wechat'
+      ? '这里可以查看权益说明，并在正式支付开通后完成会员购买。'
+      : '这里可以查看权益说明；会员购买暂未开放。',
+);
 
 async function loadMembership() {
   if (!isLoggedIn.value) {
@@ -135,6 +146,14 @@ async function loadMembership() {
 }
 
 async function createOrder(productCode: string) {
+  if (paymentMode === 'disabled') {
+    uni.showToast({
+      title: '会员购买暂未开放',
+      icon: 'none',
+    });
+    return;
+  }
+
   try {
     creatingOrder.value = true;
     pendingProductCode.value = productCode;
@@ -162,6 +181,13 @@ async function createOrder(productCode: string) {
 
 async function completeOrder() {
   if (!currentOrder.value) {
+    return;
+  }
+  if (!isMockPaymentEnabled.value) {
+    uni.showToast({
+      title: '当前环境不支持模拟支付',
+      icon: 'none',
+    });
     return;
   }
 

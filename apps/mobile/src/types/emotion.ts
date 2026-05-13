@@ -1,4 +1,5 @@
 import type { ApiEnvelope } from './auth';
+import type { EmotionComplianceConfig } from './settings';
 
 export interface EmotionTestSummary {
   code: string;
@@ -38,6 +39,11 @@ export interface EmotionResult {
   supportSignal: string;
   relaxSteps: string[];
   disclaimer: string;
+  compliance?: EmotionComplianceConfig & {
+    resources?: EmotionComplianceConfig['hotlines'];
+    crisisTitle?: string;
+    crisisMessage?: string;
+  };
   sharePoster: {
     themeName: string;
     title: string;

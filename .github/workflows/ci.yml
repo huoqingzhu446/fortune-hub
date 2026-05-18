@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'codex/**'
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: API tests
+        run: pnpm test:api
+
+      - name: API build
+        run: pnpm build:api
+
+      - name: Admin build
+        run: pnpm build:admin
+
+      - name: Mobile type check
+        run: pnpm type-check:mobile
+
+      - name: Mobile mini program build
+        run: pnpm build:mobile

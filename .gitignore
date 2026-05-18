@@ -13,3 +13,6 @@ services/api/dist
 apps/mobile/dist
 deploy/nginx/ssl/*.pem
 deploy/nginx/ssl/*.key
+deploy-trigger/trigger.json
+deploy-trigger/result.json
+deploy-trigger/deploy.log

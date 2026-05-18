@@ -38,6 +38,11 @@ export const router = createRouter({
           name: 'operations',
           component: () => import('../views/OperationsView.vue'),
         },
+        {
+          path: 'deploy',
+          name: 'deploy',
+          component: () => import('../views/DeployView.vue'),
+        },
       ],
     },
   ],

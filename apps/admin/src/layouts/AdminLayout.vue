@@ -100,6 +100,13 @@ const currentPage = computed(() => {
     };
   }
 
+  if (route.path === '/deploy') {
+    return {
+      title: '部署管理',
+      subtitle: '查看部署状态、触发生产部署和查看部署日志。',
+    };
+  }
+
   return {
     title: '控制台总览',
     subtitle: '先看整体运行状态，再继续推进题库、内容和结果模板运营化。',

@@ -105,6 +105,8 @@ services:
       ZHIPU_WALLPAPER_SIZE_1_1: ${ZHIPU_WALLPAPER_SIZE_1_1:-1280x1280}
     expose:
       - '${API_PORT:-3001}'
+    volumes:
+      - ./deploy-trigger:/app/deploy-trigger
     extra_hosts:
       - host.docker.internal:host-gateway
     healthcheck:

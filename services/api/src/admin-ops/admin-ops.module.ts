@@ -15,6 +15,8 @@ import { ReportTemplateEntity } from '../database/entities/report-template.entit
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { EntitlementsModule } from '../entitlements/entitlements.module';
+import { AdminOpsDeployController } from './admin-ops-deploy.controller';
+import { AdminOpsDeployService } from './admin-ops-deploy.service';
 import { AdminOpsController } from './admin-ops.controller';
 import { AdminOpsService } from './admin-ops.service';
 
@@ -38,8 +40,8 @@ import { AdminOpsService } from './admin-ops.service';
     EntitlementsModule,
     CommonModule,
   ],
-  controllers: [AdminOpsController],
-  providers: [AdminOpsService],
-  exports: [AdminOpsService],
+  controllers: [AdminOpsController, AdminOpsDeployController],
+  providers: [AdminOpsService, AdminOpsDeployService],
+  exports: [AdminOpsService, AdminOpsDeployService],
 })
 export class AdminOpsModule {}

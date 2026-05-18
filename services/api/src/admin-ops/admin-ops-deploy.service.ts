@@ -21,7 +21,7 @@ interface TriggerPayload {
   triggeredAt: string;
 }
 
-interface DeployResult {
+export interface DeployResult {
   status: 'success' | 'failed';
   startedAt: string;
   finishedAt: string;

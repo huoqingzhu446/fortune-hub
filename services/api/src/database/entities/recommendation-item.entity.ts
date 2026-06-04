@@ -10,7 +10,7 @@ import {
 @Entity({ name: 'lucky_items' })
 @Index('uniq_lucky_items_biz_code', ['bizCode'], { unique: true })
 @Index('idx_lucky_items_status_publish_date', ['status', 'publishDate'])
-export class LuckyItemEntity {
+export class RecommendationItemEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;
 
@@ -23,7 +23,7 @@ export class LuckyItemEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   summary!: string | null;
 
-  @Column({ length: 64, default: '幸运物' })
+  @Column({ length: 64, default: '推荐素材' })
   category!: string;
 
   @Column({ type: 'date', nullable: true })

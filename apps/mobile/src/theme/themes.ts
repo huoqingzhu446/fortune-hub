@@ -100,7 +100,7 @@ export const themePalettes: Record<ThemeKey, ThemePalette> = {
   champagne_gold: createThemePalette({
     key: 'champagne_gold',
     name: '香槟金',
-    description: '高级、幸运',
+    description: '高级、明亮',
     primary: '#B77A18',
     soft: '#FFF5E4',
     accent: '#E6B65B',

@@ -300,8 +300,8 @@ export class SettingsFeedbackNotificationsOps1761333600000 implements MigrationI
           { label: '其他', value: 'general' },
         ],
         notificationScenes: [
-          { scene: 'daily_reminder', title: '每日幸运提醒', enabled: true },
-          { scene: 'lucky_push', title: '幸运物推荐提醒', enabled: true },
+          { scene: 'daily_reminder', title: '每日状态提醒', enabled: true },
+          { scene: 'lucky_push', title: '推荐素材提醒', enabled: true },
         ],
       }),
     });
@@ -328,8 +328,8 @@ export class SettingsFeedbackNotificationsOps1761333600000 implements MigrationI
     await this.insertConfigIfMissing(queryRunner, {
       namespace: 'lucky',
       configKey: 'recommendation_rules',
-      title: '幸运物推荐规则',
-      description: '控制幸运物推荐的适配分和标签。',
+      title: '推荐素材规则',
+      description: '控制推荐素材的适配分和标签。',
       valueJson: JSON.stringify({
         defaultBaseScore: 68,
         elementBoost: 12,
@@ -345,10 +345,10 @@ export class SettingsFeedbackNotificationsOps1761333600000 implements MigrationI
     await this.insertConfigIfMissing(queryRunner, {
       namespace: 'lucky',
       configKey: 'yearly_detail',
-      title: '年度幸运详情',
-      description: '年度幸运详情默认模板。',
+      title: '年度状态详情',
+      description: '年度状态详情默认模板。',
       valueJson: JSON.stringify({
-        title: '年度幸运节奏',
+        title: '年度状态节奏',
         summary: '这一年适合把优势沉淀成稳定节奏，也给自己保留恢复空间。',
         quarters: [
           { label: 'Q1', title: '整理基础', summary: '先把日常节奏和核心目标排清楚。' },

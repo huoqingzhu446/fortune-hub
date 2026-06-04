@@ -12,7 +12,7 @@ import {
   unique: true,
 })
 @Index('idx_divination_reviews_user_updated_at', ['userId', 'updatedAt'])
-export class DivinationReviewEntity {
+export class ReviewNoteEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;
 

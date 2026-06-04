@@ -5,7 +5,6 @@ import { AdminContentModule } from './admin-content/admin-content.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { AdminOpsModule } from './admin-ops/admin-ops.module';
 import { AssessmentModule } from './assessment/assessment.module';
-import { BaziModule } from './bazi/bazi.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdConfigEntity } from './database/entities/ad-config.entity';
 import { AppConfigEntity } from './database/entities/app-config.entity';
@@ -17,11 +16,11 @@ import { AssessmentSessionEntity } from './database/entities/assessment-session.
 import { BreathingRecordEntity } from './database/entities/breathing-record.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
-import { DivinationReviewEntity } from './database/entities/divination-review.entity';
+import { ReviewNoteEntity } from './database/entities/review-note.entity';
 import { FavoriteEntity } from './database/entities/favorite.entity';
 import { FeedbackEntity } from './database/entities/feedback.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
-import { LuckyItemEntity } from './database/entities/lucky-item.entity';
+import { RecommendationItemEntity } from './database/entities/recommendation-item.entity';
 import { MeditationRecordEntity } from './database/entities/meditation-record.entity';
 import { MembershipProductEntity } from './database/entities/membership-product.entity';
 import { MoodRecordEntity } from './database/entities/mood-record.entity';
@@ -37,12 +36,10 @@ import { UserMetricSnapshotEntity } from './database/entities/user-metric-snapsh
 import { UserEntity } from './database/entities/user.entity';
 import { UserRecordEntity } from './database/entities/user-record.entity';
 import { AuthModule } from './auth/auth.module';
-import { FortuneModule } from './fortune/fortune.module';
 import { ExploreModule } from './explore/explore.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HomeModule } from './home/home.module';
 import { HealthController } from './health/health.controller';
-import { LuckyModule } from './lucky/lucky.module';
 import { MembershipModule } from './membership/membership.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
@@ -50,9 +47,7 @@ import { PostersModule } from './posters/posters.module';
 import { RedisModule } from './redis/redis.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
-import { DivinationModule } from './divination/divination.module';
 import { UsersModule } from './users/users.module';
-import { ZodiacModule } from './zodiac/zodiac.module';
 import {
   assertProductionConfig,
   warnIfUnsafeDevelopmentConfig,
@@ -82,7 +77,7 @@ import {
             AssessmentQuestionEntity,
             AssessmentTestConfigEntity,
             AssessmentTestGroupEntity,
-            DivinationReviewEntity,
+            ReviewNoteEntity,
             FavoriteEntity,
             FeedbackEntity,
             UserEntity,
@@ -94,7 +89,7 @@ import {
             DailyPulseRecordEntity,
             BreathingRecordEntity,
             FortuneContentEntity,
-            LuckyItemEntity,
+            RecommendationItemEntity,
             AppConfigEntity,
             ReportTemplateEntity,
             MembershipProductEntity,
@@ -128,16 +123,11 @@ import {
     ReportsModule,
     PostersModule,
     AssessmentModule,
-    BaziModule,
     AuthModule,
     UsersModule,
     ExploreModule,
     FavoritesModule,
     HomeModule,
-    DivinationModule,
-    ZodiacModule,
-    FortuneModule,
-    LuckyModule,
   ],
   controllers: [HealthController],
 })

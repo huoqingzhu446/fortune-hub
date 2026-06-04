@@ -7,7 +7,6 @@ import { MoodRecordEntity } from '../database/entities/mood-record.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { EntitlementsService } from '../entitlements/entitlements.service';
-import { LuckyService } from '../lucky/lucky.service';
 import { RedisService } from '../redis/redis.service';
 
 type ScoreMetric = {
@@ -66,7 +65,6 @@ type HomeSignals = {
   emotion: EmotionSignal[];
   mood: MoodSignal[];
   personality: PersonalitySignal | null;
-  bazi: BaziSignal | null;
 };
 
 type StateOverview = {
@@ -185,7 +183,7 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
       id: 'fortune_actions',
       type: 'fortune_card',
       title: '轻量探索',
-      note: '今日占卜与行动提醒',
+      note: '今日提醒与行动建议',
       audience: ['all'],
       enabled: true,
       order: 50,
@@ -224,10 +222,10 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
     },
     {
       id: 'divination',
-      title: '占卜',
-      description: '提问',
-      route: '/pages/divination/index/index',
-      badge: '提问',
+      title: '记录',
+      description: '心情',
+      route: '/pages/journal/index',
+      badge: '记录',
       icon: 'orbit',
       enabled: true,
       order: 30,
@@ -250,7 +248,6 @@ export class HomeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
-    private readonly luckyService: LuckyService,
     private readonly entitlementsService: EntitlementsService,
     @InjectRepository(UserRecordEntity)
     private readonly userRecordRepository: Repository<UserRecordEntity>,
@@ -261,10 +258,8 @@ export class HomeService {
   ) {}
 
   async getHomeIndex(user: UserEntity | null) {
-    const luckySign = await this.luckyService.getTodaySignSnapshot();
-    const dailyThemeKey = this.resolveDailyThemeKey(
-      this.pickString((luckySign as { themeName?: string }).themeName, ''),
-    );
+    const dailyReminder = this.buildDailyReminderSnapshot();
+    const dailyThemeKey = this.resolveDailyThemeKey(dailyReminder.themeName);
     const integrations = this.buildIntegrations();
     const signals = user
       ? await this.loadHomeSignals(user.id)
@@ -295,27 +290,6 @@ export class HomeService {
         route: '/pages/emotion/index',
         badge: '当前状态',
       },
-      {
-        id: 'bazi',
-        title: '八字解读',
-        description: '把生日资料转成节奏参考，用来补充个性化表达和提示。',
-        route: '/pages/bazi/index',
-        badge: '个性化参考',
-      },
-      {
-        id: 'zodiac',
-        title: '星座运势',
-        description: '把星座当作轻量标签，提供更容易阅读的节律化提示。',
-        route: '/pages/zodiac/index',
-        badge: '轻量标签',
-      },
-      {
-        id: 'lucky-item',
-        title: '幸运物',
-        description: '把当前状态翻译成更轻松的内容化表达、分享图和日常提醒。',
-        route: '/pages/lucky/index',
-        badge: '内容化',
-      },
     ];
 
     const quickEntries = [
@@ -337,7 +311,7 @@ export class HomeService {
       {
         id: 'records',
         title: '查看历史',
-        description: '把八字、性格和情绪结果集中回看，方便理解自己最近的变化。',
+        description: '把性格和情绪结果集中回看，方便理解自己最近的变化。',
         route: '/pages/records/index',
         badge: '回看结果',
       },
@@ -347,15 +321,6 @@ export class HomeService {
         description: '统一管理提醒偏好、隐私说明、反馈和关于我们。',
         route: '/pages/settings/index',
         badge: '基础配置',
-      },
-      {
-        id: 'membership',
-        title: '会员权益',
-        description: isVipActive
-          ? '当前会员已生效，可以直接查看完整版与海报权益。'
-          : '查看 VIP 权益、套餐和当前订单状态。',
-        route: '/pages/membership/index',
-        badge: isVipActive ? 'VIP 生效中' : '权益说明',
       },
     ];
 
@@ -372,7 +337,7 @@ export class HomeService {
         id: 'profile',
         title: '完善资料',
         description: profileCompleted
-          ? `当前会结合${user?.zodiac ?? '你的资料'}和最近测评结果，生成更贴近你的首页判断。`
+          ? '当前会结合你的资料和最近测评结果，生成更贴近你的首页判断。'
           : '补齐生日、出生时间、出生地和性别后，首页解释和个性化标签会更完整。',
         completed: profileCompleted,
       },
@@ -415,7 +380,7 @@ export class HomeService {
         headline,
         todayLuckyScore: stateOverview.currentScore,
         annualLuckyScore: stateOverview.completionScore,
-        todayLuckySign: luckySign,
+        todayLuckySign: dailyReminder,
         todayFortuneSummary: stateOverview.primarySuggestion,
         stateOverview,
         featureEntries,
@@ -434,13 +399,6 @@ export class HomeService {
             label: '测评',
             route: '/pages/personality/index',
             iconText: 'T',
-            active: false,
-          },
-          {
-            id: 'lucky',
-            label: '幸运物',
-            route: '/pages/lucky/index',
-            iconText: 'L',
             active: false,
           },
           {
@@ -467,11 +425,6 @@ export class HomeService {
             label: stateOverview.completionScore.label,
             value: stateOverview.completionScore.value,
             hint: stateOverview.completionScore.hint,
-          },
-          {
-            label: '今日幸运签',
-            value: luckySign.tag,
-            hint: luckySign.title,
           },
         ],
         modules: featureEntries,
@@ -551,7 +504,6 @@ export class HomeService {
 
     const emotionBySource = new Map<string, EmotionSignal>();
     let personality: PersonalitySignal | null = null;
-    let bazi: BaziSignal | null = null;
 
     for (const record of records) {
       if (record.recordType === 'emotion') {
@@ -615,26 +567,6 @@ export class HomeService {
         };
       }
 
-      if (record.recordType === 'bazi' && !bazi) {
-        const resultData = this.asRecord(record.resultData);
-        const dominantElement = this.asRecord(resultData.dominantElement);
-        const practicalTips = this.asRecord(resultData.practicalTips);
-        const completedAt = this.pickString(
-          resultData.generatedAt,
-          record.createdAt.toISOString(),
-        );
-
-        bazi = {
-          title: record.resultTitle,
-          dominantElement: this.pickNullableString(dominantElement.name),
-          dailyFocus: this.pickString(
-            practicalTips.dailyFocus,
-            '今天更适合围绕一件最重要的事来安排节奏。',
-          ),
-          completedAt,
-          ageDays: this.diffDays(completedAt),
-        };
-      }
     }
 
     return {
@@ -649,7 +581,6 @@ export class HomeService {
         ageDays: this.diffDays(record.recordDate),
       })),
       personality,
-      bazi,
     };
   }
 
@@ -660,7 +591,7 @@ export class HomeService {
     const emotionFactor = this.buildEmotionFactor(signals);
     const personalityFactor = this.buildPersonalityFactor(signals.personality);
     const completionFactor = this.buildCompletionFactor(user, signals);
-    const contextScore = this.buildContextScore(user, signals.bazi);
+    const contextScore = this.buildContextScore(user);
     const momentumScore = this.buildSelfCareMomentumScore(signals);
     const rawCurrentScore = Math.round(
       emotionFactor.numericValue * 0.62 +
@@ -672,7 +603,7 @@ export class HomeService {
       signals,
       completionFactor.numericValue,
     );
-    // The score follows current self-report first. Static profile and bazi context only nudge it.
+    // The score follows current self-report first. Static profile context only nudges it.
     const currentScore = this.clampScore(
       Math.round(
         rawCurrentScore * confidenceWeight + 62 * (1 - confidenceWeight),
@@ -1096,17 +1027,16 @@ export class HomeService {
     const hasFreshMood = signals.mood.some((item) => item.ageDays <= 3);
     const score =
       (user ? 10 : 0) +
-      (user?.birthday && user?.zodiac ? 14 : 0) +
+      (user?.birthday ? 14 : 0) +
       (user?.birthTime ? 5 : 0) +
       (this.resolveUserBirthPlace(user) ? 5 : 0) +
       (hasFreshMood ? 25 : signals.mood.length ? 14 : 0) +
       (signals.emotion.length ? 24 : 0) +
-      (signals.personality ? 12 : 0) +
-      (signals.bazi ? 5 : 0);
+      (signals.personality ? 12 : 0);
     const normalized = this.clampScore(score, 20, 100, 28);
     const missingItems = [
       !user ? '登录账号' : '',
-      !user?.birthday || !user?.zodiac ? '补齐生日资料' : '',
+      !user?.birthday ? '补齐生日资料' : '',
       !hasFreshMood ? '记录今日心情' : '',
       !signals.personality ? '完成性格测评' : '',
       !signals.emotion.length ? '完成情绪自检' : '',
@@ -1125,17 +1055,11 @@ export class HomeService {
     };
   }
 
-  private buildContextScore(
-    user: UserEntity | null,
-    baziSignal: BaziSignal | null,
-  ) {
+  private buildContextScore(user: UserEntity | null) {
     const score =
       58 +
-      (user?.zodiac ? 8 : 0) +
       (user?.fiveElements ? 8 : 0) +
-      (user?.birthTime ? 6 : 0) +
-      (baziSignal ? 8 : 0) -
-      (baziSignal && baziSignal.ageDays > 180 ? 4 : 0);
+      (user?.birthTime ? 6 : 0);
 
     return this.clampScore(score, 48, 84, 60);
   }
@@ -1143,9 +1067,8 @@ export class HomeService {
   private buildBasisTags(user: UserEntity | null, signals: HomeSignals) {
     const tags = [
       this.buildMoodTag(signals.mood[0]),
-      user?.zodiac ?? '',
-      this.resolveDominantElement(user, signals.bazi)
-        ? `${this.resolveDominantElement(user, signals.bazi)}元素`
+      this.resolveDominantElement(user)
+        ? `${this.resolveDominantElement(user)}元素`
         : '',
       signals.personality?.dominantDimensionLabel ?? '',
       this.buildEmotionTag(signals.emotion[0]?.riskLevel ?? ''),
@@ -1249,10 +1172,6 @@ export class HomeService {
       return `今天优先用你的“${signals.personality.dominantDimensionLabel}”优势去处理最重要的一件事，会更顺手。`;
     }
 
-    if (signals.bazi?.dailyFocus) {
-      return signals.bazi.dailyFocus;
-    }
-
     if (user) {
       return '先完成一件最重要的小事，再决定今天剩下的安排。';
     }
@@ -1275,10 +1194,6 @@ export class HomeService {
 
     if (signals.personality) {
       evidence.push('最近一次性格测评');
-    }
-
-    if (signals.bazi) {
-      evidence.push('八字节奏参考');
     }
 
     if (!evidence.length) {
@@ -1366,7 +1281,7 @@ export class HomeService {
         ? '/pages/records/index'
         : '/pages/settings/index',
       welcomeNote: !user
-        ? '登录后会把历史、状态变化和会员权益都绑定到当前账号。'
+        ? '登录后会把历史记录、状态变化和偏好设置绑定到当前账号。'
         : profileCompleted
           ? '首页已经切到状态总览模式，后续会优先参考你的测评结果和资料完整度。'
           : '资料补齐后，首页判断会更贴近你的实际节奏。',
@@ -1561,7 +1476,7 @@ export class HomeService {
         title: '先连接账号，让首页开始理解你',
         summary:
           userSummary.welcomeNote ||
-          '登录后，今日状态、记录和会员权益都会绑定到当前账号。',
+          '登录后，今日状态、记录和偏好设置都会绑定到当前账号。',
         primaryText: this.pickString(userSummary.primaryActionTitle, '去登录'),
         primaryRoute: this.pickString(
           userSummary.primaryActionRoute,
@@ -1578,7 +1493,7 @@ export class HomeService {
         badge: '资料待完善',
         title: '补齐生日与出生信息',
         summary:
-          '资料完整后，首页会把状态观察、八字节奏和长期画像放在同一条线上看。',
+          '资料完整后，首页会把状态观察、记录和长期画像放在同一条线上看。',
         primaryText: '完善资料',
         primaryRoute: '/pages/profile/index',
         secondaryText: '先记录心情',
@@ -1619,21 +1534,6 @@ export class HomeService {
       };
     }
 
-    if (isVipActive && completionScore >= 72) {
-      return {
-        actionCode: 'vip_report',
-        badge: 'VIP',
-        title: '查看今日完整报告',
-        summary:
-          stateOverview.primarySuggestion ||
-          '把今日建议拆成一个具体动作，再生成可分享的提醒。',
-        primaryText: '查看报告',
-        primaryRoute: '/pages/report/index',
-        secondaryText: '生成海报',
-        secondaryRoute: '/pages/poster/generate/index?type=today&auto=1',
-      };
-    }
-
     return {
       actionCode: 'view_report',
       badge: '可推进',
@@ -1643,8 +1543,8 @@ export class HomeService {
         '先完成一件最重要的小事，再决定今天剩下的安排。',
       primaryText: '查看报告',
       primaryRoute: '/pages/report/index',
-      secondaryText: '今日占卜',
-      secondaryRoute: '/pages/divination/index/index',
+      secondaryText: '记录心情',
+      secondaryRoute: '/pages/journal/index',
     };
   }
 
@@ -1738,17 +1638,14 @@ export class HomeService {
     )[0];
   }
 
-  private resolveDominantElement(
-    user: UserEntity | null,
-    baziSignal: BaziSignal | null,
-  ) {
+  private resolveDominantElement(user: UserEntity | null) {
     const entries = Object.entries(user?.fiveElements ?? {});
 
     if (entries.length) {
       return entries.sort((left, right) => right[1] - left[1])[0][0];
     }
 
-    return baziSignal?.dominantElement ?? '';
+    return '';
   }
 
   private serializeFactor(factor: StateFactor) {
@@ -1761,7 +1658,6 @@ export class HomeService {
       emotion: [],
       mood: [],
       personality: null,
-      bazi: null,
     };
   }
 
@@ -1879,6 +1775,16 @@ export class HomeService {
         '',
       ),
       redisStatus: this.redisService.getStatus(),
+    };
+  }
+
+  private buildDailyReminderSnapshot() {
+    return {
+      title: '今日提醒',
+      summary: '把当前状态拆成一条容易执行的小行动。',
+      tag: '自我观察',
+      mantra: '先照顾好当下的一小步。',
+      themeName: 'calm',
     };
   }
 }

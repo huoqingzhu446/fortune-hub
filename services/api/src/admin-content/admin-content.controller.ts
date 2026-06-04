@@ -107,7 +107,7 @@ export class AdminContentController {
   }
 }
 
-@Controller('admin/lucky-items')
+@Controller('admin/recommendation-items')
 @UseGuards(AdminSessionGuard)
 export class AdminLuckyItemsController {
   constructor(private readonly adminContentService: AdminContentService) {}

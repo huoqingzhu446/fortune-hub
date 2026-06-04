@@ -277,7 +277,7 @@ import type {
   ExploreTopicItem,
 } from '../../types/explore';
 
-type FilterType = 'all' | 'test' | 'meditation' | 'zodiac' | 'bazi' | 'journal' | 'content';
+type FilterType = 'all' | 'test' | 'meditation' | 'journal' | 'content';
 type SortType = ExploreIndexData['defaultSort'];
 
 const { themeVars, themePalette } = useThemePreference();
@@ -296,8 +296,6 @@ function normalizeFilterType(value: string): FilterType {
   if (
     value === 'test' ||
     value === 'meditation' ||
-    value === 'zodiac' ||
-    value === 'bazi' ||
     value === 'journal' ||
     value === 'content'
   ) {
@@ -308,7 +306,7 @@ function normalizeFilterType(value: string): FilterType {
 }
 const fallbackExploreData: ExploreIndexData = {
   isLoggedIn: false,
-  searchPlaceholder: '搜索测试 / 冥想 / 星座 / 八字',
+  searchPlaceholder: '搜索测试 / 冥想 / 日记 / 记录',
   todayFit: {
     icon: '莲',
     text: '今日适合：情绪疗愈',
@@ -319,8 +317,6 @@ const fallbackExploreData: ExploreIndexData = {
       { label: '全部', value: 'all' },
       { label: '心理测试', value: 'test' },
       { label: '冥想', value: 'meditation' },
-      { label: '星座', value: 'zodiac' },
-      { label: '八字', value: 'bazi' },
       { label: '日记', value: 'journal' },
       { label: '内容', value: 'content' },
     ],
@@ -587,12 +583,6 @@ function resolveSourcePriority(sourceType: ExploreContentItem['sourceType']) {
   switch (sourceType) {
     case 'assessment_test':
       return 6;
-    case 'fortune_content':
-      return 5;
-    case 'report_template':
-      return 4;
-    case 'lucky_item':
-      return 3;
     default:
       return 1;
   }

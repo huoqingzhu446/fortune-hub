@@ -180,8 +180,7 @@ export class PosterRendererService {
     sourceType: string,
   ): PosterLayout {
     const prefersTallTemplate =
-      sourceType === 'bazi' ||
-      sourceType === 'zodiac_today' ||
+      sourceType === 'profile_report' ||
       sourceType === 'emotion';
     const prefersPortrait =
       sourceType === 'today_index' ||
@@ -258,10 +257,6 @@ export class PosterRendererService {
     backgroundDataUrl: string | null,
     layout: PosterLayout,
   ): Promise<RenderedPosterImage> {
-    if (layout.kind === 'portrait' && source.sourceType === 'zodiac_today') {
-      return this.renderZodiacTemplatePoster(source, layout);
-    }
-
     if (layout.kind === 'portrait' && source.sourceType === 'emotion') {
       const templateMarkup = this.buildEmotionAssessmentPosterSvg(
         source,
@@ -280,7 +275,7 @@ export class PosterRendererService {
     }
 
     const build = (background: string | null) =>
-      layout.kind === 'portrait' && source.sourceType === 'bazi'
+      layout.kind === 'portrait' && source.sourceType === 'profile_report'
           ? this.buildBaziPosterSvg(source, layout)
           : layout.kind === 'portrait'
             ? this.buildRichPosterSvg(source, background, layout)
@@ -330,7 +325,7 @@ export class PosterRendererService {
     );
 
     if (!templateBuffer) {
-      throw new Error(`星座分享模板缺失：${details.signName}`);
+      throw new Error(`资料分享模板缺失：${details.signName}`);
     }
 
     const overlay = this.buildZodiacTemplateOverlay(source, details, layout);
@@ -360,13 +355,13 @@ export class PosterRendererService {
 
     const fileName = `${normalizedSign}.png`;
     const candidates = [
-      path.join(__dirname, '..', 'assets', 'posters', 'zodiac', fileName),
+      path.join(__dirname, '..', 'assets', 'posters', 'profile', fileName),
       path.join(
         process.cwd(),
         'dist',
         'assets',
         'posters',
-        'zodiac',
+        'profile',
         fileName,
       ),
       path.join(
@@ -374,7 +369,7 @@ export class PosterRendererService {
         'src',
         'assets',
         'posters',
-        'zodiac',
+        'profile',
         fileName,
       ),
       path.join(
@@ -384,7 +379,7 @@ export class PosterRendererService {
         'dist',
         'assets',
         'posters',
-        'zodiac',
+        'profile',
         fileName,
       ),
       path.join(
@@ -394,7 +389,7 @@ export class PosterRendererService {
         'src',
         'assets',
         'posters',
-        'zodiac',
+        'profile',
         fileName,
       ),
     ];
@@ -460,11 +455,11 @@ export class PosterRendererService {
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
   <defs>
-    <filter id="zodiac-template-text-soft" x="-10%" y="-10%" width="120%" height="130%">
+    <filter id="profile-template-text-soft" x="-10%" y="-10%" width="120%" height="130%">
       <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#FFFFFF" flood-opacity="0.72" />
     </filter>
   </defs>
-  <g transform="scale(${scaleX} ${scaleY})" filter="url(#zodiac-template-text-soft)">
+  <g transform="scale(${scaleX} ${scaleY})" filter="url(#profile-template-text-soft)">
     ${this.renderZodiacTemplateText({
       x: 248,
       y: 474,
@@ -852,26 +847,26 @@ export class PosterRendererService {
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
   <defs>
-    <linearGradient id="zodiac-archive-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-archive-bg" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#D8E7FF" />
       <stop offset="48%" stop-color="#F4F7FF" />
       <stop offset="100%" stop-color="#CADBFF" />
     </linearGradient>
-    <linearGradient id="zodiac-hero" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-hero" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#F8FBFF" stop-opacity="0.92" />
       <stop offset="48%" stop-color="#DCE8FF" stop-opacity="0.7" />
       <stop offset="100%" stop-color="#B7C8FF" stop-opacity="0.82" />
     </linearGradient>
-    <linearGradient id="zodiac-card" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-card" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
       <stop offset="100%" stop-color="#F5F8FF" stop-opacity="0.78" />
     </linearGradient>
-    <linearGradient id="zodiac-orb" x1="15%" x2="85%" y1="8%" y2="90%">
+    <linearGradient id="profile-orb" x1="15%" x2="85%" y1="8%" y2="90%">
       <stop offset="0%" stop-color="#FCF4D8" />
       <stop offset="45%" stop-color="#BFCBFF" />
       <stop offset="100%" stop-color="#5E6FDB" />
     </linearGradient>
-    <linearGradient id="zodiac-icon" x1="8%" x2="92%" y1="8%" y2="92%">
+    <linearGradient id="profile-icon" x1="8%" x2="92%" y1="8%" y2="92%">
       <stop offset="0%" stop-color="#D9CAFF" />
       <stop offset="58%" stop-color="#879BFF" />
       <stop offset="100%" stop-color="#4962C7" />
@@ -897,9 +892,9 @@ export class PosterRendererService {
     </filter>
   </defs>
   <g transform="scale(${scaleX} ${scaleY})">
-    <rect width="941" height="1672" fill="url(#zodiac-archive-bg)" />
+    <rect width="941" height="1672" fill="url(#profile-archive-bg)" />
     ${this.renderZodiacArchiveTexture()}
-    <rect x="318" y="58" width="55" height="55" rx="16" fill="url(#zodiac-icon)" filter="url(#archive-shadow)" />
+    <rect x="318" y="58" width="55" height="55" rx="16" fill="url(#profile-icon)" filter="url(#archive-shadow)" />
     ${this.renderZodiacSymbolIcon(details.signName, 345, 87, 50, '#FFFFFF', 0.96)}
     <text x="398" y="103" font-size="43" font-weight="650" fill="#14245A" font-family="${ZODIAC_POSTER_FONT_FAMILY}" filter="url(#archive-title-shadow)">${this.escapeXml(
       details.tagText,
@@ -1438,7 +1433,7 @@ export class PosterRendererService {
       source.title.match(
         /白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座/,
       )?.[0] ??
-      '星座';
+      '资料';
     const metrics = source.metrics;
     const pickMetric = (label: string, fallback: string) =>
       metrics.find((item) => item.label === label)?.value ?? fallback;
@@ -1450,13 +1445,13 @@ export class PosterRendererService {
           : ['优雅', '平衡', '和谐']
     ).slice(0, 3);
     const elementLabel =
-      source.zodiacPoster?.elementLabel || pickMetric('星座属性', '风象星座');
+      source.zodiacPoster?.elementLabel || pickMetric('资料属性', '清晰节奏');
 
     return {
       tagText: source.zodiacPoster?.tagText || '星运档案',
       subtitle:
         source.zodiacPoster?.subtitle ||
-        '根据出生日期与出生地生成你的星座画像',
+        '根据基础资料生成你的状态画像',
       signName: source.zodiacPoster?.signName || signName,
       englishName:
         source.zodiacPoster?.englishName ||
@@ -1493,7 +1488,7 @@ export class PosterRendererService {
         source.zodiacPoster?.socialScore ??
         Number(pickMetric('社交能量', source.energyValue ?? '86')),
       luckyColor:
-        source.zodiacPoster?.luckyColor || pickMetric('今日幸运色', '雾蓝'),
+        source.zodiacPoster?.luckyColor || pickMetric('今日代表色', '雾蓝'),
       quote: this.normalizeZodiacArchiveQuote(
         source.zodiacPoster?.quote ||
           source.summary ||
@@ -1609,9 +1604,9 @@ export class PosterRendererService {
     );
 
     return `
-  <rect x="30" y="198" width="881" height="546" rx="42" fill="url(#zodiac-hero)" stroke="#FFFFFF" stroke-width="2.5" filter="url(#archive-shadow)" />
-  <clipPath id="zodiac-hero-clip"><rect x="30" y="198" width="881" height="546" rx="42" /></clipPath>
-  <g clip-path="url(#zodiac-hero-clip)">
+  <rect x="30" y="198" width="881" height="546" rx="42" fill="url(#profile-hero)" stroke="#FFFFFF" stroke-width="2.5" filter="url(#archive-shadow)" />
+  <clipPath id="profile-hero-clip"><rect x="30" y="198" width="881" height="546" rx="42" /></clipPath>
+  <g clip-path="url(#profile-hero-clip)">
     <rect x="30" y="198" width="881" height="546" fill="#BFD0FF" fill-opacity="0.2" />
     ${this.renderZodiacWheel(248, 424, 194)}
     <path d="M610 256 C700 214, 822 236, 892 326" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-opacity="0.56" />
@@ -1622,7 +1617,7 @@ export class PosterRendererService {
     <circle cx="830" cy="326" r="6" fill="#FFFFFF" />
     <circle cx="876" cy="374" r="7" fill="#FFFFFF" />
     <path d="M52 646 C156 606, 248 618, 328 662 S524 716, 692 650 S836 616, 930 654 V744 H30 V672 C36 664, 44 654, 52 646 Z" fill="#FFFFFF" fill-opacity="0.2" />
-    <circle cx="672" cy="390" r="128" fill="url(#zodiac-orb)" fill-opacity="0.9" />
+    <circle cx="672" cy="390" r="128" fill="url(#profile-orb)" fill-opacity="0.9" />
     <circle cx="672" cy="390" r="154" fill="none" stroke="#F1D6A7" stroke-width="5" stroke-opacity="0.86" />
     <circle cx="672" cy="390" r="176" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.58" />
     ${this.renderZodiacSymbolIcon(details.signName, 672, 394, 246, '#FFF2D2', 0.95)}
@@ -1865,7 +1860,7 @@ export class PosterRendererService {
         );
 
         return `
-  <rect x="${x}" y="782" width="268" height="174" rx="24" fill="url(#zodiac-card)" stroke="#FFFFFF" stroke-width="2" filter="url(#archive-shadow)" />
+  <rect x="${x}" y="782" width="268" height="174" rx="24" fill="url(#profile-card)" stroke="#FFFFFF" stroke-width="2" filter="url(#archive-shadow)" />
   ${this.renderZodiacArchiveIcon(card.icon, x + 62, 870)}
   <text x="${x + 132}" y="848" font-size="25" font-weight="500" fill="#26366E" font-family="${ZODIAC_POSTER_FONT_FAMILY}">${this.escapeXml(
     card.label,
@@ -1890,7 +1885,7 @@ export class PosterRendererService {
         icon: 'people',
       },
       {
-        label: '今日幸运色',
+        label: '今日代表色',
         value: details.luckyColor,
         icon: 'drop',
       },
@@ -1938,7 +1933,7 @@ export class PosterRendererService {
   ) {
     const base = `
   <circle cx="${cx}" cy="${cy}" r="${radius}" fill="#FFFFFF" fill-opacity="0.78" stroke="#D4DDF8" stroke-width="2" />
-  <circle cx="${cx}" cy="${cy}" r="${radius - 7}" fill="url(#zodiac-icon)" fill-opacity="0.82" />`;
+  <circle cx="${cx}" cy="${cy}" r="${radius - 7}" fill="url(#profile-icon)" fill-opacity="0.82" />`;
 
     if (type === 'calendar') {
       return `
@@ -1987,7 +1982,7 @@ export class PosterRendererService {
     const details = this.resolveBaziPosterDetails(source);
     const scaleX = layout.width / 941;
     const scaleY = layout.height / 1672;
-    const title = this.escapeXml(source.title || '我的八字命盘');
+    const title = this.escapeXml(source.title || '我的资料报告');
     const subtitle = this.escapeXml(
       source.subtitle || '根据出生日期与出生地生成的专属命理画像',
     );
@@ -1995,27 +1990,27 @@ export class PosterRendererService {
     return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}">
   <defs>
-    <linearGradient id="bazi-bg" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-report-bg" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#FAF0DF" />
       <stop offset="48%" stop-color="#FFFDF7" />
       <stop offset="100%" stop-color="#DBECE0" />
     </linearGradient>
-    <linearGradient id="bazi-frame" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-report-frame" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94" />
       <stop offset="56%" stop-color="#FFF8EA" stop-opacity="0.82" />
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
     </linearGradient>
-    <linearGradient id="bazi-title" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-report-title" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#A9792C" />
       <stop offset="52%" stop-color="#6E4616" />
       <stop offset="100%" stop-color="#C3934D" />
     </linearGradient>
-    <linearGradient id="bazi-ink" x1="10%" x2="88%" y1="8%" y2="92%">
+    <linearGradient id="profile-report-ink" x1="10%" x2="88%" y1="8%" y2="92%">
       <stop offset="0%" stop-color="#315845" />
       <stop offset="52%" stop-color="#609A69" />
       <stop offset="100%" stop-color="#CDA35B" />
     </linearGradient>
-    <linearGradient id="bazi-card" x1="0%" x2="100%" y1="0%" y2="100%">
+    <linearGradient id="profile-report-card" x1="0%" x2="100%" y1="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
       <stop offset="100%" stop-color="#FFF8EC" stop-opacity="0.78" />
     </linearGradient>
@@ -2032,7 +2027,7 @@ export class PosterRendererService {
     </filter>
   </defs>
   <g transform="scale(${scaleX} ${scaleY})">
-    <rect width="941" height="1672" fill="url(#bazi-bg)" />
+    <rect width="941" height="1672" fill="url(#profile-report-bg)" />
     ${this.renderBaziTexture()}
     <circle cx="486" cy="195" r="164" fill="none" stroke="#DDBD84" stroke-width="2" stroke-opacity="0.26" />
     <circle cx="486" cy="195" r="128" fill="none" stroke="#DDBD84" stroke-width="2" stroke-opacity="0.18" />
@@ -2041,7 +2036,7 @@ export class PosterRendererService {
     <circle cx="74" cy="71" r="39" fill="#FFF8EA" stroke="#E0BE7D" stroke-width="2" />
     ${this.renderBaziMiniTaiji(74, 71, 26)}
     <text x="122" y="82" font-size="30" font-weight="700" fill="#8A5E23" font-family="${POSTER_FONT_FAMILY}">${this.escapeXml(details.tagText)}</text>
-    <text x="471" y="235" text-anchor="middle" font-size="76" font-weight="820" fill="url(#bazi-title)" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${title}</text>
+    <text x="471" y="235" text-anchor="middle" font-size="76" font-weight="820" fill="url(#profile-report-title)" font-family="${POSTER_FONT_FAMILY}" filter="url(#title-shadow)">${title}</text>
     <circle cx="770" cy="182" r="19" fill="#BD3F30" />
     <text x="770" y="176" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">命</text>
     <text x="770" y="193" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF" font-family="${POSTER_FONT_FAMILY}">理</text>
@@ -2050,7 +2045,7 @@ export class PosterRendererService {
     <path d="M132 296 L142 286 L152 296 L142 306 Z" fill="#D4A24E" />
     <path d="M802 296 L792 286 L782 296 L792 306 Z" fill="#D4A24E" />
     <text x="471" y="308" text-anchor="middle" font-size="28" font-weight="520" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">${subtitle}</text>
-    <rect x="60" y="374" width="821" height="952" rx="34" ry="34" fill="url(#bazi-card)" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
+    <rect x="60" y="374" width="821" height="952" rx="34" ry="34" fill="url(#profile-report-card)" stroke="#E6C99C" stroke-width="1.5" filter="url(#card-shadow)" />
     ${this.renderBaziBirthRows(details)}
     ${this.renderBaziLandscapeMedallion()}
     ${this.renderBaziPillarPanel(details.pillars)}
@@ -2061,7 +2056,7 @@ export class PosterRendererService {
     ${this.renderBaziFortunes(details.fortunes)}
     ${this.renderBaziLotus()}
     <text x="310" y="1396" text-anchor="middle" font-size="28" font-weight="520" fill="#4F4134" font-family="${POSTER_FONT_FAMILY}">长按识别小程序码</text>
-    <text x="310" y="1440" text-anchor="middle" font-size="30" font-weight="760" fill="#2F7D5B" font-family="${POSTER_FONT_FAMILY}">查看完整八字报告</text>
+    <text x="310" y="1440" text-anchor="middle" font-size="30" font-weight="760" fill="#2F7D5B" font-family="${POSTER_FONT_FAMILY}">查看完整资料报告</text>
     <rect x="210" y="1470" width="204" height="58" rx="29" fill="#FFF8EA" stroke="#D9A441" stroke-opacity="0.46" filter="url(#card-shadow)" />
     <circle cx="242" cy="1499" r="21" fill="#5F9B68" />
     <path d="M230 1505 C 238 1486, 258 1489, 253 1509 C 244 1516, 236 1513, 230 1505 Z" fill="#FFFFFF" fill-opacity="0.92" />
@@ -2116,7 +2111,7 @@ export class PosterRendererService {
     const details = source.baziPoster;
 
     return {
-      tagText: details?.tagText || '八字分享',
+      tagText: details?.tagText || '资料分享',
       calendarText: details?.calendarText || '1996年10月21日 09:28',
       birthPlace: details?.birthPlace || '杭州',
       dayMaster: details?.dayMaster || fallbackDayMaster,
@@ -2135,12 +2130,12 @@ export class PosterRendererService {
       fortunes: (details?.fortunes?.length
         ? details.fortunes
         : [
-            { label: '综合运势', value: 82, color: '#2F7D5B' },
+            { label: '综合状态', value: 82, color: '#2F7D5B' },
             { label: '事业', value: 84, color: '#4B8FA8' },
             { label: '感情', value: 88, color: '#D96B5F' },
           ]
       ).slice(0, 3),
-      brandLabel: details?.brandLabel || '八字运势',
+      brandLabel: details?.brandLabel || '资料报告',
       bottomSlogan: details?.bottomSlogan || '知命而后，更懂自己',
     };
   }
@@ -2213,8 +2208,8 @@ export class PosterRendererService {
     return `
   <circle cx="728" cy="535" r="108" fill="#F4EEDA" stroke="#E2A95B" stroke-width="2" />
   <circle cx="728" cy="535" r="98" fill="#EAF4EC" stroke="#FFFFFF" stroke-width="3" />
-  <clipPath id="bazi-landscape-clip"><circle cx="728" cy="535" r="94" /></clipPath>
-  <g clip-path="url(#bazi-landscape-clip)">
+  <clipPath id="profile-report-landscape-clip"><circle cx="728" cy="535" r="94" /></clipPath>
+  <g clip-path="url(#profile-report-landscape-clip)">
     <rect x="634" y="514" width="188" height="116" fill="#EAF4EC" />
     <path d="M628 594 C674 544, 704 546, 740 594 Z" fill="#AFCBC2" fill-opacity="0.66" />
     <path d="M688 592 C748 522, 794 548, 832 594 Z" fill="#C8D9CE" />
@@ -2603,12 +2598,12 @@ export class PosterRendererService {
   private renderZodiacInfoCards(metrics: PosterMetric[]) {
     const normalized = [
       metrics[0] ?? {
-        label: '幸运色',
+        label: '代表色',
         value: '雾光蓝',
-        hint: '幸运色彩助力好运',
+        hint: '色彩提示保持节奏',
       },
       metrics[1] ?? {
-        label: '幸运物',
+        label: '推荐物',
         value: '木质书签',
         hint: '随身携带，带来灵感',
       },
@@ -2681,7 +2676,7 @@ export class PosterRendererService {
       /^(白羊座|金牛座|双子座|巨蟹座|狮子座|处女座|天秤座|天蝎座|射手座|摩羯座|水瓶座|双鱼座)/,
     );
     const sign = match?.[1] ?? title.slice(0, 3);
-    const secondLine = title.includes('运势') ? '今日运势' : '今日运势';
+    const secondLine = title.includes('状态') ? '今日状态' : '今日状态';
 
     return [
       `<tspan x="78" dy="0">${this.escapeXml(sign)}</tspan>`,

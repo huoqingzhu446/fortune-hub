@@ -17,7 +17,7 @@
         <div class="dashboard-kpi__value">{{ dashboard.totals.users }}</div>
         <div class="dashboard-kpi__sub">
           今日新增 <strong>+{{ dashboard.today.newUsers }}</strong>
-          &nbsp;|&nbsp; VIP <strong>{{ dashboard.totals.vipUsers }}</strong>
+          &nbsp;|&nbsp; 会员 <strong>{{ dashboard.totals.vipUsers }}</strong>
         </div>
       </div>
       <div class="dashboard-kpi">

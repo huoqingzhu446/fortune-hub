@@ -15,13 +15,11 @@ import {
   normalizeFileServiceUrlToApiProxy,
 } from '../common/file-url.util';
 import {
-  BaziPosterDetails,
   EmotionPosterAdvice,
   EmotionPosterDetails,
   EmotionPosterDimension,
   PosterMetric,
   PosterRendererService,
-  ZodiacPosterDetails,
 } from '../common/poster-renderer.service';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
@@ -29,9 +27,7 @@ import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { UserRecordEntity } from '../database/entities/user-record.entity';
-import { LuckyService } from '../lucky/lucky.service';
 import { ReportsService } from '../reports/reports.service';
-import { ZodiacService } from '../zodiac/zodiac.service';
 import { GeneratePosterDto } from './dto/generate-poster.dto';
 
 type PosterSource = {
@@ -55,8 +51,6 @@ type PosterSource = {
   zodiacGlyph?: string;
   zodiacEnglish?: string;
   energyValue?: string;
-  zodiacPoster?: ZodiacPosterDetails;
-  baziPoster?: BaziPosterDetails;
   emotionPoster?: EmotionPosterDetails;
 };
 
@@ -79,8 +73,6 @@ export class PostersService {
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     private readonly reportsService: ReportsService,
-    private readonly luckyService: LuckyService,
-    private readonly zodiacService: ZodiacService,
     private readonly configService: ConfigService,
     private readonly posterRendererService: PosterRendererService,
   ) {}
@@ -308,10 +300,9 @@ export class PostersService {
         user.id,
       );
       const report = await this.reportsService.buildReportPayload(record, user);
-      const baziPoster =
-        record.recordType === 'bazi'
-          ? this.buildBaziPosterDetails(this.asRecord(record.resultData))
-          : undefined;
+      if (record.recordType === 'bazi') {
+        throw new BadRequestException('当前审核版已下线该类分享海报');
+      }
       const emotionPoster =
         record.recordType === 'emotion'
           ? this.buildEmotionPosterDetails(
@@ -325,26 +316,10 @@ export class PostersService {
         sourceType: record.recordType,
         sourceCode: record.sourceCode,
         recordId: record.id,
-        title: baziPoster
-          ? '我的八字命盘'
-          : emotionPoster
-            ? '心理健康评测'
-            : report.sharePoster.title,
-        subtitle: baziPoster
-          ? '根据出生日期与出生地生成的专属命理画像'
-          : emotionPoster
-            ? emotionPoster.subtitle
-            : report.sharePoster.subtitle,
-        accentText: baziPoster
-          ? `${baziPoster.dayMaster}日主 · ${baziPoster.wuxingTrend} · 喜用${baziPoster.favorableElements}`
-          : emotionPoster
-            ? emotionPoster.keywords.join(' · ')
-            : report.sharePoster.accentText,
-        footerText: baziPoster
-          ? baziPoster.bottomSlogan
-          : emotionPoster
-            ? emotionPoster.supportSignal
-            : report.sharePoster.footerText,
+        title: emotionPoster ? '心理健康评测' : report.sharePoster.title,
+        subtitle: emotionPoster ? emotionPoster.subtitle : report.sharePoster.subtitle,
+        accentText: emotionPoster ? emotionPoster.keywords.join(' · ') : report.sharePoster.accentText,
+        footerText: emotionPoster ? emotionPoster.supportSignal : report.sharePoster.footerText,
         summary: report.summary,
         promptKeywords: [
           report.recordType,
@@ -355,296 +330,24 @@ export class PostersService {
         themeName: report.sharePoster.themeName,
         promptHint: '',
         eyebrowText: 'FORTUNE HUB SHARE POSTER',
-        chips: emotionPoster
-          ? emotionPoster.keywords
-          : baziPoster
-            ? [
-                baziPoster.dayMaster,
-                baziPoster.wuxingTrend,
-                `喜用${baziPoster.favorableElements}`,
-              ]
-            : [],
+        chips: emotionPoster ? emotionPoster.keywords : [],
         metrics: emotionPoster
           ? emotionPoster.dimensions.slice(0, 3).map((item) => ({
               label: item.label,
               value: String(item.value),
               hint: item.hint,
             }))
-          : baziPoster
-            ? baziPoster.fortunes.map((item) => ({
-                label: item.label,
-                value: String(item.value),
-              }))
-            : [],
+          : [],
         highlightLines: [],
-        baziPoster,
         emotionPoster,
       };
     }
 
-    if (dto.sourceType === 'today_index') {
-      if (!user) {
-        throw new BadRequestException('请先登录后再生成今日分享图');
-      }
-
-      if (!user.birthday || !user.zodiac) {
-        throw new BadRequestException('请先完善生日资料后再生成今日分享图');
-      }
-
-      return this.buildTodayIndexPosterSource(user);
-    }
-
-    if (dto.sourceType === 'zodiac_today') {
-      const zodiac = this.pickString(dto.bizCode, user?.zodiac ?? '');
-
-      if (!zodiac) {
-        throw new BadRequestException('请先选择星座后再生成星座分享图');
-      }
-
-      return this.buildZodiacTodayPosterSource(zodiac, user);
-    }
-
-    if (dto.sourceType === 'lucky_sign' && dto.bizCode) {
-      const sign = await this.fortuneContentRepository.findOne({
-        where: {
-          contentType: 'lucky_sign',
-          bizCode: dto.bizCode,
-          status: 'published',
-        },
-        order: {
-          id: 'DESC',
-        },
-      });
-
-      if (!sign) {
-        throw new NotFoundException('幸运签不存在');
-      }
-
-      const content = this.asRecord(sign.contentJson);
-      const signTag = this.pickString(content.tag, '今日幸运签');
-      const template = await this.resolveTemplatePayload(
-        'share_poster',
-        'lucky_sign',
-      );
-      const fallbackSubtitle = this.pickString(
-        template.subtitle,
-        `${signTag} · ${sign.summary ?? '今天适合顺势推进。'}`,
-      );
-      const fallbackAccentText = this.pickString(
-        template.accentText,
-        this.pickString(content.mantra, '先稳住节奏，再把今天推顺。'),
-      );
-      const fallbackFooterText = this.pickString(
-        template.footerText,
-        'Fortune Hub · 今日幸运签',
-      );
-
-      return {
-        sourceType: 'lucky_sign',
-        sourceCode: sign.bizCode,
-        recordId: null,
-        title: this.pickString(
-          this.asRecord(content.sharePoster).title,
-          this.pickString(template.title, sign.title),
-        ),
-        subtitle: this.pickString(
-          this.asRecord(content.sharePoster).subtitle,
-          fallbackSubtitle,
-        ),
-        accentText: this.pickString(
-          this.asRecord(content.sharePoster).accentText,
-          fallbackAccentText,
-        ),
-        footerText: this.pickString(
-          this.asRecord(content.sharePoster).footerText,
-          fallbackFooterText,
-        ),
-        summary: sign.summary ?? '今天适合顺势推进。',
-        promptKeywords: [sign.title, signTag, sign.summary ?? '幸运签'],
-        themeName: this.pickString(
-          this.asRecord(content.sharePoster).themeName,
-          this.pickString(template.themeName, 'fresh-mint'),
-        ),
-        promptHint: this.pickString(template.backgroundHint, ''),
-        eyebrowText: 'FORTUNE HUB SHARE POSTER',
-        chips: [],
-        metrics: [],
-        highlightLines: [],
-      };
+    if (dto.sourceType) {
+      throw new BadRequestException('当前审核版已下线该类分享海报');
     }
 
     throw new BadRequestException('海报生成参数不完整');
-  }
-
-  private async buildTodayIndexPosterSource(
-    user: UserEntity,
-  ): Promise<PosterSource> {
-    const luckyToday = await this.luckyService.getToday(user);
-    const luckyData = luckyToday.data;
-    const primaryRecommendation = luckyData.recommendations[0] ?? null;
-    const dominantElement = this.pickString(
-      luckyData.profile.dominantElement,
-      this.resolveDominantElementFromUser(user),
-    );
-    const subjectName = this.pickString(
-      user.nickname ?? '',
-      user.zodiac ?? '今日',
-    );
-    const shortBaziSummary = this.truncateText(
-      this.pickString(
-        user.baziSummary ?? '',
-        `${dominantElement}元素较强，今天适合稳住节奏后再推进重点事项。`,
-      ),
-      34,
-    );
-    const highlightLines = [
-      shortBaziSummary,
-      primaryRecommendation?.supportiveFocus ?? luckyData.profile.guidance,
-      ...luckyData.actionTips.slice(0, 2),
-    ].filter(
-      (item, index, array) => Boolean(item) && array.indexOf(item) === index,
-    );
-
-    return {
-      sourceType: 'today_index',
-      sourceCode: this.getTodaySourceCode(),
-      recordId: null,
-      title: `${subjectName}的今日用户指数`,
-      subtitle: this.truncateText(
-        `${user.zodiac} · ${dominantElement}元素主导 · ${shortBaziSummary}`,
-        48,
-      ),
-      accentText: `${luckyData.sign.tag} · ${this.truncateText(luckyData.sign.mantra, 22)}`,
-      footerText: `今日幸运指数 ${luckyData.scores.today.value} · 年度走势 ${luckyData.scores.annual.value}`,
-      summary: this.truncateText(
-        primaryRecommendation?.highlight ?? luckyData.sign.summary,
-        36,
-      ),
-      promptKeywords: [
-        this.resolveElementVisualKeyword(dominantElement),
-        'abstract eastern energy field',
-        'soft flowing light',
-        'mist and star dust',
-        'mineral texture',
-        'large clean negative space',
-      ].filter(Boolean),
-      themeName: this.resolveTodayIndexThemeName(dominantElement),
-      promptHint:
-        '竖版社交分享背景，现代东方气质，轻灵能量流线、柔和留白和层次光影，不能出现任何可读文字或卡片版式。',
-      eyebrowText: 'TODAY FORTUNE INDEX',
-      chips: [
-        `${user.zodiac}运势`,
-        `${dominantElement}元素`,
-        luckyData.sign.tag,
-        primaryRecommendation?.title ?? '今日好运提示',
-        user.birthTime ? `${user.birthTime} 出生` : '未填写出生时辰',
-      ],
-      metrics: [
-        {
-          label: luckyData.scores.today.label,
-          value: luckyData.scores.today.value,
-          hint: luckyData.scores.today.hint,
-        },
-        {
-          label: luckyData.scores.annual.label,
-          value: luckyData.scores.annual.value,
-          hint: luckyData.scores.annual.hint,
-        },
-        {
-          label: '今日重点',
-          value: this.truncateText(
-            primaryRecommendation?.title ?? `${dominantElement}能量`,
-            8,
-          ),
-          hint: this.truncateText(
-            primaryRecommendation?.supportiveFocus ??
-              luckyData.profile.guidance,
-            22,
-          ),
-        },
-      ],
-      highlightTitle: '今天更适合',
-      highlightLines: highlightLines
-        .slice(0, 3)
-        .map((item) => this.truncateText(item, 28)),
-    };
-  }
-
-  private async buildZodiacTodayPosterSource(
-    zodiac: string,
-    user: UserEntity | null,
-  ): Promise<PosterSource> {
-    const response = await this.zodiacService.getTodayFortune(zodiac);
-    const data = response.data;
-    const sharePoster = data.sharePoster;
-    const zodiacPoster = this.buildZodiacPosterDetails(data, user);
-
-    return {
-      sourceType: 'zodiac_today',
-      sourceCode: data.zodiac,
-      recordId: null,
-      title: '星运档案',
-      subtitle: zodiacPoster.subtitle,
-      accentText: `${zodiacPoster.signName} · ${zodiacPoster.keywords.join(' · ')}`,
-      footerText: '长按识别小程序码，查看你的专属星运报告',
-      summary: zodiacPoster.quote,
-      promptKeywords: [
-        ...this.resolveZodiacVisualKeywords(data.zodiac),
-        this.resolveElementVisualKeyword(data.profile.element),
-        'constellation arcs',
-        'misty mountains',
-        'soft celestial glow',
-        'mineral texture',
-        'large clean negative space',
-      ],
-      themeName: sharePoster.themeName,
-      promptHint:
-        '竖版无文字星座档案背景，只画月光、星轨、星盘、柔云、星座符号光影和浅蓝紫氛围，避免标题牌、文字框、海报排版和数字。',
-      eyebrowText: 'ZODIAC ARCHIVE',
-      chips: zodiacPoster.keywords,
-      metrics: [
-        {
-          label: '星象气质',
-          value: zodiacPoster.temperament,
-        },
-        {
-          label: '能量倾向',
-          value: zodiacPoster.energyTendency,
-        },
-        {
-          label: '守护元素',
-          value: zodiacPoster.guardianElement,
-        },
-        {
-          label: '魅力指数',
-          value: String(zodiacPoster.charmScore),
-        },
-        {
-          label: '社交能量',
-          value: String(zodiacPoster.socialScore),
-        },
-        {
-          label: '今日幸运色',
-          value: zodiacPoster.luckyColor,
-        },
-      ],
-      highlightTitle: '星座档案',
-      highlightLines: [
-        zodiacPoster.quote,
-        data.action.title,
-        data.dayparts[0]?.hint ?? '',
-      ]
-        .filter(
-          (item, index, array) =>
-            Boolean(item) && array.indexOf(item) === index,
-        )
-        .slice(0, 3),
-      zodiacName: data.zodiac,
-      zodiacGlyph: this.resolveZodiacGlyph(data.zodiac),
-      zodiacEnglish: this.resolveZodiacEnglishName(data.zodiac),
-      energyValue: String(data.score.overall),
-      zodiacPoster,
-    };
   }
 
   private buildEmotionPosterDetails(
@@ -941,433 +644,6 @@ export class PostersService {
     return `${date.getFullYear()}.${month}.${day}`;
   }
 
-  private buildZodiacPosterDetails(
-    data: Record<string, unknown>,
-    user: UserEntity | null,
-  ): ZodiacPosterDetails {
-    const zodiac = this.pickString(data.zodiac, '星座');
-    const profile = this.asRecord(data.profile);
-    const score = this.asRecord(data.score);
-    const lucky = this.asRecord(data.lucky);
-    const theme = this.asRecord(data.theme);
-    const overallScore = Number(score.overall ?? 86);
-    const loveScore = Number(score.love ?? overallScore);
-    const careerScore = Number(score.career ?? overallScore);
-    const keywords = this.resolveZodiacPosterKeywords(
-      zodiac,
-      Array.isArray(profile.keywords)
-        ? profile.keywords
-            .map((item) => (typeof item === 'string' ? item.trim() : ''))
-            .filter(Boolean)
-        : [],
-    );
-    const elementLabel = this.resolveZodiacPosterElementLabel(
-      this.pickString(profile.element, ''),
-    );
-
-    return {
-      tagText: '星运档案',
-      subtitle: '根据出生日期与出生地生成你的星座画像',
-      signName: zodiac,
-      englishName: this.resolveZodiacEnglishName(zodiac),
-      glyph: this.resolveZodiacGlyph(zodiac),
-      keywords,
-      temperament: this.resolveZodiacTemplateTemperament(zodiac, keywords),
-      energyTendency: this.resolveZodiacTemplateEnergyTendency(zodiac),
-      guardianElement: this.resolveZodiacTemplateGuardianElement(elementLabel),
-      birthday: this.formatZodiacPosterBirthday(user?.birthday ?? ''),
-      birthPlace: this.resolveZodiacPosterBirthPlace(user),
-      elementLabel,
-      charmScore: this.clampPosterScore(loveScore + 6, 92),
-      socialScore: this.clampPosterScore(
-        (loveScore + careerScore) / 2 + 4,
-        88,
-      ),
-      luckyColor: this.truncateText(
-        this.pickString(lucky.color, '雾蓝').replace(/霾粉蓝/g, '蓝'),
-        6,
-      ),
-      quote: this.resolveZodiacPosterQuote(
-        zodiac,
-        this.pickString(theme.summary, ''),
-      ),
-    };
-  }
-
-  private formatZodiacPosterBirthday(value: string) {
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-    if (!match) {
-      return value || '待完善';
-    }
-
-    return `${match[1]}.${match[2]}.${match[3]}`;
-  }
-
-  private resolveZodiacPosterBirthPlace(user: UserEntity | null) {
-    const preferences = this.asRecord(user?.preferencesJson);
-
-    return this.pickString(
-      preferences.birthPlace,
-      this.pickString(
-        preferences.birthCity,
-        this.pickString(preferences.city, '待完善'),
-      ),
-    );
-  }
-
-  private resolveZodiacPosterElementLabel(value: string) {
-    const normalized = value
-      ? value.includes('象')
-        ? value
-        : `${value}象`
-      : '风象';
-
-    return normalized.endsWith('星座') ? normalized : `${normalized}星座`;
-  }
-
-  private resolveZodiacPosterKeywords(
-    zodiac: string,
-    fallbackKeywords: string[],
-  ) {
-    const map: Record<string, string[]> = {
-      白羊座: ['热烈', '勇气', '开端'],
-      金牛座: ['稳定', '质感', '积累'],
-      双子座: ['灵动', '表达', '连接'],
-      巨蟹座: ['温柔', '守护', '安全感'],
-      狮子座: ['明亮', '自信', '热忱'],
-      处女座: ['细致', '秩序', '纯净'],
-      天秤座: ['优雅', '平衡', '和谐'],
-      天蝎座: ['深邃', '敏锐', '专注'],
-      射手座: ['自由', '探索', '乐观'],
-      摩羯座: ['稳定', '坚韧', '长期'],
-      水瓶座: ['独立', '创新', '理性'],
-      双鱼座: ['浪漫', '共情', '想象'],
-    };
-
-    return (map[zodiac] ?? fallbackKeywords ?? ['星光', '节奏', '好运'])
-      .filter(Boolean)
-      .slice(0, 3);
-  }
-
-  private resolveZodiacTemplateTemperament(
-    zodiac: string,
-    keywords: string[],
-  ) {
-    const map: Record<string, string> = {
-      白羊座: '热烈勇敢',
-      金牛座: '稳定丰盈',
-      双子座: '灵动敏捷',
-      巨蟹座: '温柔守护',
-      狮子座: '明亮自信',
-      处女座: '细致清醒',
-      天秤座: '优雅平衡',
-      天蝎座: '深邃敏锐',
-      射手座: '自由开阔',
-      摩羯座: '沉稳坚韧',
-      水瓶座: '独立理性',
-      双鱼座: '浪漫共情',
-    };
-
-    return map[zodiac] ?? keywords.slice(0, 2).join('') ?? '星光流动';
-  }
-
-  private resolveZodiacTemplateEnergyTendency(zodiac: string) {
-    const map: Record<string, string> = {
-      白羊座: '主动开局',
-      金牛座: '稳步积累',
-      双子座: '表达连接',
-      巨蟹座: '情感滋养',
-      狮子座: '自信绽放',
-      处女座: '秩序优化',
-      天秤座: '理性社交',
-      天蝎座: '专注洞察',
-      射手座: '探索扩展',
-      摩羯座: '长期推进',
-      水瓶座: '创新突破',
-      双鱼座: '直觉流动',
-    };
-
-    return map[zodiac] ?? '顺势调整';
-  }
-
-  private resolveZodiacTemplateGuardianElement(elementLabel: string) {
-    if (elementLabel.includes('火')) {
-      return '火元素';
-    }
-
-    if (elementLabel.includes('土')) {
-      return '土元素';
-    }
-
-    if (elementLabel.includes('水')) {
-      return '水元素';
-    }
-
-    return '风元素';
-  }
-
-  private resolveZodiacPosterQuote(zodiac: string, fallback: string) {
-    const map: Record<string, string> = {
-      白羊座: '你像破晓火光一样明亮直接，勇气会替你打开新的局面。',
-      金牛座: '你像春日原野一样安定丰盈，慢慢来反而更接近想要的答案。',
-      双子座: '你像风里的讯息一样轻盈灵动，好奇心会带你找到新的连接。',
-      巨蟹座: '你像月光下的海湾一样柔软可靠，温柔里藏着坚定的力量。',
-      狮子座: '你像盛夏阳光一样自带光芒，真诚表达会让世界看见你。',
-      处女座: '你像清晨微光一样细致清醒，秩序感会让复杂慢慢变简单。',
-      天秤座: '你像秋夜微风一样温柔而有分寸，理性与浪漫恰到好处。',
-      天蝎座: '你像深夜星河一样敏锐专注，越安静越能看见关键答案。',
-      射手座: '你像远方地平线一样开阔明朗，自由感会带来新的可能。',
-      摩羯座: '你像冬夜山脊一样沉稳坚定，长期主义会把努力变成底气。',
-      水瓶座: '你像清冷星光一样独立清醒，新的视角会让旧问题松动。',
-      双鱼座: '你像梦境海潮一样柔软浪漫，直觉会带你靠近真正的心愿。',
-    };
-
-    const quote = (map[zodiac] ?? fallback).trim();
-
-    if (quote.length <= 34) {
-      return quote;
-    }
-
-    return quote.slice(0, 34).replace(/[，。、；：,.+\s]+$/u, '');
-  }
-
-  private buildBaziPosterDetails(
-    resultData: Record<string, unknown>,
-  ): BaziPosterDetails {
-    const chart = this.asRecord(resultData.chart);
-    const baseProfile = this.asRecord(resultData.baseProfile);
-    const inputSnapshot = this.asRecord(resultData.inputSnapshot);
-    const dominantElement = this.asRecord(resultData.dominantElement);
-    const supportElement = this.asRecord(resultData.supportElement);
-    const dayMasterAnalysis = this.asRecord(resultData.dayMasterAnalysis);
-    const yearPillar = this.pickString(chart.yearPillar, '丙子');
-    const monthPillar = this.pickString(chart.monthPillar, '丁酉');
-    const dayPillar = this.pickString(chart.dayPillar, '乙卯');
-    const hourPillar = this.pickString(chart.hourPillar, '辛巳');
-    const dayStem = this.pickString(
-      dayMasterAnalysis.dayStem,
-      dayPillar[0] ?? '乙',
-    );
-    const dayElement = this.pickString(
-      dayMasterAnalysis.dayElement,
-      this.resolveBaziElementFromChar(dayStem),
-    );
-    const dominantName = this.pickString(dominantElement.name, dayElement);
-    const supportName = this.pickString(supportElement.name, '水');
-    const favorableElements = this.resolveBaziFavorableElements(
-      dayMasterAnalysis,
-      supportName,
-      dayElement,
-    );
-    const birthday = this.pickString(
-      inputSnapshot.birthday,
-      this.pickString(baseProfile.birthday, '1996-10-21'),
-    );
-    const birthTime = this.pickString(
-      inputSnapshot.birthTime,
-      this.pickString(baseProfile.birthTime, '09:28'),
-    );
-    const birthPlace = this.pickString(
-      inputSnapshot.birthPlace,
-      this.pickString(baseProfile.birthPlace, '杭州'),
-    );
-    const supportScore = Number(dayMasterAnalysis.supportScore ?? 6);
-    const pressureScore = Number(dayMasterAnalysis.pressureScore ?? 4);
-    const balanceScore = Number(dayMasterAnalysis.balanceScore ?? 0);
-    const dominantValue = Number(dominantElement.value ?? 4);
-    const supportValue = Number(supportElement.value ?? 2);
-
-    return {
-      tagText: '八字分享',
-      calendarText: this.formatBaziCalendarText(birthday, birthTime),
-      birthPlace,
-      dayMaster: `${dayStem}${dayElement}`,
-      pillars: [
-        this.buildBaziPosterPillar('年柱', yearPillar),
-        this.buildBaziPosterPillar('月柱', monthPillar),
-        this.buildBaziPosterPillar('日柱', dayPillar),
-        this.buildBaziPosterPillar('时柱', hourPillar),
-      ],
-      wuxingTrend: `${dominantName}旺`,
-      favorableElements,
-      analysis: [
-        this.buildBaziPosterAnalysisLine(
-          `${dayStem}${dayElement}日主，${this.resolveBaziDayMasterPosterTrait(dayElement)}`,
-        ),
-        this.buildBaziPosterAnalysisLine(
-          `${dominantName}${supportName}相生，${this.resolveBaziSupportPosterTrait(supportName)}`,
-        ),
-        this.buildBaziPosterAnalysisLine(
-          this.resolveBaziRhythmPosterLine(dominantName, supportName),
-        ),
-      ],
-      fortunes: [
-        {
-          label: '综合运势',
-          value: this.clampPosterScore(
-            78 + dominantValue * 2 + balanceScore,
-            82,
-          ),
-          color: '#2F7D5B',
-        },
-        {
-          label: '事业',
-          value: this.clampPosterScore(76 + supportScore * 2, 84),
-          color: '#4B8FA8',
-        },
-        {
-          label: '感情',
-          value: this.clampPosterScore(
-            82 + supportValue * 2 - pressureScore,
-            88,
-          ),
-          color: '#D96B5F',
-        },
-      ],
-      brandLabel: '八字运势',
-      bottomSlogan: '知命而后，更懂自己',
-    };
-  }
-
-  private buildBaziPosterPillar(label: string, pillar: string) {
-    return {
-      label,
-      stem: pillar[0] || '乙',
-      branch: pillar[1] || '卯',
-    };
-  }
-
-  private formatBaziCalendarText(birthday: string, birthTime: string) {
-    const match = birthday.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-    if (!match) {
-      return [birthday, birthTime].filter(Boolean).join(' ');
-    }
-
-    return `${match[1]}年${Number(match[2])}月${Number(match[3])}日 ${birthTime}`;
-  }
-
-  private resolveBaziFavorableElements(
-    dayMasterAnalysis: Record<string, unknown>,
-    supportName: string,
-    dayElement: string,
-  ) {
-    const usefulElements = Array.isArray(dayMasterAnalysis.usefulElements)
-      ? dayMasterAnalysis.usefulElements
-          .map((item) => this.pickString(this.asRecord(item).name, ''))
-          .filter(Boolean)
-      : [];
-    const merged = [...usefulElements, supportName, dayElement].filter(
-      (item, index, array) => item && array.indexOf(item) === index,
-    );
-
-    return merged.slice(0, 2).join('') || `${supportName}${dayElement}`;
-  }
-
-  private resolveBaziDayMasterPosterTrait(dayElement: string) {
-    const traits: Record<string, string> = {
-      木: '气质温和，有韧性',
-      火: '表达直接，行动有热度',
-      土: '重视稳定，善承接',
-      金: '判断清晰，边界感强',
-      水: '感受敏锐，善观察',
-    };
-
-    return traits[dayElement] ?? '气质稳定';
-  }
-
-  private resolveBaziSupportPosterTrait(element: string) {
-    const traits: Record<string, string> = {
-      木: '延展力强',
-      火: '行动力强',
-      土: '承接力强',
-      金: '判断力强',
-      水: '学习力强',
-    };
-
-    return traits[element] ?? '适应力强';
-  }
-
-  private resolveBaziRhythmPosterLine(
-    dominantName: string,
-    supportName: string,
-  ) {
-    const dominant = this.resolveBaziSingleElement(dominantName, '木');
-    const support = this.resolveBaziSingleElement(supportName, '水');
-
-    return `节奏建议：${dominant}主轴，${support}补位`;
-  }
-
-  private buildBaziPosterAnalysisLine(value: string) {
-    const maxUnits = 15;
-    const normalized = value.replace(/\s+/g, '').trim();
-
-    if (this.measureBaziPosterTextUnits(normalized) <= maxUnits) {
-      return normalized;
-    }
-
-    let output = '';
-
-    for (const char of normalized) {
-      if (this.measureBaziPosterTextUnits(`${output}${char}`) > maxUnits) {
-        break;
-      }
-
-      output += char;
-    }
-
-    return output.replace(/[，。、；：,.+\s]+$/u, '');
-  }
-
-  private resolveBaziSingleElement(value: string, fallback: string) {
-    return ['木', '火', '土', '金', '水'].find((item) =>
-      value.includes(item),
-    ) ?? fallback;
-  }
-
-  private measureBaziPosterTextUnits(value: string) {
-    return [...value].reduce((total, char) => {
-      if (/\s/u.test(char)) {
-        return total + 0.32;
-      }
-
-      if (/[\u0000-\u007f]/u.test(char)) {
-        return total + 0.58;
-      }
-
-      if (/[\u3000-\u303f\uff00-\uffef]/u.test(char)) {
-        return total + 0.86;
-      }
-
-      return total + 1;
-    }, 0);
-  }
-
-  private resolveBaziElementFromChar(value: string) {
-    if ('甲乙寅卯木'.includes(value)) {
-      return '木';
-    }
-
-    if ('丙丁巳午火'.includes(value)) {
-      return '火';
-    }
-
-    if ('戊己辰戌丑未土'.includes(value)) {
-      return '土';
-    }
-
-    if ('庚辛申酉金'.includes(value)) {
-      return '金';
-    }
-
-    if ('壬癸子亥水'.includes(value)) {
-      return '水';
-    }
-
-    return '木';
-  }
-
   private clampPosterScore(value: number, fallback: number) {
     if (!Number.isFinite(value)) {
       return fallback;
@@ -1376,33 +652,29 @@ export class PostersService {
     return Math.min(99, Math.max(60, Math.round(value)));
   }
 
+  private buildVisualPromptKeywords(source: PosterSource) {
+    const blockedPattern =
+      /[\u4e00-\u9fa5]{5,}|今日|指数|行动|建议|完成|目标|数字|分享|海报|卡片|标签|文案|标题/;
+    const keywords = source.promptKeywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .filter((keyword) => !blockedPattern.test(keyword));
+
+    if (keywords.length) {
+      return keywords.slice(0, 10);
+    }
+
+    return [
+      'soft ambient glow',
+      'mist',
+      'flowing light',
+      'large clean negative space',
+    ];
+  }
+
   private buildProviderPrompt(source: PosterSource) {
     const visualKeywords = this.buildVisualPromptKeywords(source);
     const colorMood = this.resolveProviderColorMood(source.themeName);
-
-    if (
-      source.sourceType === 'today_index' ||
-      source.sourceType === 'zodiac_today'
-    ) {
-      return [
-        '竖版微信分享背景插画，现代东方气质，通透高级，适合命理与运势产品分享。只生成纯背景，不生成成品海报。',
-        `色彩氛围：${colorMood}。`,
-        `视觉元素：${visualKeywords.join('、')}。`,
-        this.pickString(
-          source.promptHint,
-          this.resolvePosterPromptHint(source.sourceType),
-        )
-          ? `额外风格要求：${this.pickString(source.promptHint, this.resolvePosterPromptHint(source.sourceType))}。`
-          : '',
-        '画面层次丰富但安静，包含星轨、流光、云雾、五行纹理或抽象山海意象，顶部和中下部有干净留白。',
-        '不要设计版式，不要出现标题栏、信息卡片、按钮、纸张、标签、边框、表格、对话框、印章或人物脸部特写。',
-        '绝对不要出现任何文字、汉字、英文字母、数字、logo、水印、二维码、签名和可读符号。',
-        '整体偏封面感、治愈感、轻奢感，高清细节，适合后期叠加中文信息。',
-      ]
-        .filter(Boolean)
-        .join(' ');
-    }
-
     const templateHint = this.resolvePosterPromptHint(source.sourceType);
 
     return [
@@ -1424,18 +696,6 @@ export class PostersService {
     sourceType: string,
     kind: 'square' | 'portrait',
   ) {
-    if (sourceType === 'zodiac_today') {
-      return 'zodiac-archive-poster-941x1672-v1';
-    }
-
-    if (sourceType === 'today_index') {
-      return 'today-index-template-v1';
-    }
-
-    if (sourceType === 'bazi') {
-      return 'bazi-share-poster-941x1672-v1';
-    }
-
     if (sourceType === 'emotion') {
       return 'emotion-care-assessment-poster-941x1672-v1';
     }
@@ -1445,143 +705,6 @@ export class PostersService {
     }
 
     return 'square-share-template-v1';
-  }
-
-  private resolveZodiacGlyph(zodiac: string) {
-    const map: Record<string, string> = {
-      白羊座: '♈',
-      金牛座: '♉',
-      双子座: '♊',
-      巨蟹座: '♋',
-      狮子座: '♌',
-      处女座: '♍',
-      天秤座: '♎',
-      天蝎座: '♏',
-      射手座: '♐',
-      摩羯座: '♑',
-      水瓶座: '♒',
-      双鱼座: '♓',
-    };
-
-    return map[zodiac] ?? '✦';
-  }
-
-  private resolveZodiacEnglishName(zodiac: string) {
-    const map: Record<string, string> = {
-      白羊座: 'Aries',
-      金牛座: 'Taurus',
-      双子座: 'Gemini',
-      巨蟹座: 'Cancer',
-      狮子座: 'Leo',
-      处女座: 'Virgo',
-      天秤座: 'Libra',
-      天蝎座: 'Scorpio',
-      射手座: 'Sagittarius',
-      摩羯座: 'Capricorn',
-      水瓶座: 'Aquarius',
-      双鱼座: 'Pisces',
-    };
-
-    return map[zodiac] ?? 'Zodiac';
-  }
-
-  private buildVisualPromptKeywords(source: PosterSource) {
-    const blockedPattern =
-      /[\u4e00-\u9fa5]{5,}|今日|气运|运势|指数|行动|建议|幸运|完成|目标|数字|分享|海报|卡片|标签|文案|标题/;
-    const keywords = source.promptKeywords
-      .map((keyword) => keyword.trim())
-      .filter(Boolean)
-      .filter((keyword) => !blockedPattern.test(keyword));
-
-    if (keywords.length) {
-      return keywords.slice(0, 10);
-    }
-
-    return [
-      'soft celestial glow',
-      'mist',
-      'flowing light',
-      'large clean negative space',
-    ];
-  }
-
-  private resolveElementVisualKeyword(element: string) {
-    if (element.includes('木')) {
-      return 'fresh green wood element texture';
-    }
-
-    if (element.includes('火')) {
-      return 'warm ember light texture';
-    }
-
-    if (element.includes('土')) {
-      return 'earth stone mountain texture';
-    }
-
-    if (element.includes('金')) {
-      return 'silver metal moonlight texture';
-    }
-
-    if (element.includes('水')) {
-      return 'deep water mist texture';
-    }
-
-    return 'balanced five element texture';
-  }
-
-  private resolveZodiacVisualKeywords(zodiac: string) {
-    const map: Record<string, string[]> = {
-      白羊座: ['aries constellation', 'ram horn silhouette', 'morning sparks'],
-      金牛座: [
-        'taurus constellation',
-        'gentle bull silhouette',
-        'spring meadow light',
-      ],
-      双子座: [
-        'gemini constellation',
-        'twin star ribbons',
-        'airy light trails',
-      ],
-      巨蟹座: ['cancer constellation', 'moonlit water', 'soft shell curve'],
-      狮子座: ['leo constellation', 'golden mane light', 'sun halo'],
-      处女座: [
-        'virgo constellation',
-        'wheat and moonlight',
-        'quiet earth garden',
-      ],
-      天秤座: [
-        'libra constellation',
-        'balanced moon arc',
-        'soft scales silhouette',
-      ],
-      天蝎座: [
-        'scorpio constellation',
-        'deep night desert',
-        'mysterious red glow',
-      ],
-      射手座: [
-        'sagittarius constellation',
-        'arrow star trail',
-        'wide sky horizon',
-      ],
-      摩羯座: [
-        'capricorn constellation',
-        'mountain silhouette',
-        'quiet midnight stone',
-      ],
-      水瓶座: [
-        'aquarius constellation',
-        'flowing water light',
-        'future glass texture',
-      ],
-      双鱼座: [
-        'pisces constellation',
-        'two fish light trails',
-        'dreamy ocean mist',
-      ],
-    };
-
-    return map[zodiac] ?? ['constellation', 'soft star trail', 'misty sky'];
   }
 
   private resolveProviderColorMood(themeName: string) {
@@ -1617,13 +740,6 @@ export class PostersService {
   }
 
   private resolvePosterPromptHint(sourceType: string) {
-    if (sourceType === 'today_index') {
-      return '竖版分享图，画面要有星轨、流光、轻雾与东方能量纹理，兼顾高级感和社交传播质感。';
-    }
-
-    if (sourceType === 'zodiac_today') {
-      return '竖版星座分享图，画面要有清晰星轨、星象符号感、透明能量流线和安静留白，适合叠加今日气运指数。';
-    }
 
     return '';
   }
@@ -1733,16 +849,8 @@ export class PostersService {
     sourceCode?: string;
     recordId?: string;
   }): PosterSource {
-    const sourceType = this.pickString(input.sourceType, 'divination');
-    const allowedSourceTypes = new Set([
-      'divination',
-      'today_index',
-      'zodiac_today',
-      'lucky_sign',
-      'bazi',
-      'emotion',
-      'personality',
-    ]);
+    const sourceType = this.pickString(input.sourceType, 'emotion');
+    const allowedSourceTypes = new Set(['emotion', 'personality']);
 
     if (!allowedSourceTypes.has(sourceType)) {
       throw new BadRequestException('不支持的小程序码场景');
@@ -1755,7 +863,7 @@ export class PostersService {
       sourceType,
       sourceCode: sourceCode || null,
       recordId: recordId || null,
-      title: '今日占卜结果',
+      title: '分享海报',
       subtitle: '',
       accentText: '',
       footerText: '',
@@ -1938,23 +1046,7 @@ export class PostersService {
   }
 
   private resolveDefaultMiniProgramPage(source: PosterSource) {
-    if (source.sourceType === 'zodiac_today') {
-      return 'pages/zodiac/index';
-    }
-
-    if (source.sourceType === 'lucky_sign') {
-      return 'pages/lucky/sign/index';
-    }
-
-    if (source.sourceType === 'divination') {
-      return 'pages/divination/index/index';
-    }
-
-    if (
-      source.sourceType === 'bazi' ||
-      source.sourceType === 'emotion' ||
-      source.sourceType === 'personality'
-    ) {
+    if (source.sourceType === 'emotion' || source.sourceType === 'personality') {
       return 'pages/report/index';
     }
 
@@ -1964,30 +1056,7 @@ export class PostersService {
   private resolveMiniProgramCodeQuery(
     source: PosterSource,
   ): Record<string, string> {
-    if (source.sourceType === 'zodiac_today') {
-      return {
-        zodiac: source.sourceCode ?? source.zodiacName ?? '',
-      };
-    }
-
-    if (source.sourceType === 'lucky_sign') {
-      return {
-        bizCode: source.sourceCode ?? '',
-      };
-    }
-
-    if (source.sourceType === 'divination') {
-      return {
-        source: 'share_poster',
-        ...(source.recordId ? { recordId: source.recordId } : {}),
-      };
-    }
-
-    if (
-      source.sourceType === 'bazi' ||
-      source.sourceType === 'emotion' ||
-      source.sourceType === 'personality'
-    ) {
+    if (source.sourceType === 'emotion' || source.sourceType === 'personality') {
       return {
         recordId: source.recordId ?? '',
       };
@@ -2115,9 +1184,6 @@ export class PostersService {
       ? configuredPages.split(',')
       : [
           'pages/index/index',
-          'pages/zodiac/index',
-          'pages/lucky/sign/index',
-          'pages/divination/index/index',
           'pages/report/index',
         ];
 

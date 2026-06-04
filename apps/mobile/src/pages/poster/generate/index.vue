@@ -78,30 +78,10 @@
 <script setup lang="ts">
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
-import { fetchMe } from '../../../api/auth';
-import { fetchLuckySignDetail } from '../../../api/lucky';
-import {
-  generateLuckySignPosterAsync,
-  generateReportPosterAsync,
-  generateTodayIndexPosterAsync,
-  generateZodiacTodayPosterAsync,
-} from '../../../api/posters';
+import { generateReportPosterAsync } from '../../../api/posters';
 import { fetchReport } from '../../../api/reports';
-import { fetchZodiacToday } from '../../../api/zodiac';
 import { useThemePreference } from '../../../composables/useThemePreference';
-import { useDashboardStore } from '../../../stores/dashboard';
 import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
-import {
-  formatDivinationDate,
-  getDivinationResult,
-  getOrCreateTodayDivinationResult,
-} from '../../../services/divination';
-import {
-  DIVINATION_POSTER_HEIGHT,
-  DIVINATION_POSTER_WIDTH,
-  generateDivinationSharePoster,
-  getWechatPosterRuntime,
-} from '../../../services/divination-poster';
 import {
   handlePosterImageError,
   previewPosterImage,
@@ -111,31 +91,17 @@ import {
 } from '../../../services/poster-image';
 import {
   getAuthToken,
-  getCachedUser,
-  setCachedUser,
 } from '../../../services/session';
-import type { UserProfile } from '../../../types/auth';
-import type { DivinationResult } from '../../../types/divination';
 import type { GeneratedPoster } from '../../../types/poster';
 import type { UnifiedReport } from '../../../types/report';
 
-type PosterGenerateType = 'today' | 'report' | 'zodiac' | 'lucky_sign' | 'divination';
+type PosterGenerateType = 'report';
 type PosterSize = GeneratedPoster['size'];
 
 const typeLabels: Record<PosterGenerateType, string> = {
-  today: '今日综合',
   report: '报告海报',
-  zodiac: '星座海报',
-  lucky_sign: '幸运签',
-  divination: '占卜海报',
 };
-const allowedTypes: PosterGenerateType[] = [
-  'today',
-  'report',
-  'zodiac',
-  'lucky_sign',
-  'divination',
-];
+const allowedTypes: PosterGenerateType[] = ['report'];
 const allowedSizes: PosterSize[] = ['1280x1280', '1080x1440', '1088x1472', '941x1672'];
 const posterThemeLabelMap: Record<string, string> = {
   'calm-amber': '安静琥珀',
@@ -149,17 +115,12 @@ const posterThemeLabelMap: Record<string, string> = {
   'sunset-ember': '夕照暖焰',
   'verdant-mint': '草木薄荷',
   'warm-amber': '暖阳琥珀',
-  'zodiac-blue-purple': '星盘蓝紫',
 };
 
-const dashboardStore = useDashboardStore();
 const { themeVars } = useThemePreference();
 const authToken = ref(getAuthToken());
-const profile = ref<UserProfile | null>(getCachedUser());
-const posterType = ref<PosterGenerateType>('today');
+const posterType = ref<PosterGenerateType>('report');
 const recordId = ref('');
-const bizCode = ref('');
-const resultId = ref('');
 const requestedSize = ref<PosterSize | ''>('');
 const autoGenerate = ref(false);
 const autoTriggered = ref(false);
@@ -170,25 +131,12 @@ const sourceSummary = ref('一张适合保存、分享和发给好友的高清�
 const sourceMeta = ref('准备生成');
 const sourceTheme = ref('');
 const report = ref<UnifiedReport | null>(null);
-const divinationResult = ref<DivinationResult | null>(null);
 const remotePoster = ref<GeneratedPoster | null>(null);
 const localPosterPath = ref('');
-
 const isMpWeixin = String(
   (uni.getSystemInfoSync() as { uniPlatform?: string }).uniPlatform ?? '',
 ).toLowerCase() === 'mp-weixin';
-
-const dashboard = computed(() => dashboardStore.dashboard);
 const isLoggedIn = computed(() => Boolean(authToken.value));
-const profileReady = computed(() =>
-  Boolean(
-    profile.value?.birthday &&
-      profile.value?.birthTime &&
-      profile.value?.birthPlace &&
-      profile.value?.zodiac &&
-      profile.value?.gender !== 'unknown',
-  ),
-);
 const posterImageSource = computed(() => {
   if (localPosterPath.value) {
     return localPosterPath.value;
@@ -199,11 +147,7 @@ const posterImageSource = computed(() => {
 const hasPoster = computed(() => Boolean(posterImageSource.value));
 const pageTitle = computed(() => {
   const mapping: Record<PosterGenerateType, string> = {
-    today: '生成今日分享海报',
     report: '生成专属报告海报',
-    zodiac: '生成星座分享海报',
-    lucky_sign: '生成幸运签海报',
-    divination: '生成占卜结果海报',
   };
 
   return mapping[posterType.value];
@@ -236,21 +180,9 @@ const posterSizeLabel = computed(() => {
     return `${remotePoster.value.width} × ${remotePoster.value.height}`;
   }
 
-  if (posterType.value === 'divination') {
-    return `${DIVINATION_POSTER_WIDTH} × ${DIVINATION_POSTER_HEIGHT}`;
-  }
-
   return requestedSize.value || defaultSizeLabel.value;
 });
 const defaultSizeLabel = computed(() => {
-  if (posterType.value === 'report' && report.value?.recordType === 'bazi') {
-    return '941x1672';
-  }
-
-  if (posterType.value === 'zodiac') {
-    return '941x1672';
-  }
-
   return '1088x1472';
 });
 const sourceDetails = computed(() =>
@@ -272,14 +204,6 @@ const emptyPreviewTitle = computed(() => {
   return '点击生成分享海报';
 });
 const emptyPreviewText = computed(() => {
-  if (posterType.value === 'today' && !isLoggedIn.value) {
-    return '登录后会把今日指数、幸运签和个人资料组合成一张高清分享图。';
-  }
-
-  if (posterType.value === 'today' && !profileReady.value) {
-    return '补齐生日、出生时间、出生地和星座后，可以生成更完整的今日海报。';
-  }
-
   if (posterType.value === 'report' && !recordId.value) {
     return '需要从一份已保存的结果进入，才能生成报告海报。';
   }
@@ -287,19 +211,7 @@ const emptyPreviewText = computed(() => {
   return '生成后会在这里展示高清预览，并提供保存和微信发送。';
 });
 const canGenerate = computed(() => {
-  if (posterType.value === 'today') {
-    return isLoggedIn.value && profileReady.value;
-  }
-
-  if (posterType.value === 'report') {
-    return isLoggedIn.value && Boolean(recordId.value);
-  }
-
-  if (posterType.value === 'divination') {
-    return Boolean(divinationResult.value);
-  }
-
-  return Boolean(bizCode.value);
+  return isLoggedIn.value && Boolean(recordId.value);
 });
 const primaryActionLabel = computed(() => {
   if (contextLoading.value) {
@@ -310,12 +222,8 @@ const primaryActionLabel = computed(() => {
     return '正在生成';
   }
 
-  if ((posterType.value === 'today' || posterType.value === 'report') && !isLoggedIn.value) {
+  if (posterType.value === 'report' && !isLoggedIn.value) {
     return '去登录';
-  }
-
-  if (posterType.value === 'today' && !profileReady.value) {
-    return '去完善资料';
   }
 
   if (!canGenerate.value) {
@@ -339,7 +247,7 @@ function decodeRouteValue(value: unknown) {
 
 function normalizePosterType(value: unknown): PosterGenerateType {
   const normalized = decodeRouteValue(value) as PosterGenerateType;
-  return allowedTypes.includes(normalized) ? normalized : 'today';
+  return allowedTypes.includes(normalized) ? normalized : 'report';
 }
 
 function normalizePosterSize(value: unknown) {
@@ -371,60 +279,11 @@ async function hydrateSource() {
   contextLoading.value = true;
 
   try {
-    switch (posterType.value) {
-      case 'report':
-        await hydrateReportSource();
-        break;
-      case 'zodiac':
-        await hydrateZodiacSource();
-        break;
-      case 'lucky_sign':
-        await hydrateLuckySignSource();
-        break;
-      case 'divination':
-        hydrateDivinationSource();
-        break;
-      default:
-        await hydrateTodaySource();
-        break;
-    }
+    await hydrateReportSource();
   } finally {
     contextLoading.value = false;
     await triggerAutoGenerate();
   }
-}
-
-async function hydrateTodaySource() {
-  sourceTitle.value = '今日分享海报';
-  sourceSummary.value = dashboard.value.todayFortuneSummary || '把今日指数、幸运签和个人状态整理成一张高清分享图。';
-  sourceMeta.value = '今日综合状态';
-  sourceTheme.value = dashboard.value.todayLuckySign.themeName || '';
-
-  if (!dashboardStore.loading) {
-    await dashboardStore.loadDashboard();
-  }
-
-  sourceSummary.value = dashboard.value.todayFortuneSummary || sourceSummary.value;
-  sourceTheme.value = dashboard.value.todayLuckySign.themeName || sourceTheme.value;
-
-  authToken.value = getAuthToken();
-  profile.value = getCachedUser();
-
-  if (!isLoggedIn.value) {
-    return;
-  }
-
-  try {
-    const response = await fetchMe();
-    profile.value = response.data.user;
-    setCachedUser(response.data.user);
-  } catch (error) {
-    handleAuthExpired(error, false);
-  }
-
-  const displayName = profile.value?.nickname || profile.value?.zodiac || '你';
-  sourceTitle.value = `${displayName}的今日分享海报`;
-  sourceMeta.value = profileReady.value ? '资料已完整' : '资料待完善';
 }
 
 async function hydrateReportSource() {
@@ -439,6 +298,12 @@ async function hydrateReportSource() {
   try {
     const response = await fetchReport(recordId.value);
     report.value = response.data.report;
+    if (response.data.report.recordType === 'bazi') {
+      sourceTitle.value = '该报告海报已下线';
+      sourceSummary.value = '当前审核版不再提供该类报告海报生成能力。';
+      sourceMeta.value = '不可生成';
+      return;
+    }
     sourceTitle.value = response.data.report.sharePoster.title || response.data.report.title;
     sourceSummary.value = response.data.report.sharePoster.subtitle || response.data.report.summary;
     sourceMeta.value = resolveReportTypeLabel(response.data.report.recordType);
@@ -455,68 +320,10 @@ async function hydrateReportSource() {
   }
 }
 
-async function hydrateZodiacSource() {
-  if (!bizCode.value) {
-    bizCode.value = profile.value?.zodiac || '狮子座';
-  }
-
-  sourceTitle.value = `${bizCode.value}分享海报`;
-  sourceSummary.value = '把今日星座重点整理成一张适合保存和分享的海报。';
-  sourceMeta.value = bizCode.value;
-
-  try {
-    const response = await fetchZodiacToday(bizCode.value);
-    sourceTitle.value = response.data.sharePoster.title || `${response.data.zodiac}今日海报`;
-    sourceSummary.value = response.data.sharePoster.subtitle || response.data.theme.summary;
-    sourceMeta.value = `${response.data.zodiac} · ${response.data.score.overall}分`;
-    sourceTheme.value = response.data.sharePoster.themeName;
-  } catch (error) {
-    console.warn('load zodiac poster source failed', error);
-  }
-}
-
-async function hydrateLuckySignSource() {
-  if (!bizCode.value) {
-    bizCode.value = 'sign-breeze-open';
-  }
-
-  sourceTitle.value = '幸运签海报';
-  sourceSummary.value = '把今日签语和行动提醒生成一张轻量分享图。';
-  sourceMeta.value = bizCode.value;
-
-  try {
-    const response = await fetchLuckySignDetail(bizCode.value);
-    sourceTitle.value = response.data.sign.sharePoster.title || response.data.sign.title;
-    sourceSummary.value = response.data.sign.sharePoster.subtitle || response.data.sign.summary;
-    sourceMeta.value = response.data.sign.tag;
-    sourceTheme.value = response.data.sign.sharePoster.themeName;
-  } catch (error) {
-    console.warn('load lucky sign poster source failed', error);
-  }
-}
-
-function hydrateDivinationSource() {
-  divinationResult.value = getDivinationResult(resultId.value) || getOrCreateTodayDivinationResult();
-  const result = divinationResult.value;
-
-  if (!result) {
-    sourceTitle.value = '占卜结果海报';
-    sourceSummary.value = '需要先完成一次占卜，才能生成对应海报。';
-    sourceMeta.value = '缺少占卜结果';
-    return;
-  }
-
-  sourceTitle.value = `${result.hexagram.name}占卜海报`;
-  sourceSummary.value = result.summary;
-  sourceMeta.value = formatDivinationDate(result.createdAt);
-  sourceTheme.value = result.keywords.slice(0, 2).join(' · ');
-}
-
 function resolveReportTypeLabel(recordType: string) {
   const mapping: Record<string, string> = {
     personality: '性格测评',
     emotion: '情绪自检',
-    bazi: '八字解读',
   };
 
   return mapping[recordType] || '结果报告';
@@ -536,12 +343,7 @@ function handlePrimaryAction() {
     return;
   }
 
-  if ((posterType.value === 'today' || posterType.value === 'report') && !isLoggedIn.value) {
-    goProfile();
-    return;
-  }
-
-  if (posterType.value === 'today' && !profileReady.value) {
+  if (posterType.value === 'report' && !isLoggedIn.value) {
     goProfile();
     return;
   }
@@ -562,11 +364,7 @@ async function generatePoster() {
   try {
     generating.value = true;
 
-    if (posterType.value === 'divination') {
-      await generateLocalDivinationPoster();
-    } else {
-      await generateRemotePoster();
-    }
+    await generateRemotePoster();
 
     uni.showToast({
       title: '海报已生成',
@@ -595,33 +393,7 @@ async function generatePoster() {
 
 async function generateRemotePoster() {
   localPosterPath.value = '';
-
-  if (posterType.value === 'today') {
-    remotePoster.value = await generateTodayIndexPosterAsync();
-    return;
-  }
-
-  if (posterType.value === 'report') {
-    remotePoster.value = await generateReportPosterAsync(recordId.value, resolveReportSize());
-    return;
-  }
-
-  if (posterType.value === 'zodiac') {
-    remotePoster.value = await generateZodiacTodayPosterAsync(bizCode.value);
-    return;
-  }
-
-  remotePoster.value = await generateLuckySignPosterAsync(bizCode.value);
-}
-
-async function generateLocalDivinationPoster() {
-  if (!divinationResult.value) {
-    throw new Error('缺少占卜结果，请先完成占卜');
-  }
-
-  remotePoster.value = null;
-  const file = await generateDivinationSharePoster(divinationResult.value);
-  localPosterPath.value = file.tempFilePath;
+  remotePoster.value = await generateReportPosterAsync(recordId.value, resolveReportSize());
 }
 
 function resolveReportSize() {
@@ -629,7 +401,7 @@ function resolveReportSize() {
     return requestedSize.value;
   }
 
-  return report.value?.recordType === 'bazi' ? '941x1672' : undefined;
+  return undefined;
 }
 
 async function previewGeneratedPoster() {
@@ -716,19 +488,7 @@ async function shareGeneratedPoster() {
 }
 
 function shareLocalPoster() {
-  const wxRuntime = getWechatPosterRuntime();
-
-  if (typeof wxRuntime?.showShareImageMenu !== 'function') {
-    throw new Error('当前微信版本暂不支持直接发送图片');
-  }
-
-  return new Promise<void>((resolve, reject) => {
-    wxRuntime.showShareImageMenu?.({
-      path: localPosterPath.value,
-      success: () => resolve(),
-      fail: reject,
-    });
-  });
+  throw new Error('当前版本不支持本地海报直接发送');
 }
 
 function goProfile() {
@@ -751,8 +511,6 @@ function returnToPreviousPage() {
 onLoad((options) => {
   posterType.value = normalizePosterType(options?.type);
   recordId.value = decodeRouteValue(options?.recordId);
-  bizCode.value = decodeRouteValue(options?.bizCode);
-  resultId.value = decodeRouteValue(options?.id);
   requestedSize.value = normalizePosterSize(options?.size);
   autoGenerate.value = decodeRouteValue(options?.auto) === '1';
 

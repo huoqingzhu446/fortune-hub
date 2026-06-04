@@ -2,8 +2,8 @@
   <div class="content-center">
     <section class="content-center__toolbar">
       <el-tabs v-model="activeTab" class="content-center__tabs" @tab-change="handleTabChange">
-        <el-tab-pane label="运势内容" name="fortune" />
-        <el-tab-pane label="幸运物库" name="luckyItems" />
+        <el-tab-pane label="探索内容" name="fortune" />
+        <el-tab-pane label="推荐素材库" name="luckyItems" />
         <el-tab-pane label="报告模板" name="templates" />
         <el-tab-pane label="配置中心" name="configs" />
       </el-tabs>
@@ -256,7 +256,7 @@
           <el-form-item label="摘要">
             <el-input v-model="fortuneForm.summary" type="textarea" :rows="2" />
           </el-form-item>
-          <el-form-item label="星座内容模板">
+          <el-form-item label="状态内容模板">
             <div class="content-center__template-row">
               <el-select v-model="selectedFortuneTemplate" placeholder="选择模板后可套用">
                 <el-option
@@ -309,7 +309,7 @@
           <el-form-item label="摘要">
             <el-input v-model="luckyItemForm.summary" type="textarea" :rows="2" />
           </el-form-item>
-          <el-form-item label="幸运物配置 JSON">
+          <el-form-item label="推荐素材配置 JSON">
             <el-input v-model="luckyItemForm.contentJsonText" type="textarea" :rows="16" />
           </el-form-item>
         </template>
@@ -713,11 +713,11 @@ const contentTypeOptions = [
 ];
 
 const fortuneTemplateOptions = [
-  { label: '幸运签', value: 'lucky_sign' },
-  { label: '星座今日聚合页', value: 'zodiac_today' },
-  { label: '星座四象限指数', value: 'zodiac_dimension_daily' },
-  { label: '星座月运', value: 'zodiac_monthly' },
-  { label: '星座分享海报', value: 'zodiac_share_poster' },
+  { label: '每日提醒', value: 'lucky_sign' },
+  { label: '状态聚合页', value: 'zodiac_today' },
+  { label: '状态四象限指数', value: 'zodiac_dimension_daily' },
+  { label: '月度状态', value: 'zodiac_monthly' },
+  { label: '状态分享海报', value: 'zodiac_share_poster' },
 ];
 
 const templateTypeOptions = ['report_result', 'share_poster'];
@@ -791,7 +791,7 @@ const fortuneForm = reactive({
 });
 
 const luckyItemForm = reactive({
-  category: '幸运物',
+  category: '推荐素材',
   bizCode: '',
   publishDate: '',
   title: '',
@@ -872,7 +872,7 @@ const homeAudienceOptions = [
   { label: '已登录', value: 'logged_in' },
   { label: '资料待完善', value: 'profile_incomplete' },
   { label: '状态活跃', value: 'active' },
-  { label: 'VIP', value: 'vip' },
+  { label: '会员', value: 'vip' },
   { label: '依据偏少', value: 'low_confidence' },
   { label: '压力偏高', value: 'pressure' },
 ];
@@ -933,7 +933,7 @@ const HOME_INDEX_LAYOUT_TEMPLATE = JSON.stringify(
         id: 'fortune_actions',
         type: 'fortune_card',
         title: '轻量探索',
-        note: '今日占卜与行动提醒',
+        note: '今日状态与行动提醒',
         audience: ['all'],
         enabled: true,
         order: 50,
@@ -971,12 +971,12 @@ const HOME_INDEX_LAYOUT_TEMPLATE = JSON.stringify(
         order: 20,
       },
       {
-        id: 'divination',
-        title: '占卜',
-        description: '提问',
-        route: '/pages/divination/index/index',
-        badge: '提问',
-        icon: 'orbit',
+        id: 'emotion',
+        title: '情绪自检',
+        description: '自我观察',
+        route: '/pages/emotion/index',
+        badge: '自检',
+        icon: 'compass',
         enabled: true,
         order: 30,
       },
@@ -1089,7 +1089,7 @@ const currentKeywordPlaceholder = computed(() => {
     return '搜索标题 / bizCode / 内容类型';
   }
   if (activeTab.value === 'luckyItems') {
-    return '搜索幸运物标题 / bizCode / 分类';
+    return '搜索推荐素材标题 / bizCode / 分类';
   }
   if (activeTab.value === 'templates') {
     return '搜索模板标题 / bizCode / 模板类型';
@@ -1102,7 +1102,7 @@ const createButtonText = computed(() => {
     return '新增内容';
   }
   if (activeTab.value === 'luckyItems') {
-    return '新增幸运物';
+    return '新增推荐素材';
   }
   if (activeTab.value === 'templates') {
     return '新增模板';
@@ -1113,10 +1113,10 @@ const createButtonText = computed(() => {
 const dialogTitle = computed(() => {
   const prefix = editingId.value ? '编辑' : '新增';
   if (activeTab.value === 'fortune') {
-    return `${prefix}运势内容`;
+    return `${prefix}探索内容`;
   }
   if (activeTab.value === 'luckyItems') {
-    return `${prefix}幸运物`;
+    return `${prefix}推荐素材`;
   }
   if (activeTab.value === 'templates') {
     return `${prefix}报告模板`;
@@ -1278,7 +1278,7 @@ async function saveItem() {
         summary: luckyItemForm.summary.trim(),
         sortOrder: Number(luckyItemForm.sortOrder) || 100,
         status: luckyItemForm.status,
-        contentJson: parseJsonText('幸运物配置 JSON', luckyItemForm.contentJsonText),
+        contentJson: parseJsonText('推荐素材配置 JSON', luckyItemForm.contentJsonText),
       };
 
       if (editingId.value) {
@@ -1461,14 +1461,14 @@ function applyFortuneTemplate() {
 
 function resolveFortuneTemplateTitle(contentType: string) {
   const mapping: Record<string, string> = {
-    lucky_sign: '今日幸运签',
-    zodiac_today: '星座今日气运',
-    zodiac_dimension_daily: '星座四象限指数',
-    zodiac_monthly: '星座月运',
-    zodiac_share_poster: '星座今日分享图',
+    lucky_sign: '今日每日提醒',
+    zodiac_today: '今日状态',
+    zodiac_dimension_daily: '状态四象限指数',
+    zodiac_monthly: '月度状态',
+    zodiac_share_poster: '状态分享图',
   };
 
-  return mapping[contentType] || '运势内容';
+  return mapping[contentType] || '探索内容';
 }
 
 function resolveFortuneTemplateSummary(contentType: string) {
@@ -1477,10 +1477,10 @@ function resolveFortuneTemplateSummary(contentType: string) {
     zodiac_today: '今日主题、四象限指数、时间节奏和行动签。',
     zodiac_dimension_daily: '爱情、事业、财富、身心四个维度的指数解释。',
     zodiac_monthly: '月度主题、上中下旬节奏、机会窗口和关键日期。',
-    zodiac_share_poster: '星座今日气运分享图标题、强调语和视觉主题。',
+    zodiac_share_poster: '今日状态分享图标题、强调语和视觉主题。',
   };
 
-  return mapping[contentType] || '可运营的运势内容 JSON。';
+  return mapping[contentType] || '可运营的探索内容 JSON。';
 }
 
 function buildFortuneContentTemplate(contentType: string) {
@@ -1489,7 +1489,7 @@ function buildFortuneContentTemplate(contentType: string) {
       tag: '今日吉签',
       mantra: '先稳住节奏，再顺势推进。',
       sharePoster: {
-        title: '今日幸运签',
+        title: '今日每日提醒',
         accentText: '先稳住节奏',
         themeName: 'fresh-mint',
       },
@@ -1556,10 +1556,10 @@ function buildFortuneContentTemplate(contentType: string) {
         checkInText: '我做到了',
       },
       sharePoster: {
-        title: '今日星座气运',
+        title: '今日今日状态',
         subtitle: '把好运落到一个清晰行动里',
         accentText: '完成一个小而确定的行动',
-        footerText: 'Fortune Hub · 星座气运',
+        footerText: 'Fortune Hub · 今日状态',
         themeName: 'sky-current',
       },
     },
@@ -1611,10 +1611,10 @@ function buildFortuneContentTemplate(contentType: string) {
       action: '每周固定一次复盘，把计划变成真实进度。',
     },
     zodiac_share_poster: {
-      title: '今日星座气运',
+      title: '今日今日状态',
       subtitle: '把好运落到一个清晰行动里',
       accentText: '完成一个小而确定的行动',
-      footerText: 'Fortune Hub · 星座气运',
+      footerText: 'Fortune Hub · 今日状态',
       themeName: 'sky-current',
       backgroundHint: '清晰星轨、透明能量流线、安静留白，适合叠加指数和行动签。',
     },
@@ -1629,7 +1629,7 @@ function resetCurrentForm() {
     fortuneForm.contentType = 'zodiac_today';
     fortuneForm.bizCode = '';
     fortuneForm.publishDate = '';
-    fortuneForm.title = '星座今日气运';
+    fortuneForm.title = '今日状态';
     fortuneForm.summary = '今日主题、四象限指数、时间节奏和行动签。';
     fortuneForm.status = 'draft';
     fortuneForm.contentJsonText = buildFortuneContentTemplate('zodiac_today');
@@ -1637,7 +1637,7 @@ function resetCurrentForm() {
   }
 
   if (activeTab.value === 'luckyItems') {
-    luckyItemForm.category = '幸运物';
+    luckyItemForm.category = '推荐素材';
     luckyItemForm.bizCode = '';
     luckyItemForm.publishDate = '';
     luckyItemForm.title = '';

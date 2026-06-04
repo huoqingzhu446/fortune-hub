@@ -11,14 +11,8 @@ export interface ProfilePageData {
     signature: string;
     sessionHint: string;
   };
-  membershipCard: {
-    title: string;
-    summary: string;
-    buttonText: string;
-    route: string;
-  };
   dataCards: Array<{
-    key: 'fortune_index' | 'mood_days' | 'explore_reports' | 'lucky_energy';
+    key: 'state_index' | 'mood_days' | 'explore_reports' | 'focus_energy';
     title: string;
     value: string;
     meta: string;

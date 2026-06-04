@@ -19,7 +19,7 @@
           />
           <el-select v-model="userFilters.vipStatus" placeholder="会员状态" @change="loadUsers">
             <el-option label="全部会员" value="all" />
-            <el-option label="VIP" value="active" />
+            <el-option label="会员" value="active" />
             <el-option label="普通用户" value="inactive" />
           </el-select>
           <el-button :loading="loading" @click="loadUsers">筛选</el-button>
@@ -32,7 +32,7 @@
           <el-table-column label="登录方式" min-width="120">
             <template #default="{ row }">{{ formatLoginProvider(row.lastLoginProvider) }}</template>
           </el-table-column>
-          <el-table-column prop="zodiac" label="星座" min-width="100" />
+          <el-table-column prop="zodiac" label="资料标签" min-width="100" />
           <el-table-column prop="vipStatus" label="会员" min-width="100" />
           <el-table-column prop="lastLoginAt" label="最近登录" min-width="180" />
           <el-table-column label="操作" width="180">
@@ -210,7 +210,7 @@
         <h3 class="drawer-title">最近记录</h3>
         <el-table :data="userDetail.records" size="small">
           <el-table-column prop="resultTitle" label="标题" min-width="180" />
-          <el-table-column prop="unlockType" label="解锁" width="90" />
+          <el-table-column prop="unlockType" label="开通" width="90" />
         </el-table>
       </template>
     </el-drawer>

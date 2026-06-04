@@ -5,7 +5,7 @@
         <text class="eyebrow">偏好中心</text>
         <text class="title">设置与偏好</text>
         <text class="summary">
-          整体风格默认跟随今日幸运色，也可以固定成你更喜欢的疗愈主题。提醒、隐私与反馈也统一放在这里管理。
+          整体风格默认跟随今日主题色，也可以固定成你更喜欢的疗愈主题。提醒、隐私与反馈也统一放在这里管理。
         </text>
 
         <view class="theme-status">
@@ -26,7 +26,7 @@
             :class="{ 'mode-pill--active': settings.themeMode === 'auto' }"
             @tap="setThemeMode('auto')"
           >
-            <text class="mode-pill__title">跟随今日幸运色</text>
+            <text class="mode-pill__title">跟随今日主题色</text>
             <text class="mode-pill__desc">每天自动切换</text>
           </view>
 
@@ -61,16 +61,16 @@
 
         <view class="setting-row">
           <view>
-            <text class="setting-row__title">每日幸运提醒</text>
-            <text class="setting-row__text">在合适的时间收到今日状态提示。</text>
+          <text class="setting-row__title">每日状态提醒</text>
+          <text class="setting-row__text">在合适的时间收到今日状态提示。</text>
           </view>
           <switch :checked="settings.dailyReminderEnabled" :color="themePalette.primary" @change="toggle('dailyReminderEnabled', $event)" />
         </view>
 
         <view class="setting-row">
           <view>
-            <text class="setting-row__title">幸运物推荐提醒</text>
-            <text class="setting-row__text">收到一条轻量好运建议。</text>
+          <text class="setting-row__title">内容推荐提醒</text>
+          <text class="setting-row__text">收到一条轻量公开内容建议。</text>
           </view>
           <switch :checked="settings.luckyPushEnabled" :color="themePalette.primary" @change="toggle('luckyPushEnabled', $event)" />
         </view>
@@ -85,8 +85,8 @@
 
         <view class="setting-row">
           <view>
-            <text class="setting-row__title">保留历史卡片</text>
-            <text class="setting-row__text">方便继续查看测试、记录和报告。</text>
+          <text class="setting-row__title">保留历史卡片</text>
+          <text class="setting-row__text">方便继续查看测试、记录和报告。</text>
           </view>
           <switch :checked="settings.saveHistoryCardsEnabled" :color="themePalette.primary" @change="toggle('saveHistoryCardsEnabled', $event)" />
         </view>
@@ -152,7 +152,7 @@ const effectiveThemeSummary = computed(() =>
 
 const modeHint = computed(() => {
   if (settings.themeMode === 'manual') {
-    return `当前使用手动主题 ${themePalette.value.name}。返回自动模式后，会重新跟随今日幸运色。`;
+    return `当前使用手动主题 ${themePalette.value.name}。返回自动模式后，会重新跟随今日主题色。`;
   }
 
   if (resolvedTheme.value.source === 'fallback') {

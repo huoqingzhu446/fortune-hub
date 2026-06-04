@@ -9,11 +9,11 @@ import { AssessmentSessionEntity } from './entities/assessment-session.entity';
 import { AssessmentTestConfigEntity } from './entities/assessment-test-config.entity';
 import { BreathingRecordEntity } from './entities/breathing-record.entity';
 import { AssessmentTestGroupEntity } from './entities/assessment-test-group.entity';
-import { DivinationReviewEntity } from './entities/divination-review.entity';
+import { ReviewNoteEntity } from './entities/review-note.entity';
 import { FavoriteEntity } from './entities/favorite.entity';
 import { FeedbackEntity } from './entities/feedback.entity';
 import { FortuneContentEntity } from './entities/fortune-content.entity';
-import { LuckyItemEntity } from './entities/lucky-item.entity';
+import { RecommendationItemEntity } from './entities/recommendation-item.entity';
 import { MeditationRecordEntity } from './entities/meditation-record.entity';
 import { MembershipProductEntity } from './entities/membership-product.entity';
 import { MoodRecordEntity } from './entities/mood-record.entity';
@@ -43,7 +43,7 @@ export default new DataSource({
     AssessmentQuestionEntity,
     AssessmentTestConfigEntity,
     AssessmentTestGroupEntity,
-    DivinationReviewEntity,
+    ReviewNoteEntity,
     FavoriteEntity,
     FeedbackEntity,
     UserEntity,
@@ -55,7 +55,7 @@ export default new DataSource({
     DailyPulseRecordEntity,
     BreathingRecordEntity,
     FortuneContentEntity,
-    LuckyItemEntity,
+    RecommendationItemEntity,
     AppConfigEntity,
     ReportTemplateEntity,
     MembershipProductEntity,

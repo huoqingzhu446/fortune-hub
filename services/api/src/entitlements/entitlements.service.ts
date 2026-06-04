@@ -60,17 +60,18 @@ export class EntitlementsService {
     return this.userRepository.save(user);
   }
 
-  buildFullReportAccess(record: UserRecordEntity, user: UserEntity) {
-    const hasVipAccess = this.isMembershipActive(user);
-    const isFullReportUnlocked = record.isFullReportUnlocked || hasVipAccess;
+  async findUserById(userId: string) {
+    return this.userRepository.findOne({
+      where: { id: userId },
+    });
+  }
 
+  buildFullReportAccess(record: UserRecordEntity, user: UserEntity) {
     return {
-      isFullReportUnlocked,
-      persistedUnlocked: record.isFullReportUnlocked,
-      unlockType: isFullReportUnlocked
-        ? (record.unlockType ?? (hasVipAccess ? 'vip' : 'free'))
-        : null,
-      hasVipAccess,
+      isFullReportUnlocked: true,
+      persistedUnlocked: true,
+      unlockType: 'free',
+      hasVipAccess: false,
       requiresLogin: false,
     };
   }

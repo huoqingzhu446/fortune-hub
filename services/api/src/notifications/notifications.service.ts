@@ -406,7 +406,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private buildTemplatePayload(user: UserEntity, scene: string) {
-    const title = scene === 'lucky_push' ? '今日幸运物已更新' : '今日状态提醒已更新';
+    const title = scene === 'lucky_push' ? '今日推荐素材已更新' : '今日状态提醒已更新';
     const guidance = user.nickname
       ? `${user.nickname}，今天也给自己留一点稳定节奏。`
       : '今天也给自己留一点稳定节奏。';

@@ -146,10 +146,10 @@ const rangeOptions = [
 type RangeValue = (typeof rangeOptions)[number]['value'];
 
 const validMetricKeys: ProfileMetricKey[] = [
-  'fortune_index',
+  'state_index',
   'mood_days',
   'explore_reports',
-  'lucky_energy',
+  'focus_energy',
 ];
 
 const metricMeta: Record<
@@ -161,11 +161,11 @@ const metricMeta: Record<
     summary: string;
   }
 > = {
-  fortune_index: {
-    title: '综合气运指数',
+  state_index: {
+    title: '综合状态指数',
     unit: '分',
     label: '待同步',
-    summary: '完成情绪、测评或运势记录后，这里会形成你的综合趋势。',
+    summary: '完成情绪、测评或状态记录后，这里会形成你的综合趋势。',
   },
   mood_days: {
     title: '心情记录天数',
@@ -179,8 +179,8 @@ const metricMeta: Record<
     label: '待同步',
     summary: '完成报告或生成分享海报后，这里会变成你的内容档案。',
   },
-  lucky_energy: {
-    title: '好运能量值',
+  focus_energy: {
+    title: '专注能量值',
     unit: '分',
     label: '待同步',
     summary: '记录、收藏、资料完整度和分享海报会共同累积能量值。',
@@ -188,10 +188,10 @@ const metricMeta: Record<
 };
 
 const routeMetricMap: Record<string, ProfileMetricKey> = {
-  'pages/profile/data/fortune-index/index': 'fortune_index',
+  'pages/profile/data/state-index/index': 'state_index',
   'pages/profile/data/mood-days/index': 'mood_days',
   'pages/profile/data/explore-reports/index': 'explore_reports',
-  'pages/profile/data/lucky-energy/index': 'lucky_energy',
+  'pages/profile/data/focus-energy/index': 'focus_energy',
 };
 
 const { themeVars } = useThemePreference();
@@ -206,7 +206,7 @@ const resolvedMetricKey = computed(() => {
     normalizeMetricKey(attrs.metricKey) ||
     normalizeMetricKey(attrs['metric-key']) ||
     resolveMetricKeyFromRoute() ||
-    'fortune_index'
+    'state_index'
   );
 });
 const fallbackMetric = computed(() => metricMeta[resolvedMetricKey.value]);

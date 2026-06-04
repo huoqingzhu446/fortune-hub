@@ -27,8 +27,8 @@ const DEFAULT_SETTINGS_CONFIG = {
     { label: '其他', value: 'general' },
   ],
   notificationScenes: [
-    { scene: 'daily_reminder', title: '每日幸运提醒', enabled: true },
-    { scene: 'lucky_push', title: '幸运物推荐提醒', enabled: true },
+    { scene: 'daily_reminder', title: '每日状态提醒', enabled: true },
+    { scene: 'lucky_push', title: '推荐素材提醒', enabled: true },
     { scene: 'feedback_reply', title: '反馈处理回复', enabled: true },
   ],
 };

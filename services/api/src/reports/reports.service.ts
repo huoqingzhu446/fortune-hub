@@ -81,9 +81,7 @@ export class ReportsService {
   async buildReportPayload(record: UserRecordEntity, user: UserEntity) {
     const resultData = this.asRecord(record.resultData);
     const access = this.entitlementsService.buildFullReportAccess(record, user);
-    const isUnlocked = access.isFullReportUnlocked;
     const reportTemplate = await this.resolveReportTemplate(record.recordType);
-    const products = await this.membershipService.listProducts();
 
     const sharePoster = this.resolveSharePoster(
       record,
@@ -114,12 +112,7 @@ export class ReportsService {
       title: record.resultTitle,
       subtitle: this.pickString(resultData.subtitle, ''),
       summary: this.pickString(resultData.summary, ''),
-      score:
-        record.recordType === 'bazi'
-          ? null
-          : record.score
-            ? Number(record.score)
-            : null,
+      score: record.score ? Number(record.score) : null,
       level: record.resultLevel,
       completedAt: this.pickString(
         resultData.completedAt,
@@ -129,18 +122,11 @@ export class ReportsService {
       stateDimensions,
       sharePoster,
       baseSections,
-      fullSections: isUnlocked ? fullSections : [],
-      lockedPreviewSections: !isUnlocked
-        ? fullSections.slice(0, 2).map((item) => ({
-            title: item.title,
-            summary: item.summary,
-          }))
-        : [],
+      fullSections,
+      lockedPreviewSections: [],
       access,
       offers: {
-        vipProducts: products.map((product) =>
-          this.membershipService.serializeProduct(product),
-        ),
+        vipProducts: [],
       },
     };
   }
@@ -224,7 +210,7 @@ export class ReportsService {
       sourceLabel: '出生信息排盘',
       updatedAt,
       notes: [
-        '五行倾向由四柱天干地支映射后归纳。',
+        '状态维度由最近记录与自评结果综合归纳。',
         '主轴代表当前更突出的表达方式。',
         '补位代表日常节奏里更需要照顾的一面。',
         '报告建议会结合日主、补位元素和实际节奏生成。',
@@ -341,7 +327,7 @@ export class ReportsService {
           index === 0
             ? '当前结构里更突出的主轴元素。'
             : '用于判断补位与节奏调和的元素倾向。',
-        evidence: `五行倾向：${this.resolveFiveElementLevel(item, fiveElements)}`,
+      evidence: `最近记录：${this.resolveFiveElementLevel(item, fiveElements)}`,
       };
     });
   }
@@ -417,7 +403,7 @@ export class ReportsService {
         title: this.pickString(template.baseTitle, '基础版排盘结论'),
         summary: this.pickString(
           resultData.summary,
-          this.pickString(template.baseSummary, '这次八字轻解读已经生成。'),
+          this.pickString(template.baseSummary, '这次状态报告已经生成。'),
         ),
         bullets: [
           this.pickString(
@@ -550,7 +536,7 @@ export class ReportsService {
         title: this.pickString(template.fullSecondaryTitle, '事业与关系解读'),
         summary: this.pickString(
           template.fullSecondarySummary,
-          '这里会把八字简化结果翻译成更容易在现实中使用的判断线索。',
+          '这里会把状态结果翻译成更容易在现实中使用的判断线索。',
         ),
         bullets: [
           this.pickString(reading.career, '事业节奏解读待补充。'),
@@ -626,22 +612,19 @@ export class ReportsService {
       ),
       title: this.pickString(
         sharePoster.title,
-        this.pickString(template.shareTitle, '我的八字命盘'),
+        this.pickString(template.shareTitle, '我的状态报告'),
       ),
       subtitle: this.pickString(
         sharePoster.subtitle,
-        this.pickString(
-          template.shareSubtitle,
-          '根据出生日期与出生地生成的专属命理画像',
-        ),
+        this.pickString(template.shareSubtitle, '根据状态记录生成的专属画像'),
       ),
       accentText: this.pickString(
         sharePoster.accentText,
-        `${dayMaster}日主 · ${this.pickString(dominantElement.name, '木')}旺`,
+        `${dayMaster} · ${this.pickString(dominantElement.name, '木')}元素`,
       ),
       footerText: this.pickString(
         sharePoster.footerText,
-        this.pickString(template.shareFooterText, '知命而后，更懂自己'),
+        this.pickString(template.shareFooterText, '记录当下，更懂自己'),
       ),
     };
   }

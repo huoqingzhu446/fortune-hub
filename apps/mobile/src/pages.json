@@ -14,70 +14,9 @@
       }
     },
     {
-      "path": "pages/zodiac/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
-      "path": "pages/bazi/index",
-      "style": {
-        "navigationBarTitleText": "八字解读"
-      }
-    },
-    {
-      "path": "pages/bazi/professional/index",
-      "style": {
-        "navigationBarTitleText": "八字专业详情"
-      }
-    },
-    {
       "path": "pages/breathing/index",
       "style": {
         "navigationBarTitleText": "引导呼吸"
-      }
-    },
-    {
-      "path": "pages/divination/index/index",
-      "style": {
-        "navigationBarTitleText": "占卜"
-      }
-    },
-    {
-      "path": "pages/divination/select/index",
-      "style": {
-        "navigationBarTitleText": "选择占卜主题"
-      }
-    },
-    {
-      "path": "pages/divination/loading/index",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/divination/result/index",
-      "style": {
-        "navigationBarTitleText": "占卜结果"
-      }
-    },
-    {
-      "path": "pages/divination/history/index",
-      "style": {
-        "navigationBarTitleText": "占卜记录"
-      }
-    },
-    {
-      "path": "pages/divination/review/index",
-      "style": {
-        "navigationBarTitleText": "复盘列表"
-      }
-    },
-    {
-      "path": "pages/divination/poster/index",
-      "style": {
-        "navigationBarTitleText": "分享海报"
       }
     },
     {
@@ -99,31 +38,13 @@
       }
     },
     {
-      "path": "pages/lucky/index",
-      "style": {
-        "navigationBarTitleText": "幸运物"
-      }
-    },
-    {
-      "path": "pages/lucky/sign/index",
-      "style": {
-        "navigationBarTitleText": "幸运签详情"
-      }
-    },
-    {
-      "path": "pages/lucky/wallpaper/index",
-      "style": {
-        "navigationBarTitleText": "幸运壁纸"
-      }
-    },
-    {
       "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/profile/data/fortune-index/index",
+      "path": "pages/profile/data/state-index/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -141,7 +62,7 @@
       }
     },
     {
-      "path": "pages/profile/data/lucky-energy/index",
+      "path": "pages/profile/data/focus-energy/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -168,18 +89,6 @@
       "path": "pages/report/index",
       "style": {
         "navigationBarTitleText": "完整报告"
-      }
-    },
-    {
-      "path": "pages/poster/today/index",
-      "style": {
-        "navigationBarTitleText": "今日分享图"
-      }
-    },
-    {
-      "path": "pages/membership/index",
-      "style": {
-        "navigationBarTitleText": "会员中心"
       }
     },
     {
@@ -215,7 +124,7 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "今日气运",
+    "navigationBarTitleText": "今日状态",
     "navigationBarBackgroundColor": "#FAF8F3",
     "backgroundColor": "#FAF8F3"
   }

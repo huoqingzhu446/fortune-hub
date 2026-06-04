@@ -98,13 +98,10 @@
           <view class="score-tile">
             <text class="score-tile__label">{{ report.statusIndex.label }}</text>
             <view class="score-tile__number-line">
-              <text
-                class="score-tile__number"
-                :class="{ 'score-tile__number--label': isBaziReport }"
-              >
+              <text class="score-tile__number">
                 {{ statusIndexDisplay }}
               </text>
-              <text v-if="!isBaziReport" class="score-tile__denominator">/ {{ report.statusIndex.maxValue }}</text>
+              <text class="score-tile__denominator">/ {{ report.statusIndex.maxValue }}</text>
             </view>
             <view class="score-tile__track">
               <view class="score-tile__fill" :style="{ width: `${statusPercent}%` }"></view>
@@ -149,17 +146,10 @@
       <view class="report-section">
         <view class="section-head">
           <text class="section-head__title">状态维度</text>
-          <text class="section-head__side">{{
-            isBaziReport ? '五行倾向' : `${report.stateDimensions.length} 项`
-          }}</text>
+          <text class="section-head__side">{{ report.stateDimensions.length }} 项</text>
         </view>
 
-        <FiveElementDistribution
-          v-if="isBaziReport"
-          :elements="baziElementDistributionItems"
-        />
-
-        <view v-else class="dimension-grid">
+        <view class="dimension-grid">
           <view
             v-for="item in visibleDimensions"
             :key="item.key"
@@ -186,36 +176,25 @@
           <text class="guide-banner__title">{{ primaryActionTitle }}</text>
           <text class="guide-banner__text">{{ actionItems[0] || primaryActionText }}</text>
         </view>
-        <button class="guide-banner__button" @tap="goMembership">
-          <text>{{ report.access.isFullReportUnlocked ? '查看' : '解锁' }}</text>
-          <text>›</text>
-        </button>
       </view>
 
       <view class="report-section">
         <view class="section-head">
           <text class="section-head__title">深度拆解</text>
-          <text class="section-head__side">{{ report.access.isFullReportUnlocked ? '已解锁' : '预览' }}</text>
+          <text class="section-head__side">完整内容</text>
         </view>
 
-        <view v-if="report.access.isFullReportUnlocked" class="detail-list">
-          <view v-for="item in report.fullSections" :key="item.title" class="detail-row">
-            <text class="detail-row__title">{{ item.title }}</text>
-            <text class="detail-row__summary">{{ item.summary }}</text>
-            <text v-for="bullet in item.bullets" :key="bullet" class="detail-row__bullet">
-              {{ bullet }}
-            </text>
-          </view>
-        </view>
-
-        <view v-else class="detail-list">
+        <view class="detail-list">
           <view
-            v-for="item in report.lockedPreviewSections"
+            v-for="item in report.fullSections"
             :key="item.title"
             class="detail-row"
           >
             <text class="detail-row__title">{{ item.title }}</text>
             <text class="detail-row__summary">{{ item.summary }}</text>
+            <text v-for="bullet in item.bullets" :key="bullet" class="detail-row__bullet">
+              {{ bullet }}
+            </text>
           </view>
         </view>
       </view>
@@ -289,16 +268,12 @@ const reportTypeLabel = computed(() => {
   const mapping: Record<string, string> = {
     personality: '性格测评',
     emotion: '情绪自检',
-    bazi: '八字解读',
   };
 
   return mapping[report.value?.recordType || ''] || '结果报告';
 });
-const isBaziReport = computed(() => report.value?.recordType === 'bazi');
 const statusIndexDisplay = computed(() =>
-  isBaziReport.value
-    ? report.value?.statusIndex.levelLabel || '已生成'
-    : `${report.value?.statusIndex.value ?? 0}`,
+  `${report.value?.statusIndex.value ?? 0}`,
 );
 const statusPercent = computed(() => {
   const statusIndex = report.value?.statusIndex;
@@ -328,9 +303,7 @@ const statusTone = computed(() => {
 const completedAtLabel = computed(() =>
   formatDate(report.value?.statusIndex.updatedAt || report.value?.completedAt),
 );
-const accessLabel = computed(() =>
-  report.value?.access.isFullReportUnlocked ? '完整版' : '基础版',
-);
+const accessLabel = computed(() => '完整报告');
 const primaryActionSection = computed<ReportSection | null>(
   () => report.value?.baseSections[0] ?? null,
 );
@@ -351,12 +324,6 @@ const actionItems = computed(() => {
   return uniqueItems.slice(0, 4);
 });
 const visibleDimensions = computed(() => report.value?.stateDimensions.slice(0, 4) ?? []);
-const baziElementDistributionItems = computed(() =>
-  visibleDimensions.value.map((item) => ({
-    name: item.label,
-    value: item.value,
-  })),
-);
 const supportText = computed(() => {
   const supportItem = report.value?.stateDimensions.find((item) => item.key === 'support');
 
@@ -428,12 +395,10 @@ function openPosterGenerate() {
     return;
   }
 
-  const size = report.value?.recordType === 'bazi' ? '941x1672' : '';
   const query = [
     'type=report',
     `recordId=${encodeURIComponent(recordId.value)}`,
     'auto=1',
-    size ? `size=${size}` : '',
   ]
     .filter(Boolean)
     .join('&');
@@ -460,12 +425,6 @@ function formatDate(value: string | undefined) {
   const minute = `${date.getMinutes()}`.padStart(2, '0');
 
   return `${month}.${day} ${hour}:${minute}`;
-}
-
-function goMembership() {
-  uni.navigateTo({
-    url: '/pages/membership/index',
-  });
 }
 
 function goProfile() {

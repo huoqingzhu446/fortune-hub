@@ -402,7 +402,7 @@ import { getErrorMessage } from '../../services/errors';
 import { defaultMeditationMusicLibrary } from '../../services/meditation-music';
 import { resolveUrl } from '../../services/url';
 import { usePageStateStore } from '../../stores/page-state';
-import type { MeditationMusicItem } from '../../types/lucky';
+import type { MeditationMusicItem } from '../../types/meditation';
 import type { MeditationLogItem } from '../../types/records';
 
 type CompletionStatus = 'completed' | 'partial' | 'skipped';

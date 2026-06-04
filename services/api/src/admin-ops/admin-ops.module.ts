@@ -7,7 +7,7 @@ import { AssessmentQuestionEntity } from '../database/entities/assessment-questi
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
-import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { RecommendationItemEntity } from '../database/entities/recommendation-item.entity';
 import { MembershipProductEntity } from '../database/entities/membership-product.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
@@ -32,7 +32,7 @@ import { AdminOpsService } from './admin-ops.service';
       AssessmentTestConfigEntity,
       AssessmentQuestionEntity,
       FortuneContentEntity,
-      LuckyItemEntity,
+      RecommendationItemEntity,
       ReportTemplateEntity,
       MembershipProductEntity,
     ]),

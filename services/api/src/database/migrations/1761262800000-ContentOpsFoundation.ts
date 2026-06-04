@@ -88,7 +88,7 @@ export class ContentOpsFoundation1761262800000 implements MigrationInterface {
             type: 'varchar',
             length: '64',
             isNullable: false,
-            default: "'幸运物'",
+            default: "'推荐素材'",
           },
           { name: 'publishDate', type: 'date', isNullable: true },
           {

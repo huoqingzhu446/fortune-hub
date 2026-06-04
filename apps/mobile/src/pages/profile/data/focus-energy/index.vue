@@ -1,5 +1,5 @@
 <template>
-  <ProfileMetricDetailPage metric-key="fortune_index" />
+  <ProfileMetricDetailPage metric-key="focus_energy" />
 </template>
 
 <script setup lang="ts">

@@ -4,7 +4,7 @@ import { AdminAuthModule } from '../admin-auth/admin-auth.module';
 import { CommonModule } from '../common/common.module';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
-import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { RecommendationItemEntity } from '../database/entities/recommendation-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { ReportTemplateVersionEntity } from '../database/entities/report-template-version.entity';
 import {
@@ -21,7 +21,7 @@ import { AdminContentService } from './admin-content.service';
   imports: [
     TypeOrmModule.forFeature([
       FortuneContentEntity,
-      LuckyItemEntity,
+      RecommendationItemEntity,
       ReportTemplateEntity,
       ReportTemplateVersionEntity,
       AppConfigEntity,

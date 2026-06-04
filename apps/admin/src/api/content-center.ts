@@ -201,7 +201,7 @@ export async function fetchLuckyItems(params?: {
   keyword?: string;
   status?: string;
 }) {
-  const { data } = await http.get<ListResponse<LuckyItem>>('/admin/lucky-items', {
+  const { data } = await http.get<ListResponse<LuckyItem>>('/admin/recommendation-items', {
     params,
   });
   return data;
@@ -209,7 +209,7 @@ export async function fetchLuckyItems(params?: {
 
 export async function createLuckyItem(payload: SaveLuckyItemPayload) {
   const { data } = await http.post<DetailResponse<LuckyItem>>(
-    '/admin/lucky-items',
+    '/admin/recommendation-items',
     payload,
   );
   return data;
@@ -217,7 +217,7 @@ export async function createLuckyItem(payload: SaveLuckyItemPayload) {
 
 export async function updateLuckyItem(id: string, payload: SaveLuckyItemPayload) {
   const { data } = await http.put<DetailResponse<LuckyItem>>(
-    `/admin/lucky-items/${id}`,
+    `/admin/recommendation-items/${id}`,
     payload,
   );
   return data;
@@ -225,14 +225,14 @@ export async function updateLuckyItem(id: string, payload: SaveLuckyItemPayload)
 
 export async function updateLuckyItemStatus(id: string, status: LifecycleStatus) {
   const { data } = await http.post<DetailResponse<LuckyItem>>(
-    `/admin/lucky-items/${id}/status`,
+    `/admin/recommendation-items/${id}/status`,
     { status },
   );
   return data;
 }
 
 export async function deleteLuckyItem(id: string) {
-  const { data } = await http.delete(`/admin/lucky-items/${id}`);
+  const { data } = await http.delete(`/admin/recommendation-items/${id}`);
   return data;
 }
 

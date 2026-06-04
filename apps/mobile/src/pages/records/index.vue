@@ -481,7 +481,7 @@ const emptyRecordText = computed(() => {
   }
 
   if (activeTab.value === 'test') {
-    return '完成心理测试、八字或星座报告后，这里会展示结果。';
+    return '完成心理测试或情绪自检后，这里会展示结果。';
   }
 
   return '开始一次放松练习后，这里会记录你的疗愈足迹。';
@@ -557,14 +557,6 @@ function goProfile() {
 function recordIcon(recordType: string) {
   if (recordType === 'mood_journal') {
     return '情';
-  }
-
-  if (recordType === 'bazi') {
-    return '卦';
-  }
-
-  if (recordType === 'zodiac') {
-    return '星';
   }
 
   return '测';

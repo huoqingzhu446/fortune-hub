@@ -3,14 +3,14 @@
     <view class="panel">
       <text class="eyebrow">about</text>
       <text class="title">关于 Fortune Hub</text>
-      <text class="summary">当前项目是一套面向微信小程序 / H5 / 管理端 / API 的首版原型，重点已经推进到题库配置化、幸运体系和多模块联调。</text>
+      <text class="summary">当前项目是一套面向微信小程序 / H5 / 管理端 / API 的首版原型，重点已经推进到测评、情绪、冥想和多模块联调。</text>
     </view>
 
     <view class="panel">
       <text class="section-title">当前版本关注点</text>
       <view class="bullet-list">
-        <text class="bullet-item">星座、八字、性格测评、情绪自检已具备首版页面与接口。</text>
-        <text class="bullet-item">幸运体系已有幸运签、幸运物推荐和壁纸生成首版。</text>
+        <text class="bullet-item">性格测评、情绪自检、呼吸、冥想、日记已具备首版页面与接口。</text>
+        <text class="bullet-item">公开内容、反馈和记录能力已形成首版闭环。</text>
         <text class="bullet-item">管理端已有题库管理后台首版。</text>
       </view>
     </view>
@@ -19,7 +19,7 @@
       <text class="section-title">接下来</text>
       <view class="bullet-list">
         <text class="bullet-item">分享海报图片生成</text>
-        <text class="bullet-item">会员 / 广告 / 订单闭环</text>
+        <text class="bullet-item">公开内容与后台配置联调</text>
         <text class="bullet-item">正式后台鉴权与内容中心</text>
       </view>
     </view>

@@ -63,10 +63,10 @@
             </el-select>
           </el-form-item>
           <el-form-item label="标题" required>
-            <el-input v-model="productForm.title" placeholder="VIP 月卡" />
+            <el-input v-model="productForm.title" placeholder="会员 月卡" />
           </el-form-item>
           <el-form-item label="副标题">
-            <el-input v-model="productForm.subtitle" placeholder="完整内容解锁的标准方案" />
+            <el-input v-model="productForm.subtitle" placeholder="扩展内容开通的标准方案" />
           </el-form-item>
           <el-form-item label="价格(分)" required>
             <el-input-number v-model="productForm.priceFen" :min="1" :step="100" />
@@ -86,7 +86,7 @@
             v-model="productForm.benefitsText"
             type="textarea"
             :rows="4"
-            placeholder="完整版报告&#10;无限海报生成&#10;历史记录完整解锁"
+            placeholder="扩展版报告&#10;海报生成&#10;历史记录管理"
           />
         </el-form-item>
       </el-form>

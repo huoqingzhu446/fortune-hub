@@ -92,12 +92,12 @@
         >
           <FortuneActionCard
             :eyebrow="section.title"
-            title="今日占卜"
-            summary="把当下问题拆成一条更容易执行的提醒。"
-            :tags="divinationTags"
-            button-text="开始占卜"
-            @open="openDivinationHome"
-            @action="startHomeDivination"
+            title="今日提醒"
+            summary="把当下状态拆成一条更容易执行的提醒。"
+            :tags="dailyReminderTags"
+            button-text="去记录"
+            @open="openMoodJournal"
+            @action="openMoodJournal"
           />
         </view>
 
@@ -138,10 +138,6 @@ import { useThemePreference } from '../../composables/useThemePreference';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
 import { trackEvent } from '../../services/analytics';
-import {
-  createTodayDivinationRequest,
-  setPendingDivinationRequest,
-} from '../../services/divination';
 import type {
   DashboardHomeLayoutQuickTool,
   DashboardHomeLayoutSection,
@@ -257,10 +253,6 @@ const userAudienceTokens = computed(() => {
     tokens.push('profile_incomplete');
   }
 
-  if (userSummary.value.vipStatus === 'active') {
-    tokens.push('vip');
-  }
-
   if (completionScore.value < 62) {
     tokens.push('low_confidence');
   }
@@ -290,7 +282,7 @@ const completionScore = computed(() =>
 );
 
 const pageTitle = computed(
-  () => dashboard.value.headline?.title || stateOverview.value.title || '今日气运',
+  () => dashboard.value.headline?.title || stateOverview.value.title || '今日状态',
 );
 
 const pageSubtitle = computed(
@@ -344,7 +336,7 @@ const fortuneTags = computed<StatusIndexTag[]>(() => [
     value: `${themePalette.value.name}色`,
   },
   {
-    label: '幸运数',
+    label: '参考值',
     value: String(resolveLuckyNumber(fortuneScore.value)),
   },
   {
@@ -403,8 +395,8 @@ const todayAction = computed<TodayAction>(() => {
       '先完成一件最重要的小事，再决定今天剩下的安排。',
     actionText: normalizeActionLabel(action?.primaryText, '查看报告'),
     route: action?.primaryRoute || '/pages/report/index',
-    secondaryText: normalizeActionLabel(action?.secondaryText, '今日占卜'),
-    secondaryRoute: action?.secondaryRoute || '/pages/divination/index/index',
+    secondaryText: normalizeActionLabel(action?.secondaryText, '记录心情'),
+    secondaryRoute: action?.secondaryRoute || '/pages/journal/index',
   };
 });
 
@@ -412,8 +404,7 @@ const homeCards = computed<InsightCard[]>(() => {
   const emotionFactor = findFactor('emotion');
   const personalityFactor = findFactor('personality');
   const completionFactor = findFactor('completion');
-  const baziFactor = findFactor('bazi');
-  const personalizedLevel = baziFactor?.value || resolveBaziLevel(fortuneScore.value);
+  const personalizedLevel = resolveStateLevel(fortuneScore.value);
 
   return [
     {
@@ -472,17 +463,17 @@ const homeCards = computed<InsightCard[]>(() => {
       variant: 'stars',
       iconColor: themePalette.value.primary,
       title: '个性化参考',
-      subtitle: '八字 / 星座',
+      subtitle: '资料参考',
       value: personalizedLevel,
       metricMode: 'level',
       suffix: '',
       badge: userSummary.value.profileCompleted ? '已接入' : '待完善',
-      description: baziFactor?.hint || '生日、星座与主题色会作为轻量参考，不替代现实判断。',
+      description: '生日和资料状态会作为轻量参考，不替代现实判断。',
       note: '',
       progress: 0,
       stars: 0,
-      actionText: userSummary.value.profileCompleted ? '看八字' : '完善资料',
-      route: userSummary.value.profileCompleted ? '/pages/bazi/index' : '/pages/profile/index',
+      actionText: userSummary.value.profileCompleted ? '看资料' : '完善资料',
+      route: '/pages/profile/index',
     },
   ];
 });
@@ -491,7 +482,7 @@ const visibleHomeCards = computed(() =>
   homeCards.value.slice(0, getSectionMaxItems('state_insights', 4)),
 );
 
-const divinationTags = ['当下问题', '行动提醒'];
+const dailyReminderTags = ['今日心绪', '行动提醒'];
 
 const quickTools = computed<QuickToolItem[]>(() =>
   resolveQuickTools().slice(0, getSectionMaxItems('quick_tools', 4)),
@@ -649,7 +640,7 @@ function resolveUserStage() {
     return 'pressure';
   }
 
-  return userSummary.value.vipStatus === 'active' ? 'vip' : 'active';
+  return 'active';
 }
 
 function resolveConfidenceLevel() {
@@ -664,16 +655,8 @@ function resolveConfidenceLevel() {
   return 'low';
 }
 
-function openDivinationHome() {
-  handleRouteWithTracking('/pages/divination/index/index', 'home_divination_open');
-}
-
-function startHomeDivination() {
-  trackHomeEvent('home_divination_start', {
-    source: 'fortune_action_card',
-  });
-  setPendingDivinationRequest(createTodayDivinationRequest('general'));
-  handleRoute('/pages/divination/loading/index');
+function openMoodJournal() {
+  handleRouteWithTracking('/pages/journal/index', 'home_journal_open');
 }
 
 function findFactor(...ids: string[]) {
@@ -800,12 +783,12 @@ function resolveCompletionBadge(score: number) {
   return '待补充';
 }
 
-function resolveBaziLevel(score: number) {
+function resolveStateLevel(score: number) {
   if (score >= 90) {
-    return '上吉';
+    return '高';
   }
   if (score >= 80) {
-    return '中上';
+    return '中高';
   }
   if (score >= 68) {
     return '平稳';

@@ -10,7 +10,7 @@
       <text class="hero-card__subtitle">
         {{
           screen === 'hub'
-            ? '这里统一汇总星座、八字、性格、情绪与幸运物五个模块，先选你现在最想进入的一项。'
+            ? '这里统一汇总性格测评、情绪自检、冥想与日记四个模块，先选你现在最想进入的一项。'
             : screen === 'list'
             ? '先选一套轻量测评，几分钟内就能拿到第一版结果。'
             : screen === 'quiz'
@@ -31,14 +31,14 @@
       </view>
     </view>
 
-    <view v-if="screen === 'hub'" class="section-card">
-      <view class="section-header">
-        <view>
-          <text class="section-header__eyebrow">assessment hub</text>
-          <text class="section-header__title">五个模块</text>
+      <view v-if="screen === 'hub'" class="section-card">
+        <view class="section-header">
+          <view>
+            <text class="section-header__eyebrow">assessment hub</text>
+            <text class="section-header__title">四个模块</text>
+          </view>
+          <text class="section-header__side">统一入口</text>
         </view>
-        <text class="section-header__side">统一入口</text>
-      </view>
 
       <view class="module-grid">
         <view v-for="module in assessmentModules" :key="module.id" class="module-card">
@@ -323,7 +323,7 @@ import type {
 } from '../../types/assessment';
 
 type ScreenMode = 'hub' | 'list' | 'quiz' | 'result';
-type AssessmentModuleId = 'zodiac' | 'bazi' | 'personality' | 'emotion' | 'lucky';
+type AssessmentModuleId = 'personality' | 'emotion' | 'meditation' | 'journal';
 
 const screen = ref<ScreenMode>('hub');
 const tests = ref<PersonalityTestSummary[]>([]);
@@ -363,22 +363,6 @@ const loginStatusValue = computed(() => (isLoggedIn.value ? '已登录' : '需�
 const latestResultLabel = computed(() => latestResult.value?.title || '等待生成');
 const assessmentModules = computed(() => [
   {
-    id: 'zodiac' as AssessmentModuleId,
-    badge: '主入口',
-    title: '星座运势',
-    description: '查看今日、本周、年度运势与幸运提示。',
-    meta: '实时查看',
-    actionLabel: '进入星座运势',
-  },
-  {
-    id: 'bazi' as AssessmentModuleId,
-    badge: '待完善',
-    title: '八字解读',
-    description: '录入生日与时辰，生成简易排盘与五行解读。',
-    meta: '深入分析',
-    actionLabel: '进入八字解读',
-  },
-  {
     id: 'personality' as AssessmentModuleId,
     badge: '长期留存',
     title: '性格测评',
@@ -395,12 +379,20 @@ const assessmentModules = computed(() => [
     actionLabel: '进入情绪自检',
   },
   {
-    id: 'lucky' as AssessmentModuleId,
-    badge: '内容化',
-    title: '幸运物',
-    description: '结合幸运指数推荐每日幸运物与壁纸主题。',
-    meta: '每日更新',
-    actionLabel: '进入幸运物',
+    id: 'meditation' as AssessmentModuleId,
+    badge: '放松恢复',
+    title: '冥想放松',
+    description: '呼吸、冥想和睡前放松练习。',
+    meta: '公开可用',
+    actionLabel: '进入冥想放松',
+  },
+  {
+    id: 'journal' as AssessmentModuleId,
+    badge: '记录沉淀',
+    title: '情绪日记',
+    description: '记录当下心情与日常变化，方便后续回看。',
+    meta: '持续记录',
+    actionLabel: '进入情绪日记',
   },
 ]);
 
@@ -625,10 +617,9 @@ function openModule(moduleId: AssessmentModuleId) {
   }
 
   const routeMap: Record<Exclude<AssessmentModuleId, 'personality'>, string> = {
-    zodiac: '/pages/zodiac/index',
-    bazi: '/pages/bazi/index',
     emotion: '/pages/emotion/index',
-    lucky: '/pages/lucky/index',
+    meditation: '/pages/meditation/index',
+    journal: '/pages/journal/index',
   };
 
   uni.navigateTo({

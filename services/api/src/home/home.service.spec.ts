@@ -11,14 +11,6 @@ describe('HomeService current state score', () => {
     new HomeService(
       { get: jest.fn((_key: string, fallback: unknown) => fallback) } as never,
       { getStatus: jest.fn(() => 'ok') } as never,
-      {
-        getTodaySignSnapshot: jest.fn(async () => ({
-          title: '今日幸运签',
-          summary: '照顾当下',
-          tag: '薄荷色',
-          themeName: 'mint',
-        })),
-      } as never,
       { isMembershipActive: jest.fn(() => false) } as never,
       { find: jest.fn(async () => options.records ?? []) } as never,
       { find: jest.fn(async () => options.moods ?? []) } as never,

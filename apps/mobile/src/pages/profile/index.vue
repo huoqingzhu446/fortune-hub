@@ -207,22 +207,16 @@
 
           <view class="preview-grid">
             <view class="preview-card">
-              <text class="preview-card__label">当前星座</text>
-              <text class="preview-card__value">{{
-                profile.zodiac || pendingZodiac
-              }}</text>
+              <text class="preview-card__label">资料状态</text>
+              <text class="preview-card__value">{{ profileCompleted ? '已完善' : '待完善' }}</text>
             </view>
             <view class="preview-card">
               <text class="preview-card__label">出生时间</text>
-              <text class="preview-card__value">{{
-                form.birthTime || '未填写'
-              }}</text>
+              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
             </view>
             <view class="preview-card">
               <text class="preview-card__label">出生地</text>
-              <text class="preview-card__value">{{
-                form.birthPlace || '未填写'
-              }}</text>
+              <text class="preview-card__value">{{ form.birthPlace || '未填写' }}</text>
             </view>
           </view>
 
@@ -230,24 +224,6 @@
             保存并更新资料
           </button>
         </view>
-      </view>
-
-      <view class="vip-card" @tap="goMembership">
-        <view class="vip-card__badge">
-          <view class="vip-card__crown"></view>
-        </view>
-        <view class="vip-card__copy">
-          <text class="vip-card__title">{{
-            profilePage.membershipCard.title
-          }}</text>
-          <text class="vip-card__summary">{{
-            profilePage.membershipCard.summary
-          }}</text>
-        </view>
-        <button class="vip-card__button">
-          {{ profilePage.membershipCard.buttonText }}
-          <text class="vip-card__arrow">›</text>
-        </button>
       </view>
 
       <view class="section section--data">
@@ -311,7 +287,7 @@
       <view class="section section--services">
         <view class="section__head">
           <text class="section__title">我的服务</text>
-          <text class="section__meta">订单、报告与收藏</text>
+          <text class="section__meta">报告、记录与收藏</text>
         </view>
 
         <view class="service-list">
@@ -522,7 +498,6 @@ const profileCompleted = ref(
     profile.value.birthday &&
     profile.value.birthTime &&
     profile.value.birthPlace &&
-    profile.value.zodiac &&
     profile.value.gender !== 'unknown',
   ),
 );
@@ -547,24 +522,18 @@ const fallbackProfilePage: ProfilePageData = {
   isProfileCompleted: false,
   hero: {
     displayName: '清浅',
-    vipLabel: '普通用户',
+    vipLabel: '已登录',
     signature: '愿你成为自己的光，温柔而有力量。',
-    sessionHint: '登录后会把记录、会员状态和主题偏好绑定到当前账号。',
-  },
-  membershipCard: {
-    title: '开通会员 · 解锁全部权益',
-    summary: '享受专属报告、好运加持等 12 项特权。',
-    buttonText: '立即开通',
-    route: '/pages/membership/index',
+    sessionHint: '登录后会把记录和主题偏好绑定到当前账号。',
   },
   dataCards: [
     {
-      key: 'fortune_index',
-      title: '综合气运指数',
+      key: 'state_index',
+      title: '综合状态指数',
       value: '--',
       meta: '登录后同步',
       tone: 'mist',
-      route: '/pages/profile/data/fortune-index/index',
+      route: '/pages/profile/data/state-index/index',
     },
     {
       key: 'mood_days',
@@ -580,15 +549,15 @@ const fallbackProfilePage: ProfilePageData = {
       value: '--',
       meta: '登录后同步',
       tone: 'mint',
-      route: '/pages/profile/data/explore-reports/index',
+      route: '/pages/profile/data/focus-energy/index',
     },
     {
-      key: 'lucky_energy',
-      title: '好运能量值',
+      key: 'focus_energy',
+      title: '专注能量值',
       value: '--',
       meta: '登录后同步',
       tone: 'gold',
-      route: '/pages/profile/data/lucky-energy/index',
+      route: '/pages/profile/data/explore-reports/index',
     },
   ],
   tools: [],
@@ -706,9 +675,9 @@ const quickToolItems = computed<
     tone: 'sky',
   },
   {
-    title: '能量展示',
-    icon: '能',
-    route: '/pages/lucky/index',
+    title: '状态记录',
+    icon: '状',
+    route: '/pages/records/index',
     tone: 'gold',
   },
 ]);
@@ -1251,10 +1220,6 @@ function goHistory() {
   open('/pages/records/index');
 }
 
-function goMembership() {
-  open(profilePage.value.membershipCard.route || '/pages/membership/index');
-}
-
 function goSettings() {
   open('/pages/settings/index');
 }
@@ -1264,22 +1229,12 @@ function goFeedback() {
 }
 
 function formatHistoryScore(item: UnifiedRecordItem) {
-  if (item.recordType === 'bazi') {
-    return item.level ? `${item.level}主轴` : '已排盘';
-  }
-
   return item.score !== null ? `${item.score}` : '--';
 }
 
 function historyIcon(recordType: string) {
   if (recordType === 'emotion') {
     return '情';
-  }
-  if (recordType === 'bazi') {
-    return '卦';
-  }
-  if (recordType === 'zodiac') {
-    return '星';
   }
   return '测';
 }

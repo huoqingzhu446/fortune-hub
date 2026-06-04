@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { AuditService } from '../common/audit.service';
 import { AppConfigEntity } from '../database/entities/app-config.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
-import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { RecommendationItemEntity } from '../database/entities/recommendation-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { ReportTemplateVersionEntity } from '../database/entities/report-template-version.entity';
 import {
@@ -60,8 +60,8 @@ export class AdminContentService {
   constructor(
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
-    @InjectRepository(LuckyItemEntity)
-    private readonly luckyItemRepository: Repository<LuckyItemEntity>,
+    @InjectRepository(RecommendationItemEntity)
+    private readonly luckyItemRepository: Repository<RecommendationItemEntity>,
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     @InjectRepository(ReportTemplateVersionEntity)
@@ -647,7 +647,7 @@ export class AdminContentService {
     });
 
     if (existing && existing.id !== currentId) {
-      throw new BadRequestException('已存在相同 bizCode 的幸运物，请改为编辑');
+      throw new BadRequestException('已存在相同 bizCode 的推荐素材，请改为编辑');
     }
   }
 
@@ -818,7 +818,7 @@ export class AdminContentService {
   private async getLuckyItemOrThrow(id: string) {
     const item = await this.luckyItemRepository.findOne({ where: { id } });
     if (!item) {
-      throw new NotFoundException('幸运物不存在');
+      throw new NotFoundException('推荐素材不存在');
     }
     return item;
   }
@@ -855,7 +855,7 @@ export class AdminContentService {
     };
   }
 
-  private serializeLuckyItem(item: LuckyItemEntity) {
+  private serializeLuckyItem(item: RecommendationItemEntity) {
     return {
       id: item.id,
       bizCode: item.bizCode,

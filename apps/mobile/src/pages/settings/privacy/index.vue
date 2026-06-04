@@ -16,8 +16,8 @@
       <text class="section-title">当前会保存的数据</text>
       <view class="bullet-list">
         <text class="bullet-item">登录标识：`openid` 或开发环境 mock openid。</text>
-        <text class="bullet-item">基础资料：昵称、生日、出生时间、性别、星座、简易五行结果。</text>
-        <text class="bullet-item">结果历史：八字、性格测评、情绪自检生成的记录。</text>
+        <text class="bullet-item">基础资料：昵称、头像、生日、出生时间、性别等可选信息。</text>
+        <text class="bullet-item">结果历史：性格测评、情绪自检生成的记录。</text>
         <text class="bullet-item">偏好设置：主题与提醒偏好登录后会同步到账号，反馈草稿仍保存在当前设备。</text>
       </view>
     </view>
@@ -25,9 +25,9 @@
     <view class="panel">
       <text class="section-title">使用目的</text>
       <view class="bullet-list">
-        <text class="bullet-item">用于生成星座、八字、幸运体系和测评结果。</text>
+        <text class="bullet-item">用于生成测评、情绪自检与公开内容结果。</text>
         <text class="bullet-item">用于保存历史记录，方便后续回看。</text>
-        <text class="bullet-item">用于个性化推荐幸运物和壁纸方向。</text>
+        <text class="bullet-item">用于个性化推荐冥想、日记和公开内容。</text>
       </view>
     </view>
 

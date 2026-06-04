@@ -11,7 +11,7 @@
       <picker :range="categoryLabels" :value="categoryIndex" @change="changeCategory">
         <view class="input input--picker">{{ activeCategory.label }}</view>
       </picker>
-      <textarea v-model="message" class="textarea" placeholder="例如：幸运壁纸想增加更多主题，或者某个页面在 H5 下报错。" />
+      <textarea v-model="message" class="textarea" placeholder="例如：冥想内容想增加更多主题，或者某个页面在 H5 下报错。" />
       <input v-model="contact" class="input" placeholder="联系方式（可选）" />
       <view class="attachment-section">
         <view class="attachment-head">

@@ -1,4 +1,4 @@
-import type { MeditationMusicItem } from '../types/lucky';
+import type { MeditationMusicItem } from '../types/meditation';
 
 export const defaultMeditationMusicLibrary: MeditationMusicItem[] = [
   {

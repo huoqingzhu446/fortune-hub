@@ -1,10 +1,10 @@
 import type { ApiEnvelope } from './auth';
 
 export type ProfileMetricKey =
-  | 'fortune_index'
+  | 'state_index'
   | 'mood_days'
   | 'explore_reports'
-  | 'lucky_energy';
+  | 'focus_energy';
 
 export interface ProfileMetricPoint {
   date: string;

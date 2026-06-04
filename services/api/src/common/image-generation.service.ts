@@ -8,7 +8,7 @@ import {
 
 export type ImageGenerationPurpose =
   | '海报背景'
-  | '幸运壁纸背景'
+  | '状态壁纸背景'
   | '诊断';
 
 export type ImageGenerationInput = Omit<GenerateImageInput, 'purpose'> & {

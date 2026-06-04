@@ -82,14 +82,14 @@ const currentPage = computed(() => {
   if (route.path === '/content-center') {
     return {
       title: '内容中心',
-      subtitle: '统一维护运势内容、幸运物、报告模板与系统配置，并支持发布流转。',
+      subtitle: '统一维护探索内容、推荐素材、报告模板与系统配置，并支持发布流转。',
     };
   }
 
   if (route.path === '/commerce-center') {
     return {
       title: '商业化配置',
-      subtitle: '管理会员商品、订单支付和完整版解锁的基础配置。',
+      subtitle: '管理会员商品、订单支付和扩展版开通的基础配置。',
     };
   }
 

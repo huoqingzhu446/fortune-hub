@@ -1,5 +1,5 @@
 <template>
-  <ProfileMetricDetailPage metric-key="lucky_energy" />
+  <ProfileMetricDetailPage metric-key="state_index" />
 </template>
 
 <script setup lang="ts">

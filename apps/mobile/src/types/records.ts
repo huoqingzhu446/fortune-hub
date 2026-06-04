@@ -1,5 +1,5 @@
 import type { ApiEnvelope } from './auth';
-import type { MeditationMusicItem } from './lucky';
+import type { MeditationMusicItem } from './meditation';
 
 export interface UnifiedRecordItem {
   id: string;

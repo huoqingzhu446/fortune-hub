@@ -11,10 +11,10 @@ import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { UserEntity } from '../database/entities/user.entity';
 
 export type ProfileMetricKey =
-  | 'fortune_index'
+  | 'state_index'
   | 'mood_days'
   | 'explore_reports'
-  | 'lucky_energy';
+  | 'focus_energy';
 
 type ProfileMetricTone = 'mist' | 'blush' | 'mint' | 'gold';
 
@@ -76,12 +76,12 @@ type MetricCalculation = {
 };
 
 const METRIC_CONFIGS: Record<ProfileMetricKey, MetricConfig> = {
-  fortune_index: {
-    key: 'fortune_index',
-    title: '综合气运指数',
+  state_index: {
+    key: 'state_index',
+    title: '综合状态指数',
     unit: '分',
     tone: 'mist',
-    route: '/pages/profile/data/fortune-index/index',
+    route: '/pages/profile/data/state-index/index',
   },
   mood_days: {
     key: 'mood_days',
@@ -95,22 +95,22 @@ const METRIC_CONFIGS: Record<ProfileMetricKey, MetricConfig> = {
     title: '探索报告',
     unit: '份',
     tone: 'mint',
-    route: '/pages/profile/data/explore-reports/index',
+    route: '/pages/profile/data/focus-energy/index',
   },
-  lucky_energy: {
-    key: 'lucky_energy',
-    title: '好运能量值',
+  focus_energy: {
+    key: 'focus_energy',
+    title: '专注能量值',
     unit: '分',
     tone: 'gold',
-    route: '/pages/profile/data/lucky-energy/index',
+    route: '/pages/profile/data/explore-reports/index',
   },
 };
 
 const METRIC_KEYS: ProfileMetricKey[] = [
-  'fortune_index',
+  'state_index',
   'mood_days',
   'explore_reports',
-  'lucky_energy',
+  'focus_energy',
 ];
 
 const SHARE_STATUSES = new Set(['generated', 'rendered', 'completed']);
@@ -337,7 +337,7 @@ export class ProfileMetricsService {
     const favorites = context.favorites.filter((item) => item.date <= dateKey);
     const posters = context.posterSources.filter((item) => item.date <= dateKey);
 
-    if (key === 'fortune_index') {
+    if (key === 'state_index') {
       const scoredRecords = records.filter(
         (record) => record.recordType !== 'bazi' && record.score !== null,
       );
@@ -460,7 +460,7 @@ export class ProfileMetricsService {
   }
 
   private buildHistoryItems(key: ProfileMetricKey, context: MetricContext) {
-    if (key === 'fortune_index') {
+    if (key === 'state_index') {
       return context.records
         .filter((record) => record.recordType !== 'bazi' && record.score !== null)
         .slice(0, 80)
@@ -496,8 +496,8 @@ export class ProfileMetricsService {
         sourceTypeLabel: '资料完整度',
         title: context.isProfileCompleted ? '资料已完善' : '基础资料待完善',
         summary: context.isProfileCompleted
-          ? '生日、出生时间、出生地、星座与性别资料已完整。'
-          : '补齐生日、出生时间、出生地等资料后可获得更高能量加成。',
+          ? '生日、出生时间、出生地与性别资料已完整。'
+          : '补齐生日、出生时间、出生地等资料后可获得更完整的状态记录。',
         date: this.toDateKey(context.user.updatedAt),
         happenedAt: context.user.updatedAt.toISOString(),
         route: '/pages/profile/index',
@@ -727,18 +727,6 @@ export class ProfileMetricsService {
       return `/pages/report/index?recordId=${encodeURIComponent(input.recordId)}`;
     }
 
-    if (input.sourceType === 'lucky_sign' && input.sourceCode) {
-      return `/pages/lucky/sign/index?bizCode=${encodeURIComponent(input.sourceCode)}`;
-    }
-
-    if (input.sourceType === 'zodiac_today') {
-      return '/pages/zodiac/index';
-    }
-
-    if (input.sourceType === 'today_index') {
-      return '/pages/index/index';
-    }
-
     return '/pages/records/index';
   }
 
@@ -772,9 +760,9 @@ export class ProfileMetricsService {
     const mapping: Record<string, string> = {
       personality: '性格测评',
       emotion: '情绪自检',
-      bazi: '八字解读',
-      zodiac: '星座运势',
-      divination: '占卜解读',
+      bazi: '历史记录',
+      zodiac: '历史记录',
+      divination: '历史记录',
     };
 
     return mapping[recordType] ?? '历史记录';
@@ -782,15 +770,15 @@ export class ProfileMetricsService {
 
   private resolvePosterSourceLabel(sourceType: string) {
     const mapping: Record<string, string> = {
-      today_index: '今日综合',
-      lucky_sign: '幸运签',
-      zodiac_today: '星座海报',
+      today_index: '分享海报',
+      lucky_sign: '分享海报',
+      zodiac_today: '分享海报',
       report_poster: '报告海报',
       poster: '分享海报',
-      bazi: '八字报告',
+      bazi: '报告海报',
       emotion: '情绪报告',
       personality: '性格报告',
-      divination: '占卜海报',
+      divination: '分享海报',
     };
 
     return mapping[sourceType] ?? '分享海报';

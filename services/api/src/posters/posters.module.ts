@@ -6,9 +6,7 @@ import { FortuneContentEntity } from '../database/entities/fortune-content.entit
 import { PosterJobEntity } from '../database/entities/poster-job.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { ShareRecordEntity } from '../database/entities/share-record.entity';
-import { LuckyModule } from '../lucky/lucky.module';
 import { ReportsModule } from '../reports/reports.module';
-import { ZodiacModule } from '../zodiac/zodiac.module';
 import { PostersController } from './posters.controller';
 import { PostersService } from './posters.service';
 
@@ -23,8 +21,6 @@ import { PostersService } from './posters.service';
     AuthModule,
     CommonModule,
     ReportsModule,
-    LuckyModule,
-    ZodiacModule,
   ],
   controllers: [PostersController],
   providers: [PostersService],

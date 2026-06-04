@@ -7,7 +7,7 @@ import { AssessmentQuestionEntity } from '../database/entities/assessment-questi
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
 import { AuditLogEntity } from '../database/entities/audit-log.entity';
 import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
-import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
+import { RecommendationItemEntity } from '../database/entities/recommendation-item.entity';
 import { MembershipProductEntity } from '../database/entities/membership-product.entity';
 import { OrderEntity } from '../database/entities/order.entity';
 import { PushDeliveryLogEntity } from '../database/entities/push-delivery-log.entity';
@@ -49,8 +49,8 @@ export class AdminOpsService {
     private readonly assessmentQuestionRepository: Repository<AssessmentQuestionEntity>,
     @InjectRepository(FortuneContentEntity)
     private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
-    @InjectRepository(LuckyItemEntity)
-    private readonly luckyItemRepository: Repository<LuckyItemEntity>,
+    @InjectRepository(RecommendationItemEntity)
+    private readonly luckyItemRepository: Repository<RecommendationItemEntity>,
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
     @InjectRepository(MembershipProductEntity)
@@ -143,15 +143,15 @@ export class AdminOpsService {
       }),
       this.buildReadinessItem({
         key: 'content.fortune',
-        title: '运势内容已发布',
+        title: '探索内容已发布',
         actual: fortuneContents,
         minimum: 1,
         owner: '内容运营',
-        action: '发布生肖、星座、塔罗或首页探索内容',
+        action: '发布首页探索内容',
       }),
       this.buildReadinessItem({
         key: 'content.lucky_sign',
-        title: '每日幸运签内容已发布',
+        title: '每日提醒内容已发布',
         actual: luckySignContents,
         minimum: 1,
         owner: '内容运营',
@@ -159,11 +159,11 @@ export class AdminOpsService {
       }),
       this.buildReadinessItem({
         key: 'content.lucky_items',
-        title: '幸运物料已发布',
+        title: '推荐素材已发布',
         actual: luckyItems,
         minimum: 1,
         owner: '内容运营',
-        action: '发布至少 1 条幸运物料',
+        action: '发布至少 1 条推荐素材',
       }),
       this.buildReadinessItem({
         key: 'report.templates',
@@ -286,7 +286,7 @@ export class AdminOpsService {
           : true,
       );
 
-    const header = 'ID,昵称,手机号,星座,性别,会员状态,登录方式,最近登录,注册时间';
+    const header = 'ID,昵称,手机号,资料标签,性别,会员状态,登录方式,最近登录,注册时间';
     const rows = filtered.map((user) =>
       [
         user.id,

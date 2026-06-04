@@ -289,27 +289,17 @@ export class UsersService {
       isProfileCompleted,
       hero: {
         displayName: serializedUser?.nickname ?? '清浅',
-        vipLabel: isVipActive ? 'VIP' : '普通用户',
+        vipLabel: isLoggedIn ? '已登录' : '访客',
         signature: !isLoggedIn
           ? '愿你成为自己的光，温柔而有力量。'
           : isProfileCompleted
             ? '愿你成为自己的光，温柔而有力量。'
             : '补齐资料后，你的主题、报告与状态判断会更贴近自己。',
         sessionHint: !isLoggedIn
-          ? '登录后会把记录、会员状态和主题偏好绑定到当前账号。'
+          ? '登录后会把记录和主题偏好绑定到当前账号。'
           : isProfileCompleted
             ? '资料已完善，首页与探索页会优先参考你的资料。'
-            : '生日、出生时间和出生地补齐后，会自动生成星座与五行信息。',
-      },
-      membershipCard: {
-        title: '开通会员 · 解锁全部权益',
-        summary: isVipActive
-          ? `当前会员已生效${vipExpireText ? `，有效期至 ${vipExpireText}` : ''}。`
-          : orderCount
-            ? `你已有 ${orderCount} 笔订单记录，开通后可自动解锁更多完整内容。`
-            : '享受专属报告、好运加持等 12 项特权。',
-        buttonText: isVipActive ? '查看权益' : '立即开通',
-        route: '/pages/membership/index',
+            : '生日、出生时间和出生地补齐后，状态记录会更贴近自己。',
       },
       dataCards:
         metricSummary?.dataCards ??
@@ -883,12 +873,12 @@ export class UsersService {
         route: '/pages/emotion/index',
       },
       bazi: {
-        label: '八字解读',
-        route: '/pages/bazi/index',
+        label: '历史记录',
+        route: '/pages/records/index',
       },
       zodiac: {
-        label: '星座运势',
-        route: '/pages/zodiac/index',
+        label: '历史记录',
+        route: '/pages/records/index',
       },
     };
 
@@ -1211,7 +1201,7 @@ export class UsersService {
         title: '能量音乐',
         description: '稳定节奏',
         icon: '乐',
-        route: '/pages/lucky/index',
+        route: '/pages/meditation/index',
       },
     ];
   }
@@ -1223,14 +1213,6 @@ export class UsersService {
     favoriteCount: number;
   }) {
     return [
-      {
-        title: '我的订单',
-        description: input.orderCount
-          ? `共 ${input.orderCount} 笔订单${input.paidOrderCount ? `，已支付 ${input.paidOrderCount} 笔` : ''}`
-          : '暂无订单记录',
-        icon: '单',
-        route: '/pages/membership/index',
-      },
       {
         title: '我的报告',
         description: input.reportCount
@@ -1252,12 +1234,6 @@ export class UsersService {
         description: '',
         icon: '询',
         route: '/pages/settings/feedback/index',
-      },
-      {
-        title: '邀请好友',
-        description: '得 7 天会员',
-        icon: '邀',
-        route: '/pages/membership/index',
       },
     ];
   }

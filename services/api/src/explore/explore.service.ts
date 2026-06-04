@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AssessmentTestConfigEntity } from '../database/entities/assessment-test-config.entity';
-import { FortuneContentEntity } from '../database/entities/fortune-content.entity';
-import { LuckyItemEntity } from '../database/entities/lucky-item.entity';
 import { ReportTemplateEntity } from '../database/entities/report-template.entity';
 import { UserEntity } from '../database/entities/user.entity';
 
@@ -40,12 +38,7 @@ type ExploreContentItem = {
   stat: string;
   buttonText: string;
   route: string;
-  sourceType:
-    | 'lucky_item'
-    | 'fortune_content'
-    | 'report_template'
-    | 'assessment_test'
-    | 'fallback';
+  sourceType: 'report_template' | 'assessment_test' | 'fallback';
   sourceLabel: string;
   publishedAt: string | null;
 };
@@ -53,30 +46,12 @@ type ExploreContentItem = {
 const FALLBACK_FEATURES: ExploreFeatureItem[] = [
   {
     id: 'emotion',
-    title: '心理测试',
-    description: '心情评分 / 抑郁倾向 / 焦虑状态',
+    title: '情绪测试',
+    description: '心情评分 / 压力状态 / 紧张观察',
     icon: '心',
     type: 'test',
     goals: ['stress', 'self'],
     route: '/pages/emotion/index',
-  },
-  {
-    id: 'zodiac',
-    title: '星座运势',
-    description: '今日运势 / 星座解析',
-    icon: '月',
-    type: 'zodiac',
-    goals: ['self'],
-    route: '/pages/zodiac/index',
-  },
-  {
-    id: 'bazi',
-    title: '八字命理',
-    description: '五行 / 流日气运',
-    icon: '卦',
-    type: 'bazi',
-    goals: ['self'],
-    route: '/pages/bazi/index',
   },
   {
     id: 'meditation',
@@ -98,12 +73,12 @@ const FALLBACK_FEATURES: ExploreFeatureItem[] = [
   },
   {
     id: 'compatibility',
-    title: '合盘合性',
-    description: '关系分析 / 默契度',
+    title: '关系练习',
+    description: '关系观察 / 沟通练习',
     icon: '合',
     type: 'content',
     goals: ['relationship'],
-    route: '/pages/zodiac/index',
+    route: '/pages/emotion/index',
   },
   {
     id: 'healing',
@@ -112,16 +87,16 @@ const FALLBACK_FEATURES: ExploreFeatureItem[] = [
     icon: '泉',
     type: 'content',
     goals: ['relax', 'stress'],
-    route: '/pages/lucky/index',
+    route: '/pages/meditation/index',
   },
   {
     id: 'more',
     title: '更多工具',
-    description: '塔罗灵感 / 自我觉察',
+    description: '自我觉察 / 情绪记录',
     icon: '罗',
     type: 'content',
     goals: ['self'],
-    route: '/pages/lucky/index',
+    route: '/pages/journal/index',
   },
 ];
 
@@ -144,10 +119,10 @@ const FALLBACK_TOPICS: ExploreTopicItem[] = [
   },
   {
     id: 'week',
-    title: '本周星缘',
-    summary: '把握星象能量',
-    tag: '星座',
-    route: '/pages/zodiac/index',
+    title: '本周状态',
+    summary: '把握节奏变化',
+    tag: '状态',
+    route: '/pages/journal/index',
     publishedAt: null,
   },
 ];
@@ -170,33 +145,33 @@ const FALLBACK_CONTENTS: ExploreContentItem[] = [
     publishedAt: null,
   },
   {
-    id: 'zodiac-week',
-    title: '本周星座能量提醒',
-    description: '本周星象影响解析，提前掌握重要转折。',
+    id: 'weekly-state',
+    title: '本周状态提醒',
+    description: '本周状态变化提示，提前掌握重要节奏。',
     icon: '星',
-    type: '星座',
-    filterType: 'zodiac',
+    type: '状态',
+    filterType: 'content',
     goals: ['self'],
     duration: '5 分钟阅读',
     stat: '2.3 万人关注',
     buttonText: '查看',
-    route: '/pages/zodiac/index',
+    route: '/pages/emotion/index',
     sourceType: 'fallback',
     sourceLabel: '精选推荐',
     publishedAt: null,
   },
   {
     id: 'element',
-    title: '今日五行平衡建议',
-    description: '结合八字五行，看今日能量如何调和。',
+    title: '今日呼吸建议',
+    description: '结合当下状态，看今日呼吸与放松如何调和。',
     icon: '衡',
-    type: '八字',
-    filterType: 'bazi',
+    type: '冥想',
+    filterType: 'meditation',
     goals: ['self'],
     duration: '6 分钟阅读',
     stat: '9861 人查看',
     buttonText: '查看',
-    route: '/pages/bazi/index',
+    route: '/pages/meditation/index',
     sourceType: 'fallback',
     sourceLabel: '精选推荐',
     publishedAt: null,
@@ -208,10 +183,6 @@ export class ExploreService {
   constructor(
     @InjectRepository(AssessmentTestConfigEntity)
     private readonly assessmentTestRepository: Repository<AssessmentTestConfigEntity>,
-    @InjectRepository(FortuneContentEntity)
-    private readonly fortuneContentRepository: Repository<FortuneContentEntity>,
-    @InjectRepository(LuckyItemEntity)
-    private readonly luckyItemRepository: Repository<LuckyItemEntity>,
     @InjectRepository(ReportTemplateEntity)
     private readonly reportTemplateRepository: Repository<ReportTemplateEntity>,
   ) {}
@@ -285,7 +256,6 @@ export class ExploreService {
       user?.birthday &&
       user?.birthTime &&
       this.resolveUserBirthPlace(user) &&
-      user?.zodiac &&
       user?.gender !== 'unknown',
     );
     const [liveTopics, liveContents] = await Promise.all([
@@ -295,7 +265,7 @@ export class ExploreService {
 
     return {
       isLoggedIn: Boolean(user),
-      searchPlaceholder: '搜索测试 / 冥想 / 星座 / 八字',
+      searchPlaceholder: '搜索测试 / 冥想 / 日记 / 记录',
       todayFit: {
         icon: '莲',
         text: isProfileCompleted
@@ -310,8 +280,6 @@ export class ExploreService {
           { label: '全部', value: 'all' },
           { label: '心理测试', value: 'test' },
           { label: '冥想', value: 'meditation' },
-          { label: '星座', value: 'zodiac' },
-          { label: '八字', value: 'bazi' },
           { label: '日记', value: 'journal' },
           { label: '内容', value: 'content' },
         ],
@@ -369,51 +337,11 @@ export class ExploreService {
   }
 
   private async buildLiveTopics() {
-    const items = await this.luckyItemRepository.find({
-      where: {
-        status: 'published',
-      },
-      order: {
-        sortOrder: 'ASC',
-        publishedAt: 'DESC',
-        id: 'DESC',
-      },
-      take: 3,
-    });
-
-    return items.map((item) => ({
-      id: `topic-${item.bizCode}`,
-      title: item.title,
-      summary: item.summary ?? `${item.category}相关内容已更新`,
-      tag: item.category || '专题',
-      route: '/pages/lucky/index',
-      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
-    }));
+    return [];
   }
 
   private async buildLiveContents() {
-    const [luckyItems, contents, templates, assessments] = await Promise.all([
-      this.luckyItemRepository.find({
-        where: {
-          status: 'published',
-        },
-        order: {
-          sortOrder: 'ASC',
-          publishedAt: 'DESC',
-          id: 'DESC',
-        },
-        take: 6,
-      }),
-      this.fortuneContentRepository.find({
-        where: {
-          status: 'published',
-        },
-        order: {
-          publishedAt: 'DESC',
-          id: 'DESC',
-        },
-        take: 6,
-      }),
+    const [templates, assessments] = await Promise.all([
       this.reportTemplateRepository.find({
         where: {
           status: 'published',
@@ -436,44 +364,6 @@ export class ExploreService {
         take: 6,
       }),
     ]);
-
-    const liveLuckyItems: ExploreContentItem[] = luckyItems.map((item) => ({
-      id: `lucky-${item.bizCode}`,
-      title: item.title,
-      description: item.summary ?? `${item.category}相关内容`,
-      icon: '泉',
-      type: '内容',
-      filterType: 'content',
-      goals: this.resolveGoals(
-        `${item.title} ${item.summary ?? ''} ${item.category}`,
-      ),
-      duration: '内容',
-      stat: item.category,
-      buttonText: '查看',
-      route: '/pages/lucky/index',
-      sourceType: 'lucky_item',
-      sourceLabel: '幸运物',
-      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
-    }));
-
-    const liveFortuneContents: ExploreContentItem[] = contents.map((item) => ({
-      id: `fortune-${item.contentType}-${item.bizCode}`,
-      title: item.title,
-      description: item.summary ?? `${item.contentType} 内容`,
-      icon: this.resolveContentIcon(item.contentType),
-      type: this.resolveContentType(item.contentType),
-      filterType: this.resolveFilterType(item.contentType),
-      goals: this.resolveGoals(
-        `${item.title} ${item.summary ?? ''} ${item.contentType}`,
-      ),
-      duration: '内容',
-      stat: item.contentType,
-      buttonText: '查看',
-      route: this.resolveFortuneContentRoute(item),
-      sourceType: 'fortune_content',
-      sourceLabel: '内容中心',
-      publishedAt: this.resolvePublishedAt(item.publishedAt, item.publishDate),
-    }));
 
     const liveTemplates: ExploreContentItem[] = templates.map((item) => ({
       id: `template-${item.templateType}-${item.bizCode}`,
@@ -515,8 +405,6 @@ export class ExploreService {
 
     return this.sortExploreContents(
       [
-        ...liveLuckyItems,
-        ...liveFortuneContents,
         ...liveTemplates,
         ...liveAssessments,
       ].slice(0, 14),
@@ -525,60 +413,20 @@ export class ExploreService {
     ).slice(0, 10);
   }
 
-  private resolveContentType(contentType: string) {
-    if (contentType.includes('zodiac')) {
-      return '星座';
-    }
-
-    if (contentType.includes('bazi')) {
-      return '八字';
-    }
-
-    return '内容';
-  }
-
   private resolveFilterType(rawType: string) {
-    if (rawType.includes('zodiac')) {
-      return 'zodiac';
-    }
-
-    if (rawType.includes('bazi')) {
-      return 'bazi';
-    }
-
     if (rawType.includes('emotion') || rawType.includes('test')) {
       return 'test';
     }
 
+    if (rawType.includes('meditation')) {
+      return 'meditation';
+    }
+
+    if (rawType.includes('journal')) {
+      return 'journal';
+    }
+
     return 'content';
-  }
-
-  private resolveContentIcon(contentType: string) {
-    if (contentType.includes('zodiac')) {
-      return '星';
-    }
-
-    if (contentType.includes('bazi')) {
-      return '卦';
-    }
-
-    if (contentType.includes('lucky')) {
-      return '签';
-    }
-
-    return '泉';
-  }
-
-  private resolveFortuneContentRoute(item: FortuneContentEntity) {
-    if (item.contentType === 'lucky_sign') {
-      return `/pages/lucky/sign/index?bizCode=${encodeURIComponent(item.bizCode)}`;
-    }
-
-    if (item.contentType.includes('zodiac')) {
-      return '/pages/zodiac/index';
-    }
-
-    return '/pages/lucky/index';
   }
 
   private resolveTemplateRoute(templateType: string) {
@@ -588,14 +436,6 @@ export class ExploreService {
 
     if (templateType.includes('personality')) {
       return '/pages/personality/index';
-    }
-
-    if (templateType.includes('bazi')) {
-      return '/pages/bazi/index';
-    }
-
-    if (templateType.includes('zodiac')) {
-      return '/pages/zodiac/index';
     }
 
     return '/pages/report/index';
@@ -626,7 +466,7 @@ export class ExploreService {
       goals.add('stress');
     }
 
-    if (/星|八字|命理|自我|探索|test|report|template/.test(normalized)) {
+    if (/自我|探索|test|report|template/.test(normalized)) {
       goals.add('self');
     }
 
@@ -787,12 +627,6 @@ export class ExploreService {
     switch (sourceType) {
       case 'assessment_test':
         return 6;
-      case 'fortune_content':
-        return 5;
-      case 'report_template':
-        return 4;
-      case 'lucky_item':
-        return 3;
       case 'fallback':
       default:
         return 1;

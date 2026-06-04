@@ -8,8 +8,8 @@ export class GeneratePosterDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['lucky_sign', 'today_index', 'zodiac_today'])
-  sourceType?: 'lucky_sign' | 'today_index' | 'zodiac_today';
+  @IsIn(['report'])
+  sourceType?: 'report';
 
   @IsOptional()
   @IsString()

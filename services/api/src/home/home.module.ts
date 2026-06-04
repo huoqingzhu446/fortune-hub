@@ -7,13 +7,11 @@ import { UserRecordEntity } from '../database/entities/user-record.entity';
 import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { HomeController } from './home.controller';
 import { HomeService } from './home.service';
-import { LuckyModule } from '../lucky/lucky.module';
 
 @Module({
   imports: [
     AuthModule,
     EntitlementsModule,
-    LuckyModule,
     TypeOrmModule.forFeature([
       UserRecordEntity,
       MoodRecordEntity,

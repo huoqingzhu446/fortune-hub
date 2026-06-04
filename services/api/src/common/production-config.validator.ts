@@ -98,6 +98,13 @@ export function collectProductionConfigIssues(config: ConfigReader) {
     ) {
       issues.push('微信支付商户私钥 WECHAT_PAY_PRIVATE_KEY 或 WECHAT_PAY_PRIVATE_KEY_PATH 至少配置一个');
     }
+
+    if (
+      !readConfig(config, 'WECHAT_PAY_PLATFORM_CERT') &&
+      !readConfig(config, 'WECHAT_PAY_PLATFORM_CERT_PATH')
+    ) {
+      issues.push('微信支付平台证书 WECHAT_PAY_PLATFORM_CERT 或 WECHAT_PAY_PLATFORM_CERT_PATH 至少配置一个');
+    }
   }
 
   return issues;

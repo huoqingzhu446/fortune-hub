@@ -9,13 +9,28 @@ export interface MembershipOrder {
   orderType: string;
   status: string;
   transactionNo: string | null;
+  paymentChannel: string | null;
+  paymentProvider: string | null;
+  paymentStatus: string | null;
   paidAt: string | null;
   createdAt: string;
+}
+
+export interface WechatPaymentParams {
+  appId: string;
+  timeStamp: string;
+  nonceStr: string;
+  packageValue: string;
+  signType: 'RSA';
+  paySign: string;
+  prepayId: string;
 }
 
 export interface CreateOrderData {
   order: MembershipOrder;
   payHint: string;
+  payMode: string;
+  paymentParams: WechatPaymentParams | null;
 }
 
 export interface PayOrderData {

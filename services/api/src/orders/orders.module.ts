@@ -6,6 +6,7 @@ import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { MembershipModule } from '../membership/membership.module';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { WechatPayService } from './wechat-pay.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { OrdersService } from './orders.service';
     MembershipModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService],
+  providers: [OrdersService, WechatPayService],
   exports: [OrdersService],
 })
 export class OrdersModule {}

@@ -73,4 +73,36 @@ describe('production config validator', () => {
       ),
     ).not.toThrow();
   });
+
+  it('requires full wechat pay config when payment mode is wechat', () => {
+    const issues = collectProductionConfigIssues(
+      config({
+        NODE_ENV: 'production',
+        ADMIN_USERNAME: 'ops-admin',
+        ADMIN_PASSWORD: 'StrongerAdminPassword-2026',
+        MYSQL_PASSWORD: 'StrongMysqlPassword-2026',
+        SMS_CODE_PEPPER: 'StrongSmsPepper-2026',
+        PUBLIC_API_BASE_URL: 'https://fortune.example.com/api/v1',
+        FILE_SERVICE_BASE_URL: 'https://fortune.example.com/api',
+        CORS_ORIGIN: 'https://fortune.example.com',
+        WECHAT_APP_ID: 'wx123',
+        WECHAT_APP_SECRET: 'secret',
+        PAYMENT_MODE: 'wechat',
+        DB_SYNCHRONIZE: 'false',
+        SMS_PROVIDER: 'aliyun',
+        SMS_MOCK_ENABLED: 'false',
+        WECHAT_PAY_MCH_ID: '1900000109',
+        WECHAT_PAY_API_V3_KEY: 'A1234567890123456789012345678901',
+        WECHAT_PAY_SERIAL_NO: '7777777777777777777777777777777777',
+      }),
+    );
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('WECHAT_PAY_NOTIFY_URL'),
+        expect.stringContaining('WECHAT_PAY_PRIVATE_KEY'),
+        expect.stringContaining('WECHAT_PAY_PLATFORM_CERT'),
+      ]),
+    );
+  });
 });

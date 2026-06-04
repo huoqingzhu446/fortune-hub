@@ -1,15 +1,44 @@
+import { MembershipProductEntity } from '../database/entities/membership-product.entity';
+import { OrderEntity } from '../database/entities/order.entity';
+import { UserEntity } from '../database/entities/user.entity';
 import { OrdersService } from './orders.service';
 
 describe('OrdersService', () => {
   it('creates a membership order and activates membership on callback', async () => {
+    let currentOrder: Record<string, unknown> | null = null;
     const orderRepo = {
       create: jest.fn((input) => input),
-      save: jest.fn(async (input) => ({
-        id: '1',
-        createdAt: new Date('2026-04-25T00:00:00Z'),
-        ...input,
+      save: jest.fn(async (input) => {
+        currentOrder = {
+          id: '1',
+          createdAt: new Date('2026-04-25T00:00:00Z'),
+          ...input,
+        };
+        return currentOrder;
+      }),
+      findOne: jest.fn(async () => currentOrder),
+    };
+    const userRepo = {
+      findOne: jest.fn(async () => ({
+        id: 'u1',
+        openid: 'openid_123',
+        vipStatus: 'inactive',
+        vipExpiredAt: null,
       })),
-      findOne: jest.fn(),
+      save: jest.fn(async (input) => ({
+        ...input,
+        vipStatus: 'active',
+        vipExpiredAt: new Date('2026-05-25T00:00:00Z'),
+      })),
+    };
+    const productRepo = {
+      findOne: jest.fn(async () => ({
+        code: 'vip-month',
+        title: '月度会员',
+        priceFen: 3900,
+        durationDays: 30,
+        status: 'published',
+      })),
     };
     const membershipService = {
       getProductByCodeOrThrow: jest.fn(async () => ({
@@ -19,22 +48,40 @@ describe('OrdersService', () => {
         durationDays: 30,
       })),
     };
-    const entitlementsService = {
-      grantMembershipFromProduct: jest.fn(async () => ({
-        vipStatus: 'active',
-        vipExpiredAt: new Date('2026-05-25T00:00:00Z'),
-      })),
-    };
+    const entitlementsService = {};
     const configService = {
       get: jest.fn((key: string, fallback?: string) =>
         key === 'NODE_ENV' ? 'development' : fallback,
       ),
     };
+    const dataSource = {
+      transaction: jest.fn(
+        async (handler: (manager: { getRepository: (entity: unknown) => unknown }) => unknown) =>
+        handler({
+          getRepository: (entity: unknown) => {
+            if (entity === OrderEntity) {
+              return orderRepo;
+            }
+            if (entity === MembershipProductEntity) {
+              return productRepo;
+            }
+            if (entity === UserEntity) {
+              return userRepo;
+            }
+
+            throw new Error(`Unexpected repository: ${String(entity)}`);
+          },
+        }),
+      ),
+    };
+    const wechatPayService = {};
     const service = new OrdersService(
       orderRepo as never,
+      dataSource as never,
       membershipService as never,
       entitlementsService as never,
       configService as never,
+      wechatPayService as never,
     );
     const user = { id: 'u1' };
 
@@ -42,14 +89,6 @@ describe('OrdersService', () => {
       productCode: 'vip-month',
     });
     const order = createResponse.data.order;
-    orderRepo.findOne.mockResolvedValue({
-      ...order,
-      id: '1',
-      userId: 'u1',
-      extraJson: { durationDays: 30 },
-      createdAt: new Date(order.createdAt),
-      status: 'pending',
-    });
 
     const callbackResponse = await service.handlePayCallback(order.orderNo, {
       status: 'paid',
@@ -58,9 +97,6 @@ describe('OrdersService', () => {
 
     expect(callbackResponse.data.order.status).toBe('paid');
     expect(callbackResponse.data.membership?.vipStatus).toBe('active');
-    expect(entitlementsService.grantMembershipFromProduct).toHaveBeenCalledWith(
-      'u1',
-      expect.any(Object),
-    );
+    expect(userRepo.save).toHaveBeenCalled();
   });
 });

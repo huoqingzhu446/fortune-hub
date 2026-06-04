@@ -38,6 +38,18 @@ export class OrderEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   transactionNo!: string | null;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  paymentChannel!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  paymentProvider!: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  paymentStatus!: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  paymentNotifyId!: string | null;
+
   @Column({ type: 'json', nullable: true })
   extraJson!: Record<string, unknown> | null;
 

@@ -15,3 +15,7 @@ export function simulateMembershipPay(orderNo: string) {
     },
   );
 }
+
+export function fetchMembershipOrder(orderNo: string) {
+  return http.get<PayOrderResponse>(`/orders/${orderNo}`);
+}

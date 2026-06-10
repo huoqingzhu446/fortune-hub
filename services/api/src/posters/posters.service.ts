@@ -47,12 +47,11 @@ type PosterSource = {
   metrics: PosterMetric[];
   highlightTitle?: string;
   highlightLines: string[];
-  zodiacName?: string;
-  zodiacGlyph?: string;
-  zodiacEnglish?: string;
   energyValue?: string;
   emotionPoster?: EmotionPosterDetails;
 };
+
+const SUPPORTED_POSTER_RECORD_TYPES = new Set(['emotion', 'personality']);
 
 @Injectable()
 export class PostersService {
@@ -300,7 +299,7 @@ export class PostersService {
         user.id,
       );
       const report = await this.reportsService.buildReportPayload(record, user);
-      if (record.recordType === 'bazi') {
+      if (!SUPPORTED_POSTER_RECORD_TYPES.has(record.recordType)) {
         throw new BadRequestException('当前审核版已下线该类分享海报');
       }
       const emotionPoster =
@@ -875,7 +874,6 @@ export class PostersService {
       chips: [],
       metrics: [],
       highlightLines: [],
-      zodiacName: sourceCode || undefined,
     };
   }
 
@@ -1075,10 +1073,6 @@ export class PostersService {
       .replace(/\{sourceType\}/g, source.sourceType)
       .replace(/\{sourceCode\}/g, encodeURIComponent(source.sourceCode ?? ''))
       .replace(/\{recordId\}/g, encodeURIComponent(source.recordId ?? ''))
-      .replace(
-        /\{zodiac\}/g,
-        encodeURIComponent(source.zodiacName ?? source.sourceCode ?? ''),
-      )
       .slice(0, 1024);
   }
 
@@ -1527,28 +1521,6 @@ export class PostersService {
       internalBaseUrl: this.resolveFileServiceBaseUrl(),
       publicApiBaseUrl,
     });
-  }
-
-  private resolveTodayIndexThemeName(dominantElement: string) {
-    const mapping: Record<string, string> = {
-      木: 'verdant-mint',
-      火: 'sunset-ember',
-      土: 'earth-sand',
-      金: 'moon-silver',
-      水: 'ocean-water',
-    };
-
-    return mapping[dominantElement] ?? 'verdant-mint';
-  }
-
-  private resolveDominantElementFromUser(user: UserEntity) {
-    const entries = Object.entries(user.fiveElements ?? {});
-
-    if (!entries.length) {
-      return '木';
-    }
-
-    return entries.sort((left, right) => right[1] - left[1])[0][0];
   }
 
   private getTodaySourceCode() {

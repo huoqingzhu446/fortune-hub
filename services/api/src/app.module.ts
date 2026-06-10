@@ -16,7 +16,6 @@ import { AssessmentSessionEntity } from './database/entities/assessment-session.
 import { BreathingRecordEntity } from './database/entities/breathing-record.entity';
 import { AssessmentTestConfigEntity } from './database/entities/assessment-test-config.entity';
 import { AssessmentTestGroupEntity } from './database/entities/assessment-test-group.entity';
-import { ReviewNoteEntity } from './database/entities/review-note.entity';
 import { FavoriteEntity } from './database/entities/favorite.entity';
 import { FeedbackEntity } from './database/entities/feedback.entity';
 import { FortuneContentEntity } from './database/entities/fortune-content.entity';
@@ -77,7 +76,6 @@ import {
             AssessmentQuestionEntity,
             AssessmentTestConfigEntity,
             AssessmentTestGroupEntity,
-            ReviewNoteEntity,
             FavoriteEntity,
             FeedbackEntity,
             UserEntity,

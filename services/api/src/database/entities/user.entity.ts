@@ -10,7 +10,6 @@ import {
 @Entity({ name: 'users' })
 @Index('uniq_users_openid', ['openid'], { unique: true })
 @Index('uniq_users_phone', ['phone'], { unique: true })
-@Index('idx_users_zodiac', ['zodiac'])
 export class UserEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id!: string;
@@ -38,18 +37,6 @@ export class UserEntity {
 
   @Column({ type: 'date', nullable: true })
   birthday!: string | null;
-
-  @Column({ type: 'varchar', length: 8, nullable: true })
-  birthTime!: string | null;
-
-  @Column({ type: 'varchar', length: 32, nullable: true })
-  zodiac!: string | null;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  baziSummary!: string | null;
-
-  @Column({ type: 'json', nullable: true })
-  fiveElements!: Record<string, number> | null;
 
   @Column({ type: 'json', nullable: true })
   preferencesJson!: Record<string, unknown> | null;

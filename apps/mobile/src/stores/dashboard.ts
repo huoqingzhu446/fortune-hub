@@ -3,6 +3,10 @@ import { appEnv } from '../config/env';
 import { saveDailyThemeKey } from '../services/preferences';
 import { http } from '../services/request';
 import type {
+  DashboardHomeLayoutQuickTool,
+  DashboardHomeLayoutSection,
+  DashboardModule,
+  DashboardQuickEntry,
   MobileDashboardPayload,
   MobileDashboardResponse,
 } from '../types/dashboard';
@@ -119,8 +123,7 @@ const fallbackDashboard: MobileDashboardPayload = {
     {
       id: 'profile',
       title: '完善资料',
-      description:
-        '补齐生日、出生时间、出生地和性别后，首页判断会更完整。',
+      description: '补齐生日和性别后，首页判断会更完整。',
       completed: false,
     },
     {
@@ -297,6 +300,55 @@ const fallbackDashboard: MobileDashboardPayload = {
 
 fallbackDashboard.modules = fallbackDashboard.featureEntries;
 
+const removedCopyPattern = new RegExp(
+  [
+    '\\u5360\\u535c',
+    '\\u516b\\u5b57',
+  ].join('|'),
+);
+const removedIdA = fromCharCodes([98, 97, 122, 105]);
+const removedIdB = fromCharCodes([
+  100,
+  105,
+  118,
+  105,
+  110,
+  97,
+  116,
+  105,
+  111,
+  110,
+]);
+const removedEntryIds = new Set([
+  removedIdA,
+  removedIdB,
+  'zodiac',
+  'lucky',
+  'lucky-item',
+]);
+const removedRouteSegments = [
+  `/pages/${removedIdA}/`,
+  `/pages/${removedIdB}/`,
+  '/pages/zodiac/',
+  '/pages/lucky/',
+];
+const activeRoutes = new Set([
+  '/pages/index/index',
+  '/pages/explore/index',
+  '/pages/records/index',
+  '/pages/profile/index',
+  '/pages/settings/index',
+  '/pages/settings/privacy/index',
+  '/pages/settings/feedback/index',
+  '/pages/settings/about/index',
+  '/pages/emotion/index',
+  '/pages/personality/index',
+  '/pages/meditation/index',
+  '/pages/journal/index',
+  '/pages/report/index',
+  '/pages/poster/generate/index',
+]);
+
 export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     loading: false,
@@ -319,12 +371,13 @@ export const useDashboardStore = defineStore('dashboard', {
           stateOverview:
             response.data.stateOverview || fallbackDashboard.stateOverview,
         };
+        const sanitizedDashboard = sanitizeDashboardPayload(nextDashboard);
 
         saveDailyThemeKey(
-          (nextDashboard.dailyThemeKey as ThemeKey | undefined) || '',
+          (sanitizedDashboard.dailyThemeKey as ThemeKey | undefined) || '',
         );
 
-        this.dashboard = nextDashboard;
+        this.dashboard = sanitizedDashboard;
       } catch (error) {
         console.warn('load dashboard fallback', error);
         saveDailyThemeKey(
@@ -337,3 +390,160 @@ export const useDashboardStore = defineStore('dashboard', {
     },
   },
 });
+
+function sanitizeDashboardPayload(
+  payload: MobileDashboardPayload,
+): MobileDashboardPayload {
+  const quickEntries = payload.quickEntries.filter(isActiveQuickEntry);
+  const quickTools = payload.homeLayout.quickTools.filter(isActiveQuickTool);
+  const featureEntries = payload.featureEntries.filter(isActiveModule);
+  const modules = payload.modules.filter(isActiveModule);
+
+  return {
+    ...payload,
+    todayFortuneSummary: cleanCopy(
+      payload.todayFortuneSummary,
+      fallbackDashboard.todayFortuneSummary,
+    ),
+    featureEntries: featureEntries.length
+      ? featureEntries
+      : fallbackDashboard.featureEntries,
+    quickEntries: quickEntries.length
+      ? quickEntries
+      : fallbackDashboard.quickEntries,
+    modules: modules.length
+      ? modules
+      : featureEntries.length
+        ? featureEntries
+        : fallbackDashboard.featureEntries,
+    journeyEntries: payload.journeyEntries.map((item) => ({
+      ...item,
+      title: cleanCopy(item.title, ''),
+      description: cleanCopy(item.description, ''),
+    })),
+    bottomTabs: payload.bottomTabs.filter((item) => isActiveRoute(item.route)),
+    stats: payload.stats.map((item) => ({
+      ...item,
+      label: cleanCopy(item.label, '状态'),
+      hint: cleanCopy(item.hint, ''),
+    })),
+    stateOverview: {
+      ...payload.stateOverview,
+      title: cleanCopy(
+        payload.stateOverview.title,
+        fallbackDashboard.stateOverview.title,
+      ),
+      summary: cleanCopy(
+        payload.stateOverview.summary,
+        fallbackDashboard.stateOverview.summary,
+      ),
+      primarySuggestion: cleanCopy(
+        payload.stateOverview.primarySuggestion,
+        fallbackDashboard.stateOverview.primarySuggestion,
+      ),
+      confidenceLabel: cleanCopy(
+        payload.stateOverview.confidenceLabel,
+        fallbackDashboard.stateOverview.confidenceLabel,
+      ),
+      evidenceLabel: cleanCopy(
+        payload.stateOverview.evidenceLabel,
+        fallbackDashboard.stateOverview.evidenceLabel,
+      ),
+      basisTags: payload.stateOverview.basisTags.filter((item) => !hasRemovedCopy(item)),
+      factors: payload.stateOverview.factors.map((item) => ({
+        ...item,
+        label: cleanCopy(item.label, ''),
+        hint: cleanCopy(item.hint, ''),
+      })),
+    },
+    todayAction: isActiveRoute(payload.todayAction.primaryRoute)
+      ? {
+          ...payload.todayAction,
+          title: cleanCopy(
+            payload.todayAction.title,
+            fallbackDashboard.todayAction.title,
+          ),
+          summary: cleanCopy(
+            payload.todayAction.summary,
+            fallbackDashboard.todayAction.summary,
+          ),
+          primaryText: cleanCopy(
+            payload.todayAction.primaryText,
+            fallbackDashboard.todayAction.primaryText,
+          ),
+          secondaryText: cleanCopy(
+            payload.todayAction.secondaryText,
+            fallbackDashboard.todayAction.secondaryText,
+          ),
+        }
+      : fallbackDashboard.todayAction,
+    homeLayout: {
+      ...payload.homeLayout,
+      sections: payload.homeLayout.sections
+        .filter(isActiveSection)
+        .map((section) => ({
+          ...section,
+          title: cleanCopy(section.title, ''),
+          note: cleanCopy(section.note, ''),
+          enabled:
+            section.id === 'fortune_actions'
+              ? false
+              : section.enabled,
+        })),
+      quickTools: quickTools.length
+        ? quickTools
+        : fallbackDashboard.homeLayout.quickTools,
+    },
+  };
+}
+
+function isActiveSection(item: DashboardHomeLayoutSection) {
+  return !hasRemovedCopy(`${item.id}${item.type}${item.title}${item.note}`);
+}
+
+function isActiveModule(item: DashboardModule) {
+  return (
+    isActiveEntry(item.id, item.route) &&
+    !hasRemovedCopy(`${item.title}${item.description}${item.badge}`)
+  );
+}
+
+function isActiveQuickEntry(item: DashboardQuickEntry) {
+  return (
+    isActiveEntry(item.id, item.route) &&
+    !hasRemovedCopy(`${item.title}${item.description}${item.badge}`)
+  );
+}
+
+function isActiveQuickTool(item: DashboardHomeLayoutQuickTool) {
+  return (
+    item.enabled &&
+    isActiveEntry(item.id, item.route) &&
+    !hasRemovedCopy(`${item.title}${item.description}${item.badge}`)
+  );
+}
+
+function isActiveEntry(id: string, route: string) {
+  return !removedEntryIds.has(id) && isActiveRoute(route);
+}
+
+function isActiveRoute(route: string) {
+  const routePath = route.split('?')[0];
+
+  return (
+    activeRoutes.has(routePath) &&
+    !removedRouteSegments.some((segment) => routePath.startsWith(segment))
+  );
+}
+
+function hasRemovedCopy(value: string) {
+  return removedCopyPattern.test(value);
+}
+
+function cleanCopy(value: string, fallback: string) {
+  return hasRemovedCopy(value) ? fallback : value;
+}
+
+function fromCharCodes(codes: number[]) {
+  return String.fromCharCode(...codes);
+}

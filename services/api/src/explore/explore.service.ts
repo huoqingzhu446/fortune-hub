@@ -254,8 +254,6 @@ export class ExploreService {
   private async buildExploreData(user: UserEntity | null) {
     const isProfileCompleted = Boolean(
       user?.birthday &&
-      user?.birthTime &&
-      this.resolveUserBirthPlace(user) &&
       user?.gender !== 'unknown',
     );
     const [liveTopics, liveContents] = await Promise.all([
@@ -317,23 +315,6 @@ export class ExploreService {
         'recommended',
       ),
     };
-  }
-
-  private resolveUserBirthPlace(user: UserEntity | null) {
-    const preferences = user?.preferencesJson ?? {};
-    const candidates = [
-      preferences.birthPlace,
-      preferences.birthCity,
-      preferences.city,
-    ];
-
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate.trim();
-      }
-    }
-
-    return '';
   }
 
   private async buildLiveTopics() {

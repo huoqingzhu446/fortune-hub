@@ -116,14 +116,14 @@ describe('PostersService review edition', () => {
         getOwnedRecordOrThrow: jest.fn(async () => ({
           id: 'record-1',
           userId: 'user-1',
-          recordType: 'bazi',
+          recordType: 'legacy_profile',
           sourceCode: 'legacy',
           resultTitle: 'legacy',
           resultData: {},
           createdAt: new Date('2026-04-29T00:00:00.000Z'),
         })),
         buildReportPayload: jest.fn(async () => ({
-          recordType: 'bazi',
+          recordType: 'legacy_profile',
           title: 'legacy',
           summary: 'legacy',
           sharePoster: {

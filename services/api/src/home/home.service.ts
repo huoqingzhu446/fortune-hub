@@ -221,12 +221,12 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
       order: 20,
     },
     {
-      id: 'divination',
+      id: 'records',
       title: '记录',
-      description: '心情',
-      route: '/pages/journal/index',
-      badge: '记录',
-      icon: 'orbit',
+      description: '回看',
+      route: '/pages/records/index',
+      badge: '回看',
+      icon: 'compass',
       enabled: true,
       order: 30,
     },
@@ -268,9 +268,6 @@ export class HomeService {
     const isLoggedIn = Boolean(user);
     const profileCompleted = Boolean(
       user?.birthday &&
-      user?.birthTime &&
-      this.resolveUserBirthPlace(user) &&
-      user?.zodiac &&
       user?.gender !== 'unknown',
     );
     const isVipActive = this.entitlementsService.isMembershipActive(user);
@@ -298,8 +295,8 @@ export class HomeService {
         title: isLoggedIn ? '完善资料' : '先去登录',
         description: isLoggedIn
           ? profileCompleted
-            ? '基础资料已就绪，随时可以回来调整生日、时辰和昵称。'
-            : '先补齐生日、出生时间和出生地，首页的个性化解释会更准确。'
+            ? '基础资料已就绪，随时可以回来调整生日、性别和昵称。'
+            : '先补齐生日和性别，首页的个性化解释会更准确。'
           : '从个人中心发起微信登录，后续历史和状态变化都会绑定到账号。',
         route: '/pages/profile/index',
         badge: isLoggedIn
@@ -338,7 +335,7 @@ export class HomeService {
         title: '完善资料',
         description: profileCompleted
           ? '当前会结合你的资料和最近测评结果，生成更贴近你的首页判断。'
-          : '补齐生日、出生时间、出生地和性别后，首页解释和个性化标签会更完整。',
+          : '补齐生日和性别后，首页解释和个性化标签会更完整。',
         completed: profileCompleted,
       },
       {
@@ -1028,8 +1025,6 @@ export class HomeService {
     const score =
       (user ? 10 : 0) +
       (user?.birthday ? 14 : 0) +
-      (user?.birthTime ? 5 : 0) +
-      (this.resolveUserBirthPlace(user) ? 5 : 0) +
       (hasFreshMood ? 25 : signals.mood.length ? 14 : 0) +
       (signals.emotion.length ? 24 : 0) +
       (signals.personality ? 12 : 0);
@@ -1056,10 +1051,7 @@ export class HomeService {
   }
 
   private buildContextScore(user: UserEntity | null) {
-    const score =
-      58 +
-      (user?.fiveElements ? 8 : 0) +
-      (user?.birthTime ? 6 : 0);
+    const score = 58 + (user?.birthday ? 6 : 0);
 
     return this.clampScore(score, 48, 84, 60);
   }
@@ -1067,9 +1059,6 @@ export class HomeService {
   private buildBasisTags(user: UserEntity | null, signals: HomeSignals) {
     const tags = [
       this.buildMoodTag(signals.mood[0]),
-      this.resolveDominantElement(user)
-        ? `${this.resolveDominantElement(user)}元素`
-        : '',
       signals.personality?.dominantDimensionLabel ?? '',
       this.buildEmotionTag(signals.emotion[0]?.riskLevel ?? ''),
     ].filter(Boolean);
@@ -1245,8 +1234,7 @@ export class HomeService {
     if (!profileCompleted) {
       return {
         title: `${user.nickname || '欢迎回来'}，先把资料补齐`,
-        subtitle:
-          '生日、出生时间和出生地补齐后，首页才会开始给你更完整的个性化解释和状态标签。',
+        subtitle: '生日和性别补齐后，首页才会开始给你更完整的个性化解释和状态标签。',
       };
     }
 
@@ -1638,16 +1626,6 @@ export class HomeService {
     )[0];
   }
 
-  private resolveDominantElement(user: UserEntity | null) {
-    const entries = Object.entries(user?.fiveElements ?? {});
-
-    if (entries.length) {
-      return entries.sort((left, right) => right[1] - left[1])[0][0];
-    }
-
-    return '';
-  }
-
   private serializeFactor(factor: StateFactor) {
     const { numericValue: _numericValue, ...rest } = factor;
     return rest;
@@ -1718,18 +1696,6 @@ export class HomeService {
     return supportedIcons.includes(value as HomeQuickTool['icon'])
       ? (value as HomeQuickTool['icon'])
       : fallback;
-  }
-
-  private resolveUserBirthPlace(user: UserEntity | null) {
-    const preferences = user?.preferencesJson ?? {};
-
-    return this.pickString(
-      preferences.birthPlace,
-      this.pickString(
-        preferences.birthCity,
-        this.pickString(preferences.city, ''),
-      ),
-    );
   }
 
   private pickNullableString(value: unknown) {

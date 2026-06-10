@@ -16,7 +16,7 @@
       <text class="section-title">当前会保存的数据</text>
       <view class="bullet-list">
         <text class="bullet-item">登录标识：`openid` 或开发环境 mock openid。</text>
-        <text class="bullet-item">基础资料：昵称、头像、生日、出生时间、性别等可选信息。</text>
+        <text class="bullet-item">基础资料：昵称、头像、生日、性别等可选信息。</text>
         <text class="bullet-item">结果历史：性格测评、情绪自检生成的记录。</text>
         <text class="bullet-item">偏好设置：主题与提醒偏好登录后会同步到账号，反馈草稿仍保存在当前设备。</text>
       </view>

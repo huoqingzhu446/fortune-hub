@@ -280,6 +280,23 @@ import type {
 type FilterType = 'all' | 'test' | 'meditation' | 'journal' | 'content';
 type SortType = ExploreIndexData['defaultSort'];
 
+const activeFilterValues = new Set(['all', 'test', 'meditation', 'journal', 'content']);
+const activeRoutes = new Set([
+  '/pages/emotion/index',
+  '/pages/meditation/index',
+  '/pages/journal/index',
+  '/pages/personality/index',
+  '/pages/explore/index',
+  '/pages/records/index',
+  '/pages/report/index',
+]);
+const removedCopyPattern = new RegExp(
+  [
+    '\\u5360\\u535c',
+    '\\u516b\\u5b57',
+  ].join('|'),
+);
+
 const { themeVars, themePalette } = useThemePreference();
 const pageStateStore = usePageStateStore();
 let lastExploreVersion = pageStateStore.versionOf('explore');
@@ -433,8 +450,9 @@ const hasActiveFilters = computed(
 async function loadExploreIndex() {
   try {
     const response = await fetchExploreIndex();
-    exploreData.value = response.data;
-    selectedSort.value = response.data.defaultSort || 'recommended';
+    const sanitizedData = sanitizeExploreData(response.data);
+    exploreData.value = sanitizedData;
+    selectedSort.value = sanitizedData.defaultSort || 'recommended';
     lastExploreVersion = pageStateStore.versionOf('explore');
   } catch (error) {
     console.warn('load explore index failed', error);
@@ -520,9 +538,9 @@ async function loadExploreSearch(nextKeyword: string) {
       sort: selectedSort.value,
     });
     searchedKeyword.value = nextKeyword.toLowerCase();
-    searchedFeatures.value = response.data.features;
-    searchedTopics.value = response.data.topics;
-    searchedContents.value = response.data.contents;
+    searchedFeatures.value = response.data.features.filter(isActiveFeature);
+    searchedTopics.value = response.data.topics.filter(isActiveTopic);
+    searchedContents.value = response.data.contents.filter(isActiveContent);
   } catch (error) {
     console.warn('search explore failed', error);
     uni.showToast({
@@ -530,6 +548,66 @@ async function loadExploreSearch(nextKeyword: string) {
       icon: 'none',
     });
   }
+}
+
+function sanitizeExploreData(data: ExploreIndexData): ExploreIndexData {
+  return {
+    ...data,
+    searchPlaceholder: removedCopyPattern.test(data.searchPlaceholder)
+      ? fallbackExploreData.searchPlaceholder
+      : data.searchPlaceholder,
+    todayFit: isActiveRoute(data.todayFit.route)
+      ? data.todayFit
+      : fallbackExploreData.todayFit,
+    filters: {
+      types: data.filters.types.filter(
+        (item) => activeFilterValues.has(item.value) && !hasRemovedCopy(item.label),
+      ),
+      goals: data.filters.goals.filter((item) => !hasRemovedCopy(`${item.label}${item.value}`)),
+      sorts: data.filters.sorts.filter((item) => !hasRemovedCopy(`${item.label}${item.value}`)),
+    },
+    banner: isActiveRoute(data.banner.route) && !hasRemovedCopy(
+      `${data.banner.eyebrow}${data.banner.title}${data.banner.summary}${data.banner.ctaText}`,
+    )
+      ? data.banner
+      : fallbackExploreData.banner,
+    features: data.features.filter(isActiveFeature),
+    topics: data.topics.filter(isActiveTopic),
+    contents: data.contents.filter(isActiveContent),
+  };
+}
+
+function isActiveFeature(item: ExploreFeatureItem) {
+  return (
+    activeFilterValues.has(item.type) &&
+    isActiveRoute(item.route) &&
+    !hasRemovedCopy(`${item.id}${item.title}${item.description}${item.icon}${item.type}`)
+  );
+}
+
+function isActiveTopic(item: ExploreTopicItem) {
+  return (
+    isActiveRoute(item.route) &&
+    !hasRemovedCopy(`${item.id}${item.title}${item.summary}${item.tag}`)
+  );
+}
+
+function isActiveContent(item: ExploreContentItem) {
+  return (
+    activeFilterValues.has(item.filterType) &&
+    isActiveRoute(item.route) &&
+    !hasRemovedCopy(
+      `${item.id}${item.title}${item.description}${item.icon}${item.type}${item.stat}${item.sourceLabel}`,
+    )
+  );
+}
+
+function isActiveRoute(route: string) {
+  return activeRoutes.has(route);
+}
+
+function hasRemovedCopy(value: string) {
+  return removedCopyPattern.test(value);
 }
 
 function sortContentItems(items: ExploreContentItem[]) {

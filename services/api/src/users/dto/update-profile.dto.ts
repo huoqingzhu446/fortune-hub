@@ -3,7 +3,6 @@ import {
   IsIn,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
 } from 'class-validator';
 
@@ -24,14 +23,4 @@ export class UpdateProfileDto {
   @IsString()
   @IsIn(['male', 'female', 'unknown'])
   gender!: 'male' | 'female' | 'unknown';
-
-  @IsOptional()
-  @IsString()
-  @Matches(/^\d{2}:\d{2}$/)
-  birthTime?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  birthPlace?: string;
 }

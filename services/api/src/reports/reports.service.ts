@@ -40,6 +40,8 @@ type StateDimension = {
 
 type ReportResultRecord = Record<string, unknown>;
 
+const SUPPORTED_REPORT_RECORD_TYPES = new Set(['emotion', 'personality']);
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -71,7 +73,10 @@ export class ReportsService {
       },
     });
 
-    if (!record) {
+    if (
+      !record ||
+      !SUPPORTED_REPORT_RECORD_TYPES.has(record.recordType)
+    ) {
       throw new NotFoundException('报告不存在或无权访问');
     }
 
@@ -79,6 +84,10 @@ export class ReportsService {
   }
 
   async buildReportPayload(record: UserRecordEntity, user: UserEntity) {
+    if (!SUPPORTED_REPORT_RECORD_TYPES.has(record.recordType)) {
+      throw new NotFoundException('报告不存在或无权访问');
+    }
+
     const resultData = this.asRecord(record.resultData);
     const access = this.entitlementsService.buildFullReportAccess(record, user);
     const reportTemplate = await this.resolveReportTemplate(record.recordType);
@@ -186,35 +195,16 @@ export class ReportsService {
       };
     }
 
-    const fiveElements = this.resolveFiveElements(resultData);
-    const total = fiveElements.reduce((sum, item) => sum + item.value, 0);
-    const dominant =
-      [...fiveElements].sort((left, right) => right.value - left.value)[0] ??
-      null;
-    const support =
-      [...fiveElements].sort((left, right) => left.value - right.value)[0] ??
-      null;
-    const concentration = dominant
-      ? this.clampPercent(Math.round((dominant.value / Math.max(total, 1)) * 100))
-      : this.clampPercent(this.pickNumber(record.score, 0));
-
     return {
-      label: '五行主轴',
-      value: concentration,
+      label: '状态记录',
+      value: this.clampPercent(this.pickNumber(record.score, 0)),
       maxValue: 100,
-      levelLabel: dominant
-        ? `${dominant.name}主轴`
-        : this.pickString(record.resultLevel, '结构已生成'),
-      rawLabel: this.buildFiveElementRawLabel(dominant, support, fiveElements),
-      formula: '按主轴、补位与整体倾向综合判断',
-      sourceLabel: '出生信息排盘',
+      levelLabel: this.pickString(record.resultLevel, '结果已生成'),
+      rawLabel: '该类型报告已下线',
+      formula: '保留历史记录，不再生成该类型报告',
+      sourceLabel: '历史记录',
       updatedAt,
-      notes: [
-        '状态维度由最近记录与自评结果综合归纳。',
-        '主轴代表当前更突出的表达方式。',
-        '补位代表日常节奏里更需要照顾的一面。',
-        '报告建议会结合日主、补位元素和实际节奏生成。',
-      ],
+      notes: ['该类型报告已下线，不再提供详细解读。'],
     };
   }
 
@@ -308,28 +298,7 @@ export class ReportsService {
         .filter((item) => item.value > 0);
     }
 
-    const fiveElements = this.resolveFiveElements(resultData);
-    const total = fiveElements.reduce((sum, item) => sum + item.value, 0);
-
-    return fiveElements.map((item, index) => {
-      const percent = this.clampPercent(
-        Math.round((item.value / Math.max(total, 1)) * 100),
-      );
-
-      return {
-        key: item.name,
-        label: item.name,
-        value: percent,
-        maxValue: 100,
-        percent,
-        tone: index === 0 ? 'positive' : this.toneByPercent(percent, 'higherBetter'),
-        summary:
-          index === 0
-            ? '当前结构里更突出的主轴元素。'
-            : '用于判断补位与节奏调和的元素倾向。',
-      evidence: `最近记录：${this.resolveFiveElementLevel(item, fiveElements)}`,
-      };
-    });
+    return [];
   }
 
   private buildBaseSections(
@@ -397,17 +366,16 @@ export class ReportsService {
       ];
     }
 
-    const practicalTips = this.asRecord(resultData.practicalTips);
     return [
       {
-        title: this.pickString(template.baseTitle, '基础版排盘结论'),
+        title: this.pickString(template.baseTitle, '基础版结果'),
         summary: this.pickString(
           resultData.summary,
           this.pickString(template.baseSummary, '这次状态报告已经生成。'),
         ),
         bullets: [
           this.pickString(
-            practicalTips.dailyFocus,
+            resultData.primarySuggestion,
             '今天先围绕最重要的一件事安排行动。',
           ),
         ],
@@ -415,15 +383,15 @@ export class ReportsService {
       {
         title: this.pickString(
           template.secondaryBaseTitle,
-          '当下适合抓住的节奏',
+          '当下适合做的调整',
         ),
         summary: this.pickString(
           template.secondaryBaseSummary,
           '先从今天能直接用上的两个锚点开始。',
         ),
         bullets: [
-          this.pickString(practicalTips.favorableDirection, '方向提示待补充'),
-          this.pickString(practicalTips.supportiveColor, '辅助颜色待补充'),
+          this.pickString(resultData.supportSignal, '先照顾当前状态。'),
+          this.pickString(resultData.summary, '本次结果已保存。'),
         ],
       },
     ];
@@ -517,30 +485,24 @@ export class ReportsService {
       ];
     }
 
-    const fiveElements = this.resolveFiveElements(resultData);
-    const reading = this.asRecord(resultData.reading);
-
     return [
       {
-        title: this.pickString(template.fullTitle, '五行结构'),
+        title: this.pickString(template.fullTitle, '状态补充说明'),
         summary: this.pickString(
           template.fullSummary,
-          '完整版会把你当前主轴和补位元素拆成更具体的节奏建议。',
+          '完整版会把这次结果拆成更具体的行动建议。',
         ),
-        bullets: fiveElements.map(
-          (item) =>
-            `${item.name}：${this.resolveFiveElementLevel(item, fiveElements)}`,
-        ),
+        bullets: this.pickStringArray(resultData.suggestions, []).slice(0, 3),
       },
       {
-        title: this.pickString(template.fullSecondaryTitle, '事业与关系解读'),
+        title: this.pickString(template.fullSecondaryTitle, '现实行动建议'),
         summary: this.pickString(
           template.fullSecondarySummary,
           '这里会把状态结果翻译成更容易在现实中使用的判断线索。',
         ),
         bullets: [
-          this.pickString(reading.career, '事业节奏解读待补充。'),
-          this.pickString(reading.relationship, '关系状态解读待补充。'),
+          this.pickString(resultData.primarySuggestion, '先完成一个最小行动。'),
+          this.pickString(resultData.supportSignal, '需要时优先寻求现实支持。'),
         ],
       },
       {
@@ -550,11 +512,8 @@ export class ReportsService {
           '完整版会把今天能执行的建议整理成更清楚的顺序。',
         ),
         bullets: [
-          this.pickString(reading.rhythm, '当前节奏建议待补充。'),
-          this.pickString(
-            this.asRecord(resultData.practicalTips).dailyFocus,
-            '日常焦点待补充。',
-          ),
+          '先把任务缩小到能开始的一步。',
+          '复盘时只记录事实、感受和下一步。',
         ],
       },
     ];
@@ -567,64 +526,29 @@ export class ReportsService {
   ) {
     const sharePoster = this.asRecord(resultData.sharePoster);
 
-    if (record.recordType !== 'bazi') {
-      return {
-        themeName: this.pickString(
-          sharePoster.themeName,
-          this.pickString(template.shareThemeName, 'fresh-mint'),
-        ),
-        title: this.pickString(
-          sharePoster.title,
-          this.pickString(template.shareTitle, record.resultTitle),
-        ),
-        subtitle: this.pickString(
-          sharePoster.subtitle,
-          this.pickString(resultData.subtitle, ''),
-        ),
-        accentText: this.pickString(
-          sharePoster.accentText,
-          this.pickString(template.shareAccentText, 'Fortune Hub'),
-        ),
-        footerText: this.pickString(
-          sharePoster.footerText,
-          this.pickString(
-            template.shareFooterText,
-            '今天也给自己留一点顺势推进的空间。',
-          ),
-        ),
-      };
-    }
-
-    const baseProfile = this.asRecord(resultData.baseProfile);
-    const dominantElement = this.asRecord(resultData.dominantElement);
-    const dayMasterAnalysis = this.asRecord(resultData.dayMasterAnalysis);
-    const dayStem = this.pickString(dayMasterAnalysis.dayStem, '');
-    const dayElement = this.pickString(
-      dayMasterAnalysis.dayElement,
-      this.pickString(baseProfile.dayMaster, '未知'),
-    );
-    const dayMaster = dayStem ? `${dayStem}${dayElement}` : dayElement;
-
     return {
       themeName: this.pickString(
         sharePoster.themeName,
-        this.pickString(template.shareThemeName, 'oriental-gold'),
+        this.pickString(template.shareThemeName, 'fresh-mint'),
       ),
       title: this.pickString(
         sharePoster.title,
-        this.pickString(template.shareTitle, '我的状态报告'),
+        this.pickString(template.shareTitle, record.resultTitle),
       ),
       subtitle: this.pickString(
         sharePoster.subtitle,
-        this.pickString(template.shareSubtitle, '根据状态记录生成的专属画像'),
+        this.pickString(resultData.subtitle, ''),
       ),
       accentText: this.pickString(
         sharePoster.accentText,
-        `${dayMaster} · ${this.pickString(dominantElement.name, '木')}元素`,
+        this.pickString(template.shareAccentText, 'Fortune Hub'),
       ),
       footerText: this.pickString(
         sharePoster.footerText,
-        this.pickString(template.shareFooterText, '记录当下，更懂自己'),
+        this.pickString(
+          template.shareFooterText,
+          '今天也给自己留一点顺势推进的空间。',
+        ),
       ),
     };
   }
@@ -646,81 +570,6 @@ export class ReportsService {
       raw: Number.isFinite(raw) ? raw : 0,
       max: Number.isFinite(max) && max > 0 ? max : 15,
     };
-  }
-
-  private resolveFiveElements(resultData: ReportResultRecord) {
-    if (!Array.isArray(resultData.fiveElements)) {
-      return [];
-    }
-
-    return resultData.fiveElements
-      .map((item) => {
-        const record = this.asRecord(item);
-        return {
-          name: this.pickString(record.name, ''),
-          value: this.pickNumber(record.value, 0),
-        };
-      })
-      .filter((item) => item.name && item.value > 0)
-      .sort((left, right) => right.value - left.value);
-  }
-
-  private buildFiveElementRawLabel(
-    dominant: { name: string; value: number } | null,
-    support: { name: string; value: number } | null,
-    fiveElements: Array<{ name: string; value: number }>,
-  ) {
-    if (!dominant) {
-      return '五行结构已生成';
-    }
-
-    const dominantText = `${dominant.name}${this.resolveFiveElementLevel(dominant, fiveElements)}`;
-
-    if (!support || support.name === dominant.name) {
-      return dominantText;
-    }
-
-    return `${dominantText}，${support.name}${this.resolveFiveElementLevel(support, fiveElements)}`;
-  }
-
-  private resolveFiveElementLevel(
-    item: { name: string; value: number },
-    fiveElements: Array<{ name: string; value: number }>,
-  ) {
-    const values = fiveElements
-      .map((element) => element.value)
-      .filter((value) => Number.isFinite(value));
-
-    if (!values.length || !Number.isFinite(item.value)) {
-      return '适中';
-    }
-
-    const max = Math.max(...values);
-    const min = Math.min(...values);
-
-    if (max === min) {
-      return '均衡';
-    }
-
-    if (item.value === max) {
-      return '偏旺';
-    }
-
-    if (item.value === min) {
-      return '待补';
-    }
-
-    const ratio = item.value / Math.max(max, 1);
-
-    if (ratio >= 0.75) {
-      return '有势';
-    }
-
-    if (ratio <= 0.45) {
-      return '偏弱';
-    }
-
-    return '适中';
   }
 
   private resolveEmotionLevelLabel(level: string | null) {

@@ -21,23 +21,7 @@ import { ProfileMetricsService } from './profile-metrics.service';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
-const WESTERN_ZODIAC_BOUNDARIES = [
-  { sign: '摩羯座', start: '01-01', end: '01-19' },
-  { sign: '水瓶座', start: '01-20', end: '02-18' },
-  { sign: '双鱼座', start: '02-19', end: '03-20' },
-  { sign: '白羊座', start: '03-21', end: '04-19' },
-  { sign: '金牛座', start: '04-20', end: '05-20' },
-  { sign: '双子座', start: '05-21', end: '06-21' },
-  { sign: '巨蟹座', start: '06-22', end: '07-22' },
-  { sign: '狮子座', start: '07-23', end: '08-22' },
-  { sign: '处女座', start: '08-23', end: '09-22' },
-  { sign: '天秤座', start: '09-23', end: '10-23' },
-  { sign: '天蝎座', start: '10-24', end: '11-22' },
-  { sign: '射手座', start: '11-23', end: '12-21' },
-  { sign: '摩羯座', start: '12-22', end: '12-31' },
-] as const;
-
-const FIVE_ELEMENT_NAMES = ['木', '火', '土', '金', '水'] as const;
+const VISIBLE_RECORD_TYPES = new Set(['emotion', 'personality']);
 const RECORD_WEEKDAYS = [
   '周日',
   '周一',
@@ -299,7 +283,7 @@ export class UsersService {
           ? '登录后会把记录和主题偏好绑定到当前账号。'
           : isProfileCompleted
             ? '资料已完善，首页与探索页会优先参考你的资料。'
-            : '生日、出生时间和出生地补齐后，状态记录会更贴近自己。',
+            : '生日和性别补齐后，状态记录会更贴近自己。',
       },
       dataCards:
         metricSummary?.dataCards ??
@@ -320,20 +304,13 @@ export class UsersService {
   }
 
   async updateProfile(user: UserEntity, dto: UpdateProfileDto) {
-    const profile = this.buildProfile(dto);
-
     user.nickname = dto.nickname ?? user.nickname;
     user.avatarUrl = dto.avatarUrl ?? user.avatarUrl;
     user.birthday = dto.birthday;
-    user.birthTime = dto.birthTime ?? user.birthTime ?? null;
-    user.preferencesJson = this.mergeProfilePreferences(
-      user.preferencesJson,
-      dto,
-    );
     user.gender = dto.gender;
-    user.zodiac = profile.zodiac;
-    user.baziSummary = profile.baziSummary;
-    user.fiveElements = profile.fiveElements;
+    user.preferencesJson = this.removeLegacyBirthPreferences(
+      user.preferencesJson,
+    );
 
     const savedUser = await this.userRepository.save(user);
 
@@ -630,18 +607,23 @@ export class UsersService {
     const meditationAggregate = user
       ? await this.loadMeditationAggregate(user.id)
       : { totalCount: 0, totalMinutes: 0 };
+    const visibleTestRecords = testRecords.filter(
+      (record) => VISIBLE_RECORD_TYPES.has(record.recordType),
+    );
 
     const latestMoodScore =
       moodRecords[0]?.moodScore ??
       this.resolveLatestEmotionScore(
-        testRecords.filter((record) => record.recordType === 'emotion'),
+        visibleTestRecords.filter((record) => record.recordType === 'emotion'),
       );
     const trendPoints = this.buildTrendPoints(moodRecords);
     const hasEnoughTrendData =
       trendPoints.filter((point) => point.value !== null).length >= 3;
     const recordedDays = new Set(
       [
-        ...testRecords.map((record) => this.resolveResultRecordDate(record)),
+        ...visibleTestRecords.map((record) =>
+          this.resolveResultRecordDate(record),
+        ),
         ...moodRecords.map((record) => record.recordDate),
         ...meditationRecords.map((record) => record.recordDate),
       ].filter((value): value is string => Boolean(value)),
@@ -690,7 +672,7 @@ export class UsersService {
         .slice(0, 12)
         .map((record) => this.serializeMoodRecord(record)),
       testRecords: user
-        ? testRecords.map((record) =>
+        ? visibleTestRecords.map((record) =>
             this.serializeUnifiedHistoryItem(
               record,
               this.entitlementsService.isMembershipActive(user),
@@ -708,7 +690,7 @@ export class UsersService {
       growth: {
         continuousDays: this.calculateContinuousDays(
           [
-            ...testRecords.map((record) =>
+            ...visibleTestRecords.map((record) =>
               this.resolveResultRecordDate(record),
             ),
             ...moodRecords.map((record) => record.recordDate),
@@ -723,60 +705,19 @@ export class UsersService {
     });
   }
 
-  private buildProfile(dto: UpdateProfileDto) {
-    const zodiac = this.computeWesternZodiac(dto.birthday);
-    const fiveElements = this.computeFiveElements(dto.birthday, dto.birthTime);
-    const dominantElement = Object.entries(fiveElements).sort(
-      (left, right) => right[1] - left[1],
-    )[0][0];
-
-    return {
-      zodiac,
-      fiveElements,
-      baziSummary: `简易测算显示你的能量偏向${dominantElement}，建议保持节奏与情绪平衡。`,
-    };
-  }
-
-  private mergeProfilePreferences(
-    current: Record<string, unknown> | null,
-    dto: UpdateProfileDto,
-  ) {
-    const birthPlace = dto.birthPlace?.trim();
-
-    if (!birthPlace) {
+  private removeLegacyBirthPreferences(current: Record<string, unknown> | null) {
+    if (!current) {
       return current;
     }
 
-    return {
-      ...(current ?? {}),
-      birthPlace,
-    };
-  }
+    const {
+      birthPlace: _birthPlace,
+      birthCity: _birthCity,
+      city: _city,
+      ...next
+    } = current;
 
-  private computeWesternZodiac(birthday: string) {
-    const date = birthday.slice(5, 10);
-
-    return (
-      WESTERN_ZODIAC_BOUNDARIES.find(
-        (item) => date >= item.start && date <= item.end,
-      )?.sign ?? '摩羯座'
-    );
-  }
-
-  private computeFiveElements(birthday: string, birthTime?: string) {
-    const [year, month, day] = birthday
-      .split('-')
-      .map((value) => Number(value));
-    const hour = birthTime ? Number.parseInt(birthTime.slice(0, 2), 10) : 12;
-    const seed = year + month * 3 + day * 5 + hour * 7;
-
-    return FIVE_ELEMENT_NAMES.reduce<Record<string, number>>(
-      (result, element, index) => {
-        result[element] = ((seed + index * 11) % 9) + 1;
-        return result;
-      },
-      {},
-    );
+    return next;
   }
 
   private serializeUnifiedHistoryItem(
@@ -799,12 +740,7 @@ export class UsersService {
       recordTypeLabel: typeMeta.label,
       sourceCode: record.sourceCode,
       title: record.resultTitle,
-      score:
-        record.recordType === 'bazi'
-          ? null
-          : record.score
-            ? Number(record.score)
-            : null,
+      score: record.score ? Number(record.score) : null,
       level: record.resultLevel,
       summary: resultData.summary ?? '',
       subtitle: resultData.subtitle ?? '',
@@ -872,14 +808,6 @@ export class UsersService {
         label: '情绪自检',
         route: '/pages/emotion/index',
       },
-      bazi: {
-        label: '历史记录',
-        route: '/pages/records/index',
-      },
-      zodiac: {
-        label: '历史记录',
-        route: '/pages/records/index',
-      },
     };
 
     return (
@@ -902,9 +830,9 @@ export class UsersService {
       take,
     });
 
-    return records.map((record) =>
-      this.serializeUnifiedHistoryItem(record, hasVipAccess),
-    );
+    return records
+      .filter((record) => VISIBLE_RECORD_TYPES.has(record.recordType))
+      .map((record) => this.serializeUnifiedHistoryItem(record, hasVipAccess));
   }
 
   private resolveLatestEmotionScore(

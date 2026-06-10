@@ -10,14 +10,9 @@ describe('AuthService', () => {
       nickname: '测试用户',
       avatarUrl: null,
       birthday: null,
-      birthTime: null,
-      birthPlace: null,
       phone: null,
       phoneVerifiedAt: null,
       gender: 'unknown',
-      zodiac: null,
-      baziSummary: null,
-      fiveElements: null,
       preferencesJson: null,
       vipStatus: 'inactive',
       vipExpiredAt: null,
@@ -79,7 +74,7 @@ describe('AuthService', () => {
     );
   });
 
-  it('uses preference birth place when resolving profile completion', () => {
+  it('uses basic profile fields when resolving profile completion', () => {
     const service = new AuthService(
       {} as never,
       {} as never,
@@ -96,25 +91,19 @@ describe('AuthService', () => {
       nickname: '测试用户',
       avatarUrl: null,
       birthday: '1990-01-01',
-      birthTime: '08:30',
       gender: 'female',
-      zodiac: '摩羯座',
-      baziSummary: null,
-      fiveElements: null,
-      preferencesJson: {
-        birthPlace: '杭州',
-      },
+      preferencesJson: {},
       vipStatus: 'inactive',
       vipExpiredAt: null,
       lastLoginProvider: 'mock',
     };
 
-    expect(service.serializeUser(user as never).birthPlace).toBe('杭州');
+    expect(service.serializeUser(user as never)).not.toHaveProperty('birthPlace');
     expect(service.isProfileCompleted(user as never)).toBe(true);
     expect(
       service.isProfileCompleted({
         ...user,
-        preferencesJson: {},
+        birthday: null,
       } as never),
     ).toBe(false);
   });
@@ -129,11 +118,7 @@ describe('AuthService', () => {
       nickname: '用户8000',
       avatarUrl: null,
       birthday: null,
-      birthTime: null,
       gender: 'unknown',
-      zodiac: null,
-      baziSummary: null,
-      fiveElements: null,
       preferencesJson: null,
       vipStatus: 'inactive',
       vipExpiredAt: null,

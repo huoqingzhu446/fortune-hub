@@ -298,7 +298,7 @@ async function hydrateReportSource() {
   try {
     const response = await fetchReport(recordId.value);
     report.value = response.data.report;
-    if (response.data.report.recordType === 'bazi') {
+    if (!['emotion', 'personality'].includes(response.data.report.recordType)) {
       sourceTitle.value = '该报告海报已下线';
       sourceSummary.value = '当前审核版不再提供该类报告海报生成能力。';
       sourceMeta.value = '不可生成';

@@ -211,12 +211,7 @@ export class AuthService {
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       birthday: user.birthday,
-      birthTime: user.birthTime,
-      birthPlace: this.resolveUserBirthPlace(user),
       gender: user.gender,
-      zodiac: user.zodiac,
-      baziSummary: user.baziSummary,
-      fiveElements: user.fiveElements,
       preferences: user.preferencesJson,
       vipStatus: isVipActive ? 'active' : 'inactive',
       vipExpiredAt: isVipActive ? user.vipExpiredAt : null,
@@ -226,28 +221,8 @@ export class AuthService {
   isProfileCompleted(user: UserEntity | null | undefined) {
     return Boolean(
       user?.birthday &&
-      user?.birthTime &&
-      this.resolveUserBirthPlace(user) &&
-      user?.zodiac &&
       user?.gender !== 'unknown',
     );
-  }
-
-  resolveUserBirthPlace(user: UserEntity | null | undefined) {
-    const preferences = user?.preferencesJson ?? {};
-    const candidates = [
-      preferences.birthPlace,
-      preferences.birthCity,
-      preferences.city,
-    ];
-
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate.trim();
-      }
-    }
-
-    return null;
   }
 
   private async persistUser(user: UserEntity) {

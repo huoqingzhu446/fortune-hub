@@ -38,7 +38,7 @@
 6. **运维文档全面**：`docs/` 下有 5 份中文文档（开发、排期、部署、接口、数据库设计）。
 
 7. **技术亮点**：
-   - **sharp 海报渲染**（`poster-renderer.service.ts`，~3000 行）：纯服务端海报生成，支持星座/八字/情绪/幸运签等多种模板。
+   - **sharp 海报渲染**（`poster-renderer.service.ts`，~3000 行）：纯服务端海报生成，支持星座/æ§æµç®/情绪/幸运签等多种模板。
    - **Bazi 引擎**（`bazi-engine.ts`，~646 行）：基于 `lunar-typescript` 的四柱排盘算法，版本 v1.2.0。
    - **星座常量化**（`zodiac.constants.ts`）：12 星座完整画像（性格、幸运色、元素等），数据驱动。
 
@@ -302,7 +302,7 @@ api:
 | `auth.service.spec.ts` | 认证服务 |
 | `users.service.preferences.spec.ts` | 用户偏好设置 |
 | `home.service.spec.ts` | 首页聚合 |
-| `bazi.service.spec.ts` | 八字解读 |
+| `bazi.service.spec.ts` | æ§æµç®解读 |
 | `emotion-assessment.service.spec.ts` | 情绪测评 |
 | `posters.service.spec.ts` | 海报生成 |
 | `poster-renderer.service.spec.ts` | 海报渲染引擎 |
@@ -328,8 +328,8 @@ api:
 | bazi | sharp + SVG (`buildBaziPosterSvg`) | 941×1672 |
 | zodiac_today | sharp + PNG 模板 (`renderZodiacTemplatePoster`) | 941×1672 |
 | emotion | sharp + SVG (`buildEmotionAssessmentPosterSvg`) | 941×1672 |
-| 占卜（移动端） | WeChat Canvas | 750×1334 |
-| 八字（移动端） | WeChat Canvas | 750×1334 |
+| è¶£å³æµç®（移动端） | WeChat Canvas | 750×1334 |
+| æ§æµç®（移动端） | WeChat Canvas | 750×1334 |
 
 ### 关键代码问题
 

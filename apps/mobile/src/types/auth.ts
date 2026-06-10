@@ -14,12 +14,7 @@ export interface UserProfile {
   nickname: string | null;
   avatarUrl: string | null;
   birthday: string | null;
-  birthTime: string | null;
-  birthPlace: string | null;
   gender: string;
-  zodiac: string | null;
-  baziSummary: string | null;
-  fiveElements: Record<string, number> | null;
   preferences?: Record<string, unknown> | null;
   vipStatus: string;
   vipExpiredAt: string | null;
@@ -73,6 +68,4 @@ export interface UpdateProfilePayload {
   avatarUrl?: string;
   birthday: string;
   gender: 'male' | 'female' | 'unknown';
-  birthTime?: string;
-  birthPlace?: string;
 }

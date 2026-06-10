@@ -114,6 +114,12 @@ const METRIC_KEYS: ProfileMetricKey[] = [
 ];
 
 const SHARE_STATUSES = new Set(['generated', 'rendered', 'completed']);
+const VISIBLE_RECORD_TYPES = new Set(['emotion', 'personality']);
+const VISIBLE_POSTER_SOURCE_TYPES = new Set([
+  'emotion',
+  'personality',
+  'report_poster',
+]);
 
 @Injectable()
 export class ProfileMetricsService {
@@ -308,7 +314,11 @@ export class ProfileMetricsService {
     );
     const posterSources = [
       ...shares
-        .filter((share) => SHARE_STATUSES.has(share.status))
+        .filter(
+          (share) =>
+            SHARE_STATUSES.has(share.status) &&
+            VISIBLE_POSTER_SOURCE_TYPES.has(share.sourceType),
+        )
         .map((share) => this.serializeShareSource(share)),
       ...posterJobs
         .filter((job) => this.shouldIncludePosterJob(job, sharePosterIds))
@@ -318,7 +328,9 @@ export class ProfileMetricsService {
     return {
       user,
       isProfileCompleted: this.authService.isProfileCompleted(user),
-      records: records.map((record) => this.serializeRecordSource(record)),
+      records: records
+        .filter((record) => VISIBLE_RECORD_TYPES.has(record.recordType))
+        .map((record) => this.serializeRecordSource(record)),
       moodRecords: moodRecords.map((record) => this.serializeMoodSource(record)),
       favorites: favorites.map((favorite) => this.serializeFavoriteSource(favorite)),
       posterSources,
@@ -339,7 +351,7 @@ export class ProfileMetricsService {
 
     if (key === 'state_index') {
       const scoredRecords = records.filter(
-        (record) => record.recordType !== 'bazi' && record.score !== null,
+        (record) => record.score !== null,
       );
       const latestScored = scoredRecords[0];
       const value = latestScored?.score ?? 0;
@@ -462,7 +474,7 @@ export class ProfileMetricsService {
   private buildHistoryItems(key: ProfileMetricKey, context: MetricContext) {
     if (key === 'state_index') {
       return context.records
-        .filter((record) => record.recordType !== 'bazi' && record.score !== null)
+        .filter((record) => record.score !== null)
         .slice(0, 80)
         .map((record) => ({
           ...this.toHistoryItem(record),
@@ -496,8 +508,8 @@ export class ProfileMetricsService {
         sourceTypeLabel: '资料完整度',
         title: context.isProfileCompleted ? '资料已完善' : '基础资料待完善',
         summary: context.isProfileCompleted
-          ? '生日、出生时间、出生地与性别资料已完整。'
-          : '补齐生日、出生时间、出生地等资料后可获得更完整的状态记录。',
+          ? '生日与性别资料已完整。'
+          : '补齐生日、性别等资料后可获得更完整的状态记录。',
         date: this.toDateKey(context.user.updatedAt),
         happenedAt: context.user.updatedAt.toISOString(),
         route: '/pages/profile/index',
@@ -601,11 +613,7 @@ export class ProfileMetricsService {
     const resultData = this.asRecord(record.resultData);
     const date = this.resolveRecordDate(record);
     const score =
-      record.recordType === 'bazi'
-        ? null
-        : record.score !== null
-          ? Number(record.score)
-          : null;
+      record.score !== null ? Number(record.score) : null;
     const safeScore = Number.isFinite(score) ? score : null;
 
     return {
@@ -713,6 +721,16 @@ export class ProfileMetricsService {
     }
 
     const result = this.asRecord(job.resultJson);
+    const request = this.asRecord(job.requestJson);
+    const sourceType = this.pickString(
+      result.sourceType,
+      this.pickString(request.sourceType, job.jobType),
+    );
+
+    if (!VISIBLE_POSTER_SOURCE_TYPES.has(sourceType)) {
+      return false;
+    }
+
     const posterId = this.pickString(result.posterId, '');
 
     return !posterId || !sharePosterIds.has(posterId);
@@ -760,9 +778,6 @@ export class ProfileMetricsService {
     const mapping: Record<string, string> = {
       personality: '性格测评',
       emotion: '情绪自检',
-      bazi: '历史记录',
-      zodiac: '历史记录',
-      divination: '历史记录',
     };
 
     return mapping[recordType] ?? '历史记录';
@@ -772,13 +787,10 @@ export class ProfileMetricsService {
     const mapping: Record<string, string> = {
       today_index: '分享海报',
       lucky_sign: '分享海报',
-      zodiac_today: '分享海报',
       report_poster: '报告海报',
       poster: '分享海报',
-      bazi: '报告海报',
       emotion: '情绪报告',
       personality: '性格报告',
-      divination: '分享海报',
     };
 
     return mapping[sourceType] ?? '分享海报';

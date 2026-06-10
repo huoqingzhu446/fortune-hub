@@ -148,49 +148,6 @@
           </view>
 
           <view class="field">
-            <view class="field__head">
-              <text class="field__label">出生时间</text>
-              <text
-                v-if="form.birthTime"
-                class="field__action"
-                @tap="clearBirthTime"
-                >清空</text
-              >
-            </view>
-            <picker
-              mode="time"
-              :value="form.birthTime || defaultBirthTime"
-              @change="handleBirthTimeChange"
-            >
-              <view
-                class="field__picker"
-                :class="{ 'field__picker--placeholder': !form.birthTime }"
-              >
-                <text>{{ form.birthTime || '请选择出生时间' }}</text>
-                <text>›</text>
-              </view>
-            </picker>
-          </view>
-
-          <view class="field">
-            <view class="field__head">
-              <text class="field__label">出生地</text>
-              <text
-                v-if="form.birthPlace"
-                class="field__action"
-                @tap="clearBirthPlace"
-                >清空</text
-              >
-            </view>
-            <input
-              v-model="form.birthPlace"
-              class="field__input"
-              placeholder="请输入出生城市，如杭州"
-              maxlength="120"
-            />
-          </view>
-
-          <view class="field">
             <text class="field__label">性别</text>
             <view class="gender-grid">
               <view
@@ -211,12 +168,12 @@
               <text class="preview-card__value">{{ profileCompleted ? '已完善' : '待完善' }}</text>
             </view>
             <view class="preview-card">
-              <text class="preview-card__label">出生时间</text>
-              <text class="preview-card__value">{{ form.birthTime || '未填写' }}</text>
+              <text class="preview-card__label">生日</text>
+              <text class="preview-card__value">{{ form.birthday || '未填写' }}</text>
             </view>
             <view class="preview-card">
-              <text class="preview-card__label">出生地</text>
-              <text class="preview-card__value">{{ form.birthPlace || '未填写' }}</text>
+              <text class="preview-card__label">性别</text>
+              <text class="preview-card__value">{{ genderDisplayLabel }}</text>
             </view>
           </view>
 
@@ -471,7 +428,6 @@ const currentPlatform = String(
 const isMpWeixin = currentPlatform === 'mp-weixin';
 const birthdayStart = '1950-01-01';
 const todayDate = buildLocalDateString();
-const defaultBirthTime = '12:00';
 
 const emptyProfile: UserProfile = {
   id: '',
@@ -482,12 +438,7 @@ const emptyProfile: UserProfile = {
   nickname: null,
   avatarUrl: null,
   birthday: null,
-  birthTime: null,
-  birthPlace: null,
   gender: 'unknown',
-  zodiac: null,
-  baziSummary: null,
-  fiveElements: null,
   vipStatus: 'inactive',
   vipExpiredAt: null,
 };
@@ -496,8 +447,6 @@ const profile = ref<UserProfile>(getCachedUser() || emptyProfile);
 const profileCompleted = ref(
   Boolean(
     profile.value.birthday &&
-    profile.value.birthTime &&
-    profile.value.birthPlace &&
     profile.value.gender !== 'unknown',
   ),
 );
@@ -569,8 +518,6 @@ const profilePage = ref<ProfilePageData>(fallbackProfilePage);
 const form = reactive({
   nickname: profile.value.nickname || '',
   birthday: profile.value.birthday || '',
-  birthTime: profile.value.birthTime || '',
-  birthPlace: profile.value.birthPlace || '',
   gender: (profile.value.gender as GenderValue) || 'unknown',
 });
 const phoneForm = reactive({
@@ -632,6 +579,10 @@ const phoneCodeButtonText = computed(() =>
 const phoneSubmitLabel = computed(() =>
   phoneAuthMode.value === 'bind' ? '确认绑定' : '登录 / 注册',
 );
+const genderDisplayLabel = computed(
+  () =>
+    genderOptions.find((item) => item.value === form.gender)?.label ?? '未填写',
+);
 
 const sessionHint = computed(() => profilePage.value.hero.sessionHint);
 const dataCards = computed(() => profilePage.value.dataCards);
@@ -690,12 +641,6 @@ const missingFields = computed(() => {
   if (!form.birthday) {
     result.push('生日');
   }
-  if (!form.birthTime) {
-    result.push('出生时间');
-  }
-  if (!form.birthPlace.trim()) {
-    result.push('出生地');
-  }
   if (!form.gender || form.gender === 'unknown') {
     result.push('性别');
   }
@@ -703,7 +648,7 @@ const missingFields = computed(() => {
   return result;
 });
 const completionPercent = computed(() => {
-  const total = 5;
+  const total = 3;
   return Math.round(((total - missingFields.value.length) / total) * 100);
 });
 const completionSummary = computed(() =>
@@ -711,33 +656,6 @@ const completionSummary = computed(() =>
     ? '已完善'
     : `待完善 · ${missingFields.value.length} 项`,
 );
-const pendingZodiac = computed(() => {
-  if (!form.birthday) {
-    return '补生日后自动生成';
-  }
-
-  const date = form.birthday.slice(5, 10);
-  const rules = [
-    ['摩羯座', '01-01', '01-19'],
-    ['水瓶座', '01-20', '02-18'],
-    ['双鱼座', '02-19', '03-20'],
-    ['白羊座', '03-21', '04-19'],
-    ['金牛座', '04-20', '05-20'],
-    ['双子座', '05-21', '06-21'],
-    ['巨蟹座', '06-22', '07-22'],
-    ['狮子座', '07-23', '08-22'],
-    ['处女座', '08-23', '09-22'],
-    ['天秤座', '09-23', '10-23'],
-    ['天蝎座', '10-24', '11-22'],
-    ['射手座', '11-23', '12-21'],
-    ['摩羯座', '12-22', '12-31'],
-  ] as const;
-
-  return (
-    rules.find((item) => date >= item[1] && date <= item[2])?.[0] || '摩羯座'
-  );
-});
-
 function applyLoginResult(data: {
   token: string;
   expiresIn: number;
@@ -805,8 +723,6 @@ async function hydrateProfile() {
 function syncForm() {
   form.nickname = profile.value.nickname || '';
   form.birthday = profile.value.birthday || '';
-  form.birthTime = profile.value.birthTime || '';
-  form.birthPlace = profile.value.birthPlace || '';
   form.gender = (profile.value.gender as GenderValue) || 'unknown';
 }
 
@@ -952,18 +868,6 @@ function handleBirthdayChange(event: { detail: { value: string } }) {
   form.birthday = event.detail.value;
 }
 
-function handleBirthTimeChange(event: { detail: { value: string } }) {
-  form.birthTime = event.detail.value;
-}
-
-function clearBirthTime() {
-  form.birthTime = '';
-}
-
-function clearBirthPlace() {
-  form.birthPlace = '';
-}
-
 async function loginForExperience() {
   const response = await loginWithCode(`dev-${Date.now()}`);
   applyLoginResult(response.data);
@@ -1075,21 +979,11 @@ async function saveProfile() {
     });
     return;
   }
-  if (!form.birthPlace.trim()) {
-    uni.showToast({
-      title: '请先填写出生地',
-      icon: 'none',
-    });
-    return;
-  }
-
   try {
     submitting.value = true;
     const response = await updateMyProfile({
       nickname: form.nickname || undefined,
       birthday: form.birthday,
-      birthTime: form.birthTime || undefined,
-      birthPlace: form.birthPlace.trim(),
       gender: form.gender,
     });
     profile.value = response.data.user;

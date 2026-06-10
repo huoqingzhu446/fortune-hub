@@ -241,7 +241,6 @@ export class AdminOpsService {
                 item.openid ?? '',
                 item.phone ?? '',
                 item.nickname ?? '',
-                item.zodiac ?? '',
                 item.gender,
                 item.lastLoginProvider ?? '',
               ]
@@ -276,7 +275,6 @@ export class AdminOpsService {
               item.openid ?? '',
               item.phone ?? '',
               item.nickname ?? '',
-              item.zodiac ?? '',
               item.gender,
               item.lastLoginProvider ?? '',
             ]
@@ -286,13 +284,12 @@ export class AdminOpsService {
           : true,
       );
 
-    const header = 'ID,昵称,手机号,资料标签,性别,会员状态,登录方式,最近登录,注册时间';
+    const header = 'ID,昵称,手机号,性别,会员状态,登录方式,最近登录,注册时间';
     const rows = filtered.map((user) =>
       [
         user.id,
         this.escapeCsv(user.nickname ?? ''),
         user.phone ?? '',
-        user.zodiac ?? '',
         user.gender,
         user.vipStatus,
         user.lastLoginProvider ?? '',
@@ -562,32 +559,12 @@ export class AdminOpsService {
       avatarUrl: user.avatarUrl,
       gender: user.gender,
       birthday: user.birthday,
-      birthTime: user.birthTime,
-      birthPlace: this.resolveUserBirthPlace(user),
-      zodiac: user.zodiac,
       vipStatus: this.resolveVipStatus(user),
       vipExpiredAt: user.vipExpiredAt?.toISOString() ?? null,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
-  }
-
-  private resolveUserBirthPlace(user: UserEntity) {
-    const preferences = user.preferencesJson ?? {};
-    const candidates = [
-      preferences.birthPlace,
-      preferences.birthCity,
-      preferences.city,
-    ];
-
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate.trim();
-      }
-    }
-
-    return null;
   }
 
   private maskPhone(phone?: string | null) {

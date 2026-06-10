@@ -21,13 +21,8 @@ describe('HomeService current state score', () => {
     id: '1',
     nickname: '清浅',
     birthday: '1993-05-20',
-    birthTime: '08:00',
-    zodiac: '金牛座',
     gender: 'female',
-    fiveElements: { 木: 8, 水: 6 },
-    preferencesJson: {
-      birthPlace: '杭州',
-    },
+    preferencesJson: {},
     vipStatus: 'inactive',
     vipExpiredAt: null,
   } as UserEntity;

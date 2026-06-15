@@ -23,7 +23,7 @@ COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/services/api/package.json ./services/api/package.json
 COPY --from=build /repo/services/api/node_modules ./services/api/node_modules
 COPY --from=build /repo/services/api/dist ./services/api/dist
-COPY --from=build /repo/services/api/src/assets ./services/api/dist/assets
+RUN mkdir -p ./services/api/dist/assets
 WORKDIR /repo/services/api
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

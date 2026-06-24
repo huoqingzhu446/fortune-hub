@@ -57,9 +57,9 @@
         <button
           v-if="isMpWeixin"
           class="tool-button tool-button--ghost"
-          @tap="shareGeneratedPoster"
+          open-type="share"
         >
-          微信发好友
+          转发小程序
         </button>
       </view>
     </view>
@@ -87,8 +87,8 @@ import {
   previewPosterImage,
   resolvePreferredImageSource,
   savePosterImage,
-  sharePosterImageToWechat,
 } from '../../../services/poster-image';
+import { useWechatShare } from '../../../composables/useWechatShare';
 import {
   getAuthToken,
 } from '../../../services/session';
@@ -192,6 +192,22 @@ const sourceDetails = computed(() =>
     { label: '尺寸', value: posterSizeLabel.value },
   ].filter((item) => item.value),
 );
+const sharePath = computed(() => {
+  const query = [
+    `type=${encodeURIComponent(posterType.value)}`,
+    recordId.value ? `recordId=${encodeURIComponent(recordId.value)}` : '',
+    requestedSize.value ? `size=${encodeURIComponent(requestedSize.value)}` : '',
+  ]
+    .filter(Boolean)
+    .join('&');
+
+  return query ? `/pages/poster/generate/index?${query}` : '/pages/poster/generate/index';
+});
+
+useWechatShare(() => ({
+  title: previewTitle.value || pageTitle.value || '生成分享海报',
+  path: sharePath.value,
+}));
 const emptyPreviewTitle = computed(() => {
   if (contextLoading.value) {
     return '正在准备海报内容';
@@ -463,32 +479,6 @@ function saveLocalPoster() {
       fail: reject,
     });
   });
-}
-
-async function shareGeneratedPoster() {
-  if (!posterImageSource.value) {
-    return;
-  }
-
-  try {
-    if (localPosterPath.value) {
-      await shareLocalPoster();
-    } else {
-      await sharePosterImageToWechat(
-        posterImageSource.value,
-        remotePoster.value?.downloadFileName || 'fortune-hub-poster.png',
-      );
-    }
-  } catch (error) {
-    uni.showToast({
-      title: handlePosterImageError(error, '当前微信版本暂不支持直接发图，请先保存到相册'),
-      icon: 'none',
-    });
-  }
-}
-
-function shareLocalPoster() {
-  throw new Error('当前版本不支持本地海报直接发送');
 }
 
 function goProfile() {

@@ -83,6 +83,7 @@ import {
 } from '../../../api/settings';
 import { subscribeNotification } from '../../../api/notifications';
 import { useThemePreference } from '../../../composables/useThemePreference';
+import { useWechatShare } from '../../../composables/useWechatShare';
 import { getErrorMessage, handleAuthExpired } from '../../../services/errors';
 import { appendFeedbackEntry, getFeedbackHistory } from '../../../services/preferences';
 import { getAuthToken } from '../../../services/session';
@@ -102,6 +103,11 @@ const categoryIndex = ref(0);
 const submitting = ref(false);
 const uploadingAttachment = ref(false);
 const { themeVars } = useThemePreference();
+
+useWechatShare({
+  title: '给今日状态提个建议',
+  path: '/pages/settings/feedback/index',
+});
 
 const categoryLabels = computed(() => categories.value.map((item) => item.label));
 const activeCategory = computed(() => categories.value[categoryIndex.value] ?? categories.value[0]);

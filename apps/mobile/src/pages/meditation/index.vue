@@ -398,6 +398,7 @@ import {
 } from '../../api/records';
 import { appEnv } from '../../config/env';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getErrorMessage } from '../../services/errors';
 import { defaultMeditationMusicLibrary } from '../../services/meditation-music';
 import { resolveUrl } from '../../services/url';
@@ -436,6 +437,11 @@ const reviewItem = ref<MeditationLogItem | null>(null);
 const editingRecord = ref(false);
 const audioContext = uni.createInnerAudioContext();
 const pageStateStore = usePageStateStore();
+
+useWechatShare({
+  title: '记录一次安静的冥想练习',
+  path: '/pages/meditation/index',
+});
 
 const categoryOptions: CategoryOption[] = [
   {

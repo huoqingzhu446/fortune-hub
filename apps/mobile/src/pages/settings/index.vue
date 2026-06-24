@@ -122,6 +122,7 @@ import { computed } from 'vue';
 import { subscribeNotification } from '../../api/notifications';
 import ThemePreviewCard from '../../components/ThemePreviewCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { themePalettes } from '../../theme/themes';
 import type { AppSettings } from '../../services/preferences';
 
@@ -143,6 +144,11 @@ const {
 } = useThemePreference();
 
 const themeOptions = Object.values(themePalettes);
+
+useWechatShare({
+  title: '设置今日状态偏好',
+  path: '/pages/settings/index',
+});
 
 const effectiveThemeSummary = computed(() =>
   settings.themeMode === 'manual'

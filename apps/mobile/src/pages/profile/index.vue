@@ -384,6 +384,7 @@ import {
 } from '../../api/auth';
 import { fetchProfilePage } from '../../api/profile';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import {
   clearSession,
@@ -464,6 +465,11 @@ const recentHistory = ref<UnifiedRecordItem[]>([]);
 const showProfileEditor = ref(false);
 const { themeVars } = useThemePreference();
 const pageStateStore = usePageStateStore();
+
+useWechatShare({
+  title: '我的状态空间',
+  path: '/pages/profile/index',
+});
 let lastProfileVersion = pageStateStore.versionOf('profile');
 const fallbackProfilePage: ProfilePageData = {
   isLoggedIn: false,

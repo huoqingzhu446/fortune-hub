@@ -265,6 +265,7 @@ import { fetchExploreIndex, fetchExploreSearch } from '../../api/explore';
 import { fetchFavorites, toggleFavorite } from '../../api/favorites';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
 import { usePageStateStore } from '../../stores/page-state';
@@ -300,6 +301,11 @@ const removedCopyPattern = new RegExp(
 const { themeVars, themePalette } = useThemePreference();
 const pageStateStore = usePageStateStore();
 let lastExploreVersion = pageStateStore.versionOf('explore');
+
+useWechatShare({
+  title: '探索适合今天的状态练习',
+  path: '/pages/explore/index',
+});
 
 const keyword = ref('');
 const showFilter = ref(false);

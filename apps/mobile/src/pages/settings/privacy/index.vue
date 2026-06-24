@@ -56,6 +56,7 @@ import {
   submitDataDeletionRequest,
 } from '../../../api/settings';
 import { useThemePreference } from '../../../composables/useThemePreference';
+import { useWechatShare } from '../../../composables/useWechatShare';
 import { getAuthToken } from '../../../services/session';
 import type { UserConsentItem } from '../../../types/settings';
 
@@ -65,6 +66,11 @@ const privacySummary = ref('用于登录、保存历史、同步偏好、发送�
 const consents = ref<UserConsentItem[]>([]);
 const loading = ref(false);
 const deletionLoading = ref(false);
+
+useWechatShare({
+  title: '隐私与数据说明',
+  path: '/pages/settings/privacy/index',
+});
 
 const latestPrivacyConsent = computed(() =>
   consents.value.find((item) => item.consentType === 'privacy'),

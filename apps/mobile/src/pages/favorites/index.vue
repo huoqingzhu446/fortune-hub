@@ -43,6 +43,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { fetchFavorites } from '../../api/favorites';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { clearSession } from '../../services/session';
 import { usePageStateStore } from '../../stores/page-state';
@@ -53,6 +54,11 @@ const loading = ref(false);
 const { themeVars } = useThemePreference();
 const pageStateStore = usePageStateStore();
 let lastFavoritesVersion = pageStateStore.versionOf('favorites');
+
+useWechatShare({
+  title: '我的收藏内容',
+  path: '/pages/favorites/index',
+});
 
 async function loadFavorites() {
   try {

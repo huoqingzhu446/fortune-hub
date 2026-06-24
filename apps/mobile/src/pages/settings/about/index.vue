@@ -28,8 +28,14 @@
 
 <script setup lang="ts">
 import { useThemePreference } from '../../../composables/useThemePreference';
+import { useWechatShare } from '../../../composables/useWechatShare';
 
 const { themeVars } = useThemePreference();
+
+useWechatShare({
+  title: '关于今日状态',
+  path: '/pages/settings/about/index',
+});
 </script>
 
 <style lang="scss">

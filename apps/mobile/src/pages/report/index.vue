@@ -220,6 +220,7 @@ import { fetchUnifiedHistory } from '../../api/records';
 import { fetchReport } from '../../api/reports';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import FiveElementDistribution from '../../components/FiveElementDistribution.vue';
 import { getErrorMessage } from '../../services/errors';
 import { getAuthToken } from '../../services/session';
@@ -236,6 +237,13 @@ const {
   toggleCurrent,
 } = useFavoriteToggle();
 const { themeVars } = useThemePreference();
+
+useWechatShare(() => ({
+  title: report.value?.sharePoster.title || report.value?.title || '完整报告',
+  path: recordId.value
+    ? `/pages/report/index?recordId=${encodeURIComponent(recordId.value)}`
+    : '/pages/records/index',
+}));
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const heroTitle = computed(() => {

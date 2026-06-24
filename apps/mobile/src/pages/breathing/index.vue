@@ -98,8 +98,14 @@
 import { computed, ref, onMounted } from 'vue';
 import { http } from '../../services/request';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 
 const { themeVars } = useThemePreference();
+
+useWechatShare({
+  title: '一起做一次引导呼吸练习',
+  path: '/pages/breathing/index',
+});
 
 interface BreathingMode {
   value: string;

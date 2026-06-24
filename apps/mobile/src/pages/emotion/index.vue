@@ -338,6 +338,7 @@ import {
 import { fetchSettings } from '../../api/settings';
 import { useFavoriteToggle } from '../../composables/useFavoriteToggle';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getAuthToken } from '../../services/session';
 import type {
   EmotionHistoryItem,
@@ -389,6 +390,15 @@ const {
   toggleCurrent,
 } = useFavoriteToggle();
 const { themeVars } = useThemePreference();
+
+useWechatShare(() => ({
+  title:
+    latestResult.value?.sharePoster.title ||
+    latestResult.value?.title ||
+    activeTest.value?.title ||
+    '情绪自检',
+  path: '/pages/emotion/index',
+}));
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const currentQuestion = computed(

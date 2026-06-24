@@ -135,6 +135,7 @@ import QuickToolStrip, { type QuickToolItem } from '../../components/QuickToolSt
 import StatusIndexCard, { type StatusIndexTag } from '../../components/StatusIndexCard.vue';
 import TodayActionCard from '../../components/TodayActionCard.vue';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { useDashboardStore } from '../../stores/dashboard';
 import { usePageStateStore } from '../../stores/page-state';
 import { trackEvent } from '../../services/analytics';
@@ -291,6 +292,11 @@ const pageSubtitle = computed(
     stateOverview.value.summary ||
     '把今日状态整理成一个清晰的下一步。',
 );
+
+useWechatShare(() => ({
+  title: pageTitle.value || '今日状态',
+  path: '/pages/index/index',
+}));
 
 const heroStatusText = computed(
   () => userSummary.value.welcomeNote || stateOverview.value.confidenceLabel || '等待同步今日状态',

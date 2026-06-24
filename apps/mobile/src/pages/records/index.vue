@@ -220,6 +220,7 @@ import { computed, ref } from 'vue';
 import AppTabBar from '../../components/AppTabBar.vue';
 import { fetchRecordOverview } from '../../api/records';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getErrorMessage, handleAuthExpired } from '../../services/errors';
 import { clearSession, getAuthToken } from '../../services/session';
 import { usePageStateStore } from '../../stores/page-state';
@@ -325,6 +326,11 @@ const overview = computed(() => recordOverview.value.overview);
 const currentMonthLabel = computed(() => recordOverview.value.calendar.monthLabel);
 const pageStateStore = usePageStateStore();
 let lastRecordsVersion = pageStateStore.versionOf('records');
+
+useWechatShare({
+  title: '查看我的状态记录',
+  path: '/pages/records/index',
+});
 
 const moodRecords = computed(() => recordOverview.value.moodRecords);
 const testRecords = computed(() => recordOverview.value.testRecords);

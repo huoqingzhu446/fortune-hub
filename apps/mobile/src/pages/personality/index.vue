@@ -314,6 +314,7 @@ import {
 } from '../../api/assessment';
 import { fetchEmotionTests } from '../../api/emotion';
 import { useThemePreference } from '../../composables/useThemePreference';
+import { useWechatShare } from '../../composables/useWechatShare';
 import { getAuthToken } from '../../services/session';
 import type {
   PersonalityHistoryItem,
@@ -343,6 +344,16 @@ const submitting = ref(false);
 const answering = ref(false);
 const authToken = ref(getAuthToken());
 const { themeVars } = useThemePreference();
+
+useWechatShare(() => ({
+  title:
+    latestResult.value?.sharePoster.title ||
+    latestResult.value?.title ||
+    activeTest.value?.title ||
+    latestTest.value?.title ||
+    '性格测评',
+  path: '/pages/personality/index',
+}));
 
 const isLoggedIn = computed(() => Boolean(authToken.value));
 const currentQuestion = computed(
